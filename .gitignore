@@ -1,0 +1,3 @@
+src/*.o
+engine
+*.out
