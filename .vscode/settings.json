@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "move.h": "c",
+        "inttypes.h": "c",
+        "types.h": "c",
+        "stdint.h": "c",
+        "functional": "c"
+    },
+    "C_Cpp.errorSquiggles": "enabled"
+}
