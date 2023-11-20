@@ -88,6 +88,7 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
 
     newStack->capturedPiece = board->pieces[target];
     Square captureTarget = target;
+    Bitboard captureTargetBB = C64(1) << captureTarget;
 
     Piece piece = board->pieces[origin];
 
@@ -103,52 +104,42 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
     board->pieces[target] = piece;
 
     // This move is en passent
-    if ((move & MOVE_ENPASSANT) == MOVE_ENPASSANT) {
+    if (__builtin_expect((move & MOVE_ENPASSANT) == MOVE_ENPASSANT, 0)) {
         newStack->capturedPiece = PIECE_PAWN;
         captureTarget = target - UP[board->stm];
+        captureTargetBB = C64(1) << captureTarget;
         board->pieces[captureTarget] = NO_PIECE; // remove the captured pawn
-        board->board ^= C64(1) << captureTarget;
+        board->board ^= captureTargetBB;
     }
 
     // Handle capture
     if (newStack->capturedPiece != NO_PIECE) {
         board->board |= targetBB; // Put piece on target square (in case xor didn't work)
-        board->byColor[1 - board->stm] ^= C64(1) << captureTarget; // take away the captured piece
-        board->byPiece[1 - board->stm][newStack->capturedPiece] ^= C64(1) << captureTarget;
+        board->byColor[1 - board->stm] ^= captureTargetBB; // take away the captured piece
+        board->byPiece[1 - board->stm][newStack->capturedPiece] ^= captureTargetBB;
     }
 
     // En passent square
     newStack->enpassantTarget = 0;
-    if (piece == PIECE_PAWN && (origin ^ target) == 16) {
+    if (__builtin_expect(piece == PIECE_PAWN && (origin ^ target) == 16, 0)) {
         newStack->enpassantTarget = C64(1) << (target - UP[board->stm]);
     }
 
-    // debugBitboard(board->stack->attacked[board->stm][PIECE_PAWN]);
-    memcpy(board->stack->attackedByPiece, board->stack->previous->attackedByPiece, sizeof(Bitboard) * 12);
-    memcpy(board->stack->attackedByColor, board->stack->previous->attackedByColor, sizeof(Bitboard) * 2);
-    // // debugBitboard(board->stack->attacked[board->stm][PIECE_PAWN]);
-    // // printf("----\n");
-    // board->stack->attacked[board->stm][piece] = attackedSquaresByPiece(board, board->stm, piece);
-    // for (Piece _piece = 0; _piece < PIECE_TYPES; _piece++) {
-    //     board->stack->attacked[1 - board->stm][_piece] = attackedSquaresByPiece(board, 1 - board->stm, _piece);
-    // }
-    {
-        Color side = board->stm;
+    memcpy(board->stack->attackedByPiece, board->stack->previous->attackedByPiece, sizeof(Bitboard) * 14);
+    for (Color side = 0; side <= 1; side++) {
         Bitboard attackers = C64(0);
         for (Piece _piece = 0; _piece < PIECE_TYPES; _piece++) {
-            board->stack->attackedByPiece[side][_piece] = attackedSquaresByPiece(board, side, _piece);
+            // If from or to are attacked, or this piece type was moved or captured, regenerate
+            if (
+                (board->stack->attackedByPiece[side][_piece] & (fromTo | captureTargetBB)) ||
+                (side == board->stm && piece == _piece) ||
+                (side != board->stm && _piece == newStack->capturedPiece)
+            ) {
+                board->stack->attackedByPiece[side][_piece] = attackedSquaresByPiece(board, side, _piece);
+            }
             attackers |= board->stack->attackedByPiece[side][_piece];
         }
         board->stack->attackedByColor[side] = attackers;
-    }
-    {
-        Color otherSide = 1 - board->stm;
-        Bitboard attackers = C64(0);
-        for (Piece _piece = 0; _piece < PIECE_TYPES; _piece++) {
-            board->stack->attackedByPiece[otherSide][_piece] = attackedSquaresByPiece(board, otherSide, _piece);
-            attackers |= board->stack->attackedByPiece[otherSide][_piece];
-        }
-        board->stack->attackedByColor[otherSide] = attackers;
     }
 
     board->stm = 1 - board->stm;

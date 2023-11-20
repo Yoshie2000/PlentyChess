@@ -59,7 +59,7 @@ void runEngine() {
     struct BoardStack stack;
     board.stack = &stack;
     startpos(&board);
-    debugBoard(&board);
+    // debugBoard(&board);
 
     struct BoardStack newStack;
     // debugBitboard(board.stack->attacked[COLOR_BLACK][PIECE_PAWN]);
