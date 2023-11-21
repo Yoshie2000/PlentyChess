@@ -15,8 +15,8 @@
     // Promotion piece type: 00 == knight, 01 == bishop, 10 == rook, 11 == queen
     typedef uint16_t Move;
 
-    Square lsb(Bitboard bb);
+    inline Square lsb(Bitboard bb);
 
-    Square popLSB(Bitboard* bb);
+    inline Square popLSB(Bitboard* bb);
 
 #endif

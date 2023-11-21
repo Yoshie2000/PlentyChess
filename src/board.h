@@ -43,20 +43,23 @@
         Bitboard board;
         Piece pieces[64];
 
-        int stm;
-        int ply;
-        int rule50_ply;
-        unsigned int castling; // 0000 -> black queenside, black kingside, white queenside, white kingside
+        Color stm;
+        uint8_t ply;
+        uint8_t rule50_ply;
 
         struct BoardStack* stack;
     };
 
-    struct BoardStack {
+    struct BoardStack {        
         Piece capturedPiece;
         Bitboard enpassantTarget; // one-hot encoding -> 0 means no en passant possible
 
+        // MEMCPY GOES FROM HERE
         Bitboard attackedByPiece[2][PIECE_TYPES];
         Bitboard attackedByColor[2];
+
+        uint8_t castling; // 0000 -> black queenside, black kingside, white queenside, white kingside
+        // TO HERE
 
         struct BoardStack* previous;
     };

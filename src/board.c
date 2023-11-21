@@ -62,12 +62,12 @@ void startpos(struct Board* result) {
         .stm = COLOR_WHITE,
         .ply = 1,
         .rule50_ply = 0,
-        .castling = 0xF, // 0b1111
         .stack = result->stack
     };
     *result = board;
     result->stack->capturedPiece = NO_PIECE;
     result->stack->enpassantTarget = 0;
+    result->stack->castling = 0xF; // 0b1111
 
     for (Color side = 0; side <= 1; side++) {
         Bitboard attackers = C64(0);
@@ -79,9 +79,41 @@ void startpos(struct Board* result) {
     }
 }
 
+inline void castlingRookSquares(struct Board* board, Square origin, Square target, Square* rookOrigin, Square* rookTarget) {
+    switch (board->stm) {
+    case COLOR_WHITE:
+        switch (target > origin) {
+        case true: // Kingside White
+            *rookOrigin = 7;
+            *rookTarget = 5;
+            break;
+        default: // Queenside White
+            *rookOrigin = 0;
+            *rookTarget = 3;
+            break;
+        }
+        board->stack->castling &= 0xC; // Clear flags for white
+        break;
+    default:
+        switch (target > origin) {
+        case true: // Kingside Black
+            *rookOrigin = 63;
+            *rookTarget = 61;
+            break;
+        default: // Queenside Black
+            *rookOrigin = 56;
+            *rookTarget = 59;
+            break;
+        }
+        board->stack->castling &= 0x3; // Clear flags for black
+        break;
+    }
+}
+
 void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
     newStack->previous = board->stack;
     board->stack = newStack;
+    memcpy(board->stack->attackedByPiece, board->stack->previous->attackedByPiece, sizeof(Bitboard) * 14 + sizeof(uint8_t));
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
@@ -104,7 +136,8 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
     board->pieces[target] = piece;
 
     // This move is en passent
-    if (__builtin_expect((move & MOVE_ENPASSANT) == MOVE_ENPASSANT, 0)) {
+    Move specialMove = move & 0xF000;
+    if (__builtin_expect(specialMove == MOVE_ENPASSANT, 0)) {
         newStack->capturedPiece = PIECE_PAWN;
         captureTarget = target - UP[board->stm];
         captureTargetBB = C64(1) << captureTarget;
@@ -125,16 +158,57 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
         newStack->enpassantTarget = C64(1) << (target - UP[board->stm]);
     }
 
-    memcpy(board->stack->attackedByPiece, board->stack->previous->attackedByPiece, sizeof(Bitboard) * 14);
-    for (Color side = 0; side <= 1; side++) {
-        Bitboard attackers = C64(0);
-        for (Piece _piece = 0; _piece < PIECE_TYPES; _piece++) {
+    // This move is castling
+    if (specialMove == MOVE_CASTLING) {
+        Square rookOrigin, rookTarget;
+        castlingRookSquares(board, origin, target, &rookOrigin, &rookTarget);
+
+        Bitboard rookFromToBB = (C64(1) << rookOrigin) | (C64(1) << rookTarget);
+        board->pieces[rookOrigin] = NO_PIECE;
+        board->pieces[rookTarget] = PIECE_ROOK;
+        board->board ^= rookFromToBB;
+        board->byColor[board->stm] ^= rookFromToBB;
+        board->byPiece[board->stm][PIECE_ROOK] ^= rookFromToBB;
+    }
+
+    // Unset castling flags if necessary
+    if (piece == PIECE_KING) {
+        if (board->stm == COLOR_WHITE)
+            board->stack->castling &= 0xC;
+        else
+            board->stack->castling &= 0x3;
+    } else if (piece == PIECE_ROOK || newStack->capturedPiece == PIECE_ROOK) {
+        switch (piece == PIECE_ROOK ? origin : captureTarget)
+        {
+        case 0:
+            board->stack->castling &= ~0x2; // Queenside castle white
+            break;
+        case 7:
+            board->stack->castling &= ~0x1; // Kingside castle white
+            break;
+        case 56:
+            board->stack->castling &= ~0x8; // Queenside castle black
+            break;
+        case 63:
+            board->stack->castling &= ~0x4; // Kingside castle black
+            break;
+        default:
+            break;
+        }
+    }
+
+    Color side;
+    Bitboard attackers;
+    Piece _piece;
+    for (side = 0; side <= 1; side++) {
+        attackers = C64(0);
+        for (_piece = 0; _piece < PIECE_TYPES; _piece++) {
             // If from or to are attacked, or this piece type was moved or captured, regenerate
             if (
                 (board->stack->attackedByPiece[side][_piece] & (fromTo | captureTargetBB)) ||
                 (side == board->stm && piece == _piece) ||
                 (side != board->stm && _piece == newStack->capturedPiece)
-            ) {
+                ) {
                 board->stack->attackedByPiece[side][_piece] = attackedSquaresByPiece(board, side, _piece);
             }
             attackers |= board->stack->attackedByPiece[side][_piece];
@@ -164,7 +238,8 @@ void undoMove(struct Board* board, Move move) {
     board->pieces[origin] = piece;
 
     // This move is en passent
-    if ((move & MOVE_ENPASSANT) == MOVE_ENPASSANT) {
+    Move specialMove = move & 0xF000;
+    if (specialMove == MOVE_ENPASSANT) {
         captureTarget = target - UP[board->stm];
         board->board ^= C64(1) << captureTarget;
     }
@@ -175,6 +250,19 @@ void undoMove(struct Board* board, Move move) {
         board->board |= C64(1) << captureTarget;
         board->byColor[1 - board->stm] ^= C64(1) << captureTarget;
         board->byPiece[1 - board->stm][board->stack->capturedPiece] ^= C64(1) << captureTarget;
+    }
+
+    // Castling
+    if (specialMove == MOVE_CASTLING) {
+        Square rookOrigin, rookTarget;
+        castlingRookSquares(board, origin, target, &rookOrigin, &rookTarget);
+
+        Bitboard rookFromToBB = (C64(1) << rookOrigin) | (C64(1) << rookTarget);
+        board->pieces[rookOrigin] = PIECE_ROOK;
+        board->pieces[rookTarget] = NO_PIECE;
+        board->board ^= rookFromToBB;
+        board->byColor[board->stm] ^= rookFromToBB;
+        board->byPiece[board->stm][PIECE_ROOK] ^= rookFromToBB;
     }
 
     board->stack = board->stack->previous;

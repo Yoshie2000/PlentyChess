@@ -137,13 +137,14 @@ void generateMoves(struct Board* board, Move* moves, int* counter) {
     // ------------------- PAWN MOVES ----------------------
     {
         Bitboard pawns = board->byPiece[board->stm][PIECE_PAWN];
-        
+
         Bitboard pushedPawns, secondRankPawns, doublePushedPawns;
         if (board->stm == COLOR_WHITE) {
             pushedPawns = (pawns << 8) & free;
             secondRankPawns = (pawns & RANK_2) & pawns;
             doublePushedPawns = (((secondRankPawns << 8) & free) << 8) & free;
-        } else {
+        }
+        else {
             pushedPawns = (pawns >> 8) & free;
             secondRankPawns = (pawns & RANK_7) & pawns;
             doublePushedPawns = (((secondRankPawns >> 8) & free) >> 8) & free;
@@ -235,6 +236,36 @@ void generateMoves(struct Board* board, Move* moves, int* counter) {
             Square target = popLSB(&kingTargets);
             *moves++ = createMove(king, target);
             (*counter)++;
+        }
+
+        if (!isInCheck(board, board->stm)) {
+            // Castling: Nothing on the squares between king and rook, also nothing from the enemy attacking it
+            switch (board->stm) {
+            case COLOR_WHITE:
+                // Kingside
+                if ((board->stack->castling & 0x1) && !(board->board & 0x60) && !(board->stack->attackedByColor[COLOR_BLACK] & 0x60)) {
+                    *moves++ = createMove(king, king + 2) | MOVE_CASTLING;
+                    (*counter)++;
+                }
+                // Queenside
+                if ((board->stack->castling & 0x2) && !(board->board & 0x0E) && !(board->stack->attackedByColor[COLOR_BLACK] & 0x0E)) {
+                    *moves++ = createMove(king, king - 2) | MOVE_CASTLING;
+                    (*counter)++;
+                }
+                break;
+            case COLOR_BLACK:
+                // Kingside
+                if ((board->stack->castling & 0x4) && !(board->board & C64(0x6000000000000000)) && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x6000000000000000))) {
+                    *moves++ = createMove(king, king + 2) | MOVE_CASTLING;
+                    (*counter)++;
+                }
+                // Queenside
+                if ((board->stack->castling & 0x8) && !(board->board & C64(0x0E00000000000000)) && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x0E00000000000000))) {
+                    *moves++ = createMove(king, king - 2) | MOVE_CASTLING;
+                    (*counter)++;
+                }
+                break;
+            }
         }
     }
 }
