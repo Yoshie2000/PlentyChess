@@ -65,6 +65,7 @@
     };
 
     void startpos(struct Board* result);
+    size_t parseFen(struct Board* board, char* fen);
 
     void doMove(struct Board* board, struct BoardStack* newStack, Move move);
     void undoMove(struct Board* board, Move move);

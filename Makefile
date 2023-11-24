@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS = -Wall -pedantic -Wextra -fcommon -O3 -fgnu89-inline -funroll-all-loops
+CFLAGS = -Wall -pedantic -Wextra -fcommon -pthread -O3 -fgnu89-inline -funroll-all-loops
 
-SOURCES = src/engine.c src/board.c src/move.c src/types.c
+SOURCES = src/engine.c src/board.c src/move.c src/types.c src/uci.c
 OBJS = $(patsubst %.c,%.o, $(SOURCES))
 
 all:	engine

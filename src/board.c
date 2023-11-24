@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "move.h"
 #include "types.h"
@@ -25,58 +26,225 @@ const Bitboard RANK_7 = 0x00FF000000000000;
 const Bitboard RANK_8 = 0xFF00000000000000;
 
 void startpos(struct Board* result) {
-    struct Board board = {
-        .byPiece = {
-            {
-                0x000000000000FF00, // 0b0000000000000000000000000000000000000000000000001111111100000000,
-                0x0000000000000042, // 0b0000000000000000000000000000000000000000000000000000000001000010,
-                0x0000000000000024, // 0b0000000000000000000000000000000000000000000000000000000000100100,
-                0x0000000000000081, // 0b0000000000000000000000000000000000000000000000000000000010000001,
-                0x0000000000000008, // 0b0000000000000000000000000000000000000000000000000000000000001000,
-                0x0000000000000010  // 0b0000000000000000000000000000000000000000000000000000000000010000,
-            },
-            {
-                0x00FF000000000000, // 0b0000000011111111000000000000000000000000000000000000000000000000,
-                0x4200000000000000, // 0b0100001000000000000000000000000000000000000000000000000000000000,
-                0x2400000000000000, //, 0b0010010000000000000000000000000000000000000000000000000000000000,
-                0x8100000000000000, //, 0b1000000100000000000000000000000000000000000000000000000000000000,
-                0x0800000000000000, //, 0b0001000000000000000000000000000000000000000000000000000000000000,
-                0x1000000000000000  //, 0b0000100000000000000000000000000000000000000000000000000000000000,
-            },
-        },
-        .byColor = {
-            0x000000000000FFFF,
-            0xFFFF000000000000
-        },
-        .board = 0xFFFF00000000FFFF, // 0b1111111111111111000000000000000000000000000000001111111111111111,
-        .pieces = {
-            PIECE_ROOK, PIECE_KNIGHT, PIECE_BISHOP, PIECE_QUEEN, PIECE_KING, PIECE_BISHOP, PIECE_KNIGHT, PIECE_ROOK,
-            PIECE_PAWN, PIECE_PAWN, PIECE_PAWN, PIECE_PAWN, PIECE_PAWN, PIECE_PAWN, PIECE_PAWN, PIECE_PAWN,
-            NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE,
-            NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE,
-            NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE,
-            NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE, NO_PIECE,
-            PIECE_PAWN, PIECE_PAWN, PIECE_PAWN, PIECE_PAWN, PIECE_PAWN, PIECE_PAWN, PIECE_PAWN, PIECE_PAWN,
-            PIECE_ROOK, PIECE_KNIGHT, PIECE_BISHOP, PIECE_QUEEN, PIECE_KING, PIECE_BISHOP, PIECE_KNIGHT, PIECE_ROOK,
-        },
-        .stm = COLOR_WHITE,
-        .ply = 1,
-        .rule50_ply = 0,
-        .stack = result->stack
-    };
-    *result = board;
-    result->stack->capturedPiece = NO_PIECE;
-    result->stack->enpassantTarget = 0;
-    result->stack->castling = 0xF; // 0b1111
+    parseFen(result, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+}
 
+size_t parseFen(struct Board* board, char* fen) {
+    Square currentSquare = 56;
+    uint8_t currentRank = 7;
+    size_t i = 0;
+
+    // Reset everything (there might be garbage data)
+    board->board = 0;
+    for (Square s = 0; s < 64; s++) {
+        board->pieces[s] = NO_PIECE;
+    }
+    for (Color c = 0; c <= 1; c++) {
+        board->byColor[c] = C64(0);
+        for (Piece p = 0; p < PIECE_TYPES; p++) {
+            board->byPiece[c][p] = C64(0);
+        }
+    }
+    board->stack->capturedPiece = NO_PIECE;
+
+    // Board position and everything
+    for (i = 0; i < strlen(fen); i++) {
+        char c = fen[i];
+        if (c == ' ') {
+            i++;
+            break;
+        }
+
+        Bitboard currentSquareBB = C64(1) << currentSquare;
+        switch (c) {
+        case 'p':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_BLACK] |= currentSquareBB;
+            board->byPiece[COLOR_BLACK][PIECE_PAWN] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_PAWN;
+            currentSquare++;
+            break;
+        case 'P':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_WHITE] |= currentSquareBB;
+            board->byPiece[COLOR_WHITE][PIECE_PAWN] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_PAWN;
+            currentSquare++;
+            break;
+        case 'n':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_BLACK] |= currentSquareBB;
+            board->byPiece[COLOR_BLACK][PIECE_KNIGHT] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_KNIGHT;
+            currentSquare++;
+            break;
+        case 'N':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_WHITE] |= currentSquareBB;
+            board->byPiece[COLOR_WHITE][PIECE_KNIGHT] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_KNIGHT;
+            currentSquare++;
+            break;
+        case 'b':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_BLACK] |= currentSquareBB;
+            board->byPiece[COLOR_BLACK][PIECE_BISHOP] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_BISHOP;
+            currentSquare++;
+            break;
+        case 'B':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_WHITE] |= currentSquareBB;
+            board->byPiece[COLOR_WHITE][PIECE_BISHOP] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_BISHOP;
+            currentSquare++;
+            break;
+        case 'r':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_BLACK] |= currentSquareBB;
+            board->byPiece[COLOR_BLACK][PIECE_ROOK] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_ROOK;
+            currentSquare++;
+            break;
+        case 'R':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_WHITE] |= currentSquareBB;
+            board->byPiece[COLOR_WHITE][PIECE_ROOK] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_ROOK;
+            currentSquare++;
+            break;
+        case 'q':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_BLACK] |= currentSquareBB;
+            board->byPiece[COLOR_BLACK][PIECE_QUEEN] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_QUEEN;
+            currentSquare++;
+            break;
+        case 'Q':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_WHITE] |= currentSquareBB;
+            board->byPiece[COLOR_WHITE][PIECE_QUEEN] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_QUEEN;
+            currentSquare++;
+            break;
+        case 'k':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_BLACK] |= currentSquareBB;
+            board->byPiece[COLOR_BLACK][PIECE_KING] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_KING;
+            currentSquare++;
+            break;
+        case 'K':
+            board->board |= currentSquareBB;
+            board->byColor[COLOR_WHITE] |= currentSquareBB;
+            board->byPiece[COLOR_WHITE][PIECE_KING] |= currentSquareBB;
+            board->pieces[currentSquare] = PIECE_KING;
+            currentSquare++;
+            break;
+        case '/':
+            currentRank--;
+            currentSquare = 8 * currentRank;
+            break;
+        default: // Number
+            currentSquare += (int)(c)-48;
+            break;
+        }
+    }
+
+    // Side to move
+    board->stm = fen[i] == 'w' ? COLOR_WHITE : COLOR_BLACK;
+    i += 2;
+
+    // Castling
+    board->stack->castling = 0;
+    for (; i < strlen(fen); i++) {
+        char c = fen[i];
+
+        if (c == '-') {
+            i += 2;
+            break;
+        }
+        else if (c == ' ') {
+            i++;
+            break;
+        }
+
+        switch (c) {
+        case 'k':
+            board->stack->castling |= 0x4;
+            break;
+        case 'K':
+            board->stack->castling |= 0x1;
+            break;
+        case 'q':
+            board->stack->castling |= 0x8;
+            break;
+        case 'Q':
+            board->stack->castling |= 0x4;
+            break;
+        case ' ':
+        default:
+            printf("Weird char in fen castling: %c (index %ld)\n", c, i);
+            exit(-1);
+            break;
+        }
+    }
+
+    // en passent
+    if (fen[i] == '-') {
+        board->stack->enpassantTarget = C64(0);
+        i += 2;
+    }
+    else {
+        char epTargetString[2];
+        epTargetString[0] = fen[i];
+        epTargetString[1] = fen[i + 1];
+        Square epTargetSquare = stringToSquare(epTargetString);
+        board->stack->enpassantTarget = C64(1) << epTargetSquare;
+        i += 3;
+    }
+
+    // 50 move rule
+    char rule50String[2] = "--";
+    int rule50tmp = 0;
+    while (fen[i] != ' ') {
+        rule50String[rule50tmp++] = fen[i++];
+    }
+    if (rule50String[1] == '-') {
+        board->rule50_ply = (int)(rule50String[0]) - 48;
+    }
+    else {
+        board->rule50_ply = 10 * ((int)(rule50String[0]) - 48) + ((int)(rule50String[1]) - 48);
+    }
+    i++;
+
+    // Move number
+    char plyString[3] = "---";
+    int plyTmp = 0;
+    while (fen[i] != ' ' && i < strlen(fen)) {
+        plyString[plyTmp++] = fen[i++];
+    }
+    if (plyString[1] == '-') {
+        board->ply = (int)(plyString[0]) - 48;
+    }
+    else if (plyString[2] == '-') {
+        board->ply = 10 * ((int)(plyString[0]) - 48) + ((int)(plyString[1]) - 48);
+    }
+    else {
+        board->ply = 100 * ((int)(plyString[0]) - 48) + 10 * ((int)(plyString[1]) - 48) + ((int)(plyString[2]) - 48);
+    }
+
+    // Compute attackers
     for (Color side = 0; side <= 1; side++) {
         Bitboard attackers = C64(0);
         for (Piece piece = 0; piece < PIECE_TYPES; piece++) {
-            result->stack->attackedByPiece[side][piece] = attackedSquaresByPiece(result, side, piece);
-            attackers |= result->stack->attackedByPiece[side][piece];
+            board->stack->attackedByPiece[side][piece] = attackedSquaresByPiece(board, side, piece);
+            attackers |= board->stack->attackedByPiece[side][piece];
         }
-        result->stack->attackedByColor[side] = attackers;
+        board->stack->attackedByColor[side] = attackers;
     }
+
+    return i;
 }
 
 inline void castlingRookSquares(struct Board* board, Square origin, Square target, Square* rookOrigin, Square* rookTarget) {
@@ -123,6 +291,7 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
     Bitboard captureTargetBB = C64(1) << captureTarget;
 
     Piece piece = board->pieces[origin];
+    Piece promotionPiece = NO_PIECE;
 
     Bitboard originBB = C64(1) << origin;
     Bitboard targetBB = C64(1) << target;
@@ -136,7 +305,7 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
     board->pieces[target] = piece;
 
     // This move is en passent
-    Move specialMove = move & 0xF000;
+    Move specialMove = move & 0x3000;
     if (__builtin_expect(specialMove == MOVE_ENPASSANT, 0)) {
         newStack->capturedPiece = PIECE_PAWN;
         captureTarget = target - UP[board->stm];
@@ -159,7 +328,7 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
     }
 
     // This move is castling
-    if (specialMove == MOVE_CASTLING) {
+    if (__builtin_expect(specialMove == MOVE_CASTLING, 0)) {
         Square rookOrigin, rookTarget;
         castlingRookSquares(board, origin, target, &rookOrigin, &rookTarget);
 
@@ -171,15 +340,24 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
         board->byPiece[board->stm][PIECE_ROOK] ^= rookFromToBB;
     }
 
+    // This move is promotion
+    if (__builtin_expect(specialMove == MOVE_PROMOTION, 0)) {
+        promotionPiece = PROMOTION_PIECE[move >> 14];
+        board->byPiece[board->stm][piece] ^= targetBB;
+        board->byPiece[board->stm][promotionPiece] ^= targetBB;
+
+        board->pieces[target] = promotionPiece;
+    }
+
     // Unset castling flags if necessary
     if (piece == PIECE_KING) {
         if (board->stm == COLOR_WHITE)
             board->stack->castling &= 0xC;
         else
             board->stack->castling &= 0x3;
-    } else if (piece == PIECE_ROOK || newStack->capturedPiece == PIECE_ROOK) {
-        switch (piece == PIECE_ROOK ? origin : captureTarget)
-        {
+    }
+    else if (piece == PIECE_ROOK || newStack->capturedPiece == PIECE_ROOK) {
+        switch (piece == PIECE_ROOK ? origin : captureTarget) {
         case 0:
             board->stack->castling &= ~0x2; // Queenside castle white
             break;
@@ -207,7 +385,8 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
             if (
                 (board->stack->attackedByPiece[side][_piece] & (fromTo | captureTargetBB)) ||
                 (side == board->stm && piece == _piece) ||
-                (side != board->stm && _piece == newStack->capturedPiece)
+                (side != board->stm && _piece == newStack->capturedPiece) ||
+                (_piece == promotionPiece)
                 ) {
                 board->stack->attackedByPiece[side][_piece] = attackedSquaresByPiece(board, side, _piece);
             }
@@ -226,19 +405,22 @@ void undoMove(struct Board* board, Move move) {
     Square target = moveTarget(move);
     Square captureTarget = target;
 
-    Piece piece = board->pieces[target];
-
-    Bitboard fromTo = (C64(1) << origin) | (C64(1) << target);
+    Bitboard originBB = C64(1) << origin;
+    Bitboard targetBB = C64(1) << target;
+    Bitboard fromTo = originBB | targetBB;
 
     board->board ^= fromTo;
     board->byColor[board->stm] ^= fromTo;
+
+    Piece piece = board->pieces[target];
+
     board->byPiece[board->stm][piece] ^= fromTo;
 
     board->pieces[target] = NO_PIECE;
     board->pieces[origin] = piece;
 
     // This move is en passent
-    Move specialMove = move & 0xF000;
+    Move specialMove = move & 0x3000;
     if (specialMove == MOVE_ENPASSANT) {
         captureTarget = target - UP[board->stm];
         board->board ^= C64(1) << captureTarget;
@@ -253,7 +435,7 @@ void undoMove(struct Board* board, Move move) {
     }
 
     // Castling
-    if (specialMove == MOVE_CASTLING) {
+    if (__builtin_expect(specialMove == MOVE_CASTLING, 0)) {
         Square rookOrigin, rookTarget;
         castlingRookSquares(board, origin, target, &rookOrigin, &rookTarget);
 
@@ -263,6 +445,14 @@ void undoMove(struct Board* board, Move move) {
         board->board ^= rookFromToBB;
         board->byColor[board->stm] ^= rookFromToBB;
         board->byPiece[board->stm][PIECE_ROOK] ^= rookFromToBB;
+    }
+
+    // This move is promotion
+    if (__builtin_expect(specialMove == MOVE_PROMOTION, 0)) {
+        board->byPiece[board->stm][piece] ^= originBB;
+        board->byPiece[board->stm][PIECE_PAWN] ^= originBB;
+
+        board->pieces[origin] = PIECE_PAWN;
     }
 
     board->stack = board->stack->previous;

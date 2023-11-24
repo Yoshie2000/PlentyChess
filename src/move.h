@@ -14,10 +14,10 @@
     extern const Move MOVE_ENPASSANT;
     extern const Move MOVE_CASTLING;
 
-    extern const Move PROMOTION_KNIGHT;
-    extern const Move PROMOTION_BISHOP;
-    extern const Move PROMOTION_ROOK;
-    extern const Move PROMOTION_QUEEN;
+    #define PROMOTION_QUEEN (Move) (0 << 14)
+    #define PROMOTION_ROOK (Move) (1 << 14)
+    #define PROMOTION_BISHOP (Move) (2 << 14)
+    #define PROMOTION_KNIGHT (Move) (3 << 14)
 
     extern const uint8_t DIRECTIONS[PIECE_TYPES][2];
     extern const int8_t DIRECTION_DELTAS[8];
@@ -28,6 +28,8 @@
     extern const int8_t UP_LEFT[2];
     extern const int8_t UP_RIGHT[2];
 
+    extern const Piece PROMOTION_PIECE[4];
+
     Square moveOrigin(Move move);
     Square moveTarget(Move move);
 
@@ -37,6 +39,7 @@
 
     void moveToString(char* string, Move move);
 
+    Square stringToSquare(char* string);
     Move stringToMove(char* string);
 
 #endif

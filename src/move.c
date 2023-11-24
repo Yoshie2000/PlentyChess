@@ -11,11 +11,6 @@ const Move MOVE_PROMOTION = 1 << 12;
 const Move MOVE_ENPASSANT = 2 << 12;
 const Move MOVE_CASTLING = 3 << 12;
 
-const Move PROMOTION_KNIGHT = 0 << 14;
-const Move PROMOTION_BISHOP = 1 << 14;
-const Move PROMOTION_ROOK = 2 << 14;
-const Move PROMOTION_QUEEN = 3 << 14;
-
 // Sliding piece stuff
 const uint8_t DIRECTION_UP = 0;
 const uint8_t DIRECTION_RIGHT = 1;
@@ -45,6 +40,8 @@ const int8_t UP[2] = { 8, -8 };
 const int8_t UP_DOUBLE[2] = { 16, -16 };
 const int8_t UP_LEFT[2] = { 7, -9 };
 const int8_t UP_RIGHT[2] = { 9, -7 };
+
+const Piece PROMOTION_PIECE[4] = { PIECE_QUEEN, PIECE_ROOK, PIECE_BISHOP, PIECE_KNIGHT };
 
 const Square LASTSQ_TABLE[64][8] = {
     { 56, 7, 0, 0, 63, 0, 0, 0 },
@@ -138,21 +135,34 @@ void generateMoves(struct Board* board, Move* moves, int* counter) {
     {
         Bitboard pawns = board->byPiece[board->stm][PIECE_PAWN];
 
-        Bitboard pushedPawns, secondRankPawns, doublePushedPawns;
+        Bitboard pushedPawns, secondRankPawns, doublePushedPawns, enemyBackrank;
         if (board->stm == COLOR_WHITE) {
             pushedPawns = (pawns << 8) & free;
             secondRankPawns = (pawns & RANK_2) & pawns;
             doublePushedPawns = (((secondRankPawns << 8) & free) << 8) & free;
+            enemyBackrank = RANK_8;
         }
         else {
             pushedPawns = (pawns >> 8) & free;
             secondRankPawns = (pawns & RANK_7) & pawns;
             doublePushedPawns = (((secondRankPawns >> 8) & free) >> 8) & free;
+            enemyBackrank = RANK_1;
         }
 
         while (pushedPawns) {
             Square target = popLSB(&pushedPawns);
-            *moves++ = createMove(target - UP[board->stm], target);
+            Move move = createMove(target - UP[board->stm], target);
+
+            if (__builtin_expect((C64(1) << target) & enemyBackrank, 0)) {
+                // Promotion
+                for (uint8_t promotion = 0; promotion <= 3; promotion++) {
+                    *moves++ = move | (promotion << 14) | MOVE_PROMOTION;
+                    (*counter)++;
+                }
+                continue;
+            }
+
+            *moves++ = move;
             (*counter)++;
         }
 
@@ -170,13 +180,35 @@ void generateMoves(struct Board* board, Move* moves, int* counter) {
         Bitboard leftCaptures = pAttacksLeft & blockedEnemy;
         while (leftCaptures) {
             Square target = popLSB(&leftCaptures);
-            *moves++ = createMove(target - UP_LEFT[board->stm], target);
+            Move move = createMove(target - UP_LEFT[board->stm], target);
+
+            if (__builtin_expect((C64(1) << target) & enemyBackrank, 0)) {
+                // Promotion
+                for (uint8_t promotion = 0; promotion <= 3; promotion++) {
+                    *moves++ = move | (promotion << 14) | MOVE_PROMOTION;
+                    (*counter)++;
+                }
+                continue;
+            }
+
+            *moves++ = move;
             (*counter)++;
         }
         Bitboard rightCaptures = pAttacksRight & blockedEnemy;
         while (rightCaptures) {
             Square target = popLSB(&rightCaptures);
-            *moves++ = createMove(target - UP_RIGHT[board->stm], target);
+            Move move = createMove(target - UP_RIGHT[board->stm], target);
+
+            if (__builtin_expect((C64(1) << target) & enemyBackrank, 0)) {
+                // Promotion
+                for (uint8_t promotion = 0; promotion <= 3; promotion++) {
+                    *moves++ = move | (promotion << 14) | MOVE_PROMOTION;
+                    (*counter)++;
+                }
+                continue;
+            }
+
+            *moves++ = move;
             (*counter)++;
         }
 
@@ -248,7 +280,7 @@ void generateMoves(struct Board* board, Move* moves, int* counter) {
                     (*counter)++;
                 }
                 // Queenside
-                if ((board->stack->castling & 0x2) && !(board->board & 0x0E) && !(board->stack->attackedByColor[COLOR_BLACK] & 0x0E)) {
+                if ((board->stack->castling & 0x2) && !(board->board & 0x0E) && !(board->stack->attackedByColor[COLOR_BLACK] & 0x0C)) {
                     *moves++ = createMove(king, king - 2) | MOVE_CASTLING;
                     (*counter)++;
                 }
@@ -260,7 +292,7 @@ void generateMoves(struct Board* board, Move* moves, int* counter) {
                     (*counter)++;
                 }
                 // Queenside
-                if ((board->stack->castling & 0x8) && !(board->board & C64(0x0E00000000000000)) && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x0E00000000000000))) {
+                if ((board->stack->castling & 0x8) && !(board->board & C64(0x0E00000000000000)) && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x0C00000000000000))) {
                     *moves++ = createMove(king, king - 2) | MOVE_CASTLING;
                     (*counter)++;
                 }
@@ -321,6 +353,21 @@ void moveToString(char* string, Move move) {
 
     squareToString(&string[0], origin);
     squareToString(&string[2], target);
+
+    if ((move & (0x3 << 12)) == MOVE_PROMOTION) {
+        Move promotionType = move & (0x3) << 14;
+        if (promotionType == PROMOTION_QUEEN)
+            string[4] = 'q';
+        if (promotionType == PROMOTION_ROOK)
+            string[4] = 'r';
+        if (promotionType == PROMOTION_BISHOP)
+            string[4] = 'b';
+        if (promotionType == PROMOTION_KNIGHT)
+            string[4] = 'n';
+    }
+    else {
+        string[4] = '\0';
+    }
 }
 
 inline int fileFromString(char string) {
@@ -370,7 +417,23 @@ Square stringToSquare(char* string) {
 Move stringToMove(char* string) {
     Square origin = stringToSquare(&string[0]);
     Square target = stringToSquare(&string[2]);
-    return createMove(origin, target);
+    Move move = createMove(origin, target);
+
+    switch (string[4]) {
+    case 'q':
+        move |= MOVE_PROMOTION | PROMOTION_QUEEN;
+        break;
+    case 'r':
+        move |= MOVE_PROMOTION | PROMOTION_ROOK;
+        break;
+    case 'b':
+        move |= MOVE_PROMOTION | PROMOTION_BISHOP;
+        break;
+    case 'n':
+        move |= MOVE_PROMOTION | PROMOTION_KNIGHT;
+        break;
+    }
+    return move;
 }
 
 void generateLastSqTable() {
