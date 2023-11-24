@@ -70,23 +70,23 @@
     void doMove(struct Board* board, struct BoardStack* newStack, Move move);
     void undoMove(struct Board* board, Move move);
 
-    inline Bitboard pawnAttacksLeft(struct Board* board, Color side);
-    inline Bitboard pawnAttacksRight(struct Board* board, Color side);
-    inline Bitboard pawnAttacks(struct Board* board, Color side);
+    Bitboard pawnAttacksLeft(struct Board* board, Color side);
+    Bitboard pawnAttacksRight(struct Board* board, Color side);
+    Bitboard pawnAttacks(struct Board* board, Color side);
 
-    inline Bitboard knightAttacks(Bitboard knightBB);
-    inline Bitboard knightAttacksAll(struct Board* board, Color side);
+    Bitboard knightAttacks(Bitboard knightBB);
+    Bitboard knightAttacksAll(struct Board* board, Color side);
 
-    inline Bitboard kingAttacks(struct Board* board, Color side);
+    Bitboard kingAttacks(struct Board* board, Color side);
 
-    inline Bitboard slidingPieceAttacks(struct Board* board, Bitboard pieceBB);
-    inline Bitboard slidingPieceAttacksAll(struct Board* board, Color side, Piece pieceType);
+    Bitboard slidingPieceAttacks(struct Board* board, Bitboard pieceBB);
+    Bitboard slidingPieceAttacksAll(struct Board* board, Color side, Piece pieceType);
 
-    inline bool isSquareAttacked(struct Board* board, Square square, Color side);
-    inline Bitboard attackedSquares(struct Board* board, Color side);
-    inline Bitboard attackedSquaresByPiece(struct Board* board, Color side, Piece pieceType);
+    bool isSquareAttacked(struct Board* board, Square square, Color side);
+    Bitboard attackedSquares(struct Board* board, Color side);
+    Bitboard attackedSquaresByPiece(struct Board* board, Color side, Piece pieceType);
 
-    inline bool isInCheck(struct Board* board, Color side);
+    bool isInCheck(struct Board* board, Color side);
 
     void debugBoard(struct Board* board);
     void debugBitboard(Bitboard bb);
