@@ -4,7 +4,6 @@
     #include <stdint.h>
     
     #include "types.h"
-    #include "board.h"
 
     #define MAX_MOVES 218
 

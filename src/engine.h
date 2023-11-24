@@ -2,10 +2,13 @@
     #define ENGINE_H_INCLUDED
 
     #include <stdbool.h>
+    #include <thread>
+    #include <mutex>
+    #include <condition_variable>
 
-    extern pthread_t searchThread;
-    extern pthread_cond_t searchCond;
-    extern pthread_mutex_t searchMutex;
+    extern std::thread searchThread;
+    extern std::mutex searchMutex;
+    extern std::condition_variable searchCv;
     extern bool searchStopped;
 
 #endif

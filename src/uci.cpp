@@ -1,7 +1,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
+#include <string>
+#include <iostream>
 
 #include "board.h"
 #include "engine.h"
@@ -9,17 +10,14 @@
 #include "move.h"
 
 void notifySearchThread() {
-    if (pthread_cond_signal(&searchCond) != 0) {
-        perror("pthread_cond_signal() error");
-        exit(4);
-    }
+    searchCv.notify_one();
 }
 
-bool matchesToken(char* line, char* token) {
-    return strncmp(line, token, strlen(token)) == 0;
+bool matchesToken(std::string line, std::string token) {
+    return line.rfind(token, 0) == 0;
 }
 
-void position(char* line) {
+void position(std::string line) {
     struct Board board;
     struct BoardStack stack;
     board.stack = &stack;
@@ -27,11 +25,13 @@ void position(char* line) {
     // Set up startpos or moves
     if (matchesToken(line, "startpos")) {
         startpos(&board);
-        line += 9;
+        line = line.substr(9);
     }
     else if (matchesToken(line, "fen")) {
-        line += 4;
-        line += parseFen(&board, line) + 1;
+        line = line.substr(4);
+        size_t fenLength = parseFen(&board, line) + 1;
+        if (line.length() > fenLength)
+            line = line.substr(fenLength);
     }
     else {
         printf("Not a valid position, exiting\n");
@@ -40,23 +40,27 @@ void position(char* line) {
 
     // Make further moves
     if (matchesToken(line, "moves")) {
-        line += 6;
+        line = line.substr(6);
 
         char move[5];
-        size_t lastStrlen = strlen(line);
-        while (strlen(line) >= 4) {
-            lastStrlen = strlen(line);
+        size_t lastStrlen = line.length();
+        while (line.length() >= 4) {
+            lastStrlen = line.length();
 
             size_t i = 0;
-            while (line[i] != ' ' && i < 5 && i < strlen(line)) {
+            while (line[i] != ' ' && i < 5 && i < line.length()) {
                 move[i] = line[i];
                 i++;
             }
             Move m = stringToMove(move);
+
+            char move2[5];
+            moveToString(move2, m);
             // TODO do something here
 
-            line += i + 1;
-            if (strlen(line) >= lastStrlen) break;
+            if (line.length() > i)
+                line = line.substr(i + 1);
+            if (line.length() >= lastStrlen) break;
         }
     }
 
