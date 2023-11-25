@@ -7,6 +7,8 @@
 #include "move.h"
 #include "types.h"
 #include "board.h"
+#include <iostream>
+#include <cassert>
 
 const Bitboard FILE_A = 0x0101010101010101;
 const Bitboard FILE_B = 0x0202020202020202;
@@ -49,14 +51,16 @@ size_t parseFen(struct Board* board, std::string fen) {
     board->stack->capturedPiece = NO_PIECE;
 
     // Board position and everything
+    Bitboard currentSquareBB = C64(1) << currentSquare;
     for (i = 0; i < fen.length(); i++) {
-        char c = fen[i];
+        char c = fen.at(i);
         if (c == ' ') {
             i++;
             break;
         }
 
-        Bitboard currentSquareBB = C64(1) << currentSquare;
+        if (currentSquare < 64)
+            currentSquareBB = C64(1) << currentSquare;
         switch (c) {
         case 'p':
             board->board |= currentSquareBB;
@@ -153,13 +157,13 @@ size_t parseFen(struct Board* board, std::string fen) {
     }
 
     // Side to move
-    board->stm = fen[i] == 'w' ? COLOR_WHITE : COLOR_BLACK;
+    board->stm = fen.at(i) == 'w' ? COLOR_WHITE : COLOR_BLACK;
     i += 2;
 
     // Castling
     board->stack->castling = 0;
     for (; i < fen.length(); i++) {
-        char c = fen[i];
+        char c = fen.at(i);
 
         if (c == '-') {
             i += 2;
@@ -192,14 +196,12 @@ size_t parseFen(struct Board* board, std::string fen) {
     }
 
     // en passent
-    if (fen[i] == '-') {
+    if (fen.at(i) == '-') {
         board->stack->enpassantTarget = C64(0);
         i += 2;
     }
     else {
-        char epTargetString[2];
-        epTargetString[0] = fen[i];
-        epTargetString[1] = fen[i + 1];
+        char epTargetString[2] = { fen.at(i), fen.at(i + 1) };
         Square epTargetSquare = stringToSquare(epTargetString);
         board->stack->enpassantTarget = C64(1) << epTargetSquare;
         i += 3;
@@ -208,31 +210,31 @@ size_t parseFen(struct Board* board, std::string fen) {
     // 50 move rule
     std::string rule50String = "--";
     int rule50tmp = 0;
-    while (fen[i] != ' ') {
-        rule50String[rule50tmp++] = fen[i++];
+    while (fen.at(i) != ' ') {
+        rule50String.replace(rule50tmp++, 1, 1, fen.at(i++));
     }
-    if (rule50String[1] == '-') {
-        board->rule50_ply = (int)(rule50String[0]) - 48;
+    if (rule50String.at(1) == '-') {
+        board->rule50_ply = (int)(rule50String.at(0)) - 48;
     }
     else {
-        board->rule50_ply = 10 * ((int)(rule50String[0]) - 48) + ((int)(rule50String[1]) - 48);
+        board->rule50_ply = 10 * ((int)(rule50String.at(0)) - 48) + ((int)(rule50String.at(1)) - 48);
     }
     i++;
 
     // Move number
     std::string plyString = "---";
     int plyTmp = 0;
-    while (fen[i] != ' ' && i < fen.length()) {
-        plyString[plyTmp++] = fen[i++];
+    while (i < fen.length() && fen.at(i) != ' ') {
+        plyString.replace(plyTmp++, 1, 1, fen.at(i++));
     }
-    if (plyString[1] == '-') {
-        board->ply = (int)(plyString[0]) - 48;
+    if (plyString.at(1) == '-') {
+        board->ply = (int)(plyString.at(0)) - 48;
     }
-    else if (plyString[2] == '-') {
-        board->ply = 10 * ((int)(plyString[0]) - 48) + ((int)(plyString[1]) - 48);
+    else if (plyString.at(2) == '-') {
+        board->ply = 10 * ((int)(plyString.at(0)) - 48) + ((int)(plyString.at(1)) - 48);
     }
     else {
-        board->ply = 100 * ((int)(plyString[0]) - 48) + 10 * ((int)(plyString[1]) - 48) + ((int)(plyString[2]) - 48);
+        board->ply = 100 * ((int)(plyString.at(0)) - 48) + 10 * ((int)(plyString.at(1)) - 48) + ((int)(plyString.at(2)) - 48);
     }
 
     // Compute attackers
@@ -249,33 +251,27 @@ size_t parseFen(struct Board* board, std::string fen) {
 }
 
 void castlingRookSquares(struct Board* board, Square origin, Square target, Square* rookOrigin, Square* rookTarget) {
-    switch (board->stm) {
-    case COLOR_WHITE:
-        switch (target > origin) {
-        case true: // Kingside White
+    if (board->stm == COLOR_WHITE) {
+        if (target > origin) { // Kingside White
             *rookOrigin = 7;
             *rookTarget = 5;
-            break;
-        default: // Queenside White
+        }
+        else { // Queenside White
             *rookOrigin = 0;
             *rookTarget = 3;
-            break;
         }
         board->stack->castling &= 0xC; // Clear flags for white
-        break;
-    default:
-        switch (target > origin) {
-        case true: // Kingside Black
+    }
+    else {
+        if (target > origin) { // Kingside Black
             *rookOrigin = 63;
             *rookTarget = 61;
-            break;
-        default: // Queenside Black
+        }
+        else { // Queenside Black
             *rookOrigin = 56;
             *rookTarget = 59;
-            break;
         }
         board->stack->castling &= 0x3; // Clear flags for black
-        break;
     }
 }
 
@@ -286,6 +282,8 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
+
+    assert(origin < 64 && target < 64);
 
     newStack->capturedPiece = board->pieces[target];
     Square captureTarget = target;
@@ -310,6 +308,9 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
     if (__builtin_expect(specialMove == MOVE_ENPASSANT, 0)) {
         newStack->capturedPiece = PIECE_PAWN;
         captureTarget = target - UP[board->stm];
+
+        assert(captureTarget < 64);
+
         captureTargetBB = C64(1) << captureTarget;
         board->pieces[captureTarget] = NO_PIECE; // remove the captured pawn
         board->board ^= captureTargetBB;
@@ -325,6 +326,7 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
     // En passent square
     newStack->enpassantTarget = 0;
     if (__builtin_expect(piece == PIECE_PAWN && (origin ^ target) == 16, 0)) {
+        assert(target - UP[board->stm] < 64);
         newStack->enpassantTarget = C64(1) << (target - UP[board->stm]);
     }
 
@@ -332,6 +334,7 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
     if (__builtin_expect(specialMove == MOVE_CASTLING, 0)) {
         Square rookOrigin, rookTarget;
         castlingRookSquares(board, origin, target, &rookOrigin, &rookTarget);
+        assert(rookOrigin < 64 && rookTarget < 64);
 
         Bitboard rookFromToBB = (C64(1) << rookOrigin) | (C64(1) << rookTarget);
         board->pieces[rookOrigin] = NO_PIECE;
@@ -406,9 +409,12 @@ void undoMove(struct Board* board, Move move) {
     Square target = moveTarget(move);
     Square captureTarget = target;
 
+    assert(origin < 64 && target < 64);
+
     Bitboard originBB = C64(1) << origin;
     Bitboard targetBB = C64(1) << target;
     Bitboard fromTo = originBB | targetBB;
+    Bitboard captureTargetBB = C64(1) << captureTarget;
 
     board->board ^= fromTo;
     board->byColor[board->stm] ^= fromTo;
@@ -424,21 +430,27 @@ void undoMove(struct Board* board, Move move) {
     Move specialMove = move & 0x3000;
     if (specialMove == MOVE_ENPASSANT) {
         captureTarget = target - UP[board->stm];
-        board->board ^= C64(1) << captureTarget;
+
+        assert(captureTarget < 64);
+
+        captureTargetBB = C64(1) << captureTarget;
+        board->board ^= captureTargetBB;
     }
 
     // Handle capture
     if (board->stack->capturedPiece != NO_PIECE) {
         board->pieces[captureTarget] = board->stack->capturedPiece;
-        board->board |= C64(1) << captureTarget;
-        board->byColor[1 - board->stm] ^= C64(1) << captureTarget;
-        board->byPiece[1 - board->stm][board->stack->capturedPiece] ^= C64(1) << captureTarget;
+        board->board |= captureTargetBB;
+        board->byColor[1 - board->stm] ^= captureTargetBB;
+        board->byPiece[1 - board->stm][board->stack->capturedPiece] ^= captureTargetBB;
     }
 
     // Castling
     if (__builtin_expect(specialMove == MOVE_CASTLING, 0)) {
         Square rookOrigin, rookTarget;
         castlingRookSquares(board, origin, target, &rookOrigin, &rookTarget);
+
+        assert(rookOrigin < 64 && rookTarget < 64);
 
         Bitboard rookFromToBB = (C64(1) << rookOrigin) | (C64(1) << rookTarget);
         board->pieces[rookOrigin] = PIECE_ROOK;
@@ -492,7 +504,29 @@ Bitboard knightAttacksAll(struct Board* board, Color side) {
     return knightAttacks(knights);
 }
 
+Bitboard kingAttacks(struct Board* board, Color color) {
+    Bitboard attacksBB = C64(0);
+    Square origin = lsb(board->byPiece[color][PIECE_KING]);
+
+    int8_t direction;
+    Square lastSquare, toSquare;
+    Bitboard toSquareBB;
+
+    for (direction = DIRECTIONS[PIECE_KING][0]; direction <= DIRECTIONS[PIECE_KING][1]; direction++) {
+        lastSquare = LASTSQ_TABLE[origin][direction];
+        toSquare = origin + DIRECTION_DELTAS[direction];
+        if (toSquare >= 64) continue;
+
+        toSquareBB = C64(1) << toSquare;
+        if (origin != lastSquare && toSquareBB)
+            attacksBB |= toSquareBB;
+    }
+    return attacksBB;
+}
+
 Bitboard slidingPieceAttacks(struct Board* board, Bitboard pieceBB) {
+    assert(pieceBB > 0);
+
     Bitboard attacksBB = C64(0);
     Square origin = lsb(pieceBB);
     Piece pieceType = board->pieces[origin];
@@ -501,34 +535,19 @@ Bitboard slidingPieceAttacks(struct Board* board, Bitboard pieceBB) {
     Square lastSquare, toSquare;
     Bitboard toSquareBB;
 
+    assert(pieceType < NO_PIECE);
+    
     for (direction = DIRECTIONS[pieceType][0]; direction <= DIRECTIONS[pieceType][1]; direction++) {
         delta = DIRECTION_DELTAS[direction];
         lastSquare = LASTSQ_TABLE[origin][direction];
 
         if (origin != lastSquare)
-            for (toSquare = origin + delta; (toSquareBB = C64(1) << toSquare); toSquare += delta) {
+            for (toSquare = origin + delta; toSquare < 64; toSquare += delta) {
+                toSquareBB = C64(1) << toSquare;
                 attacksBB |= toSquareBB;
                 if ((board->board & toSquareBB) || (toSquare == lastSquare))
                     break;
             }
-    }
-    return attacksBB;
-}
-
-Bitboard kingAttacks(struct Board* board, Color color) {
-    Bitboard attacksBB = C64(0);
-    Square origin = lsb(board->byPiece[color][PIECE_KING]);
-
-    int8_t direction;
-    Square lastSquare;
-    Bitboard toSquareBB;
-
-    for (direction = DIRECTIONS[PIECE_KING][0]; direction <= DIRECTIONS[PIECE_KING][1]; direction++) {
-        lastSquare = LASTSQ_TABLE[origin][direction];
-
-        toSquareBB = C64(1) << (origin + DIRECTION_DELTAS[direction]);
-        if (origin != lastSquare && toSquareBB)
-            attacksBB |= toSquareBB;
     }
     return attacksBB;
 }
@@ -614,7 +633,7 @@ void debugBoard(struct Board* board) {
             // else
             //     printf("%d", board->pieces[idx]);
             // printf(" ");
-            Bitboard mask = 1L << idx;
+            Bitboard mask = C64(1) << idx;
             if ((board->stack->enpassantTarget & mask) != 0)
                 printf("| E ");
             else if ((board->board & mask) == 0)

@@ -1,16 +1,13 @@
-CC = g++
-CFLAGS = -Wall -pedantic -Wextra -fcommon -pthread -O3 -fgnu89-inline
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
 
 SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp
 OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
 
 all:	engine
 
-%o:		%.cpp
-		$(CC) $(CFLAGS) -c $<
-
 engine:	$(OBJS)
-		$(CC) $(CFLAGS) $^ -o $@
+		$(CXX) $(CXXFLAGS) $^ -o $@
 
 clean:	
 		$(RM) src/*.o *~ engine

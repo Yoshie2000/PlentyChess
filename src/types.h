@@ -28,11 +28,11 @@
     // Promotion piece type: 00 == knight, 01 == bishop, 10 == rook, 11 == queen
     typedef uint16_t Move;
 
-    constexpr Square lsb(Bitboard bb) {
+    inline Square lsb(Bitboard bb) {
         return __builtin_ctzll(bb);
     }
 
-    constexpr Square popLSB(Bitboard* bb) {
+    inline Square popLSB(Bitboard* bb) {
         Square l = lsb(*bb);
         *bb &= *bb - 1;
         return l;
