@@ -1,16 +1,13 @@
-CC = gcc
-CFLAGS = -Wall -pedantic -Wextra -fcommon -pthread -O3 -fgnu89-inline -funroll-all-loops
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
 
-SOURCES = src/engine.c src/board.c src/move.c src/types.c src/uci.c
-OBJS = $(patsubst %.c,%.o, $(SOURCES))
+SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp
+OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
 
 all:	engine
 
-%o:		%.c
-		$(CC) $(CFLAGS) -c $<
-
 engine:	$(OBJS)
-		$(CC) $(CFLAGS) $^ -o $@
+		$(CXX) $(CXXFLAGS) $^ -o $@
 
 clean:	
 		$(RM) src/*.o *~ engine

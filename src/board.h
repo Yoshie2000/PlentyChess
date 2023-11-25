@@ -3,21 +3,9 @@
 
     #include <stdint.h>
     #include <stdbool.h>
+    #include <string>
     
     #include "types.h"
-
-    #define PIECE_TYPES 6
-
-    #define PIECE_PAWN 0
-    #define PIECE_KNIGHT 1
-    #define PIECE_BISHOP 2
-    #define PIECE_ROOK 3
-    #define PIECE_QUEEN 4
-    #define PIECE_KING 5
-    #define NO_PIECE 6
-
-    #define COLOR_WHITE 0
-    #define COLOR_BLACK 1
 
     extern const Bitboard FILE_A;
     extern const Bitboard FILE_B;
@@ -65,7 +53,7 @@
     };
 
     void startpos(struct Board* result);
-    size_t parseFen(struct Board* board, char* fen);
+    size_t parseFen(struct Board* board, std::string fen);
 
     void doMove(struct Board* board, struct BoardStack* newStack, Move move);
     void undoMove(struct Board* board, Move move);
