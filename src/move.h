@@ -4,6 +4,7 @@
     #include <stdint.h>
     
     #include "types.h"
+    #include "board.h"
 
     #define MAX_MOVES 218
 
@@ -127,7 +128,7 @@
 
     void generateLastSqTable();
 
-    void generateMoves(struct Board* board, Move* moves, int* counter);
+    void generateMoves(Board* board, Move* moves, int* counter);
 
     void moveToString(char* string, Move move);
 

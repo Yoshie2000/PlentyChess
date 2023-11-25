@@ -52,31 +52,31 @@
         struct BoardStack* previous;
     };
 
-    void startpos(struct Board* result);
-    size_t parseFen(struct Board* board, std::string fen);
+    void startpos(Board* result);
+    size_t parseFen(Board* board, std::string fen);
 
-    void doMove(struct Board* board, struct BoardStack* newStack, Move move);
-    void undoMove(struct Board* board, Move move);
+    void doMove(Board* board, BoardStack* newStack, Move move);
+    void undoMove(Board* board, Move move);
 
-    Bitboard pawnAttacksLeft(struct Board* board, Color side);
-    Bitboard pawnAttacksRight(struct Board* board, Color side);
-    Bitboard pawnAttacks(struct Board* board, Color side);
+    Bitboard pawnAttacksLeft(Board* board, Color side);
+    Bitboard pawnAttacksRight(Board* board, Color side);
+    Bitboard pawnAttacks(Board* board, Color side);
 
     Bitboard knightAttacks(Bitboard knightBB);
-    Bitboard knightAttacksAll(struct Board* board, Color side);
+    Bitboard knightAttacksAll(Board* board, Color side);
 
-    Bitboard kingAttacks(struct Board* board, Color side);
+    Bitboard kingAttacks(Board* board, Color side);
 
-    Bitboard slidingPieceAttacks(struct Board* board, Bitboard pieceBB);
-    Bitboard slidingPieceAttacksAll(struct Board* board, Color side, Piece pieceType);
+    Bitboard slidingPieceAttacks(Board* board, Bitboard pieceBB);
+    Bitboard slidingPieceAttacksAll(Board* board, Color side, Piece pieceType);
 
-    bool isSquareAttacked(struct Board* board, Square square, Color side);
-    Bitboard attackedSquares(struct Board* board, Color side);
-    Bitboard attackedSquaresByPiece(struct Board* board, Color side, Piece pieceType);
+    bool isSquareAttacked(Board* board, Square square, Color side);
+    Bitboard attackedSquares(Board* board, Color side);
+    Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType);
 
-    bool isInCheck(struct Board* board, Color side);
+    bool isInCheck(Board* board, Color side);
 
-    void debugBoard(struct Board* board);
+    void debugBoard(Board* board);
     void debugBitboard(Bitboard bb);
 
 #endif

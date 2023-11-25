@@ -28,11 +28,11 @@ const Bitboard RANK_6 = 0x0000FF0000000000;
 const Bitboard RANK_7 = 0x00FF000000000000;
 const Bitboard RANK_8 = 0xFF00000000000000;
 
-void startpos(struct Board* result) {
+void startpos(Board* result) {
     parseFen(result, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 }
 
-size_t parseFen(struct Board* board, std::string fen) {
+size_t parseFen(Board* board, std::string fen) {
     Square currentSquare = 56;
     uint8_t currentRank = 7;
     size_t i = 0;
@@ -250,7 +250,7 @@ size_t parseFen(struct Board* board, std::string fen) {
     return i;
 }
 
-void castlingRookSquares(struct Board* board, Square origin, Square target, Square* rookOrigin, Square* rookTarget) {
+void castlingRookSquares(Board* board, Square origin, Square target, Square* rookOrigin, Square* rookTarget) {
     if (board->stm == COLOR_WHITE) {
         if (target > origin) { // Kingside White
             *rookOrigin = 7;
@@ -275,7 +275,7 @@ void castlingRookSquares(struct Board* board, Square origin, Square target, Squa
     }
 }
 
-void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
+void doMove(Board* board, BoardStack* newStack, Move move) {
     newStack->previous = board->stack;
     board->stack = newStack;
     memcpy(board->stack->attackedByPiece, board->stack->previous->attackedByPiece, sizeof(Bitboard) * 14 + sizeof(uint8_t));
@@ -402,7 +402,7 @@ void doMove(struct Board* board, struct BoardStack* newStack, Move move) {
     board->stm = 1 - board->stm;
 }
 
-void undoMove(struct Board* board, Move move) {
+void undoMove(Board* board, Move move) {
     board->stm = 1 - board->stm;
 
     Square origin = moveOrigin(move);
@@ -471,21 +471,21 @@ void undoMove(struct Board* board, Move move) {
     board->stack = board->stack->previous;
 }
 
-Bitboard pawnAttacksLeft(struct Board* board, Color side) {
+Bitboard pawnAttacksLeft(Board* board, Color side) {
     Bitboard pawns = board->byPiece[side][PIECE_PAWN];
     return side == COLOR_WHITE ?
         ((pawns & (~FILE_A)) << 7) :
         ((pawns & (~FILE_A)) >> 9);
 }
 
-Bitboard pawnAttacksRight(struct Board* board, Color side) {
+Bitboard pawnAttacksRight(Board* board, Color side) {
     Bitboard pawns = board->byPiece[side][PIECE_PAWN];
     return side == COLOR_WHITE ?
         ((pawns & (~FILE_H)) << 9) :
         ((pawns & (~FILE_H)) >> 7);
 }
 
-Bitboard pawnAttacks(struct Board* board, Color side) {
+Bitboard pawnAttacks(Board* board, Color side) {
     return pawnAttacksLeft(board, side) | pawnAttacksRight(board, side);
 }
 
@@ -499,12 +499,12 @@ Bitboard knightAttacks(Bitboard knightBB) {
     return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
 }
 
-Bitboard knightAttacksAll(struct Board* board, Color side) {
+Bitboard knightAttacksAll(Board* board, Color side) {
     Bitboard knights = board->byPiece[side][PIECE_KNIGHT];
     return knightAttacks(knights);
 }
 
-Bitboard kingAttacks(struct Board* board, Color color) {
+Bitboard kingAttacks(Board* board, Color color) {
     Bitboard attacksBB = C64(0);
     Square origin = lsb(board->byPiece[color][PIECE_KING]);
 
@@ -524,7 +524,7 @@ Bitboard kingAttacks(struct Board* board, Color color) {
     return attacksBB;
 }
 
-Bitboard slidingPieceAttacks(struct Board* board, Bitboard pieceBB) {
+Bitboard slidingPieceAttacks(Board* board, Bitboard pieceBB) {
     assert(pieceBB > 0);
 
     Bitboard attacksBB = C64(0);
@@ -552,7 +552,7 @@ Bitboard slidingPieceAttacks(struct Board* board, Bitboard pieceBB) {
     return attacksBB;
 }
 
-Bitboard slidingPieceAttacksAll(struct Board* board, Color side, Piece pieceType) {
+Bitboard slidingPieceAttacksAll(Board* board, Color side, Piece pieceType) {
     Bitboard attacksBB = C64(0);
 
     Bitboard pieces = board->byPiece[side][pieceType];
@@ -563,7 +563,7 @@ Bitboard slidingPieceAttacksAll(struct Board* board, Color side, Piece pieceType
     return attacksBB;
 }
 
-bool isSquareAttacked(struct Board* board, Square square, Color side) {
+bool isSquareAttacked(Board* board, Square square, Color side) {
     Bitboard squareBB = C64(1) << square;
 
     if (pawnAttacks(board, side) & squareBB)
@@ -581,7 +581,7 @@ bool isSquareAttacked(struct Board* board, Square square, Color side) {
     return false;
 }
 
-Bitboard attackedSquares(struct Board* board, Color side) {
+Bitboard attackedSquares(Board* board, Color side) {
     return
         pawnAttacks(board, side) |
         knightAttacksAll(board, side) |
@@ -591,7 +591,7 @@ Bitboard attackedSquares(struct Board* board, Color side) {
         slidingPieceAttacksAll(board, side, PIECE_QUEEN);
 }
 
-Bitboard attackedSquaresByPiece(struct Board* board, Color side, Piece pieceType) {
+Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType) {
     switch (pieceType) {
     case PIECE_PAWN:
         return pawnAttacks(board, side);
@@ -608,13 +608,13 @@ Bitboard attackedSquaresByPiece(struct Board* board, Color side, Piece pieceType
     }
 }
 
-bool isInCheck(struct Board* board, Color side) {
+bool isInCheck(Board* board, Color side) {
     Square kingSquare = lsb(board->byPiece[side][PIECE_KING]);
     Bitboard attackedEnemy = board->stack->attackedByColor[1 - side];
     return (C64(1) << kingSquare) & attackedEnemy;
 }
 
-void debugBoard(struct Board* board) {
+void debugBoard(Board* board) {
     for (int rank = 7; rank >= 0; rank--) {
 
         printf("-");

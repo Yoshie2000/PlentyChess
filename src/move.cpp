@@ -9,7 +9,7 @@ constexpr Move createMove(Square origin, Square target) {
     return (Move)((origin & 0x3F) | ((target & 0x3F) << 6));
 }
 
-void generateMoves(struct Board* board, Move* moves, int* counter) {
+void generateMoves(Board* board, Move* moves, int* counter) {
 
     Bitboard blocked = board->board;
     Bitboard blockedUs = board->byColor[board->stm];
