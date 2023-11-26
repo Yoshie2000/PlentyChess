@@ -10,4 +10,14 @@ const Eval EVAL_MATE_IN_MAX_PLY = EVAL_MATE - MAX_PLY;
 
 Eval evaluate(Board* board);
 
+std::string formatEval(Eval value);
+
+constexpr Eval mateIn(int ply) {
+    return EVAL_MATE - ply;
+}
+
+constexpr Eval matedIn(int ply) {
+    return -EVAL_MATE + ply;
+}
+
 #endif

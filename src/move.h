@@ -2,6 +2,7 @@
     #define MOVE_H_INCLUDED
 
     #include <stdint.h>
+    #include <string>
     
     #include "types.h"
     #include "board.h"
@@ -131,7 +132,7 @@
 
     void generateMoves(Board* board, Move* moves, int* counter);
 
-    void moveToString(char* string, Move move);
+    std::string moveToString(Move move);
 
     Square stringToSquare(char* string);
     Move stringToMove(char* string);

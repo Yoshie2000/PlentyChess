@@ -32,3 +32,15 @@ Eval evaluate(Board* board) {
     else
         return evaluate<COLOR_BLACK>(board) - evaluate<COLOR_WHITE>(board);
 }
+
+std::string formatEval(Eval value) {
+    std::string evalString;
+    if (value >= EVAL_MATE_IN_MAX_PLY) {
+        evalString = "M" + std::to_string(EVAL_MATE - value);
+    } else if (value <= -EVAL_MATE_IN_MAX_PLY) {
+        evalString = "-M" + std::to_string(std::abs(-EVAL_MATE - value));
+    } else {
+        evalString = std::to_string(value);
+    }
+    return evalString;
+}

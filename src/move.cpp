@@ -249,32 +249,31 @@ inline char rankFromSquare(Square square) {
         return '8';
 }
 
-void squareToString(char* string, Square square) {
-    string[0] = fileFromSquare(square);
-    string[1] = rankFromSquare(square);
+std::string squareToString(Square square) {
+    return std::string(1, fileFromSquare(square)) + std::string(1, rankFromSquare(square));
 }
 
-void moveToString(char* string, Move move) {
+std::string moveToString(Move move) {
+    std::string result = "";
+
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
 
-    squareToString(&string[0], origin);
-    squareToString(&string[2], target);
+    result += squareToString(origin);
+    result += squareToString(target);
 
     if ((move & (0x3 << 12)) == MOVE_PROMOTION) {
         Move promotionType = move & (0x3) << 14;
         if (promotionType == PROMOTION_QUEEN)
-            string[4] = 'q';
+            result += 'q';
         if (promotionType == PROMOTION_ROOK)
-            string[4] = 'r';
+            result += 'r';
         if (promotionType == PROMOTION_BISHOP)
-            string[4] = 'b';
+            result += 'b';
         if (promotionType == PROMOTION_KNIGHT)
-            string[4] = 'n';
+            result += 'n';
     }
-    else {
-        string[4] = '\0';
-    }
+    return result;
 }
 
 inline int fileFromString(char string) {
