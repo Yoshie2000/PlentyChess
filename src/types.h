@@ -5,6 +5,8 @@
 
     #define C64(x) ((uint64_t)(x))
 
+    #define MAX_PLY 246
+
     #define PIECE_TYPES 6
 
     #define PIECE_PAWN 0
@@ -22,6 +24,7 @@
     typedef uint8_t Square;
     typedef uint8_t Color;
     typedef uint64_t Bitboard;
+    typedef int16_t Eval;
 
     // 00 promotion piece 00 special move type 000000 target 000000 origin
     // Special move type: 01 == promotion, 10 == en passant, 11 == castling

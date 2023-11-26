@@ -14,6 +14,7 @@
     #define PROMOTION_KNIGHT (Move) (3 << 14)
 
     constexpr Move MOVE_NULL = 0;
+    constexpr Move MOVE_NONE = INT16_MAX;
 
     constexpr Move MOVE_PROMOTION = 1 << 12;
     constexpr Move MOVE_ENPASSANT = 2 << 12;

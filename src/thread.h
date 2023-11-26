@@ -4,8 +4,10 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <deque>
 
 #include "board.h"
+#include "search.h"
 
 class Thread {
 
@@ -15,19 +17,26 @@ class Thread {
     bool exiting;
     bool searching;
 
-    Board board;
+    Board rootBoard;
+    BoardStack rootStack;
+    std::deque<BoardStack> rootStackQueue;
+    SearchParameters searchParameters;
 
 public:
 
     Thread(void);
     ~Thread();
 
-    void startSearching(Board* board);
+    void startSearching(Board board, std::deque<BoardStack> stackQueue, SearchParameters parameters);
+
+    void stopSearching();
+
     void exit();
 
 private:
 
     void idle();
+    void tsearch();
 
 };
 

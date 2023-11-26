@@ -1,20 +1,21 @@
 #include <cstdint>
+#include <algorithm>
 #include <inttypes.h>
 
 #include "search.h"
 #include "board.h"
 #include "move.h"
+#include "evaluation.h"
+#include "thread.h"
 
-uint64_t perft(Board* board, int depth, int startDepth) {
+uint64_t perftInternal(Board* board, int depth) {
     if (depth == 0) return C64(1);
 
-    char string[5];
     BoardStack stack;
 
-    Move moves[MAX_MOVES] = { MOVE_NULL };
+    Move moves[MAX_MOVES] = { MOVE_NONE };
     int moveCount = 0;
     generateMoves(board, moves, &moveCount);
-    // if (depth == 1) return (uint64_t) moveCount; // does not work yet, because i don't have legal movegen
 
     uint64_t nodes = 0;
     for (int i = 0; i < moveCount; i++) {
@@ -28,16 +29,155 @@ uint64_t perft(Board* board, int depth, int startDepth) {
             continue;
         }
 
-        uint64_t subNodes = perft(board, depth - 1, startDepth);
+        uint64_t subNodes = perftInternal(board, depth - 1);
 
         undoMove(board, move);
-
-        if (depth == startDepth) {
-            moveToString(string, move);
-            printf("%s: %" PRIu64 "\n", string, subNodes);
-        }
 
         nodes += subNodes;
     }
     return nodes;
+}
+
+uint64_t perft(Board* board, int depth) {
+    clock_t begin = clock();
+    char string[5];
+    BoardStack stack;
+
+    Move moves[MAX_MOVES] = { MOVE_NONE };
+    int moveCount = 0;
+    generateMoves(board, moves, &moveCount);
+
+    uint64_t nodes = 0;
+    for (int i = 0; i < moveCount; i++) {
+        Move move = moves[i];
+
+        doMove(board, &stack, move);
+
+        // This move was illegal, we remain in check after
+        if (isInCheck(board, 1 - board->stm)) {
+            undoMove(board, move);
+            continue;
+        }
+
+        uint64_t subNodes = perftInternal(board, depth - 1);
+
+        undoMove(board, move);
+
+        moveToString(string, move);
+        printf("%s: %" PRIu64 "\n", string, subNodes);
+
+        nodes += subNodes;
+    }
+
+    clock_t end = clock();
+    double time = (double)(end - begin) / CLOCKS_PER_SEC;
+    uint64_t nps = nodes / time;
+    printf("Perft: %" PRIu64 " nodes in %fs => %" PRIu64 " nps\n", nodes, time, nps);
+
+    return nodes;
+}
+
+void updatePv(Move* pv, Move move, const Move* currentPv) {
+    *pv++ = move;
+    while (currentPv && *currentPv != MOVE_NONE)
+        *pv++ = *currentPv++;
+    *pv = MOVE_NONE;
+}
+
+template <NodeType nodeType>
+Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) {
+    if (depth == 0) return evaluate(board);
+
+    BoardStack boardStack;
+    Move pv[MAX_PLY + 1] = { MOVE_NONE };
+    Eval bestValue;
+    bool rootNode = nodeType == ROOT_NODE;
+
+    (stack + 1)->ply = stack->ply + 1;
+
+    // Generate moves
+    Move moves[MAX_MOVES] = { MOVE_NONE };
+    int moveCount = 0, skippedMoves = 0;
+    generateMoves(board, moves, &moveCount);
+
+    if (moveCount == 0) {
+        if (isInCheck(board, board->stm))
+            return -EVAL_MATE; // Checkmate
+        return 0; // Stalemate
+    }
+
+    if (!rootNode) {
+        // Mate distance pruning
+        alpha = std::max((int)alpha, -EVAL_MATE + stack->ply);
+        beta = std::min((int)beta, EVAL_MATE - stack->ply - 1);
+    }
+
+    // Moves loop
+    bestValue = alpha;
+    for (int i = 0; i < moveCount; i++) {
+        // Set up pv for the next search
+        (stack + 1)->pv = pv;
+        (stack + 1)->pv[0] = MOVE_NONE;
+
+        Move move = moves[i];
+
+        doMove(board, &boardStack, move);
+
+        // This move was illegal, we remain in check after
+        if (isInCheck(board, 1 - board->stm)) {
+            undoMove(board, move);
+            skippedMoves++;
+            continue;
+        }
+
+        Eval value = -search<PV_NODE>(board, stack + 1, depth - 1, -beta, -bestValue);
+
+        if (rootNode) {
+            char moveString[5];
+            moveToString(moveString, move);
+            std::cout << "move " << moveString << " eval " << value << std::endl;
+        }
+
+        undoMove(board, move);
+
+        if (value > bestValue) {
+            bestValue = value;
+
+            updatePv(stack->pv, move, (stack + 1)->pv);
+
+            if (bestValue >= beta)
+                break;
+        }
+
+    }
+
+    if (moveCount == skippedMoves) {
+        if (isInCheck(board, board->stm))
+            return -EVAL_MATE; // Checkmate
+        return 0; // Stalemate
+    }
+
+    return bestValue;
+}
+
+void Thread::tsearch() {
+    // Normal search
+    SearchStack stack[MAX_PLY];
+    Move pv[MAX_PLY + 1];
+    stack->pv = pv;
+    stack->ply = 0;
+
+    std::cout << "Starting search at depth " << searchParameters.depth << std::endl;
+    Eval value = search<ROOT_NODE>(&rootBoard, stack, searchParameters.depth, INT16_MIN, INT16_MAX);
+
+    std::cout << "Evaluation: " << (double)value / (double)100 << std::endl;
+    std::cout << "PV: ";
+    Move move;
+
+    char moveString[5];
+    while ((move = *stack->pv++) != MOVE_NONE) {
+        moveToString(moveString, move);
+        std::cout << moveString << " ";
+    }
+    std::cout << std::endl;
 }

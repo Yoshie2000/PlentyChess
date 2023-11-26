@@ -9,9 +9,20 @@
 #include "uci.h"
 #include "move.h"
 #include "thread.h"
+#include "search.h"
 
 bool matchesToken(std::string line, std::string token) {
     return line.rfind(token, 0) == 0;
+}
+
+bool nextToken(std::string* line, std::string* token) {
+    std::string::size_type tokenEnd = std::min(line->length() - 1, line->find(' '));
+    if (tokenEnd != std::string::npos) {
+        *token = line->substr(0, tokenEnd);
+        *line = line->substr(1 + tokenEnd);
+        return true;
+    }
+    return false;
 }
 
 void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
@@ -52,13 +63,39 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
 
             stackQueue->emplace_back();
             doMove(board, &stackQueue->back(), m);
-            // TODO do something here
 
             if (line.length() > i)
                 line = line.substr(i + 1);
             if (line.length() >= lastStrlen) break;
         }
     }
+}
+
+void go(std::string line, Thread* searchThread, Board* board, std::deque<BoardStack>* stackQueue) {
+    SearchParameters parameters;
+
+    std::string token;
+    while (nextToken(&line, &token)) {
+        std::cout << token << std::endl;
+
+        if (matchesToken(token, "perft")) {
+            parameters.perft = true;
+            nextToken(&line, &token);
+            parameters.depth = std::stoi(token);
+        }
+
+        if (matchesToken(token, "depth")) {
+            nextToken(&line, &token);
+            parameters.depth = std::stoi(token);
+        }
+
+        if (matchesToken(token, "infinite")) {
+            parameters.infinite = true;
+        }
+
+    }
+
+    searchThread->startSearching(*board, *stackQueue, parameters);
 }
 
 void uciLoop(Thread* searchThread) {
@@ -72,17 +109,17 @@ void uciLoop(Thread* searchThread) {
     char line[UCI_LINE_LENGTH];
     while (fgets(line, sizeof(line), stdin)) {
 
-        if (matchesToken(line, "quit") || matchesToken(line, "stop")) {
+        if (matchesToken(line, "quit")) {
             searchThread->exit();
             break;
         }
+        else if (matchesToken(line, "stop")) searchThread->stopSearching();
 
-        else if (matchesToken(line, "search")) searchThread->startSearching(&board);
-        else if (matchesToken(line, "uci")) printf("id name yoshie2000-chess-engine\nuciok\n");
-        else if (matchesToken(line, "go")) printf("TODO\n");
-        else if (matchesToken(line, "position")) position(line + 9, &board, &stackQueue);
-        else if (matchesToken(line, "ucinewgame")) printf("TODO\n");
         else if (matchesToken(line, "isready")) printf("readyok\n");
+        else if (matchesToken(line, "uci")) printf("id name yoshie2000-chess-engine\nuciok\n");
+        else if (matchesToken(line, "ucinewgame")) printf("TODO\n");
+        else if (matchesToken(line, "go")) go(line + 3, searchThread, &board, &stackQueue);
+        else if (matchesToken(line, "position")) position(line + 9, &board, &stackQueue);
 
         /* NON UCI COMMANDS */
         else if (matchesToken(line, "debug")) debugBoard(&board);

@@ -1,5 +1,7 @@
 #include <iostream>
 #include <inttypes.h>
+#include <deque>
+#include <string.h>
 
 #include "thread.h"
 #include "search.h"
@@ -9,7 +11,7 @@
 // rn1qk1nr/ppp1ppbp/6p1/3p1b2/3P3P/4PN2/PPP2PP1/RNBQKB1R w KQkq - 1 5
 
 Thread::Thread(void) : thread(&Thread::idle, this) {
-    std::cout << "constructor" << std::endl;
+    exiting = false;
 }
 
 Thread::~Thread() {
@@ -30,12 +32,12 @@ void Thread::idle() {
 
         searching = true;
 
-        clock_t begin = clock();
-        uint64_t nodes = perft(&board, 6, 6);
-        clock_t end = clock();
-        double time = (double)(end - begin) / CLOCKS_PER_SEC;
-        uint64_t nps = nodes / time;
-        printf("Perft: %" PRIu64 " nodes in %fs => %" PRIu64 " nps\n", nodes, time, nps);
+        // Do the search stuff here
+        if (searchParameters.perft) {
+            perft(&rootBoard, searchParameters.depth);
+        } else {
+            tsearch();
+        }
 
         searching = false;
 
@@ -50,7 +52,16 @@ void Thread::exit() {
     cv.notify_one();
 }
 
-void Thread::startSearching(Board* board) {
-    this->board = *board;
+void Thread::startSearching(Board board, std::deque<BoardStack> queue, SearchParameters parameters) {
+    rootBoard = std::move(board);
+    rootStackQueue = std::move(queue);
+    searchParameters = std::move(parameters);
+    
+    rootStack = rootStackQueue.back();
+    rootBoard.stack = &rootStack;
     cv.notify_one();
+}
+
+void Thread::stopSearching() {
+    searching = false;
 }
