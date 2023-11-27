@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <inttypes.h>
+#include <cassert>
 
 #include "search.h"
 #include "board.h"
@@ -83,8 +84,84 @@ void updatePv(Move* pv, Move move, const Move* currentPv) {
 }
 
 template <NodeType nodeType>
+Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
+
+    assert(alpha >= -EVAL_INFINITE && alpha < beta && beta <= EVAL_INFINITE);
+
+    BoardStack boardStack;
+    Move pv[MAX_PLY + 1] = { MOVE_NONE };
+    Eval bestValue;
+
+    (stack + 1)->ply = stack->ply + 1;
+
+    bestValue = evaluate(board);
+    if (bestValue >= beta)
+        return beta;
+    if (alpha < bestValue)
+        alpha = bestValue;
+
+    // Generate moves
+    Move moves[MAX_MOVES] = { MOVE_NONE };
+    int moveCount = 0, skippedMoves = 0;
+    generateMoves(board, moves, &moveCount, true);
+
+    alpha = std::max((int)alpha, (int)matedIn(stack->ply));
+    beta = std::min((int)beta, (int)mateIn(stack->ply + 1));
+    if (alpha >= beta)
+        return alpha;
+
+    // Moves loop
+    for (int i = 0; i < moveCount; i++) {
+        Move move = moves[i];
+
+        doMove(board, &boardStack, move);
+
+        // This move was illegal, we remain in check after
+        if (isInCheck(board, 1 - board->stm)) {
+            undoMove(board, move);
+            skippedMoves++;
+            continue;
+        }
+
+        // Set up pv for the next search
+        (stack + 1)->pv = pv;
+        (stack + 1)->pv[0] = MOVE_NONE;
+
+        Eval value = -qsearch<PV_NODE>(board, stack + 1, -beta, -alpha);
+        undoMove(board, move);
+        assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
+
+        if (value > bestValue) {
+            bestValue = value;
+
+            if (value > alpha) {
+                alpha = value;
+
+                updatePv(stack->pv, move, (stack + 1)->pv);
+
+                if (bestValue >= beta)
+                    break;
+            }
+        }
+
+    }
+
+    if (moveCount != 0 && moveCount == skippedMoves) {
+        if (isInCheck(board, board->stm)) {
+            return matedIn(stack->ply); // Checkmate
+        }
+        return 0; // Stalemate
+    }
+
+    return bestValue;
+}
+
+template <NodeType nodeType>
 Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) {
-    if (depth == 0) return evaluate(board);
+    
+    assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
+
+    if (depth <= 0) return qsearch<PV_NODE>(board, stack, alpha, beta);
 
     BoardStack boardStack;
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
@@ -98,20 +175,16 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     int moveCount = 0, skippedMoves = 0;
     generateMoves(board, moves, &moveCount);
 
-    if (moveCount == 0) {
-        if (isInCheck(board, board->stm))
-            return matedIn(stack->ply); // Checkmate
-        return 0; // Stalemate
-    }
-
     if (!rootNode) {
         // Mate distance pruning
-        alpha = std::max((int)alpha, (int) matedIn(stack->ply));
-        beta = std::min((int)beta, (int) mateIn(stack->ply + 1));
+        alpha = std::max((int)alpha, (int)matedIn(stack->ply));
+        beta = std::min((int)beta, (int)mateIn(stack->ply + 1));
+        if (alpha >= beta)
+            return alpha;
     }
 
     // Moves loop
-    bestValue = alpha;
+    bestValue = -EVAL_INFINITE;
     for (int i = 0; i < moveCount; i++) {
         Move move = moves[i];
 
@@ -129,22 +202,26 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
         (stack + 1)->pv[0] = MOVE_NONE;
 
         Eval value = -search<PV_NODE>(board, stack + 1, depth - 1, -beta, -bestValue);
+        undoMove(board, move);
+
+        assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
         if (rootNode) {
             std::cout << "move " << moveToString(move) << " eval " << formatEval(value) << std::endl;
         }
 
-        undoMove(board, move);
-
         if (value > bestValue) {
             bestValue = value;
 
-            updatePv(stack->pv, move, (stack + 1)->pv);
+            if (value > alpha) {
+                alpha = value;
 
-            if (bestValue >= beta)
-                break;
+                updatePv(stack->pv, move, (stack + 1)->pv);
+
+                if (bestValue >= beta)
+                    break;
+            }
         }
-        if (depth == 8 || value == 29995 || value == -29995) break;
 
     }
 
@@ -154,6 +231,8 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
         }
         return 0; // Stalemate
     }
+
+    assert(bestValue > -EVAL_INFINITE && bestValue < EVAL_INFINITE);
 
     return bestValue;
 }
@@ -166,7 +245,7 @@ void Thread::tsearch() {
     stack->ply = 1;
 
     std::cout << "Starting search at depth " << searchParameters.depth << std::endl;
-    Eval value = search<ROOT_NODE>(&rootBoard, stack, searchParameters.depth, INT16_MIN, INT16_MAX);
+    Eval value = search<ROOT_NODE>(&rootBoard, stack, searchParameters.depth, -EVAL_INFINITE, EVAL_INFINITE);
 
     std::cout << "Evaluation: " << formatEval(value) << std::endl;
     std::cout << "PV: ";

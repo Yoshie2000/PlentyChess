@@ -130,7 +130,7 @@
 
     void generateLastSqTable();
 
-    void generateMoves(Board* board, Move* moves, int* counter);
+    void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures = false);
 
     std::string moveToString(Move move);
 
