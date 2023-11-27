@@ -49,6 +49,7 @@ struct SearchParameters {
 struct SearchStack {
     Move* pv;
     int ply;
+    uint64_t nodes;
 };
 
 enum NodeType {

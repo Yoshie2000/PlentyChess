@@ -36,11 +36,11 @@ Eval evaluate(Board* board) {
 std::string formatEval(Eval value) {
     std::string evalString;
     if (value >= EVAL_MATE_IN_MAX_PLY) {
-        evalString = "M" + std::to_string(EVAL_MATE - value);
+        evalString = "mate " + std::to_string(EVAL_MATE - value);
     } else if (value <= -EVAL_MATE_IN_MAX_PLY) {
-        evalString = "-M" + std::to_string(std::abs(-EVAL_MATE - value));
+        evalString = "mate " + std::to_string(-EVAL_MATE - value);
     } else {
-        evalString = std::to_string(value);
+        evalString = "cp " + std::to_string(value);
     }
     return evalString;
 }

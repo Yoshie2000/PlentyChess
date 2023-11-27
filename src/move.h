@@ -135,6 +135,6 @@
     std::string moveToString(Move move);
 
     Square stringToSquare(char* string);
-    Move stringToMove(char* string);
+    Move stringToMove(char* string, Board* board = nullptr);
 
 #endif

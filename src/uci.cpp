@@ -16,13 +16,16 @@ bool matchesToken(std::string line, std::string token) {
 }
 
 bool nextToken(std::string* line, std::string* token) {
-    std::string::size_type tokenEnd = std::min(line->length() - 1, line->find(' '));
+    if (line->length() == 0) return false;
+    std::string::size_type tokenEnd = line->find(' ');
     if (tokenEnd != std::string::npos) {
         *token = line->substr(0, tokenEnd);
         *line = line->substr(1 + tokenEnd);
         return true;
     }
-    return false;
+    *token = line->substr(0);
+    *line = line->substr(1);
+    return true;
 }
 
 void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
@@ -59,7 +62,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
                 move[i] = line[i];
                 i++;
             }
-            Move m = stringToMove(move);
+            Move m = stringToMove(move, board);
 
             stackQueue->emplace_back();
             doMove(board, &stackQueue->back(), m);
@@ -76,7 +79,7 @@ void go(std::string line, Thread* searchThread, Board* board, std::deque<BoardSt
 
     std::string token;
     while (nextToken(&line, &token)) {
-        std::cout << token << std::endl;
+        // std::cout << token << std::endl;
 
         if (matchesToken(token, "perft")) {
             parameters.perft = true;
@@ -106,8 +109,7 @@ void uciLoop(Thread* searchThread) {
 
     printf("UCI thread running\n");
 
-    char line[UCI_LINE_LENGTH];
-    while (fgets(line, sizeof(line), stdin)) {
+    for (std::string line; std::getline(std::cin, line);) {
 
         if (matchesToken(line, "quit")) {
             searchThread->exit();
@@ -118,8 +120,8 @@ void uciLoop(Thread* searchThread) {
         else if (matchesToken(line, "isready")) printf("readyok\n");
         else if (matchesToken(line, "uci")) printf("id name yoshie2000-chess-engine\nuciok\n");
         else if (matchesToken(line, "ucinewgame")) printf("TODO\n");
-        else if (matchesToken(line, "go")) go(line + 3, searchThread, &board, &stackQueue);
-        else if (matchesToken(line, "position")) position(line + 9, &board, &stackQueue);
+        else if (matchesToken(line, "go")) go(line.substr(3), searchThread, &board, &stackQueue);
+        else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
 
         /* NON UCI COMMANDS */
         else if (matchesToken(line, "debug")) debugBoard(&board);

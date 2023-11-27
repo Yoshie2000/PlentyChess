@@ -336,7 +336,7 @@ Square stringToSquare(char* string) {
     return (Square)(8 * rank + file);
 }
 
-Move stringToMove(char* string) {
+Move stringToMove(char* string, Board* board) {
     Square origin = stringToSquare(&string[0]);
     Square target = stringToSquare(&string[2]);
     Move move = createMove(origin, target);
@@ -355,6 +355,15 @@ Move stringToMove(char* string) {
         move |= MOVE_PROMOTION | PROMOTION_KNIGHT;
         break;
     }
+
+    // Figure out whether this is en passent or castling and set the flags accordingly
+    if (board != nullptr) {
+        if (board->pieces[origin] == PIECE_KING && std::abs(target - origin) == 2)
+            move |= MOVE_CASTLING;
+        if (board->pieces[origin] == PIECE_PAWN && board->pieces[target] == NO_PIECE && (std::abs(target - origin) == 7 || std::abs(target - origin) == 9))
+            move |= MOVE_ENPASSANT;
+    }
+
     return move;
 }
 

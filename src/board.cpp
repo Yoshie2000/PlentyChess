@@ -535,6 +535,11 @@ Bitboard slidingPieceAttacks(Board* board, Bitboard pieceBB) {
     Square lastSquare, toSquare;
     Bitboard toSquareBB;
 
+    if (pieceType >= NO_PIECE) {
+        printf("%d %d\n", pieceType, origin);
+        debugBoard(board);
+        debugBitboard(pieceBB);
+    }
     assert(pieceType < NO_PIECE);
     
     for (direction = DIRECTIONS[pieceType][0]; direction <= DIRECTIONS[pieceType][1]; direction++) {

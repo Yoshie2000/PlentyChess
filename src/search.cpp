@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <inttypes.h>
 #include <cassert>
+#include <chrono>
 
 #include "search.h"
 #include "board.h"
@@ -92,7 +93,9 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
     Eval bestValue;
 
+    stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
+    (stack + 1)->nodes = 0;
 
     bestValue = evaluate(board);
     if (bestValue >= beta)
@@ -115,6 +118,7 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         Move move = moves[i];
 
         doMove(board, &boardStack, move);
+        stack->nodes++;
 
         // This move was illegal, we remain in check after
         if (isInCheck(board, 1 - board->stm)) {
@@ -131,6 +135,8 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         undoMove(board, move);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
+        stack->nodes += (stack + 1)->nodes;
+
         if (value > bestValue) {
             bestValue = value;
 
@@ -146,19 +152,19 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     }
 
-    if (moveCount != 0 && moveCount == skippedMoves) {
-        if (isInCheck(board, board->stm)) {
-            return matedIn(stack->ply); // Checkmate
-        }
-        return 0; // Stalemate
-    }
+    // if (moveCount != 0 && moveCount == skippedMoves) {
+    //     if (isInCheck(board, board->stm)) {
+    //         return matedIn(stack->ply); // Checkmate
+    //     }
+    //     return 0; // Stalemate
+    // }
 
     return bestValue;
 }
 
 template <NodeType nodeType>
 Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) {
-    
+
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
 
     if (depth <= 0) return qsearch<PV_NODE>(board, stack, alpha, beta);
@@ -168,7 +174,9 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     Eval bestValue;
     bool rootNode = nodeType == ROOT_NODE;
 
+    stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
+    (stack + 1)->nodes = 0;
 
     // Generate moves
     Move moves[MAX_MOVES] = { MOVE_NONE };
@@ -189,6 +197,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
         Move move = moves[i];
 
         doMove(board, &boardStack, move);
+        stack->nodes++;
 
         // This move was illegal, we remain in check after
         if (isInCheck(board, 1 - board->stm)) {
@@ -201,14 +210,15 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
         (stack + 1)->pv = pv;
         (stack + 1)->pv[0] = MOVE_NONE;
 
-        Eval value = -search<PV_NODE>(board, stack + 1, depth - 1, -beta, -bestValue);
+        Eval value = -search<PV_NODE>(board, stack + 1, depth - 1, -beta, -alpha);
         undoMove(board, move);
-
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
-        if (rootNode) {
-            std::cout << "move " << moveToString(move) << " eval " << formatEval(value) << std::endl;
-        }
+        stack->nodes += (stack + 1)->nodes;
+
+        // if (rootNode) {
+        //     std::cout << "move " << moveToString(move) << " eval " << formatEval(value) << std::endl;
+        // }
 
         if (value > bestValue) {
             bestValue = value;
@@ -238,21 +248,36 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 }
 
 void Thread::tsearch() {
-    // Normal search
-    SearchStack stack[MAX_PLY];
-    Move pv[MAX_PLY + 1];
-    stack->pv = pv;
-    stack->ply = 1;
+    int maxDepth = searchParameters.depth == 0 ? MAX_PLY : searchParameters.depth;
 
-    std::cout << "Starting search at depth " << searchParameters.depth << std::endl;
-    Eval value = search<ROOT_NODE>(&rootBoard, stack, searchParameters.depth, -EVAL_INFINITE, EVAL_INFINITE);
+    Move bestMove = MOVE_NONE;
 
-    std::cout << "Evaluation: " << formatEval(value) << std::endl;
-    std::cout << "PV: ";
-    Move move;
+    for (int depth = 1; depth <= maxDepth; depth++) {
+        SearchStack stack[MAX_PLY];
+        Move pv[MAX_PLY + 1];
+        stack->pv = pv;
+        stack->ply = 1;
 
-    while ((move = *stack->pv++) != MOVE_NONE) {
-        std::cout << moveToString(move) << " ";
+        // Search
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+        Eval value = search<ROOT_NODE>(&rootBoard, stack, depth, -EVAL_INFINITE, EVAL_INFINITE);
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+        // Send UCI info
+        int64_t ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+        int64_t nps = ms == 0 ? 0 : (int64_t)((stack->nodes) / ((double)ms / 1000));
+        std::cout << "info depth " << depth << " score " << formatEval(value) << " nodes " << stack->nodes << " time " << ms << " nps " << nps << " pv ";
+
+        // Send PV
+        bestMove = stack->pv[0];
+        Move move;
+        while ((move = *stack->pv++) != MOVE_NONE) {
+            std::cout << moveToString(move) << " ";
+        }
+        std::cout << std::endl;
+
+        if (ms >= 2000) break; // For now, search until the longest search exceeds 2s
     }
-    std::cout << std::endl;
+
+    std::cout << "bestmove " << moveToString(bestMove) << std::endl;
 }
