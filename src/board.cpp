@@ -9,6 +9,7 @@
 #include "board.h"
 #include <iostream>
 #include <cassert>
+#include "tt.h"
 
 const Bitboard FILE_A = 0x0101010101010101;
 const Bitboard FILE_B = 0x0202020202020202;
@@ -49,6 +50,7 @@ size_t parseFen(Board* board, std::string fen) {
         }
     }
     board->stack->capturedPiece = NO_PIECE;
+    board->stack->hash = 0;
 
     // Board position and everything
     Bitboard currentSquareBB = C64(1) << currentSquare;
@@ -67,6 +69,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_BLACK] |= currentSquareBB;
             board->byPiece[COLOR_BLACK][PIECE_PAWN] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_PAWN;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
             currentSquare++;
             break;
         case 'P':
@@ -74,6 +77,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_WHITE] |= currentSquareBB;
             board->byPiece[COLOR_WHITE][PIECE_PAWN] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_PAWN;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
             currentSquare++;
             break;
         case 'n':
@@ -81,6 +85,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_BLACK] |= currentSquareBB;
             board->byPiece[COLOR_BLACK][PIECE_KNIGHT] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_KNIGHT;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KNIGHT][currentSquare];
             currentSquare++;
             break;
         case 'N':
@@ -88,6 +93,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_WHITE] |= currentSquareBB;
             board->byPiece[COLOR_WHITE][PIECE_KNIGHT] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_KNIGHT;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KNIGHT][currentSquare];
             currentSquare++;
             break;
         case 'b':
@@ -95,6 +101,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_BLACK] |= currentSquareBB;
             board->byPiece[COLOR_BLACK][PIECE_BISHOP] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_BISHOP;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_BISHOP][currentSquare];
             currentSquare++;
             break;
         case 'B':
@@ -102,6 +109,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_WHITE] |= currentSquareBB;
             board->byPiece[COLOR_WHITE][PIECE_BISHOP] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_BISHOP;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_BISHOP][currentSquare];
             currentSquare++;
             break;
         case 'r':
@@ -109,6 +117,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_BLACK] |= currentSquareBB;
             board->byPiece[COLOR_BLACK][PIECE_ROOK] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_ROOK;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_ROOK][currentSquare];
             currentSquare++;
             break;
         case 'R':
@@ -116,6 +125,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_WHITE] |= currentSquareBB;
             board->byPiece[COLOR_WHITE][PIECE_ROOK] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_ROOK;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_ROOK][currentSquare];
             currentSquare++;
             break;
         case 'q':
@@ -123,6 +133,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_BLACK] |= currentSquareBB;
             board->byPiece[COLOR_BLACK][PIECE_QUEEN] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_QUEEN;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_QUEEN][currentSquare];
             currentSquare++;
             break;
         case 'Q':
@@ -130,6 +141,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_WHITE] |= currentSquareBB;
             board->byPiece[COLOR_WHITE][PIECE_QUEEN] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_QUEEN;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_QUEEN][currentSquare];
             currentSquare++;
             break;
         case 'k':
@@ -137,6 +149,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_BLACK] |= currentSquareBB;
             board->byPiece[COLOR_BLACK][PIECE_KING] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_KING;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KING][currentSquare];
             currentSquare++;
             break;
         case 'K':
@@ -144,6 +157,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byColor[COLOR_WHITE] |= currentSquareBB;
             board->byPiece[COLOR_WHITE][PIECE_KING] |= currentSquareBB;
             board->pieces[currentSquare] = PIECE_KING;
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KING][currentSquare];
             currentSquare++;
             break;
         case '/':
@@ -158,6 +172,8 @@ size_t parseFen(Board* board, std::string fen) {
 
     // Side to move
     board->stm = fen.at(i) == 'w' ? COLOR_WHITE : COLOR_BLACK;
+    if (board->stm == COLOR_BLACK)
+        board->stack->hash ^= ZOBRIST_STM_BLACK;
     i += 2;
 
     // Castling
@@ -185,7 +201,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->stack->castling |= 0x8;
             break;
         case 'Q':
-            board->stack->castling |= 0x4;
+            board->stack->castling |= 0x2;
             break;
         case ' ':
         default:
@@ -194,6 +210,7 @@ size_t parseFen(Board* board, std::string fen) {
             break;
         }
     }
+    board->stack->hash ^= ZOBRIST_CASTLING[board->stack->castling & 0xF];
 
     // en passent
     if (fen.at(i) == '-') {
@@ -205,6 +222,8 @@ size_t parseFen(Board* board, std::string fen) {
         Square epTargetSquare = stringToSquare(epTargetString);
         board->stack->enpassantTarget = C64(1) << epTargetSquare;
         i += 3;
+
+        board->stack->hash ^= ZOBRIST_ENPASSENT[epTargetSquare % 8];
     }
 
     // 50 move rule
@@ -279,6 +298,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     newStack->previous = board->stack;
     board->stack = newStack;
     memcpy(board->stack->attackedByPiece, board->stack->previous->attackedByPiece, sizeof(Bitboard) * 14 + sizeof(uint8_t));
+    board->stack->hash = board->stack->previous->hash ^= ZOBRIST_STM_BLACK;
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
@@ -321,19 +341,27 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         board->board |= targetBB; // Put piece on target square (in case xor didn't work)
         board->byColor[1 - board->stm] ^= captureTargetBB; // take away the captured piece
         board->byPiece[1 - board->stm][newStack->capturedPiece] ^= captureTargetBB;
+
+        newStack->hash ^= ZOBRIST_PIECE_SQUARES[newStack->capturedPiece][captureTarget];
     }
 
     // En passent square
+    if (newStack->previous->enpassantTarget != 0) {
+        newStack->hash ^= ZOBRIST_ENPASSENT[lsb(newStack->previous->enpassantTarget) % 8];
+    }
     newStack->enpassantTarget = 0;
     if (__builtin_expect(piece == PIECE_PAWN && (origin ^ target) == 16, 0)) {
         assert(target - UP[board->stm] < 64);
         newStack->enpassantTarget = C64(1) << (target - UP[board->stm]);
+        newStack->hash ^= ZOBRIST_ENPASSENT[origin % 8];
     }
 
     // This move is castling
     if (__builtin_expect(specialMove == MOVE_CASTLING, 0)) {
         Square rookOrigin, rookTarget;
+        newStack->hash ^= ZOBRIST_CASTLING[newStack->castling & 0xF];
         castlingRookSquares(board, origin, target, &rookOrigin, &rookTarget);
+        newStack->hash ^= ZOBRIST_CASTLING[newStack->castling & 0xF];
         assert(rookOrigin < 64 && rookTarget < 64);
 
         Bitboard rookFromToBB = (C64(1) << rookOrigin) | (C64(1) << rookTarget);
@@ -342,6 +370,8 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         board->board ^= rookFromToBB;
         board->byColor[board->stm] ^= rookFromToBB;
         board->byPiece[board->stm][PIECE_ROOK] ^= rookFromToBB;
+
+        newStack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[PIECE_ROOK][rookTarget];
     }
 
     // This move is promotion
@@ -351,32 +381,40 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         board->byPiece[board->stm][promotionPiece] ^= targetBB;
 
         board->pieces[target] = promotionPiece;
+
+        newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][target] ^ ZOBRIST_PIECE_SQUARES[promotionPiece][target];
     }
+
+    newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][origin] ^ ZOBRIST_PIECE_SQUARES[piece][target];
 
     // Unset castling flags if necessary
     if (piece == PIECE_KING) {
+        newStack->hash ^= ZOBRIST_CASTLING[newStack->castling & 0xF];
         if (board->stm == COLOR_WHITE)
-            board->stack->castling &= 0xC;
+            newStack->castling &= 0xC;
         else
-            board->stack->castling &= 0x3;
+            newStack->castling &= 0x3;
+        newStack->hash ^= ZOBRIST_CASTLING[newStack->castling & 0xF];
     }
     else if (piece == PIECE_ROOK || newStack->capturedPiece == PIECE_ROOK) {
+        newStack->hash ^= ZOBRIST_CASTLING[newStack->castling & 0xF];
         switch (piece == PIECE_ROOK ? origin : captureTarget) {
         case 0:
-            board->stack->castling &= ~0x2; // Queenside castle white
+            newStack->castling &= ~0x2; // Queenside castle white
             break;
         case 7:
-            board->stack->castling &= ~0x1; // Kingside castle white
+            newStack->castling &= ~0x1; // Kingside castle white
             break;
         case 56:
-            board->stack->castling &= ~0x8; // Queenside castle black
+            newStack->castling &= ~0x8; // Queenside castle black
             break;
         case 63:
-            board->stack->castling &= ~0x4; // Kingside castle black
+            newStack->castling &= ~0x4; // Kingside castle black
             break;
         default:
             break;
         }
+        newStack->hash ^= ZOBRIST_CASTLING[newStack->castling & 0xF];
     }
 
     Color side;
@@ -387,16 +425,16 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         for (_piece = 0; _piece < PIECE_TYPES; _piece++) {
             // If from or to are attacked, or this piece type was moved or captured, regenerate
             if (
-                (board->stack->attackedByPiece[side][_piece] & (fromTo | captureTargetBB)) ||
+                (newStack->attackedByPiece[side][_piece] & (fromTo | captureTargetBB)) ||
                 (side == board->stm && piece == _piece) ||
                 (side != board->stm && _piece == newStack->capturedPiece) ||
                 (_piece == promotionPiece)
                 ) {
-                board->stack->attackedByPiece[side][_piece] = attackedSquaresByPiece(board, side, _piece);
+                newStack->attackedByPiece[side][_piece] = attackedSquaresByPiece(board, side, _piece);
             }
-            attackers |= board->stack->attackedByPiece[side][_piece];
+            attackers |= newStack->attackedByPiece[side][_piece];
         }
-        board->stack->attackedByColor[side] = attackers;
+        newStack->attackedByColor[side] = attackers;
     }
 
     board->stm = 1 - board->stm;
@@ -535,11 +573,6 @@ Bitboard slidingPieceAttacks(Board* board, Bitboard pieceBB) {
     Square lastSquare, toSquare;
     Bitboard toSquareBB;
 
-    if (pieceType >= NO_PIECE) {
-        printf("%d %d\n", pieceType, origin);
-        debugBoard(board);
-        debugBitboard(pieceBB);
-    }
     assert(pieceType < NO_PIECE);
     
     for (direction = DIRECTIONS[pieceType][0]; direction <= DIRECTIONS[pieceType][1]; direction++) {
@@ -676,7 +709,7 @@ void debugBoard(Board* board) {
     for (int file = 0; file <= 15; file++) {
         printf(" -");
     }
-    printf("\n");
+    printf("\n%" PRIu64 "\n", board->stack->hash);
 }
 
 void debugBitboard(Bitboard bb) {

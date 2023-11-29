@@ -33,6 +33,7 @@ void Thread::idle() {
         searching = true;
 
         // Do the search stuff here
+        rootBoard.stopSearching = false;
         if (searchParameters.perft) {
             perft(&rootBoard, searchParameters.depth);
         } else {
@@ -49,6 +50,7 @@ void Thread::idle() {
 
 void Thread::exit() {
     exiting = true;
+    stopSearching();
     cv.notify_one();
 }
 
@@ -64,4 +66,5 @@ void Thread::startSearching(Board board, std::deque<BoardStack> queue, SearchPar
 
 void Thread::stopSearching() {
     searching = false;
+    rootBoard.stopSearching = true;
 }

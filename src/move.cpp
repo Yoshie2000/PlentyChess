@@ -9,7 +9,21 @@ constexpr Move createMove(Square origin, Square target) {
     return (Move)((origin & 0x3F) | ((target & 0x3F) << 6));
 }
 
-void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
+bool isValid(Board* board, Move move) {
+    Square origin = moveOrigin(move);
+    Square target = moveTarget(move);
+    if (board->pieces[origin] == NO_PIECE) return false;
+    if (board->byColor[board->stm] & (C64(1) << target)) return false;
+    if (board->byColor[1 - board->stm] & (C64(1) << origin)) return false;
+    return true;
+}
+
+void generateMoves(Board* board, Move* moves, int* counter, Move ttMove, bool onlyCaptures) {
+
+    if (ttMove != MOVE_NONE && isValid(board, ttMove)) {
+        *moves++ = ttMove;
+        (*counter)++;
+    }
 
     Bitboard blocked = board->board;
     Bitboard blockedUs = board->byColor[board->stm];

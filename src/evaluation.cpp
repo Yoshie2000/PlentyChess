@@ -22,6 +22,9 @@ Eval evaluate(Board* board) {
         result += PIECE_VALUES[piece] * __builtin_popcountll(board->byPiece[side][piece]);
     }
 
+    // Small bonus for lots of "vision"/"space"
+    result += 10 * __builtin_popcountll(board->stack->attackedByColor[side]);
+
     return result;
 }
 

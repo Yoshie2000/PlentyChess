@@ -4,6 +4,7 @@
 #include <string>
 #include <iostream>
 #include <deque>
+#include <algorithm>
 
 #include "board.h"
 #include "uci.h"
@@ -35,7 +36,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
     // Set up startpos or moves
     if (matchesToken(line, "startpos")) {
         startpos(board);
-        line = line.substr(9);
+        line = line.substr(std::min(9, (int) line.length()));
     }
     else if (matchesToken(line, "fen")) {
         line = line.substr(4);

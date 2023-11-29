@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -g -ggdb
 
-SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp
+SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp
 OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
 
 all:	engine

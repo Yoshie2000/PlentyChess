@@ -9,6 +9,7 @@
 #include "move.h"
 #include "evaluation.h"
 #include "thread.h"
+#include "tt.h"
 
 uint64_t perftInternal(Board* board, int depth) {
     if (depth == 0) return C64(1);
@@ -89,6 +90,10 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     assert(alpha >= -EVAL_INFINITE && alpha < beta && beta <= EVAL_INFINITE);
 
+    // Check for stop
+    if (board->stopSearching || stack->ply >= MAX_PLY)
+        return (stack->ply >= MAX_PLY) ? evaluate(board) : 0;
+
     BoardStack boardStack;
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
     Eval bestValue;
@@ -103,15 +108,15 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (alpha < bestValue)
         alpha = bestValue;
 
-    // Generate moves
-    Move moves[MAX_MOVES] = { MOVE_NONE };
-    int moveCount = 0, skippedMoves = 0;
-    generateMoves(board, moves, &moveCount, true);
-
     alpha = std::max((int)alpha, (int)matedIn(stack->ply));
     beta = std::min((int)beta, (int)mateIn(stack->ply + 1));
     if (alpha >= beta)
         return alpha;
+
+    // Generate moves
+    Move moves[MAX_MOVES] = { MOVE_NONE };
+    int moveCount = 0, skippedMoves = 0;
+    generateMoves(board, moves, &moveCount, MOVE_NONE, true);
 
     // Moves loop
     for (int i = 0; i < moveCount; i++) {
@@ -169,19 +174,19 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
     if (depth <= 0) return qsearch<PV_NODE>(board, stack, alpha, beta);
 
+    // Check for stop
+    if (board->stopSearching || stack->ply >= MAX_PLY)
+        return (stack->ply >= MAX_PLY) ? evaluate(board) : 0;
+
     BoardStack boardStack;
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
-    Eval bestValue;
+    Move bestMove = MOVE_NONE;
+    Eval bestValue = -EVAL_INFINITE;
     bool rootNode = nodeType == ROOT_NODE;
 
     stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
     (stack + 1)->nodes = 0;
-
-    // Generate moves
-    Move moves[MAX_MOVES] = { MOVE_NONE };
-    int moveCount = 0, skippedMoves = 0;
-    generateMoves(board, moves, &moveCount);
 
     if (!rootNode) {
         // Mate distance pruning
@@ -191,8 +196,21 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
             return alpha;
     }
 
+    // TT Lookup
+    bool ttHit;
+    Move ttMove = MOVE_NONE;
+    TTEntry* ttEntry = TT.probe(board->stack->hash, &ttHit);
+    if (ttHit) {
+        // bestValue = ttEntry->value;
+        ttMove = ttEntry->bestMove;
+    }
+
+    // Generate moves
+    Move moves[MAX_MOVES] = { MOVE_NONE };
+    int moveCount = 0, skippedMoves = 0;
+    generateMoves(board, moves, &moveCount, ttMove);
+
     // Moves loop
-    bestValue = -EVAL_INFINITE;
     for (int i = 0; i < moveCount; i++) {
         Move move = moves[i];
 
@@ -222,6 +240,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
         if (value > bestValue) {
             bestValue = value;
+            bestMove = move;
 
             if (value > alpha) {
                 alpha = value;
@@ -242,12 +261,17 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
         return 0; // Stalemate
     }
 
+    // Insert into TT
+    ttEntry->update(board->stack->hash, bestMove, depth, bestValue);
+
     assert(bestValue > -EVAL_INFINITE && bestValue < EVAL_INFINITE);
 
     return bestValue;
 }
 
 void Thread::tsearch() {
+    TT.clear();
+
     int maxDepth = searchParameters.depth == 0 ? MAX_PLY : searchParameters.depth;
 
     Move bestMove = MOVE_NONE;
@@ -263,6 +287,9 @@ void Thread::tsearch() {
         Eval value = search<ROOT_NODE>(&rootBoard, stack, depth, -EVAL_INFINITE, EVAL_INFINITE);
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
+        if (rootBoard.stopSearching)
+            break;
+
         // Send UCI info
         int64_t ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
         int64_t nps = ms == 0 ? 0 : (int64_t)((stack->nodes) / ((double)ms / 1000));
@@ -276,7 +303,7 @@ void Thread::tsearch() {
         }
         std::cout << std::endl;
 
-        if (ms >= 2000) break; // For now, search until the longest search exceeds 2s
+        if (ms >= 5000) break; // For now, search until the longest search exceeds 1s
     }
 
     std::cout << "bestmove " << moveToString(bestMove) << std::endl;

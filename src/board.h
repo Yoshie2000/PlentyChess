@@ -36,11 +36,15 @@
         uint8_t rule50_ply;
 
         struct BoardStack* stack;
+
+        bool stopSearching;
     };
 
     struct BoardStack {        
         Piece capturedPiece;
         Bitboard enpassantTarget; // one-hot encoding -> 0 means no en passant possible
+
+        uint64_t hash;
 
         // MEMCPY GOES FROM HERE
         Bitboard attackedByPiece[2][PIECE_TYPES];
