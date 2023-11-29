@@ -11,11 +11,11 @@ struct MagicEntry {
     MagicEntry() {}
 };
 
-extern const MagicEntry ROOK_MAGICS[64];
-extern const MagicEntry BISHOP_MAGICS[64];
+extern MagicEntry ROOK_MAGICS[64];
+extern MagicEntry BISHOP_MAGICS[64];
 
-extern const Bitboard ROOK_MOVES[64][10];
-extern const Bitboard BISHOP_MOVES[64][10];
+extern Bitboard ROOK_MOVES[64][4096];
+extern Bitboard BISHOP_MOVES[64][4096];
 
 inline size_t magicIndex(MagicEntry entry, Bitboard occupied) {
     Bitboard blockers = occupied & entry.mask;

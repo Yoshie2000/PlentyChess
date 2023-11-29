@@ -5,9 +5,9 @@
 
 int main() {
     initZobrist();
-
-    // Thread searchThread;
-    // uciLoop(&searchThread);
     generateMagics();
+
+    Thread searchThread;
+    uciLoop(&searchThread);
     return 0;
 }

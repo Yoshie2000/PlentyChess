@@ -10,6 +10,7 @@
 #include <iostream>
 #include <cassert>
 #include "tt.h"
+#include "magic.h"
 
 const Bitboard FILE_A = 0x0101010101010101;
 const Bitboard FILE_B = 0x0202020202020202;
@@ -423,7 +424,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     for (side = 0; side <= 1; side++) {
         attackers = C64(0);
         for (_piece = 0; _piece < PIECE_TYPES; _piece++) {
-            // If from or to are attacked, or this piece type was moved or captured, regenerate
+            // If from or to are attacked, or this piece type was moved or captured, or promoted, regenerate
             if (
                 (newStack->attackedByPiece[side][_piece] & (fromTo | captureTargetBB)) ||
                 (side == board->stm && piece == _piece) ||
@@ -562,61 +563,18 @@ Bitboard kingAttacks(Board* board, Color color) {
     return attacksBB;
 }
 
-Bitboard slidingPieceAttacks(Board* board, Bitboard pieceBB) {
-    assert(pieceBB > 0);
-
-    Bitboard attacksBB = C64(0);
-    Square origin = lsb(pieceBB);
-    Piece pieceType = board->pieces[origin];
-
-    int8_t delta, direction;
-    Square lastSquare, toSquare;
-    Bitboard toSquareBB;
-
-    assert(pieceType < NO_PIECE);
-    
-    for (direction = DIRECTIONS[pieceType][0]; direction <= DIRECTIONS[pieceType][1]; direction++) {
-        delta = DIRECTION_DELTAS[direction];
-        lastSquare = LASTSQ_TABLE[origin][direction];
-
-        if (origin != lastSquare)
-            for (toSquare = origin + delta; toSquare < 64; toSquare += delta) {
-                toSquareBB = C64(1) << toSquare;
-                attacksBB |= toSquareBB;
-                if ((board->board & toSquareBB) || (toSquare == lastSquare))
-                    break;
-            }
-    }
-    return attacksBB;
-}
-
 Bitboard slidingPieceAttacksAll(Board* board, Color side, Piece pieceType) {
     Bitboard attacksBB = C64(0);
 
     Bitboard pieces = board->byPiece[side][pieceType];
     while (pieces) {
-        Bitboard pieceBB = C64(1) << popLSB(&pieces);
-        attacksBB |= slidingPieceAttacks(board, pieceBB);
+        Square pieceSquare = popLSB(&pieces);
+        if (pieceType == PIECE_BISHOP || pieceType == PIECE_QUEEN)
+            attacksBB |= getBishopMoves(pieceSquare, board->board);
+        if (pieceType == PIECE_ROOK || pieceType == PIECE_QUEEN)
+            attacksBB |= getRookMoves(pieceSquare, board->board);
     }
     return attacksBB;
-}
-
-bool isSquareAttacked(Board* board, Square square, Color side) {
-    Bitboard squareBB = C64(1) << square;
-
-    if (pawnAttacks(board, side) & squareBB)
-        return true;
-    if (knightAttacksAll(board, side) & squareBB)
-        return true;
-    if (kingAttacks(board, side) & squareBB)
-        return true;
-    if (slidingPieceAttacksAll(board, side, PIECE_BISHOP) & squareBB)
-        return true;
-    if (slidingPieceAttacksAll(board, side, PIECE_ROOK) & squareBB)
-        return true;
-    if (slidingPieceAttacksAll(board, side, PIECE_QUEEN) & squareBB)
-        return true;
-    return false;
 }
 
 Bitboard attackedSquares(Board* board, Color side) {

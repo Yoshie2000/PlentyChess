@@ -71,10 +71,8 @@
 
     Bitboard kingAttacks(Board* board, Color side);
 
-    Bitboard slidingPieceAttacks(Board* board, Bitboard pieceBB);
     Bitboard slidingPieceAttacksAll(Board* board, Color side, Piece pieceType);
 
-    bool isSquareAttacked(Board* board, Square square, Color side);
     Bitboard attackedSquares(Board* board, Color side);
     Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType);
 

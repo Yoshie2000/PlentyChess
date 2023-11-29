@@ -4,6 +4,7 @@
 #include "move.h"
 #include "board.h"
 #include "types.h"
+#include "magic.h"
 
 constexpr Move createMove(Square origin, Square target) {
     return (Move)((origin & 0x3F) | ((target & 0x3F) << 6));
@@ -153,7 +154,7 @@ void generateMoves(Board* board, Move* moves, int* counter, Move ttMove, bool on
     Bitboard pieces = board->byPiece[board->stm][PIECE_BISHOP];
     while (pieces) {
         Square piece = popLSB(&pieces);
-        Bitboard targets = slidingPieceAttacks(board, C64(1) << piece) & ~blockedUs;
+        Bitboard targets = getBishopMoves(piece, board->board) & ~blockedUs;
         if (onlyCaptures)
             targets &= blockedEnemy;
 
@@ -168,7 +169,7 @@ void generateMoves(Board* board, Move* moves, int* counter, Move ttMove, bool on
     pieces = board->byPiece[board->stm][PIECE_ROOK];
     while (pieces) {
         Square piece = popLSB(&pieces);
-        Bitboard targets = slidingPieceAttacks(board, C64(1) << piece) & ~blockedUs;
+        Bitboard targets = getRookMoves(piece, board->board) & ~blockedUs;
         if (onlyCaptures)
             targets &= blockedEnemy;
 
@@ -183,7 +184,7 @@ void generateMoves(Board* board, Move* moves, int* counter, Move ttMove, bool on
     pieces = board->byPiece[board->stm][PIECE_QUEEN];
     while (pieces) {
         Square piece = popLSB(&pieces);
-        Bitboard targets = slidingPieceAttacks(board, C64(1) << piece) & ~blockedUs;
+        Bitboard targets = (getBishopMoves(piece, board->board) | getRookMoves(piece, board->board)) & ~blockedUs;
         if (onlyCaptures)
             targets &= blockedEnemy;
 
