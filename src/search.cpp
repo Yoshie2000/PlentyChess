@@ -174,7 +174,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
     if (depth <= 0) return qsearch<PV_NODE>(board, stack, alpha, beta);
 
-    // Check for stop
+    // Check for stop or max depth
     if (board->stopSearching || stack->ply >= MAX_PLY)
         return (stack->ply >= MAX_PLY) ? evaluate(board) : 0;
 
@@ -303,7 +303,7 @@ void Thread::tsearch() {
         }
         std::cout << std::endl;
 
-        if (ms >= 1000) break; // For now, search until the longest search exceeds 1s
+        // if (ms >= 1000) break; // For now, search until the longest search exceeds 1s
     }
 
     std::cout << "bestmove " << moveToString(bestMove) << std::endl;

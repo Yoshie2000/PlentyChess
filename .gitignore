@@ -2,3 +2,4 @@ src/*.o
 engine
 *.out
 perf*
+stuff/

@@ -59,6 +59,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
             lastStrlen = line.length();
 
             size_t i = 0;
+            move[4] = ' ';
             while (line[i] != ' ' && i < 5 && i < line.length()) {
                 move[i] = line[i];
                 i++;
@@ -97,9 +98,18 @@ void go(std::string line, Thread* searchThread, Board* board, std::deque<BoardSt
             parameters.infinite = true;
         }
 
+        if (matchesToken(token, "movetime")) {
+            nextToken(&line, &token);
+            parameters.movetime = std::stoi(token);
+        }
+
     }
 
     searchThread->startSearching(*board, *stackQueue, parameters);
+    if (parameters.movetime > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(parameters.movetime));
+        searchThread->stopSearching();
+    }
 }
 
 void uciLoop(Thread* searchThread) {
@@ -131,3 +141,11 @@ void uciLoop(Thread* searchThread) {
 
     printf("UCI thread stopping\n");
 }
+
+/*
+position startpos moves e2e3 d7d5 b2b3 e7e6 c1b2 g8h6 g1h3 b8c6 d1f3 e6e5 c2c4 c6b4
+position startpos moves e2e3 d7d5 b2b3 e7e6 c1b2 g8h6 g1h3 b8c6 d1f3 e6e5 c2c4 c6b4 c4d5
+position startpos moves e2e3 d7d5 b2b3 e7e6 c1b2 g8h6 g1h3 b8c6 d1f3 e6e5 c2c4 c6b4 c4d5 b4c2
+position startpos moves e2e3 d7d5 b2b3 e7e6 c1b2 g8h6 g1h3 b8c6 d1f3 e6e5 c2c4 c6b4 c4d5 b4c2 e1d1
+position startpos moves e2e3 d7d5 b2b3 e7e6 c1b2 g8h6 g1h3 b8c6 d1f3 e6e5 c2c4 c6b4 c4d5 b4c2 e1d1 c8g4
+*/
