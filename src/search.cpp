@@ -280,7 +280,7 @@ void Thread::tsearch() {
         SearchStack stack[MAX_PLY];
         Move pv[MAX_PLY + 1];
         stack->pv = pv;
-        stack->ply = 1;
+        stack->ply = 0;
 
         // Search
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -303,7 +303,7 @@ void Thread::tsearch() {
         }
         std::cout << std::endl;
 
-        if (ms >= 5000) break; // For now, search until the longest search exceeds 1s
+        if (ms >= 1000) break; // For now, search until the longest search exceeds 1s
     }
 
     std::cout << "bestmove " << moveToString(bestMove) << std::endl;

@@ -19,7 +19,7 @@ Eval evaluate(Board* board) {
 
     // Basic material evaluation
     for (Piece piece = 0; piece < PIECE_TYPES - 1; piece++) {
-        result += PIECE_VALUES[piece] * __builtin_popcountll(board->byPiece[side][piece]);
+        result += PIECE_VALUES[piece] * board->stack->pieceCount[side][piece];
     }
 
     // Small bonus for lots of "vision"/"space"
