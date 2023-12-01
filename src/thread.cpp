@@ -6,15 +6,14 @@
 #include "thread.h"
 #include "search.h"
 
-// 2k2Q2/ppp5/4p3/b7/8/1K5p/P4r2/8 b - - 0 32
-// r3k1r1/pp3p1p/6q1/2p1nN2/1N2p1B1/4P3/PPP2PPP/R2Q1RK1 w q - 3 15
-// rn1qk1nr/ppp1ppbp/6p1/3p1b2/3P3P/4PN2/PPP2PP1/RNBQKB1R w KQkq - 1 5
-
 Thread::Thread(void) : thread(&Thread::idle, this) {
     exiting = false;
+    searching = true;
+    waitForSearchFinished();
 }
 
 Thread::~Thread() {
+    exit();
     thread.join();
 }
 
@@ -24,23 +23,24 @@ void Thread::idle() {
     while (true) {
 
         std::unique_lock<std::mutex> lock(mutex);
-        cv.wait(lock);
-        lock.unlock();
+        searching = false;
+        cv.notify_one();
+        cv.wait(lock, [&] { return searching; });
 
         if (exiting)
             break;
 
+        lock.unlock();
+
+        rootBoard.stopSearching = false;
         searching = true;
 
         // Do the search stuff here
-        rootBoard.stopSearching = false;
         if (searchParameters.perft) {
             perft(&rootBoard, searchParameters.depth);
         } else {
             tsearch();
         }
-
-        searching = false;
 
         if (exiting)
             break;
@@ -51,6 +51,9 @@ void Thread::idle() {
 void Thread::exit() {
     exiting = true;
     stopSearching();
+    mutex.lock();
+    searching = true;
+    mutex.unlock();
     cv.notify_one();
 }
 
@@ -61,10 +64,18 @@ void Thread::startSearching(Board board, std::deque<BoardStack> queue, SearchPar
     
     rootStack = rootStackQueue.back();
     rootBoard.stack = &rootStack;
+
+    mutex.lock();
+    searching = true;
+    mutex.unlock();
     cv.notify_one();
 }
 
 void Thread::stopSearching() {
-    searching = false;
     rootBoard.stopSearching = true;
+}
+
+void Thread::waitForSearchFinished() {
+    std::unique_lock<std::mutex> lock(mutex);
+    cv.wait(lock, [&] { return !searching; });
 }

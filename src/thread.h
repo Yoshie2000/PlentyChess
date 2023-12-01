@@ -24,12 +24,16 @@ class Thread {
 
 public:
 
+    uint64_t nodesSearched;
+
     Thread(void);
     ~Thread();
 
     void startSearching(Board board, std::deque<BoardStack> stackQueue, SearchParameters parameters);
 
     void stopSearching();
+
+    void waitForSearchFinished();
 
     void exit();
 

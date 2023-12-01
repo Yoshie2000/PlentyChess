@@ -182,7 +182,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
     Move bestMove = MOVE_NONE;
     Eval bestValue = -EVAL_INFINITE;
-    bool rootNode = nodeType == ROOT_NODE;
+    constexpr bool rootNode = nodeType == ROOT_NODE;
 
     stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
@@ -234,10 +234,6 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
         stack->nodes += (stack + 1)->nodes;
 
-        // if (rootNode) {
-        //     std::cout << "move " << moveToString(move) << " eval " << formatEval(value) << std::endl;
-        // }
-
         if (value > bestValue) {
             bestValue = value;
             bestMove = move;
@@ -271,6 +267,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
 void Thread::tsearch() {
     TT.clear();
+    nodesSearched = 0;
 
     int maxDepth = searchParameters.depth == 0 ? MAX_PLY : searchParameters.depth;
 
@@ -287,6 +284,8 @@ void Thread::tsearch() {
         Eval value = search<ROOT_NODE>(&rootBoard, stack, depth, -EVAL_INFINITE, EVAL_INFINITE);
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
+        nodesSearched += stack->nodes;
+
         if (rootBoard.stopSearching)
             break;
 
@@ -302,8 +301,6 @@ void Thread::tsearch() {
             std::cout << moveToString(move) << " ";
         }
         std::cout << std::endl;
-
-        // if (ms >= 1000) break; // For now, search until the longest search exceeds 1s
     }
 
     std::cout << "bestmove " << moveToString(bestMove) << std::endl;

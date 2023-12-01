@@ -5,6 +5,6 @@
 
     #define UCI_LINE_LENGTH 256
 
-    void uciLoop(Thread* searchThread);
+    void uciLoop(Thread* searchThread, int argc, char* argv[]);
 
 #endif
