@@ -316,6 +316,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
+    newStack->move = move;
 
     assert(origin < 64 && target < 64);
 
@@ -552,6 +553,12 @@ Bitboard knightAttacksAll(Board* board, Color side) {
 }
 
 Bitboard kingAttacks(Board* board, Color color) {
+    if (board->byPiece[color][PIECE_KING] == 0) {
+        std::cout << moveToString(board->stack->move) << " " << board->stack->move << std::endl;
+        debugBoard(board);
+    }
+    assert(board->byPiece[color][PIECE_KING] > 0);
+
     Bitboard attacksBB = C64(0);
     Square origin = lsb(board->byPiece[color][PIECE_KING]);
 
@@ -613,6 +620,8 @@ Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType) {
 }
 
 bool isInCheck(Board* board, Color side) {
+    assert(board->byPiece[side][PIECE_KING] > 0);
+
     Square kingSquare = lsb(board->byPiece[side][PIECE_KING]);
     Bitboard attackedEnemy = board->stack->attackedByColor[1 - side];
     return (C64(1) << kingSquare) & attackedEnemy;

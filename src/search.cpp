@@ -198,21 +198,19 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
     // TT Lookup
     bool ttHit;
-    // Move ttMove = MOVE_NONE;
+    Move ttMove = MOVE_NONE;
     TTEntry* ttEntry = TT.probe(board->stack->hash, &ttHit);
-    // if (ttHit) {
-    //     // bestValue = ttEntry->value;
-    //     ttMove = ttEntry->bestMove;
-    // }
-
-    // Generate moves
-    Move moves[MAX_MOVES] = { MOVE_NONE };
-    int moveCount = 0, skippedMoves = 0;
-    generateMoves(board, moves, &moveCount, false);
+    if (ttHit) {
+        // bestValue = ttEntry->value;
+        ttMove = ttEntry->bestMove;
+    }
 
     // Moves loop
-    for (int i = 0; i < moveCount; i++) {
-        Move move = moves[i];
+    MoveGen movegen(board, MOVE_NONE);
+    Move move;
+    int moveCount = 0, skippedMoves = 0;
+    while ((move = movegen.nextMove()) != MOVE_NONE) {
+        moveCount++;
 
         doMove(board, &boardStack, move);
         stack->nodes++;
