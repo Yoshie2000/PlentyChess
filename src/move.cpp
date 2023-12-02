@@ -6,6 +6,8 @@
 #include "types.h"
 #include "magic.h"
 #include <cassert>
+#include <iostream>
+#include "evaluation.h"
 
 constexpr Move createMove(Square origin, Square target) {
     return (Move)((origin & 0x3F) | ((target & 0x3F) << 6));
@@ -131,7 +133,7 @@ void generatePiece(Board* board, Move** moves, int* counter, bool captures) {
     Bitboard pieces = board->byPiece[board->stm][pieceType];
     while (pieces) {
         Square piece = popLSB(&pieces);
-        Bitboard targets = pieceType == PIECE_KNIGHT ? knightAttacks(C64(1) << piece) : pieceType == PIECE_BISHOP ? getBishopMoves(piece, board->board) : pieceType == PIECE_ROOK ? getRookMoves(piece, board->board) : pieceType == PIECE_QUEEN ? (getBishopMoves(piece, board->board) | getRookMoves(piece, board->board)) : pieceType == PIECE_KING ? kingAttacks(board, board->stm) & ~attackedEnemy : C64(0);
+        Bitboard targets = pieceType == PIECE_KNIGHT ? knightAttacks(C64(1) << piece) : pieceType == PIECE_BISHOP ? getBishopMoves(piece, board->board) : pieceType == PIECE_ROOK ? getRookMoves(piece, board->board) : pieceType == PIECE_QUEEN ? (getRookMoves(piece, board->board) | getBishopMoves(piece, board->board)) : pieceType == PIECE_KING ? kingAttacks(board, board->stm) & ~attackedEnemy : C64(0);
         // Decide whether only captures or only non-captures
         if (captures)
             targets &= blockedEnemy & ~blockedUs;
@@ -206,28 +208,78 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
 Move MoveGen::nextMove() {
     // If there's still unused moves in the list, return those
     if (returnedMoves < generatedMoves) {
-        assert(moveList[returnedMoves] != MOVE_NONE);
+        assert(returnedMoves < MAX_MOVES && moveList[returnedMoves] != MOVE_NONE);
 
         return moveList[returnedMoves++];
     }
-    
-    // Generate moves for the current stage
-    switch (generationStage) {
 
-    case GEN_STAGE_TTMOVE:
-        assert(ttMove != MOVE_NONE);
+    Move* moves = moveList + generatedMoves;
 
-        moveList[generatedMoves++] = ttMove;
-        break;
+    while (returnedMoves >= generatedMoves && generationStage <= GEN_STAGE_REMAINING) {
 
-    case GEN_STAGE_CAPTURES:
-        break;
+        // Generate moves for the current stage
+        switch (generationStage) {
+        case GEN_STAGE_TTMOVE:
+            assert(ttMove != MOVE_NONE);
 
-    case GEN_STAGE_REMAINING:
-        break;
+            moveList[generatedMoves++] = ttMove;
+            generationStage++;
+            break;
+
+        case GEN_STAGE_CAPTURES: {
+            int beginIndex = generatedMoves;
+            generatePawn_capture(board, &moves, &generatedMoves);
+            generatePiece<PIECE_KNIGHT>(board, &moves, &generatedMoves, true);
+            generatePiece<PIECE_BISHOP>(board, &moves, &generatedMoves, true);
+            generatePiece<PIECE_ROOK>(board, &moves, &generatedMoves, true);
+            generatePiece<PIECE_QUEEN>(board, &moves, &generatedMoves, true);
+            generatePiece<PIECE_KING>(board, &moves, &generatedMoves, true);
+            int endIndex = generatedMoves;
+
+            int scores[MAX_MOVES];
+            for (int i = beginIndex; i < endIndex; i++) {
+                Move move = moveList[i];
+                int score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
+                if ((move & 0x3000) == MOVE_ENPASSANT)
+                    score = 0;
+                scores[i] = score;
+            }
+
+            for (int i = beginIndex + 1; i < endIndex; i++) {
+                int move = moveList[i];
+                int score = scores[i];
+                int j = i - 1;
+
+                while (j >= 0 && scores[j] < score) {
+                    moveList[j + 1] = moveList[j];
+                    scores[j + 1] = scores[j];
+                    j--;
+                }
+
+                moveList[j + 1] = move;
+                scores[j + 1] = score;
+            }
+
+            generationStage++;
+        }
+                               break;
+
+        case GEN_STAGE_REMAINING:
+            generatePawn_quiet(board, &moves, &generatedMoves);
+            generatePiece<PIECE_KNIGHT>(board, &moves, &generatedMoves, false);
+            generatePiece<PIECE_BISHOP>(board, &moves, &generatedMoves, false);
+            generatePiece<PIECE_ROOK>(board, &moves, &generatedMoves, false);
+            generatePiece<PIECE_QUEEN>(board, &moves, &generatedMoves, false);
+            generatePiece<PIECE_KING>(board, &moves, &generatedMoves, false);
+            if (!onlyCaptures && !isInCheck(board, board->stm)) {
+                generateCastling(board, &moves, &generatedMoves);
+            }
+            generationStage++;
+            break;
+        }
     }
 
-    return MOVE_NONE;
+    return moveList[returnedMoves++];
 }
 
 inline char fileFromSquare(Square square) {

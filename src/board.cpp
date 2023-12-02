@@ -598,6 +598,8 @@ Bitboard knightAttacksAll(Board* board, Color side) {
 }
 
 Bitboard kingAttacks(Board* board, Color color) {
+    assert(board->byPiece[color][PIECE_KING] > 0);
+
     Bitboard attacksBB = C64(0);
     Square origin = lsb(board->byPiece[color][PIECE_KING]);
 
@@ -659,6 +661,8 @@ Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType) {
 }
 
 bool isInCheck(Board* board, Color side) {
+    assert(board->byPiece[side][PIECE_KING] > 0);
+
     Square kingSquare = lsb(board->byPiece[side][PIECE_KING]);
     Bitboard attackedEnemy = board->stack->attackedByColor[1 - side];
     return (C64(1) << kingSquare) & attackedEnemy;
