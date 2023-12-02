@@ -45,6 +45,7 @@ struct BoardStack {
 
     uint8_t rule50_ply;
     uint8_t nullmove_ply;
+    int8_t repetition;
     uint64_t hash;
 
     // MEMCPY GOES FROM HERE
@@ -65,6 +66,7 @@ void doMove(Board* board, BoardStack* newStack, Move move);
 void undoMove(Board* board, Move move);
 
 bool hasRepeated(Board* board);
+bool isDraw(Board* board, int ply);
 
 Bitboard pawnAttacksLeft(Board* board, Color side);
 Bitboard pawnAttacksRight(Board* board, Color side);

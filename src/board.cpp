@@ -312,13 +312,14 @@ void castlingRookSquares(Board* board, Square origin, Square target, Square* roo
 void doMove(Board* board, BoardStack* newStack, Move move) {
     newStack->previous = board->stack;
     board->stack = newStack;
-    memcpy(board->stack->attackedByPiece, board->stack->previous->attackedByPiece, sizeof(Bitboard) * 14 + sizeof(int) * 12 + sizeof(uint8_t));
-    board->stack->hash = board->stack->previous->hash ^= ZOBRIST_STM_BLACK;
-    board->stack->rule50_ply = board->stack->previous->rule50_ply + 1;
-    board->stack->nullmove_ply = board->stack->previous->nullmove_ply + 1;
+    memcpy(newStack->attackedByPiece, newStack->previous->attackedByPiece, sizeof(Bitboard) * 14 + sizeof(int) * 12 + sizeof(uint8_t));
+
+    newStack->hash = newStack->previous->hash ^ ZOBRIST_STM_BLACK;
+    newStack->rule50_ply = newStack->previous->rule50_ply + 1;
+    newStack->nullmove_ply = newStack->previous->nullmove_ply + 1;
 
     if (move == MOVE_NULL)
-        board->stack->nullmove_ply = 0;
+        newStack->nullmove_ply = 0;
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
@@ -466,6 +467,20 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         }
         newStack->attackedByColor[side] = attackers;
     }
+    
+    // Calculate repetition information
+    newStack->repetition = 0;
+    int end = std::min(newStack->rule50_ply - 1, newStack->nullmove_ply - 1);
+    if (end >= 4) {
+        BoardStack* st = newStack;
+        for (int i = 2; i <= end; i += 2) {
+            st = st->previous->previous;
+            if (newStack->hash == st->hash) {
+                newStack->repetition = st->repetition ? -i : i;
+                break;
+            }
+        }
+    }
 
     board->stm = 1 - board->stm;
 }
@@ -539,17 +554,24 @@ void undoMove(Board* board, Move move) {
     board->stack = board->stack->previous;
 }
 
+// Check for any repetition since the last capture / pawn move
 bool hasRepeated(Board* board) {
+    BoardStack* stack = board->stack;
     int end = std::min(board->stack->rule50_ply, board->stack->nullmove_ply);
-    if (end >= 4) {
-        BoardStack* stack = board->stack->previous->previous;
-        for (int i = 4; i <= end; i += 2) {
-            if (board->stack->hash == stack->hash)
-                return true;
-            stack = stack->previous->previous;
-        }
+    for (; end >= 4; end--) {
+        if (stack->repetition)
+            return true;
+        stack = stack->previous;
     }
     return false;
+}
+
+// Check for any repetition since the last capture / pawn move
+bool isDraw(Board* board, int ply) {
+    if (board->stack->rule50_ply > 99)
+        return true;
+    
+    return board->stack->repetition && board->stack->repetition < ply;
 }
 
 Bitboard pawnAttacksLeft(Board* board, Color side) {
