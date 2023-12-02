@@ -546,16 +546,6 @@ Bitboard pawnAttacks(Board* board, Color side) {
     return pawnAttacksLeft(board, side) | pawnAttacksRight(board, side);
 }
 
-Bitboard knightAttacks(Bitboard knightBB) {
-    Bitboard l1 = (knightBB >> 1) & C64(0x7f7f7f7f7f7f7f7f);
-    Bitboard l2 = (knightBB >> 2) & C64(0x3f3f3f3f3f3f3f3f);
-    Bitboard r1 = (knightBB << 1) & C64(0xfefefefefefefefe);
-    Bitboard r2 = (knightBB << 2) & C64(0xfcfcfcfcfcfcfcfc);
-    Bitboard h1 = l1 | r1;
-    Bitboard h2 = l2 | r2;
-    return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
-}
-
 Bitboard knightAttacksAll(Board* board, Color side) {
     Bitboard knights = board->byPiece[side][PIECE_KNIGHT];
     return knightAttacks(knights);
