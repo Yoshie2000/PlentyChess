@@ -143,6 +143,11 @@ Move stringToMove(char* string, Board* board = nullptr);
 #define GEN_STAGE_CAPTURES 1
 #define GEN_STAGE_REMAINING 2
 
+struct ScoredMove {
+    Move move;
+    int value;
+};
+
 class MoveGen {
 
     Board* board;

@@ -10,6 +10,8 @@ const Eval EVAL_MATE_IN_MAX_PLY = EVAL_MATE - MAX_PLY;
 
 const Eval EVAL_INFINITE = 31000;
 
+extern Eval PIECE_VALUES[PIECE_TYPES];
+
 Eval evaluate(Board* board);
 
 std::string formatEval(Eval value);

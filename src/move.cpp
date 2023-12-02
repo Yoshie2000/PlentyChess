@@ -7,6 +7,7 @@
 #include "magic.h"
 #include <cassert>
 #include <iostream>
+#include "evaluation.h"
 
 constexpr Move createMove(Square origin, Square target) {
     return (Move)((origin & 0x3F) | ((target & 0x3F) << 6));
@@ -225,15 +226,43 @@ Move MoveGen::nextMove() {
             generationStage++;
             break;
 
-        case GEN_STAGE_CAPTURES:
+        case GEN_STAGE_CAPTURES: {
+            int beginIndex = generatedMoves;
             generatePawn_capture(board, &moves, &generatedMoves);
             generatePiece<PIECE_KNIGHT>(board, &moves, &generatedMoves, true);
             generatePiece<PIECE_BISHOP>(board, &moves, &generatedMoves, true);
             generatePiece<PIECE_ROOK>(board, &moves, &generatedMoves, true);
             generatePiece<PIECE_QUEEN>(board, &moves, &generatedMoves, true);
             generatePiece<PIECE_KING>(board, &moves, &generatedMoves, true);
+            int endIndex = generatedMoves;
+
+            int scores[MAX_MOVES];
+            for (int i = beginIndex; i < endIndex; i++) {
+                Move move = moveList[i];
+                int score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
+                if ((move & 0x3000) == MOVE_ENPASSANT)
+                    score = 0;
+                scores[i] = score;
+            }
+
+            for (int i = beginIndex + 1; i < endIndex; i++) {
+                int move = moveList[i];
+                int score = scores[i];
+                int j = i - 1;
+
+                while (j >= 0 && scores[j] < score) {
+                    moveList[j + 1] = moveList[j];
+                    scores[j + 1] = scores[j];
+                    j--;
+                }
+
+                moveList[j + 1] = move;
+                scores[j + 1] = score;
+            }
+
             generationStage++;
-            break;
+        }
+                               break;
 
         case GEN_STAGE_REMAINING:
             generatePawn_quiet(board, &moves, &generatedMoves);

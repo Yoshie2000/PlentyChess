@@ -206,7 +206,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     }
 
     // Moves loop
-    MoveGen movegen(board, MOVE_NONE);
+    MoveGen movegen(board, ttMove);
     Move move;
     int moveCount = 0, skippedMoves = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -284,8 +284,11 @@ void Thread::tsearch() {
 
         nodesSearched += stack->nodes;
 
-        if (rootBoard.stopSearching)
+        if (rootBoard.stopSearching) {
+            if (bestMove == MOVE_NONE)
+                bestMove = stack->pv[0];
             break;
+        }
 
         // Send UCI info
         int64_t ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
