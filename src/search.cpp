@@ -174,6 +174,9 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
     if (depth <= 0) return qsearch<PV_NODE>(board, stack, alpha, beta);
 
+    if (hasRepeated(board))
+        return 0;
+
     // Check for stop or max depth
     if (board->stopSearching || stack->ply >= MAX_PLY)
         return (stack->ply >= MAX_PLY) ? evaluate(board) : 0;

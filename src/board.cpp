@@ -53,6 +53,7 @@ size_t parseFen(Board* board, std::string fen) {
     }
     board->stack->capturedPiece = NO_PIECE;
     board->stack->hash = 0;
+    board->stack->nullmove_ply = 0;
 
     // Board position and everything
     Bitboard currentSquareBB = C64(1) << currentSquare;
@@ -247,10 +248,10 @@ size_t parseFen(Board* board, std::string fen) {
         rule50String.replace(rule50tmp++, 1, 1, fen.at(i++));
     }
     if (rule50String.at(1) == '-') {
-        board->rule50_ply = (int)(rule50String.at(0)) - 48;
+        board->stack->rule50_ply = (int)(rule50String.at(0)) - 48;
     }
     else {
-        board->rule50_ply = 10 * ((int)(rule50String.at(0)) - 48) + ((int)(rule50String.at(1)) - 48);
+        board->stack->rule50_ply = 10 * ((int)(rule50String.at(0)) - 48) + ((int)(rule50String.at(1)) - 48);
     }
     i++;
 
@@ -313,6 +314,11 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     board->stack = newStack;
     memcpy(board->stack->attackedByPiece, board->stack->previous->attackedByPiece, sizeof(Bitboard) * 14 + sizeof(int) * 12 + sizeof(uint8_t));
     board->stack->hash = board->stack->previous->hash ^= ZOBRIST_STM_BLACK;
+    board->stack->rule50_ply = board->stack->previous->rule50_ply + 1;
+    board->stack->nullmove_ply = board->stack->previous->nullmove_ply + 1;
+
+    if (move == MOVE_NULL)
+        board->stack->nullmove_ply = 0;
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
@@ -337,6 +343,9 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     board->pieces[origin] = NO_PIECE;
     board->pieces[target] = piece;
 
+    if (piece == PIECE_PAWN)
+        newStack->rule50_ply = 0;
+
     // This move is en passent
     Move specialMove = move & 0x3000;
     if (specialMove == MOVE_ENPASSANT) {
@@ -358,7 +367,8 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[newStack->capturedPiece][captureTarget];
 
-        board->stack->pieceCount[1 - board->stm][newStack->capturedPiece]--;
+        newStack->pieceCount[1 - board->stm][newStack->capturedPiece]--;
+        newStack->rule50_ply = 0;
     }
 
     // En passent square
@@ -400,8 +410,9 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][target] ^ ZOBRIST_PIECE_SQUARES[promotionPiece][target];
 
-        board->stack->pieceCount[board->stm][PIECE_PAWN]--;
-        board->stack->pieceCount[board->stm][promotionPiece]++;
+        newStack->pieceCount[board->stm][PIECE_PAWN]--;
+        newStack->pieceCount[board->stm][promotionPiece]++;
+        newStack->rule50_ply = 0;
     }
 
     newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][origin] ^ ZOBRIST_PIECE_SQUARES[piece][target];
@@ -526,6 +537,19 @@ void undoMove(Board* board, Move move) {
     }
 
     board->stack = board->stack->previous;
+}
+
+bool hasRepeated(Board* board) {
+    int end = std::min(board->stack->rule50_ply, board->stack->nullmove_ply);
+    if (end >= 4) {
+        BoardStack* stack = board->stack->previous->previous;
+        for (int i = 4; i <= end; i += 2) {
+            if (board->stack->hash == stack->hash)
+                return true;
+            stack = stack->previous->previous;
+        }
+    }
+    return false;
 }
 
 Bitboard pawnAttacksLeft(Board* board, Color side) {
