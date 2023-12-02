@@ -44,6 +44,7 @@ struct BoardStack {
     Piece capturedPiece;
     Bitboard enpassantTarget; // one-hot encoding -> 0 means no en passant possible
 
+    Move move;
     uint64_t hash;
 
     // MEMCPY GOES FROM HERE
