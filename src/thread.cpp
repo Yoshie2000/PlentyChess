@@ -37,7 +37,7 @@ void Thread::idle() {
 
         // Do the search stuff here
         if (searchParameters.perft) {
-            perft(&rootBoard, searchParameters.depth);
+            nodesSearched = perft(&rootBoard, searchParameters.depth);
         } else {
             tsearch();
         }

@@ -5,6 +5,7 @@
 #include "board.h"
 #include "types.h"
 #include "magic.h"
+#include <cassert>
 
 constexpr Move createMove(Square origin, Square target) {
     return (Move)((origin & 0x3F) | ((target & 0x3F) << 6));
@@ -19,225 +20,214 @@ bool isValid(Board* board, Move move) {
     return true;
 }
 
-void generateMoves(Board* board, Move* moves, int* counter, Move ttMove, bool onlyCaptures) {
+void generatePawn_quiet(Board* board, Move** moves, int* counter) {
+    Bitboard pawns = board->byPiece[board->stm][PIECE_PAWN];
+    Bitboard free = ~board->board;
 
-    if (ttMove != MOVE_NONE && isValid(board, ttMove)) {
-        *moves++ = ttMove;
+    Bitboard pushedPawns, secondRankPawns, doublePushedPawns, enemyBackrank;
+    if (board->stm == COLOR_WHITE) {
+        pushedPawns = (pawns << 8) & free;
+        secondRankPawns = (pawns & RANK_2) & pawns;
+        doublePushedPawns = (((secondRankPawns << 8) & free) << 8) & free;
+        enemyBackrank = RANK_8;
+    }
+    else {
+        pushedPawns = (pawns >> 8) & free;
+        secondRankPawns = (pawns & RANK_7) & pawns;
+        doublePushedPawns = (((secondRankPawns >> 8) & free) >> 8) & free;
+        enemyBackrank = RANK_1;
+    }
+
+    while (pushedPawns) {
+        Square target = popLSB(&pushedPawns);
+        Move move = createMove(target - UP[board->stm], target);
+
+        if ((C64(1) << target) & enemyBackrank) {
+            // Promotion
+            for (uint8_t promotion = 0; promotion <= 3; promotion++) {
+                *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
+                (*counter)++;
+            }
+            continue;
+        }
+
+        *(*moves)++ = move;
         (*counter)++;
     }
 
-    Bitboard blocked = board->board;
+    // Double pushes
+    while (doublePushedPawns) {
+        Square target = popLSB(&doublePushedPawns);
+        *(*moves)++ = createMove(target - UP_DOUBLE[board->stm], target);
+        (*counter)++;
+    }
+}
+
+void generatePawn_capture(Board* board, Move** moves, int* counter) {
+    // Captures
+    Bitboard pAttacksLeft = pawnAttacksLeft(board, board->stm);
+    Bitboard pAttacksRight = pawnAttacksRight(board, board->stm);
+    Bitboard blockedEnemy = board->byColor[1 - board->stm];
+    Bitboard enemyBackrank = board->stm == COLOR_WHITE ? RANK_8 : RANK_1;
+
+    Bitboard leftCaptures = pAttacksLeft & blockedEnemy;
+    while (leftCaptures) {
+        Square target = popLSB(&leftCaptures);
+        Move move = createMove(target - UP_LEFT[board->stm], target);
+
+        if (__builtin_expect((C64(1) << target) & enemyBackrank, 0)) {
+            // Promotion
+            for (uint8_t promotion = 0; promotion <= 3; promotion++) {
+                *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
+                (*counter)++;
+            }
+            continue;
+        }
+
+        *(*moves)++ = move;
+        (*counter)++;
+    }
+    Bitboard rightCaptures = pAttacksRight & blockedEnemy;
+    while (rightCaptures) {
+        Square target = popLSB(&rightCaptures);
+        Move move = createMove(target - UP_RIGHT[board->stm], target);
+
+        if ((C64(1) << target) & enemyBackrank) {
+            // Promotion
+            for (uint8_t promotion = 0; promotion <= 3; promotion++) {
+                *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
+                (*counter)++;
+            }
+            continue;
+        }
+
+        *(*moves)++ = move;
+        (*counter)++;
+    }
+
+    // En passent
+    Bitboard epBB = board->stack->enpassantTarget;
+    Bitboard leftEp = pAttacksLeft & epBB;
+    if (leftEp) {
+        Square target = popLSB(&leftEp);
+        *(*moves)++ = createMove(target - UP_LEFT[board->stm], target) | MOVE_ENPASSANT;
+        (*counter)++;
+    }
+    Bitboard rightEp = pAttacksRight & epBB;
+    if (rightEp) {
+        Square target = popLSB(&rightEp);
+        *(*moves)++ = createMove(target - UP_RIGHT[board->stm], target) | MOVE_ENPASSANT;
+        (*counter)++;
+    }
+}
+
+// For all pieces other than pawns
+template <Piece pieceType>
+void generatePiece(Board* board, Move** moves, int* counter, bool captures) {
     Bitboard blockedUs = board->byColor[board->stm];
     Bitboard blockedEnemy = board->byColor[1 - board->stm];
-    Bitboard free = ~blocked;
-
     Bitboard attackedEnemy = board->stack->attackedByColor[1 - board->stm];
 
-    // ------------------- PAWN MOVES ----------------------
-    {
-        Bitboard pawns = board->byPiece[board->stm][PIECE_PAWN];
-
-        Bitboard pushedPawns, secondRankPawns, doublePushedPawns, enemyBackrank;
-        if (board->stm == COLOR_WHITE) {
-            pushedPawns = (pawns << 8) & free;
-            secondRankPawns = (pawns & RANK_2) & pawns;
-            doublePushedPawns = (((secondRankPawns << 8) & free) << 8) & free;
-            enemyBackrank = RANK_8;
-        }
-        else {
-            pushedPawns = (pawns >> 8) & free;
-            secondRankPawns = (pawns & RANK_7) & pawns;
-            doublePushedPawns = (((secondRankPawns >> 8) & free) >> 8) & free;
-            enemyBackrank = RANK_1;
-        }
-
-        if (!onlyCaptures) {
-
-            while (pushedPawns) {
-                Square target = popLSB(&pushedPawns);
-                Move move = createMove(target - UP[board->stm], target);
-
-                if (__builtin_expect((C64(1) << target) & enemyBackrank, 0)) {
-                    // Promotion
-                    for (uint8_t promotion = 0; promotion <= 3; promotion++) {
-                        *moves++ = move | (promotion << 14) | MOVE_PROMOTION;
-                        (*counter)++;
-                    }
-                    continue;
-                }
-
-                *moves++ = move;
-                (*counter)++;
-            }
-
-            // Double pushes
-            while (doublePushedPawns) {
-                Square target = popLSB(&doublePushedPawns);
-                *moves++ = createMove(target - UP_DOUBLE[board->stm], target);
-                (*counter)++;
-            }
-        }
-
-        // Captures
-        Bitboard pAttacksLeft = pawnAttacksLeft(board, board->stm);
-        Bitboard pAttacksRight = pawnAttacksRight(board, board->stm);
-
-        Bitboard leftCaptures = pAttacksLeft & blockedEnemy;
-        while (leftCaptures) {
-            Square target = popLSB(&leftCaptures);
-            Move move = createMove(target - UP_LEFT[board->stm], target);
-
-            if (__builtin_expect((C64(1) << target) & enemyBackrank, 0)) {
-                // Promotion
-                for (uint8_t promotion = 0; promotion <= 3; promotion++) {
-                    *moves++ = move | (promotion << 14) | MOVE_PROMOTION;
-                    (*counter)++;
-                }
-                continue;
-            }
-
-            *moves++ = move;
-            (*counter)++;
-        }
-        Bitboard rightCaptures = pAttacksRight & blockedEnemy;
-        while (rightCaptures) {
-            Square target = popLSB(&rightCaptures);
-            Move move = createMove(target - UP_RIGHT[board->stm], target);
-
-            if (__builtin_expect((C64(1) << target) & enemyBackrank, 0)) {
-                // Promotion
-                for (uint8_t promotion = 0; promotion <= 3; promotion++) {
-                    *moves++ = move | (promotion << 14) | MOVE_PROMOTION;
-                    (*counter)++;
-                }
-                continue;
-            }
-
-            *moves++ = move;
-            (*counter)++;
-        }
-
-        // En passent
-        Bitboard epBB = board->stack->enpassantTarget;
-        Bitboard leftEp = pAttacksLeft & epBB;
-        if (leftEp) {
-            Square target = popLSB(&leftEp);
-            *moves++ = createMove(target - UP_LEFT[board->stm], target) | MOVE_ENPASSANT;
-            (*counter)++;
-        }
-        Bitboard rightEp = pAttacksRight & epBB;
-        if (rightEp) {
-            Square target = popLSB(&rightEp);
-            *moves++ = createMove(target - UP_RIGHT[board->stm], target) | MOVE_ENPASSANT;
-            (*counter)++;
-        }
-    }
-
-    // ------------------- KNIGHT MOVES ----------------------
-    {
-        Bitboard knights = board->byPiece[board->stm][PIECE_KNIGHT];
-        while (knights) {
-            Square knight = popLSB(&knights);
-            Bitboard knightTargets = knightAttacks(C64(1) << knight) & ~blockedUs;
-            if (onlyCaptures)
-                knightTargets &= blockedEnemy;
-
-            while (knightTargets) {
-                Square target = popLSB(&knightTargets);
-                *moves++ = createMove(knight, target);
-                (*counter)++;
-            }
-        }
-    }
-
-    // ------------------- BISHOP MOVES ----------------------
-    Bitboard pieces = board->byPiece[board->stm][PIECE_BISHOP];
+    Bitboard pieces = board->byPiece[board->stm][pieceType];
     while (pieces) {
         Square piece = popLSB(&pieces);
-        Bitboard targets = getBishopMoves(piece, board->board) & ~blockedUs;
-        if (onlyCaptures)
-            targets &= blockedEnemy;
+        Bitboard targets = pieceType == PIECE_KNIGHT ? knightAttacks(C64(1) << piece) : pieceType == PIECE_BISHOP ? getBishopMoves(piece, board->board) : pieceType == PIECE_ROOK ? getRookMoves(piece, board->board) : pieceType == PIECE_QUEEN ? (getBishopMoves(piece, board->board) | getRookMoves(piece, board->board)) : pieceType == PIECE_KING ? kingAttacks(board, board->stm) & ~attackedEnemy : C64(0);
+        // Decide whether only captures or only non-captures
+        if (captures)
+            targets &= blockedEnemy & ~blockedUs;
+        else
+            targets &= ~blockedEnemy & ~blockedUs;
 
         while (targets) {
             Square target = popLSB(&targets);
-            *moves++ = createMove(piece, target);
+            *(*moves)++ = createMove(piece, target);
             (*counter)++;
         }
     }
+}
 
-    // ------------------- ROOK MOVES ----------------------
-    pieces = board->byPiece[board->stm][PIECE_ROOK];
-    while (pieces) {
-        Square piece = popLSB(&pieces);
-        Bitboard targets = getRookMoves(piece, board->board) & ~blockedUs;
-        if (onlyCaptures)
-            targets &= blockedEnemy;
+void generateCastling(Board* board, Move** moves, int* counter) {
+    Square king = lsb(board->byPiece[board->stm][PIECE_KING]);
 
-        while (targets) {
-            Square target = popLSB(&targets);
-            *moves++ = createMove(piece, target);
+    // Castling: Nothing on the squares between king and rook, also nothing from the enemy attacking it
+    switch (board->stm) {
+    case COLOR_WHITE:
+        // Kingside
+        if ((board->stack->castling & 0x1) && !(board->board & 0x60) && !(board->stack->attackedByColor[COLOR_BLACK] & 0x60)) {
+            *(*moves)++ = createMove(king, king + 2) | MOVE_CASTLING;
             (*counter)++;
         }
-    }
-
-    // ------------------- QUEEN MOVES ----------------------
-    pieces = board->byPiece[board->stm][PIECE_QUEEN];
-    while (pieces) {
-        Square piece = popLSB(&pieces);
-        Bitboard targets = (getBishopMoves(piece, board->board) | getRookMoves(piece, board->board)) & ~blockedUs;
-        if (onlyCaptures)
-            targets &= blockedEnemy;
-
-        while (targets) {
-            Square target = popLSB(&targets);
-            *moves++ = createMove(piece, target);
+        // Queenside
+        if ((board->stack->castling & 0x2) && !(board->board & 0x0E) && !(board->stack->attackedByColor[COLOR_BLACK] & 0x0C)) {
+            *(*moves)++ = createMove(king, king - 2) | MOVE_CASTLING;
             (*counter)++;
         }
-    }
-
-    // ------------------- KING MOVES ----------------------
-    {
-        Square king = lsb(board->byPiece[board->stm][PIECE_KING]);
-        Bitboard kingTargets = kingAttacks(board, board->stm) & ~blockedUs & ~attackedEnemy;
-        if (onlyCaptures)
-            kingTargets &= blockedEnemy;
-
-        while (kingTargets) {
-            Square target = popLSB(&kingTargets);
-            *moves++ = createMove(king, target);
+        break;
+    case COLOR_BLACK:
+        // Kingside
+        if ((board->stack->castling & 0x4) && !(board->board & C64(0x6000000000000000)) && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x6000000000000000))) {
+            *(*moves)++ = createMove(king, king + 2) | MOVE_CASTLING;
             (*counter)++;
         }
-
-        if (!onlyCaptures && !isInCheck(board, board->stm)) {
-            // Castling: Nothing on the squares between king and rook, also nothing from the enemy attacking it
-            switch (board->stm) {
-            case COLOR_WHITE:
-                // Kingside
-                if ((board->stack->castling & 0x1) && !(board->board & 0x60) && !(board->stack->attackedByColor[COLOR_BLACK] & 0x60)) {
-                    *moves++ = createMove(king, king + 2) | MOVE_CASTLING;
-                    (*counter)++;
-                }
-                // Queenside
-                if ((board->stack->castling & 0x2) && !(board->board & 0x0E) && !(board->stack->attackedByColor[COLOR_BLACK] & 0x0C)) {
-                    *moves++ = createMove(king, king - 2) | MOVE_CASTLING;
-                    (*counter)++;
-                }
-                break;
-            case COLOR_BLACK:
-                // Kingside
-                if ((board->stack->castling & 0x4) && !(board->board & C64(0x6000000000000000)) && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x6000000000000000))) {
-                    *moves++ = createMove(king, king + 2) | MOVE_CASTLING;
-                    (*counter)++;
-                }
-                // Queenside
-                if ((board->stack->castling & 0x8) && !(board->board & C64(0x0E00000000000000)) && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x0C00000000000000))) {
-                    *moves++ = createMove(king, king - 2) | MOVE_CASTLING;
-                    (*counter)++;
-                }
-                break;
-            }
+        // Queenside
+        if ((board->stack->castling & 0x8) && !(board->board & C64(0x0E00000000000000)) && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x0C00000000000000))) {
+            *(*moves)++ = createMove(king, king - 2) | MOVE_CASTLING;
+            (*counter)++;
         }
+        break;
     }
+}
+
+void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
+    // ------------------- CAPTURES ----------------------
+    generatePawn_capture(board, &moves, counter);
+    generatePiece<PIECE_KNIGHT>(board, &moves, counter, true);
+    generatePiece<PIECE_BISHOP>(board, &moves, counter, true);
+    generatePiece<PIECE_ROOK>(board, &moves, counter, true);
+    generatePiece<PIECE_QUEEN>(board, &moves, counter, true);
+    generatePiece<PIECE_KING>(board, &moves, counter, true);
+
+    // ------------------- NON CAPTURES ----------------------
+    if (!onlyCaptures) {
+        generatePawn_quiet(board, &moves, counter);
+        generatePiece<PIECE_KNIGHT>(board, &moves, counter, false);
+        generatePiece<PIECE_BISHOP>(board, &moves, counter, false);
+        generatePiece<PIECE_ROOK>(board, &moves, counter, false);
+        generatePiece<PIECE_QUEEN>(board, &moves, counter, false);
+        generatePiece<PIECE_KING>(board, &moves, counter, false);
+    }
+
+    // ------------------- CASTLING ----------------------
+    if (!onlyCaptures && !isInCheck(board, board->stm)) {
+        generateCastling(board, &moves, counter);
+    }
+}
+
+Move MoveGen::nextMove() {
+    // If there's still unused moves in the list, return those
+    if (returnedMoves < generatedMoves) {
+        assert(moveList[returnedMoves] != MOVE_NONE);
+
+        return moveList[returnedMoves++];
+    }
+    
+    // Generate moves for the current stage
+    switch (generationStage) {
+
+    case GEN_STAGE_TTMOVE:
+        assert(ttMove != MOVE_NONE);
+
+        moveList[generatedMoves++] = ttMove;
+        break;
+
+    case GEN_STAGE_CAPTURES:
+        break;
+
+    case GEN_STAGE_REMAINING:
+        break;
+    }
+
+    return MOVE_NONE;
 }
 
 inline char fileFromSquare(Square square) {
