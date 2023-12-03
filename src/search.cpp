@@ -169,26 +169,33 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
 template <NodeType nodeType>
 Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) {
+    constexpr bool rootNode = nodeType == ROOT_NODE;
 
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
 
     if (depth <= 0) return qsearch<PV_NODE>(board, stack, alpha, beta);
 
-    // Check for stop or max depth
-    if (board->stopSearching || stack->ply >= MAX_PLY)
-        return (stack->ply >= MAX_PLY) ? evaluate(board) : 0;
+    if (!rootNode && alpha < 0 && hasRepeated(board)) {
+        alpha = 0;
+        if (alpha >= beta)
+            return alpha;
+    }
 
     BoardStack boardStack;
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
     Move bestMove = MOVE_NONE;
     Eval bestValue = -EVAL_INFINITE;
-    constexpr bool rootNode = nodeType == ROOT_NODE;
 
     stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
     (stack + 1)->nodes = 0;
 
     if (!rootNode) {
+
+        // Check for stop or max depth
+        if (board->stopSearching || stack->ply >= MAX_PLY || isDraw(board, stack->ply))
+            return (stack->ply >= MAX_PLY) ? evaluate(board) : 0;
+
         // Mate distance pruning
         alpha = std::max((int)alpha, (int)matedIn(stack->ply));
         beta = std::min((int)beta, (int)mateIn(stack->ply + 1));
