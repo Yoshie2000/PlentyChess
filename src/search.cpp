@@ -113,14 +113,12 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (alpha >= beta)
         return alpha;
 
-    // Generate moves
-    Move moves[MAX_MOVES] = { MOVE_NONE };
-    int moveCount = 0, skippedMoves = 0;
-    generateMoves(board, moves, &moveCount, true);
-
     // Moves loop
-    for (int i = 0; i < moveCount; i++) {
-        Move move = moves[i];
+    MoveGen movegen(board, true);
+    Move move;
+    int moveCount = 0, skippedMoves = 0;
+    while ((move = movegen.nextMove()) != MOVE_NONE) {
+        moveCount++;
 
         doMove(board, &boardStack, move);
         stack->nodes++;

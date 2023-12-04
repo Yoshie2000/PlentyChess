@@ -261,6 +261,8 @@ Move MoveGen::nextMove() {
             }
 
             generationStage++;
+            if (onlyCaptures)
+                generationStage = GEN_STAGE_REMAINING + 1;
         }
                                break;
 

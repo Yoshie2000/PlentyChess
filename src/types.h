@@ -32,10 +32,6 @@
     typedef uint16_t Move;
 
     inline Square lsb(Bitboard bb) {
-        if (bb == C64(0)) {
-            printf("fuck\n");
-            // return 0;
-        }
         return __builtin_ctzll(bb);
     }
 
