@@ -26,9 +26,8 @@ extern const Bitboard RANK_7;
 extern const Bitboard RANK_8;
 
 struct Board {
-    Bitboard byPiece[2][PIECE_TYPES];
+    Bitboard byPiece[PIECE_TYPES];
     Bitboard byColor[2];
-    Bitboard board;
     Piece pieces[64];
 
     Color stm;
@@ -48,9 +47,10 @@ struct BoardStack {
     int8_t repetition;
     uint64_t hash;
 
+    Bitboard blockers[2];
+    Bitboard pinners[2];
+
     // MEMCPY GOES FROM HERE
-    Bitboard attackedByPiece[2][PIECE_TYPES];
-    Bitboard attackedByColor[2];
     int pieceCount[2][PIECE_TYPES];
 
     uint8_t castling; // 0000 -> black queenside, black kingside, white queenside, white kingside
@@ -65,11 +65,16 @@ size_t parseFen(Board* board, std::string fen);
 void doMove(Board* board, BoardStack* newStack, Move move);
 void undoMove(Board* board, Move move);
 
+void updateSliderPins(Board* board, Color side);
+
 bool hasRepeated(Board* board);
 bool isDraw(Board* board, int ply);
 
-Bitboard pawnAttacksLeft(Board* board, Color side);
-Bitboard pawnAttacksRight(Board* board, Color side);
+Bitboard attackersTo(Board* board, Square square, Bitboard occupied);
+
+Bitboard pawnAttacksLeft(Bitboard pawns, Color side);
+Bitboard pawnAttacksRight(Bitboard pawns, Color side);
+Bitboard pawnAttacks(Bitboard pawns, Color side);
 Bitboard pawnAttacks(Board* board, Color side);
 
 constexpr Bitboard knightAttacks(Bitboard knightBB) {
@@ -84,6 +89,7 @@ constexpr Bitboard knightAttacks(Bitboard knightBB) {
 Bitboard knightAttacksAll(Board* board, Color side);
 
 Bitboard kingAttacks(Board* board, Color side);
+Bitboard kingAttacks(Square origin);
 
 Bitboard slidingPieceAttacksAll(Board* board, Color side, Piece pieceType);
 

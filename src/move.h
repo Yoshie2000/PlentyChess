@@ -129,6 +129,7 @@ constexpr Square moveTarget(Move move) {
 }
 
 bool isValid(Board* board, Move move);
+bool isLegal(Board* board, Move move);
 
 void generateLastSqTable();
 
