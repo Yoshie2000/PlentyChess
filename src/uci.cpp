@@ -213,7 +213,6 @@ void go(std::string line, Thread* searchThread, Board* board, std::deque<BoardSt
 
     std::string token;
     while (nextToken(&line, &token)) {
-        // std::cout << token << std::endl;
 
         if (matchesToken(token, "perft")) {
             parameters.perft = true;

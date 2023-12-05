@@ -26,7 +26,6 @@ Eval evaluate(Board* board) {
 }
 
 Eval evaluate(Board* board) {
-    // std::cout << "White: " << evaluate<COLOR_WHITE>(board) << ", Black: " << evaluate<COLOR_BLACK>(board) << std::endl;
     if (board->stm == COLOR_WHITE)
         return evaluate<COLOR_WHITE>(board) - evaluate<COLOR_BLACK>(board);
     else

@@ -48,10 +48,8 @@ uint64_t perft(Board* board, int depth) {
     for (int i = 0; i < moveCount; i++) {
         Move move = moves[i];
 
-        if (!isLegal(board, move)) {
-            // std::cout << "illegal move " << moveToString(move) << std::endl;
+        if (!isLegal(board, move))
             continue;
-        }
 
         doMove(board, &stack, move);
         uint64_t subNodes = perftInternal(board, depth - 1);

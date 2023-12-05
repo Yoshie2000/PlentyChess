@@ -53,6 +53,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[p] = C64(0);
         }
     }
+    board->stack->checkers = C64(0);
     board->stack->capturedPiece = NO_PIECE;
     board->stack->hash = 0;
     board->stack->nullmove_ply = 0;
@@ -261,16 +262,10 @@ size_t parseFen(Board* board, std::string fen) {
         board->ply = 100 * ((int)(plyString.at(0)) - 48) + 10 * ((int)(plyString.at(1)) - 48) + ((int)(plyString.at(2)) - 48);
     }
 
-    // Compute attackers
-    // for (Color side = 0; side <= 1; side++) {
-    //     Bitboard attackers = C64(0);
-    //     for (Piece piece = 0; piece < PIECE_TYPES; piece++) {
-    //         Bitboard pcAttackers = attackedSquaresByPiece(board, side, piece);
-    //         board->stack->attackedByPiece[piece] |= pcAttackers;
-    //         attackers |= pcAttackers;
-    //     }
-    //     board->stack->attackedByColor[side] = attackers;
-    // }
+    // Update king checking stuff
+    Square enemyKing = lsb(board->byColor[board->stm] & board->byPiece[PIECE_KING]);
+    board->stack->checkers = attackersTo(board, enemyKing, board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) & board->byColor[1 - board->stm];
+    board->stack->checkerCount = __builtin_popcountll(board->stack->checkers);
 
     updateSliderPins(board, COLOR_WHITE);
     updateSliderPins(board, COLOR_BLACK);
@@ -439,27 +434,12 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         newStack->hash ^= ZOBRIST_CASTLING[newStack->castling & 0xF];
     }
 
-    // Color side;
-    // Bitboard attackers;
-    // Piece _piece;
-    // for (side = 0; side <= 1; side++) {
-    //     attackers = C64(0);
-    //     for (_piece = 0; _piece < PIECE_TYPES; _piece++) {
-    //         // If from or to are attacked, or this piece type was moved or captured, or promoted, regenerate
-    //         if (
-    //             (newStack->attackedByPiece[_piece] & newStack->attackedByColor[side] & (fromTo | captureTargetBB)) ||
-    //             (side == board->stm && piece == _piece) ||
-    //             (side != board->stm && _piece == newStack->capturedPiece) ||
-    //             (_piece == promotionPiece)
-    //             ) {
-    //             newStack->attackedByPiece[side][_piece] = attackedSquaresByPiece(board, side, _piece);
-    //         }
-    //         attackers |= newStack->attackedByPiece[side][_piece];
-    //     }
-    //     newStack->attackedByColor[side] = attackers;
-    // }
-
     // Update king checking stuff
+    assert((board->byColor[1 - board->stm] & board->byPiece[PIECE_KING]) > 0);
+
+    Square enemyKing = lsb(board->byColor[1 - board->stm] & board->byPiece[PIECE_KING]);
+    newStack->checkers = attackersTo(board, enemyKing, board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) & board->byColor[board->stm];
+    newStack->checkerCount = newStack->checkers ? __builtin_popcountll(newStack->checkers) : 0;
     updateSliderPins(board, COLOR_WHITE);
     updateSliderPins(board, COLOR_BLACK);
 
@@ -546,10 +526,9 @@ void undoMove(Board* board, Move move) {
 }
 
 void updateSliderPins(Board* board, Color side) {
-    // debugBoard(board);
-    Square king = lsb(board->byColor[side] & board->byPiece[PIECE_KING]);
+    assert((board->byColor[side] & board->byPiece[PIECE_KING]) > 0);
 
-    // std::cout << "slider pins " << (side == COLOR_WHITE ? "w" : "b") << std::endl;
+    Square king = lsb(board->byColor[side] & board->byPiece[PIECE_KING]);
 
     board->stack->blockers[side] = 0;
     board->stack->pinners[1 - side] = 0;
@@ -560,10 +539,6 @@ void updateSliderPins(Board* board, Color side) {
     Bitboard occupied = (board->byColor[side] | board->byColor[1 - side]) ^ possiblePinners;
 
     // Go through all pieces that could potentially pin the king
-    // debugBitboard(getRookMoves(king, C64(0)));
-    // debugBitboard(getBishopMoves(king, C64(0)));
-    // debugBitboard(possiblePinnersBishop);
-    // debugBitboard(possiblePinnersRook);
     while (possiblePinners) {
         Square pinnerSquare = popLSB(&possiblePinners);
         Bitboard blockerBB = BETWEEN[king][pinnerSquare] & occupied;
@@ -575,10 +550,6 @@ void updateSliderPins(Board* board, Color side) {
                 board->stack->pinners[1 - side] |= C64(1) << pinnerSquare;
         }
     }
-    // debugBitboard(occupied);
-    // std::cout << " ---- " << std::endl;
-    // debugBitboard(board->stack->blockers[side]);
-    // debugBitboard(board->stack->pinners[1 - side]);
 }
 
 // Check for any repetition since the last capture / pawn move
