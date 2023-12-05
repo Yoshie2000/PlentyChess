@@ -14,17 +14,93 @@ constexpr Move createMove(Square origin, Square target) {
     return (Move)((origin & 0x3F) | ((target & 0x3F) << 6));
 }
 
-bool isValid(Board* board, Move move) {
+bool isPseudoLegal(Board* board, Move move) {
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
+    Bitboard originBB = C64(1) << origin;
+    Bitboard targetBB = C64(1) << target;
+    Piece piece = board->pieces[origin];
+
+    // Non-standard movetypes
+    Move specialMove = move & 0x3000;
+    switch (specialMove)
+    {
+    case MOVE_CASTLING:
+        if (piece != PIECE_KING) return false;
+        // Check for castling flags (Attackers are done in isLegal())
+        return board->stack->castling & (board->stm == COLOR_WHITE ? (target > origin ? 0b0001 : 0b0010) : (target > origin ? 0b0100 : 0b1000));
+    case MOVE_ENPASSANT:
+        if (piece != PIECE_PAWN) return false;
+        // Check for EP flag on the right file
+        return ((C64(1) << target) & board->stack->enpassantTarget) && board->pieces[target - UP[board->stm]] == PIECE_PAWN;
+    case MOVE_PROMOTION:
+        if (piece != PIECE_PAWN) return false;
+        if (
+            !(pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture promotion?
+            !(origin + UP[board->stm] == target && board->pieces[target] == NO_PIECE)) // Push promotion?
+            return false;
+        return true;
+    default:
+        break;
+    }
+
+    // A valid piece needs to be on the origin square
     if (board->pieces[origin] == NO_PIECE) return false;
-    if (board->byColor[board->stm] & (C64(1) << target)) return false;
-    if (board->byColor[1 - board->stm] & (C64(1) << origin)) return false;
+    // We can't capture our own piece
+    if (board->byColor[board->stm] & targetBB) return false;
+    // We can't move the enemies piece
+    if (board->byColor[1 - board->stm] & originBB) return false;
+
+    Bitboard occupied = board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK];
+    switch (piece) {
+    case PIECE_PAWN:
+        if (targetBB & (RANK_8 | RANK_1)) return false;
+
+        if (
+            !(pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture?
+            !(origin + UP[board->stm] == target && board->pieces[target] == NO_PIECE) && // Single push?
+            !(origin + 2 * UP[board->stm] == target && board->pieces[target] == NO_PIECE && board->pieces[target - UP[board->stm]] == NO_PIECE && (originBB & (RANK_2 | RANK_7))) // Double push?
+            )
+            return false;
+        break;
+    case PIECE_KNIGHT:
+        if (!(knightAttacks(originBB) & targetBB)) return false;
+        break;
+    case PIECE_BISHOP:
+        if (!(getBishopMoves(origin, occupied) & targetBB)) return false;
+        break;
+    case PIECE_ROOK:
+        if (!(getRookMoves(origin, occupied) & targetBB)) return false;
+        break;
+    case PIECE_QUEEN:
+        if (!((getBishopMoves(origin, occupied) | getRookMoves(origin, occupied)) & targetBB)) return false;
+        break;
+    case PIECE_KING:
+        if (!(kingAttacks(origin) & targetBB)) return false;
+        break;
+    default:
+        return false;
+    }
+
+    if (board->stack->checkers) {
+        if (piece != PIECE_KING) {
+            // Double check requires king moves
+            if (board->stack->checkerCount > 1)
+                return false;
+
+            bool capturesChecker = target == lsb(board->stack->checkers);
+            bool blocksCheck = BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[PIECE_KING])][lsb(board->stack->checkers)] & (C64(1) << target);
+            if (!capturesChecker && !blocksCheck)
+                return false;
+        }
+        // King moves *should* be handled in isLegal()
+    }
+
     return true;
 }
 
 bool isLegal(Board* board, Move move) {
-    assert(isValid(board, move));
+    assert(isPseudoLegal(board, move));
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
@@ -292,6 +368,8 @@ Move MoveGen::nextMove() {
         return moveList[returnedMoves++];
     }
 
+    assert((board->byColor[board->stm] & board->byPiece[PIECE_KING]) > 0);
+
     Move* moves = moveList + generatedMoves;
 
     while (returnedMoves >= generatedMoves && generationStage <= GEN_STAGE_REMAINING) {
@@ -299,9 +377,8 @@ Move MoveGen::nextMove() {
         // Generate moves for the current stage
         switch (generationStage) {
         case GEN_STAGE_TTMOVE:
-            assert(ttMove != MOVE_NONE);
-
-            moveList[generatedMoves++] = ttMove;
+            if (ttMove != MOVE_NONE && ttMove != MOVE_NULL && isPseudoLegal(board, ttMove))
+                moveList[generatedMoves++] = ttMove;
             generationStage++;
             break;
 
@@ -321,7 +398,7 @@ Move MoveGen::nextMove() {
                 generatePiece<PIECE_BISHOP>(board, &moves, &generatedMoves, true, checkMask);
                 generatePiece<PIECE_ROOK>(board, &moves, &generatedMoves, true, checkMask);
                 generatePiece<PIECE_QUEEN>(board, &moves, &generatedMoves, true, checkMask);
-                generatePiece<PIECE_KING>(board, &moves, &generatedMoves, true, checkMask);
+                generatePiece<PIECE_KING>(board, &moves, &generatedMoves, true, ~C64(0));
             }
             int endIndex = generatedMoves;
 
@@ -358,7 +435,7 @@ Move MoveGen::nextMove() {
         case GEN_STAGE_REMAINING:
             // If in double check, only generate king moves
             if (board->stack->checkerCount > 1) {
-                generatePiece<PIECE_KING>(board, &moves, &generatedMoves, true, ~C64(0));
+                generatePiece<PIECE_KING>(board, &moves, &generatedMoves, false, ~C64(0));
             }
             else {
                 // If in check, only generate targets that take care of the check
@@ -369,7 +446,7 @@ Move MoveGen::nextMove() {
                 generatePiece<PIECE_BISHOP>(board, &moves, &generatedMoves, false, checkMask);
                 generatePiece<PIECE_ROOK>(board, &moves, &generatedMoves, false, checkMask);
                 generatePiece<PIECE_QUEEN>(board, &moves, &generatedMoves, false, checkMask);
-                generatePiece<PIECE_KING>(board, &moves, &generatedMoves, false, checkMask);
+                generatePiece<PIECE_KING>(board, &moves, &generatedMoves, false, ~C64(0));
                 if (!board->stack->checkers)
                     generateCastling(board, &moves, &generatedMoves);
             }

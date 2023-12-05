@@ -7,6 +7,7 @@ OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
 PROGRAM = engine
 ifdef EXE
 	PROGRAM = $(EXE)
+	CXXFLAGS := $(CXXFLAGS) -DNDEBUG
 endif
 
 all:	engine

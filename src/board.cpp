@@ -301,7 +301,6 @@ void castlingRookSquares(Board* board, Square origin, Square target, Square* roo
 void doMove(Board* board, BoardStack* newStack, Move move) {
     newStack->previous = board->stack;
     board->stack = newStack;
-    // memcpy(newStack->attackedByPiece, newStack->previous->attackedByPiece, sizeof(Bitboard) * 14 + sizeof(int) * 12 + sizeof(uint8_t));
     memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(uint8_t));
 
     newStack->hash = newStack->previous->hash ^ ZOBRIST_STM_BLACK;
@@ -439,7 +438,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
     Square enemyKing = lsb(board->byColor[1 - board->stm] & board->byPiece[PIECE_KING]);
     newStack->checkers = attackersTo(board, enemyKing, board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) & board->byColor[board->stm];
-    newStack->checkerCount = newStack->checkers ? __builtin_popcountll(newStack->checkers) : 0;
+    newStack->checkerCount = newStack->checkers ? __builtin_popcountll(newStack->checkers) : 0; // TODO: givesCheck(move) implementation
     updateSliderPins(board, COLOR_WHITE);
     updateSliderPins(board, COLOR_BLACK);
 
@@ -458,6 +457,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     }
 
     board->stm = 1 - board->stm;
+    newStack->move = move;
 }
 
 void undoMove(Board* board, Move move) {
@@ -696,12 +696,6 @@ void debugBoard(Board* board) {
 
             // Get piece at index
             int idx = file + 8 * rank;
-            // printf("| ");
-            // if (board->pieces[idx] == 6)
-            //     printf(" ");
-            // else
-            //     printf("%d", board->pieces[idx]);
-            // printf(" ");
             Bitboard mask = C64(1) << idx;
             if ((board->stack->enpassantTarget & mask) != 0)
                 printf("| E ");

@@ -52,6 +52,8 @@ struct BoardStack {
     Bitboard checkers;
     uint8_t checkerCount;
 
+    Move move;
+
     // MEMCPY GOES FROM HERE
     int pieceCount[2][PIECE_TYPES];
 
