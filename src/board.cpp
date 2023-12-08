@@ -12,6 +12,7 @@
 #include "bitboard.h"
 #include "tt.h"
 #include "magic.h"
+#include "evaluation.h"
 
 const Bitboard FILE_A = 0x0101010101010101;
 const Bitboard FILE_B = 0x0202020202020202;
@@ -46,10 +47,9 @@ size_t parseFen(Board* board, std::string fen) {
     }
     for (Color c = 0; c <= 1; c++) {
         board->byColor[c] = C64(0);
-        // board->stack->attackedByColor[c] = C64(0);
+        board->stack->psq[c] = 0;
         for (Piece p = 0; p < PIECE_TYPES; p++) {
             board->stack->pieceCount[c][p] = 0;
-            // board->stack->attackedByPiece[p] = C64(0);
             board->byPiece[p] = C64(0);
         }
     }
@@ -75,6 +75,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_PAWN] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_PAWN]++;
             board->pieces[currentSquare] = PIECE_PAWN;
+            board->stack->psq[COLOR_BLACK] += PSQ[PIECE_PAWN][psqIndex(currentSquare, COLOR_BLACK)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
             currentSquare++;
             break;
@@ -83,6 +84,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_PAWN] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_PAWN]++;
             board->pieces[currentSquare] = PIECE_PAWN;
+            board->stack->psq[COLOR_WHITE] += PSQ[PIECE_PAWN][psqIndex(currentSquare, COLOR_WHITE)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
             currentSquare++;
             break;
@@ -91,6 +93,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_KNIGHT] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_KNIGHT]++;
             board->pieces[currentSquare] = PIECE_KNIGHT;
+            board->stack->psq[COLOR_BLACK] += PSQ[PIECE_KNIGHT][psqIndex(currentSquare, COLOR_BLACK)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KNIGHT][currentSquare];
             currentSquare++;
             break;
@@ -99,6 +102,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_KNIGHT] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_KNIGHT]++;
             board->pieces[currentSquare] = PIECE_KNIGHT;
+            board->stack->psq[COLOR_WHITE] += PSQ[PIECE_KNIGHT][psqIndex(currentSquare, COLOR_WHITE)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KNIGHT][currentSquare];
             currentSquare++;
             break;
@@ -107,6 +111,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_BISHOP] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_BISHOP]++;
             board->pieces[currentSquare] = PIECE_BISHOP;
+            board->stack->psq[COLOR_BLACK] += PSQ[PIECE_BISHOP][psqIndex(currentSquare, COLOR_BLACK)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_BISHOP][currentSquare];
             currentSquare++;
             break;
@@ -115,6 +120,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_BISHOP] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_BISHOP]++;
             board->pieces[currentSquare] = PIECE_BISHOP;
+            board->stack->psq[COLOR_WHITE] += PSQ[PIECE_BISHOP][psqIndex(currentSquare, COLOR_WHITE)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_BISHOP][currentSquare];
             currentSquare++;
             break;
@@ -123,6 +129,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_ROOK] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_ROOK]++;
             board->pieces[currentSquare] = PIECE_ROOK;
+            board->stack->psq[COLOR_BLACK] += PSQ[PIECE_ROOK][psqIndex(currentSquare, COLOR_BLACK)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_ROOK][currentSquare];
             currentSquare++;
             break;
@@ -131,6 +138,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_ROOK] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_ROOK]++;
             board->pieces[currentSquare] = PIECE_ROOK;
+            board->stack->psq[COLOR_WHITE] += PSQ[PIECE_ROOK][psqIndex(currentSquare, COLOR_WHITE)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_ROOK][currentSquare];
             currentSquare++;
             break;
@@ -139,6 +147,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_QUEEN] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_QUEEN]++;
             board->pieces[currentSquare] = PIECE_QUEEN;
+            board->stack->psq[COLOR_BLACK] += PSQ[PIECE_QUEEN][psqIndex(currentSquare, COLOR_BLACK)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_QUEEN][currentSquare];
             currentSquare++;
             break;
@@ -147,6 +156,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_QUEEN] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_QUEEN]++;
             board->pieces[currentSquare] = PIECE_QUEEN;
+            board->stack->psq[COLOR_WHITE] += PSQ[PIECE_QUEEN][psqIndex(currentSquare, COLOR_WHITE)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_QUEEN][currentSquare];
             currentSquare++;
             break;
@@ -155,6 +165,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_KING] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_KING]++;
             board->pieces[currentSquare] = PIECE_KING;
+            board->stack->psq[COLOR_BLACK] += PSQ[PIECE_KING][psqIndex(currentSquare, COLOR_BLACK)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KING][currentSquare];
             currentSquare++;
             break;
@@ -163,6 +174,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_KING] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_KING]++;
             board->pieces[currentSquare] = PIECE_KING;
+            board->stack->psq[COLOR_WHITE] += PSQ[PIECE_KING][psqIndex(currentSquare, COLOR_WHITE)];
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KING][currentSquare];
             currentSquare++;
             break;
@@ -301,7 +313,7 @@ void castlingRookSquares(Board* board, Square origin, Square target, Square* roo
 void doMove(Board* board, BoardStack* newStack, Move move) {
     newStack->previous = board->stack;
     board->stack = newStack;
-    memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(uint8_t));
+    memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(Eval) * 2 + sizeof(uint8_t));
 
     newStack->hash = newStack->previous->hash ^ ZOBRIST_STM_BLACK;
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
@@ -353,6 +365,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         board->byPiece[newStack->capturedPiece] ^= captureTargetBB;
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[newStack->capturedPiece][captureTarget];
+        newStack->psq[1 - board->stm] -= PSQ[newStack->capturedPiece][psqIndex(captureTarget, 1 - board->stm)];
 
         newStack->pieceCount[1 - board->stm][newStack->capturedPiece]--;
         newStack->rule50_ply = 0;
@@ -384,6 +397,8 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         board->byPiece[PIECE_ROOK] ^= rookFromToBB;
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[PIECE_ROOK][rookTarget];
+        newStack->psq[board->stm] -= PSQ[PIECE_ROOK][psqIndex(rookOrigin, board->stm)];
+        newStack->psq[board->stm] += PSQ[PIECE_ROOK][psqIndex(rookTarget, board->stm)];
     }
 
     // This move is promotion
@@ -395,6 +410,8 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         board->pieces[target] = promotionPiece;
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][target] ^ ZOBRIST_PIECE_SQUARES[promotionPiece][target];
+        newStack->psq[board->stm] -= PSQ[piece][psqIndex(target, board->stm)];
+        newStack->psq[board->stm] += PSQ[promotionPiece][psqIndex(target, board->stm)];
 
         newStack->pieceCount[board->stm][PIECE_PAWN]--;
         newStack->pieceCount[board->stm][promotionPiece]++;
@@ -402,6 +419,8 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     }
 
     newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][origin] ^ ZOBRIST_PIECE_SQUARES[piece][target];
+    newStack->psq[board->stm] -= PSQ[piece][psqIndex(origin, board->stm)];
+    newStack->psq[board->stm] += PSQ[piece][psqIndex(target, board->stm)];
 
     // Unset castling flags if necessary
     if (piece == PIECE_KING) {
