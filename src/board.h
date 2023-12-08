@@ -52,6 +52,7 @@ struct BoardStack {
     Bitboard attackedByPiece[2][PIECE_TYPES];
     Bitboard attackedByColor[2];
     int pieceCount[2][PIECE_TYPES];
+    Eval psq[2];
 
     uint8_t castling; // 0000 -> black queenside, black kingside, white queenside, white kingside
     // TO HERE
