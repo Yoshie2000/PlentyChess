@@ -239,9 +239,11 @@ Move MoveGen::nextMove() {
             int scores[MAX_MOVES];
             for (int i = beginIndex; i < endIndex; i++) {
                 Move move = moveList[i];
-                int score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
+                int score;
                 if ((move & 0x3000) == MOVE_ENPASSANT)
                     score = 0;
+                else
+                    score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
                 scores[i] = score;
             }
 
