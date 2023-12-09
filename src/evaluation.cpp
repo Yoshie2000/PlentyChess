@@ -10,7 +10,7 @@ const Eval PIECE_VALUES[PIECE_TYPES] = {
     310,
     500,
     900,
-    EVAL_MATE,
+    0,
 };
 
 const Eval PSQ[PIECE_TYPES][64] = {
