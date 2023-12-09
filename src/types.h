@@ -28,6 +28,13 @@
     typedef uint64_t Bitboard;
     typedef int16_t Eval;
 
+    struct PhaseEval {
+        Eval mg;
+        Eval eg;
+
+        PhaseEval(Eval mg, Eval eg): mg(mg), eg(eg) {};
+    };
+
     // 00 promotion piece 00 special move type 000000 target 000000 origin
     // Special move type: 01 == promotion, 10 == en passant, 11 == castling
     // Promotion piece type: 00 == knight, 01 == bishop, 10 == rook, 11 == queen
