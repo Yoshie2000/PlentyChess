@@ -150,14 +150,6 @@ bool isLegal(Board* board, Move move) {
         return !(board->byColor[1 - board->stm] & attackersTo(board, target, occupied ^ (C64(1) << origin)));
     }
 
-    if (moveToString(move) == "b2a1q" && board->stack->checkers) {
-        // std::cout << "hehehe " << ( ? "check" : "no check") << std::endl;
-        debugBitboard(board->stack->blockers[board->stm]);
-        debugBitboard(originBB);
-        debugBitboard(LINE[origin][target]);
-        debugBitboard(C64(1) << king);
-    }
-
     // Check if we're not pinned to the king, or are moving along the pin
     bool pinned = board->stack->blockers[board->stm] & originBB;
     return !pinned || (LINE[origin][target] & (C64(1) << king));
