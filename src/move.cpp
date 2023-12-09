@@ -21,20 +21,30 @@ bool isPseudoLegal(Board* board, Move move) {
     Bitboard targetBB = C64(1) << target;
     Piece piece = board->pieces[origin];
 
+    // A valid piece needs to be on the origin square
+    if (board->pieces[origin] == NO_PIECE) return false;
+    // We can't capture our own piece
+    if (board->byColor[board->stm] & targetBB) return false;
+    // We can't move the enemies piece
+    if (board->byColor[1 - board->stm] & originBB) return false;
+
     // Non-standard movetypes
     Move specialMove = move & 0x3000;
-    switch (specialMove)
-    {
+    switch (specialMove) {
     case MOVE_CASTLING:
-        if (piece != PIECE_KING) return false;
+        if (piece != PIECE_KING || board->stack->checkers) return false;
         // Check for castling flags (Attackers are done in isLegal())
         return board->stack->castling & (board->stm == COLOR_WHITE ? (target > origin ? 0b0001 : 0b0010) : (target > origin ? 0b0100 : 0b1000));
     case MOVE_ENPASSANT:
         if (piece != PIECE_PAWN) return false;
+        if (board->stack->checkerCount > 1) return false;
+        if (board->stack->checkers && (!(lsb(board->stack->checkers) == target - UP[board->stm]) || (board->stack->blockers[board->stm] & originBB))) return false;
         // Check for EP flag on the right file
         return ((C64(1) << target) & board->stack->enpassantTarget) && board->pieces[target - UP[board->stm]] == PIECE_PAWN;
     case MOVE_PROMOTION:
         if (piece != PIECE_PAWN) return false;
+        if (board->stack->checkerCount > 1) return false;
+        if (board->stack->checkers && (!(board->stack->checkers & targetBB) || (board->stack->blockers[board->stm] & originBB))) return false;
         if (
             !(pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture promotion?
             !(origin + UP[board->stm] == target && board->pieces[target] == NO_PIECE)) // Push promotion?
@@ -43,13 +53,6 @@ bool isPseudoLegal(Board* board, Move move) {
     default:
         break;
     }
-
-    // A valid piece needs to be on the origin square
-    if (board->pieces[origin] == NO_PIECE) return false;
-    // We can't capture our own piece
-    if (board->byColor[board->stm] & targetBB) return false;
-    // We can't move the enemies piece
-    if (board->byColor[1 - board->stm] & originBB) return false;
 
     Bitboard occupied = board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK];
     switch (piece) {
@@ -145,6 +148,14 @@ bool isLegal(Board* board, Move move) {
     if (board->pieces[origin] == PIECE_KING) {
         // Check that we're not moving into an attack
         return !(board->byColor[1 - board->stm] & attackersTo(board, target, occupied ^ (C64(1) << origin)));
+    }
+
+    if (moveToString(move) == "b2a1q" && board->stack->checkers) {
+        // std::cout << "hehehe " << ( ? "check" : "no check") << std::endl;
+        debugBitboard(board->stack->blockers[board->stm]);
+        debugBitboard(originBB);
+        debugBitboard(LINE[origin][target]);
+        debugBitboard(C64(1) << king);
     }
 
     // Check if we're not pinned to the king, or are moving along the pin
@@ -402,7 +413,7 @@ Move MoveGen::nextMove() {
             }
             int endIndex = generatedMoves;
 
-            int scores[MAX_MOVES] = {0};
+            int scores[MAX_MOVES] = { 0 };
             for (int i = beginIndex; i < endIndex; i++) {
                 Move move = moveList[i];
                 int score;
