@@ -20,6 +20,8 @@
     #define COLOR_WHITE 0
     #define COLOR_BLACK 1
 
+    #define NO_SQUARE 64
+
     typedef uint8_t Piece;
     typedef uint8_t Square;
     typedef uint8_t Color;

@@ -129,6 +129,7 @@ constexpr Square moveTarget(Move move) {
 }
 
 bool isValid(Board* board, Move move);
+bool isLegal(Board* board, Move move);
 
 void generateLastSqTable();
 
@@ -161,9 +162,6 @@ class MoveGen {
 
 public:
     MoveGen(Board* board, Move ttMove) : board(board), ttMove(ttMove), onlyCaptures(false), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), generationStage(GEN_STAGE_TTMOVE) {
-        if (ttMove == MOVE_NONE || !isValid(board, ttMove)) {
-            generationStage++;
-        }
         std::fill(moveList, moveList + MAX_MOVES, MOVE_NONE);
     }
     MoveGen(Board* board, bool onlyCaptures) : board(board), ttMove(MOVE_NONE), onlyCaptures(onlyCaptures), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), generationStage(GEN_STAGE_CAPTURES) {
