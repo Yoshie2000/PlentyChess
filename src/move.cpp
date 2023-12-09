@@ -236,7 +236,7 @@ Move MoveGen::nextMove() {
             generatePiece<PIECE_KING>(board, &moves, &generatedMoves, true);
             int endIndex = generatedMoves;
 
-            int scores[MAX_MOVES];
+            int scores[MAX_MOVES] = {0};
             for (int i = beginIndex; i < endIndex; i++) {
                 Move move = moveList[i];
                 int score;
