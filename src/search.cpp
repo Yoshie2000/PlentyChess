@@ -196,6 +196,10 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
         ttMove = ttEntry->bestMove;
     }
 
+    // Reverse futility pruning
+    Eval eval = evaluate(board);
+    if (depth < 7 && eval - (70 * depth) >= beta) return eval;
+
     // Moves loop
     MoveGen movegen(board, ttMove);
     Move move;
