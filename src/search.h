@@ -54,7 +54,8 @@ struct SearchStack {
 
 enum NodeType {
     ROOT_NODE,
-    PV_NODE
+    PV_NODE,
+    NON_PV_NODE
 };
 
 uint64_t perft(Board* board, int depth);
