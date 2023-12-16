@@ -9,6 +9,7 @@
 #include "magic.h"
 #include "bitboard.h"
 #include "evaluation.h"
+#include "tt.h"
 
 constexpr Move createMove(Square origin, Square target) {
     return (Move)((origin & 0x3F) | ((target & 0x3F) << 6));
@@ -421,7 +422,7 @@ Move MoveGen::nextMove() {
                 int score = scores[i];
                 int j = i - 1;
 
-                while (j >= 0 && scores[j] < score) {
+                while (j >= beginIndex && scores[j] < score) {
                     moveList[j + 1] = moveList[j];
                     scores[j + 1] = scores[j];
                     j--;
@@ -443,7 +444,8 @@ Move MoveGen::nextMove() {
                 moveList[generatedMoves++] = killers[1];
             generationStage++;
             break;
-        case GEN_STAGE_REMAINING:
+        case GEN_STAGE_REMAINING: {
+            int beginIndex = generatedMoves;
             // If in double check, only generate king moves
             if (board->stack->checkerCount > 1) {
                 generatePiece<PIECE_KING>(board, &moves, &generatedMoves, false, ~C64(0));
@@ -461,8 +463,33 @@ Move MoveGen::nextMove() {
                 if (!board->stack->checkers)
                     generateCastling(board, &moves, &generatedMoves);
             }
+            int endIndex = generatedMoves;
+
+            int scores[MAX_MOVES] = { 0 };
+            for (int i = beginIndex; i < endIndex; i++) {
+                Move move = moveList[i];
+                int score = quietHistory[board->stm][moveOrigin(move)][moveTarget(move)];
+                scores[i] = score;
+            }
+
+            for (int i = beginIndex + 1; i < endIndex; i++) {
+                int move = moveList[i];
+                int score = scores[i];
+                int j = i - 1;
+
+                while (j >= beginIndex && scores[j] < score) {
+                    moveList[j + 1] = moveList[j];
+                    scores[j + 1] = scores[j];
+                    j--;
+                }
+
+                moveList[j + 1] = move;
+                scores[j + 1] = score;
+            }
+
             generationStage++;
-            break;
+        }
+                                break;
         }
     }
 

@@ -93,4 +93,7 @@ public:
 
 extern TranspositionTable TT;
 
+void initHistory();
+extern int quietHistory[2][64][64];
+
 #endif

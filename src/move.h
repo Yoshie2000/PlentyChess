@@ -128,6 +128,12 @@ constexpr Square moveTarget(Move move) {
     return (Square)((move >> 6) & 0x3F);
 }
 
+constexpr bool isCapture(Board* board, Move move) {
+    Move moveType = 0x3000 & move;
+    if (moveType == MOVE_ENPASSANT) return true;
+    return board->pieces[moveTarget(move)] != NO_PIECE;
+}
+
 bool isValid(Board* board, Move move);
 bool isLegal(Board* board, Move move);
 
