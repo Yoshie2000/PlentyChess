@@ -77,6 +77,7 @@ void updatePv(Move* pv, Move move, const Move* currentPv) {
 
 template <NodeType nodeType>
 Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
+    constexpr bool pvNode = nodeType == PV_NODE;
 
     assert(alpha >= -EVAL_INFINITE && alpha < beta && beta <= EVAL_INFINITE);
 
@@ -103,6 +104,12 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (alpha >= beta)
         return alpha;
 
+    // Set up pv for the next search
+    if (pvNode) {
+        (stack + 1)->pv = pv;
+        stack->pv[0] = MOVE_NONE;
+    }
+
     // Moves loop
     MoveGen movegen(board, true);
     Move move;
@@ -116,11 +123,7 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         stack->nodes++;
         doMove(board, &boardStack, move);
 
-        // Set up pv for the next search
-        (stack + 1)->pv = pv;
-        (stack + 1)->pv[0] = MOVE_NONE;
-
-        Eval value = -qsearch<PV_NODE>(board, stack + 1, -beta, -alpha);
+        Eval value = -qsearch<nodeType>(board, stack + 1, -beta, -alpha);
         undoMove(board, move);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
@@ -132,7 +135,8 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
             if (value > alpha) {
                 alpha = value;
 
-                updatePv(stack->pv, move, (stack + 1)->pv);
+                if (pvNode)
+                    updatePv(stack->pv, move, (stack + 1)->pv);
 
                 if (bestValue >= beta)
                     break;
@@ -151,13 +155,15 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     return bestValue;
 }
 
-template <NodeType nodeType>
+template <NodeType nt>
 Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) {
-    constexpr bool rootNode = nodeType == ROOT_NODE;
+    constexpr bool rootNode = nt == ROOT_NODE;
+    constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
+    constexpr NodeType nodeType = nt == ROOT_NODE ? PV_NODE : NON_PV_NODE;
 
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
 
-    if (depth <= 0) return qsearch<PV_NODE>(board, stack, alpha, beta);
+    if (depth <= 0) return qsearch<nodeType>(board, stack, alpha, beta);
 
     if (!rootNode && alpha < 0 && hasRepeated(board)) {
         alpha = 0;
@@ -208,16 +214,27 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
         if (!isLegal(board, move))
             continue;
+        
+        if (pvNode)
+            (stack + 1)->pv = nullptr;
 
         moveCount++;
         stack->nodes++;
         doMove(board, &boardStack, move);
 
-        // Set up pv for the next search
-        (stack + 1)->pv = pv;
-        (stack + 1)->pv[0] = MOVE_NONE;
+        Eval value;
+        int newDepth = depth - 1;
+        
+        // See if this move can exceed alpha
+        value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha);
 
-        Eval value = -search<PV_NODE>(board, stack + 1, depth - 1, -beta, -alpha);
+        if (pvNode && (moveCount == 1 || value > alpha)) {
+            // Set up pv for the next search
+            (stack + 1)->pv = pv;
+            (stack + 1)->pv[0] = MOVE_NONE;
+            value = -search<PV_NODE>(board, stack + 1, newDepth, -beta, -alpha);
+        }
+
         undoMove(board, move);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
@@ -230,7 +247,8 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
             if (value > alpha) {
                 alpha = value;
 
-                updatePv(stack->pv, move, (stack + 1)->pv);
+                if (pvNode)
+                    updatePv(stack->pv, move, (stack + 1)->pv);
 
                 if (bestValue >= beta)
                     break;
@@ -265,6 +283,7 @@ void Thread::tsearch() {
     for (int depth = 1; depth <= maxDepth; depth++) {
         SearchStack stack[MAX_PLY];
         Move pv[MAX_PLY + 1];
+        pv[0] = MOVE_NONE;
         stack->pv = pv;
         stack->ply = 0;
 
