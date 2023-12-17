@@ -179,6 +179,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
     (stack + 1)->nodes = 0;
+    (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
 
     if (!rootNode) {
 
@@ -207,7 +208,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     if (depth < 7 && eval - (70 * depth) >= beta) return eval;
 
     // Moves loop
-    MoveGen movegen(board, ttMove);
+    MoveGen movegen(board, ttMove, stack->killers);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -259,6 +260,11 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
                 if (pvNode)
                     updatePv(stack->pv, move, (stack + 1)->pv);
+                
+                if (move != stack->killers[0]) {
+                    stack->killers[1] = stack->killers[0];
+                    stack->killers[0] = move;
+                }
 
                 if (bestValue >= beta)
                     break;
@@ -296,6 +302,7 @@ void Thread::tsearch() {
         pv[0] = MOVE_NONE;
         stack->pv = pv;
         stack->ply = 0;
+        stack->killers[0] = stack->killers[1] = MOVE_NONE;
 
         // Search
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();

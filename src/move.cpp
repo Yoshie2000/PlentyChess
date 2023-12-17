@@ -436,7 +436,13 @@ Move MoveGen::nextMove() {
                 generationStage = GEN_STAGE_REMAINING + 1;
         }
                                break;
-
+        case GEN_STAGE_KILLERS:
+            if (killers[0] != MOVE_NONE && isPseudoLegal(board, killers[0]))
+                moveList[generatedMoves++] = killers[0];
+            if (killers[1] != MOVE_NONE && isPseudoLegal(board, killers[1]))
+                moveList[generatedMoves++] = killers[1];
+            generationStage++;
+            break;
         case GEN_STAGE_REMAINING:
             // If in double check, only generate king moves
             if (board->stack->checkerCount > 1) {

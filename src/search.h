@@ -50,6 +50,8 @@ struct SearchStack {
     Move* pv;
     int ply;
     uint64_t nodes;
+
+    Move killers[2];
 };
 
 enum NodeType {
