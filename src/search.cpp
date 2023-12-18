@@ -266,8 +266,11 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
                     stack->killers[0] = move;
                 }
 
-                if (bestValue >= beta)
+                if (bestValue >= beta) {
+                    if (!isCapture(board, move))
+                        quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += depth * depth;
                     break;
+                }
             }
         }
 
@@ -290,6 +293,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
 void Thread::tsearch() {
     TT.clear();
+    initHistory();
     nodesSearched = 0;
 
     int maxDepth = searchParameters.depth == 0 ? MAX_PLY : searchParameters.depth;

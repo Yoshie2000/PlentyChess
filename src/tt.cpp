@@ -9,6 +9,11 @@ uint64_t ZOBRIST_CASTLING[16];
 uint64_t ZOBRIST_ENPASSENT[8];
 
 TranspositionTable TT;
+int quietHistory[2][64][64];
+
+void initHistory() {
+    memset(quietHistory, 0, sizeof(quietHistory));
+}
 
 void initZobrist() {
     std::mt19937 rng;
