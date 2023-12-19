@@ -75,6 +75,18 @@ void updatePv(Move* pv, Move move, const Move* currentPv) {
     *pv = MOVE_NONE;
 }
 
+int valueToTT(int value, int ply) {
+    if (value > EVAL_MATE_IN_MAX_PLY) value += ply;
+    else if (value < -EVAL_MATE_IN_MAX_PLY) value -= ply;
+    return value;
+}
+
+int valueFromTt(int value, int ply) {
+    if (value > EVAL_MATE_IN_MAX_PLY) value -= ply;
+    else if (value < -EVAL_MATE_IN_MAX_PLY) value += ply;
+    return value;
+}
+
 template <NodeType nodeType>
 Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     constexpr bool pvNode = nodeType == PV_NODE;
@@ -175,6 +187,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
     Move bestMove = MOVE_NONE;
     Eval bestValue = -EVAL_INFINITE;
+    Eval oldAlpha = alpha;
 
     stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
@@ -196,15 +209,28 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
     // TT Lookup
     bool ttHit;
-    Move ttMove = MOVE_NONE;
     TTEntry* ttEntry = TT.probe(board->stack->hash, &ttHit);
+    Move ttMove = ttHit ? ttEntry->bestMove : MOVE_NONE;
+    Eval ttValue = ttHit ? valueFromTt(ttEntry->value, stack->ply) : EVAL_NONE;
+    int ttDepth = ttHit ? ttEntry->depth : 0;
+    uint8_t ttFlag = ttHit ? ttEntry->flags & 0x3 : TT_NOBOUND;
+    bool ttPv = pvNode || (ttEntry->flags >> 2);
+
+    // TT cutoff
+    if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+        return ttValue;
+
+    Eval eval;
     if (ttHit) {
-        // bestValue = ttEntry->value;
-        ttMove = ttEntry->bestMove;
+        eval = ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board);
+
+        if (ttValue != EVAL_NONE && ( (ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND) ))
+            eval = ttValue;
+    } else {
+        eval = evaluate(board);
     }
 
     // Reverse futility pruning
-    Eval eval = evaluate(board);
     if (depth < 7 && eval - (70 * depth) >= beta) return eval;
 
     // Moves loop
@@ -284,7 +310,8 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     }
 
     // Insert into TT
-    ttEntry->update(board->stack->hash, bestMove, depth, bestValue);
+    int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
+    ttEntry->update(board->stack->hash, bestMove, depth, eval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     assert(bestValue > -EVAL_INFINITE && bestValue < EVAL_INFINITE);
 
@@ -292,7 +319,6 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 }
 
 void Thread::tsearch() {
-    TT.clear();
     initHistory();
     nodesSearched = 0;
 

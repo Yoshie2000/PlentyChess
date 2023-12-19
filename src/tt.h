@@ -12,6 +12,12 @@
 
 #include "types.h"
 #include "move.h"
+#include "evaluation.h"
+
+#define TT_NOBOUND 0
+#define TT_UPPERBOUND 1
+#define TT_LOWERBOUND 2
+#define TT_EXACTBOUND 3
 
 extern uint64_t ZOBRIST_PIECE_SQUARES[PIECE_TYPES][64];
 extern uint64_t ZOBRIST_STM_BLACK;
@@ -21,25 +27,30 @@ extern uint64_t ZOBRIST_ENPASSENT[8]; // 8 files
 void initZobrist();
 
 struct TTEntry {
-    uint16_t hash;
-    Move bestMove;
-    uint8_t depth;
-    Eval value;
+    uint16_t hash = 0;
+    Move bestMove = MOVE_NONE;
+    uint8_t depth = 0;
+    uint8_t flags = TT_NOBOUND;
+    Eval eval = EVAL_NONE;
+    Eval value = EVAL_NONE;
 
-    void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _value) {
+    void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int flags) {
         if (_depth >= depth || bestMove == MOVE_NONE) {
-            hash = (uint16_t) _hash;
+            hash = (uint16_t)_hash;
             bestMove = _bestMove;
             depth = _depth;
             value = _value;
+            eval = _eval;
+            flags = (uint8_t)(flags + (wasPv << 2));
         }
     }
 };
 
-#define CLUSTER_SIZE 4
+#define CLUSTER_SIZE 3
 
 struct TTCluster {
     TTEntry entry[CLUSTER_SIZE];
+    char padding[2];
 };
 
 class TranspositionTable {
@@ -81,11 +92,11 @@ public:
     }
 
     void clear() {
-        size_t maxMemsetInput = 65536;
-        size_t clustersAtOnce = maxMemsetInput / sizeof(TTCluster);
+        // size_t maxMemsetInput = 65536;
+        // size_t clustersAtOnce = maxMemsetInput / sizeof(TTCluster);
 
-        for (size_t i = 0; i < clusterCount; i += clustersAtOnce) {
-            std::memset(&table[i], 0, clustersAtOnce * sizeof(TTCluster));
+        for (size_t i = 0; i < clusterCount; i++) {
+            table[i] = TTCluster();
         }
     }
 
