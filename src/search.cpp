@@ -189,6 +189,9 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
 
+    Move quietMoves[MAX_MOVES] = { MOVE_NONE };
+    int quietMoveCount = 0;
+
     stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
     (stack + 1)->nodes = 0;
@@ -244,6 +247,10 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
         
         if (pvNode)
             (stack + 1)->pv = nullptr;
+        
+        bool capture = isCapture(board, move);
+        if (!capture)
+            quietMoves[quietMoveCount++] = move;
 
         moveCount++;
         stack->nodes++;
@@ -293,8 +300,18 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
                 }
 
                 if (bestValue >= beta) {
-                    if (!isCapture(board, move))
-                        quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += depth * depth;
+                    if (!capture) {
+                        int bonus = depth * depth;
+                        // Increase stats for this move
+                        quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += bonus;
+
+                        // Decrease stats for all other quiets
+                        for (int i = 0; i < quietMoveCount; i++) {
+                            Move qMove = quietMoves[i];
+                            if (move == qMove) continue;
+                            quietHistory[board->stm][moveOrigin(qMove)][moveTarget(qMove)] -= bonus;
+                        }
+                    }
                     break;
                 }
             }
