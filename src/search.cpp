@@ -244,6 +244,8 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
         
         if (pvNode)
             (stack + 1)->pv = nullptr;
+        
+        bool check = givesCheck(board, move);
 
         moveCount++;
         stack->nodes++;
@@ -251,6 +253,8 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
         Eval value;
         int newDepth = depth - 1;
+        if (check)
+            newDepth++;
         
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
