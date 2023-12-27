@@ -703,6 +703,24 @@ Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType) {
     }
 }
 
+// This function is only intended for check detection, so it doesn't work for kings
+Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupied, Color stm) {
+    switch (pieceType) {
+    case PIECE_PAWN:
+        return pawnAttacks(C64(1) << square, stm);
+    case PIECE_KNIGHT:
+        return knightAttacks(C64(1) << square);
+    case PIECE_KING:
+        return C64(0);
+    case PIECE_BISHOP:
+        return getBishopMoves(square, occupied);
+    case PIECE_ROOK:
+        return getRookMoves(square, occupied);
+    default:
+        return getBishopMoves(square, occupied) | getRookMoves(square, occupied);
+    }
+}
+
 bool isInCheck(Board* board, Color side) {
     assert((board->byPiece[PIECE_KING] & board->byColor[side]) > 0);
 

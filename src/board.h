@@ -100,6 +100,7 @@ Bitboard slidingPieceAttacksAll(Board* board, Color side, Piece pieceType);
 
 Bitboard attackedSquares(Board* board, Color side);
 Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType);
+Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupied, Color stm);
 
 bool isInCheck(Board* board, Color side);
 

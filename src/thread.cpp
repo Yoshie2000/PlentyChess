@@ -18,6 +18,7 @@ Thread::~Thread() {
 }
 
 void Thread::idle() {
+    searching = false;
     printf("Engine thread running\n");
 
     while (true) {
@@ -38,7 +39,8 @@ void Thread::idle() {
         // Do the search stuff here
         if (searchParameters.perft) {
             nodesSearched = perft(&rootBoard, searchParameters.depth);
-        } else {
+        }
+        else {
             tsearch();
         }
 
@@ -61,7 +63,7 @@ void Thread::startSearching(Board board, std::deque<BoardStack> queue, SearchPar
     rootBoard = std::move(board);
     rootStackQueue = std::move(queue);
     searchParameters = std::move(parameters);
-    
+
     rootStack = rootStackQueue.back();
     rootBoard.stack = &rootStack;
 
