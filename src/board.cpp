@@ -703,11 +703,11 @@ Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType) {
     }
 }
 
-// This function is only intended for pieces that can be promoted to (not kings & pawns)
-Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupied) {
+// This function is only intended for check detection, so it doesn't work for kings
+Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupied, Color stm) {
     switch (pieceType) {
     case PIECE_PAWN:
-        return C64(0);
+        return pawnAttacks(C64(1) << square, stm);
     case PIECE_KNIGHT:
         return knightAttacks(C64(1) << square);
     case PIECE_KING:

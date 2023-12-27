@@ -159,32 +159,34 @@ bool isLegal(Board* board, Move move) {
 bool givesCheck(Board* board, Move move) {
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
+    Bitboard occ = board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK];
+    Bitboard enemyKing = board->byColor[1 - board->stm] & board->byPiece[PIECE_KING];
 
     // Direct check
-    Bitboard attacks = attackedSquaresByPiece(board, board->stm, board->pieces[origin]);
-    if (attacks & board->byColor[1 - board->stm] & board->byPiece[PIECE_KING])
+    Bitboard attacks = attackedSquaresByPiece(board->pieces[origin], target, occ ^ (C64(1) << origin) ^ (C64(1) << target), board->stm);
+    if (attacks & enemyKing)
         return true;
 
     // Discovered check: Are we blocking a check to the enemy king?
     Move specialMove = move & 0x3000;
     if (board->stack->blockers[1 - board->stm] & (C64(1) << origin))
-        return !(LINE[origin][target] & board->byColor[1 - board->stm] & board->byPiece[PIECE_KING]) || specialMove == MOVE_CASTLING;
+        return !(LINE[origin][target] & enemyKing) || specialMove == MOVE_CASTLING;
 
     switch (specialMove) {
     case MOVE_PROMOTION: {
         Piece promotionPiece = PROMOTION_PIECE[move >> 14];
-        return attackedSquaresByPiece(promotionPiece, target, (board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) ^ (C64(1) << origin)) & board->byColor[1 - board->stm] & board->byPiece[PIECE_KING];
+        return attackedSquaresByPiece(promotionPiece, target, occ ^ (C64(1) << origin), board->stm) & enemyKing;
     }
     case MOVE_CASTLING: {
         Square rookTarget = board->stm == COLOR_WHITE ? (target > origin ? 5 : 3) : (target > origin ? 61 : 59);
-        return attackedSquaresByPiece(PIECE_ROOK, rookTarget, board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]);
+        return attackedSquaresByPiece(PIECE_ROOK, rookTarget, occ, board->stm) & enemyKing;
     }
     case MOVE_ENPASSANT: {
         Square epSquare = target - UP[board->stm];
-        Bitboard occupied = ((board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) ^ (C64(1) << origin) ^ (C64(1) << epSquare)) | (C64(1) << target);
-        Square enemyKing = lsb(board->byColor[1 - board->stm] & board->byPiece[PIECE_KING]);
-        return (attackedSquaresByPiece(PIECE_ROOK,   enemyKing, occupied) & board->byColor[board->stm] & (board->byPiece[PIECE_ROOK]   | board->byPiece[PIECE_QUEEN]))
-             | (attackedSquaresByPiece(PIECE_BISHOP, enemyKing, occupied) & board->byColor[board->stm] & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]));
+        Bitboard occupied = (occ ^ (C64(1) << origin) ^ (C64(1) << epSquare)) | (C64(1) << target);
+        Square ek = lsb(enemyKing);
+        return (attackedSquaresByPiece(PIECE_ROOK,   ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_ROOK]   | board->byPiece[PIECE_QUEEN]))
+             | (attackedSquaresByPiece(PIECE_BISHOP, ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]));
     }
     default:
         return false;
