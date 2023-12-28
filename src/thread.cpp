@@ -7,8 +7,6 @@
 #include "search.h"
 
 Thread::Thread(void) : thread(&Thread::idle, this) {
-    exiting = false;
-    searching = true;
     waitForSearchFinished();
 }
 
@@ -18,7 +16,6 @@ Thread::~Thread() {
 }
 
 void Thread::idle() {
-    searching = false;
     printf("Engine thread running\n");
 
     while (true) {

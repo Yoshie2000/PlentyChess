@@ -11,11 +11,11 @@
 
 class Thread {
 
+    bool exiting = false;
+    bool searching = true;
     std::thread thread;
     std::mutex mutex;
     std::condition_variable cv;
-    bool exiting;
-    bool searching;
 
     Board rootBoard;
     BoardStack rootStack;
