@@ -136,6 +136,7 @@ constexpr bool isCapture(Board* board, Move move) {
 
 bool isValid(Board* board, Move move);
 bool isLegal(Board* board, Move move);
+bool givesCheck(Board* board, Move move);
 
 void generateLastSqTable();
 
