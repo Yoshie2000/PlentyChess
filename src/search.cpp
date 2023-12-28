@@ -303,14 +303,16 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
 
                 if (pvNode)
                     updatePv(stack->pv, move, (stack + 1)->pv);
-                
-                if (move != stack->killers[0]) {
-                    stack->killers[1] = stack->killers[0];
-                    stack->killers[0] = move;
-                }
 
                 if (bestValue >= beta) {
                     if (!capture) {
+
+                        // Update quiet killers
+                        if (move != stack->killers[0]) {
+                            stack->killers[1] = stack->killers[0];
+                            stack->killers[0] = move;
+                        }
+
                         int bonus = depth * depth;
                         // Increase stats for this move
                         quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += bonus;
