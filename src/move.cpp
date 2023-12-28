@@ -447,7 +447,9 @@ Move MoveGen::nextMove() {
             for (int i = beginIndex; i < endIndex; i++) {
                 Move move = moveList[i];
                 int score;
-                if ((move & 0x3000) == MOVE_ENPASSANT)
+                if (move == ttMove)
+                    score = INT32_MIN;
+                else if ((move & 0x3000) == MOVE_ENPASSANT)
                     score = 0;
                 else
                     score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
@@ -506,6 +508,8 @@ Move MoveGen::nextMove() {
             for (int i = beginIndex; i < endIndex; i++) {
                 Move move = moveList[i];
                 int score = quietHistory[board->stm][moveOrigin(move)][moveTarget(move)];
+                if (move == ttMove || move == killers[0] || move == killers[1])
+                    score = INT32_MIN + 1;
                 scores[i] = score;
             }
 
