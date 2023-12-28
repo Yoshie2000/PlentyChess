@@ -291,6 +291,10 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         improving = true;
     }
 
+    // IIR
+    if (depth >= 4 && !ttHit)
+	    depth--;
+
     // Reverse futility pruning
     if (depth < 7 && eval - (70 * depth) >= beta) return eval;
 
