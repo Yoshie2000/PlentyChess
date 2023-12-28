@@ -106,5 +106,6 @@ bool isInCheck(Board* board, Color side);
 
 void debugBoard(Board* board);
 void debugBitboard(Bitboard bb);
+int validateBoard(Board* board);
 
 #endif

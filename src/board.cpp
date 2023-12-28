@@ -439,7 +439,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
             newStack->castling &= 0x3;
         newStack->hash ^= ZOBRIST_CASTLING[newStack->castling & 0xF];
     }
-    else if (piece == PIECE_ROOK || newStack->capturedPiece == PIECE_ROOK) {
+    if (piece == PIECE_ROOK || newStack->capturedPiece == PIECE_ROOK) {
         newStack->hash ^= ZOBRIST_CASTLING[newStack->castling & 0xF];
         switch (piece == PIECE_ROOK ? origin : captureTarget) {
         case 0:
@@ -780,6 +780,80 @@ void debugBoard(Board* board) {
         printf(" -");
     }
     printf("\n%" PRIu64 "\n", board->stack->hash);
+}
+
+int validateBoard(Board* board) {
+    for (int rank = 7; rank >= 0; rank--) {
+        for (int file = 0; file <= 7; file++) {
+
+            // Get piece at index
+            int idx = file + 8 * rank;
+            Bitboard mask = C64(1) << idx;
+                        int first = 0;
+            int second = 0;
+            if ((board->stack->enpassantTarget & mask) != 0)
+                first = 1;
+            else if (board->pieces[idx] == NO_PIECE)
+                first = 2;
+            else if (board->pieces[idx] == PIECE_PAWN && (board->byColor[COLOR_WHITE] & mask) != 0)
+                first = 3;
+            else if (board->pieces[idx] == PIECE_PAWN && (board->byColor[COLOR_BLACK] & mask) != 0)
+                first = 4;
+            else if (board->pieces[idx] == PIECE_KNIGHT && (board->byColor[COLOR_WHITE] & mask) != 0)
+                first = 5;
+            else if (board->pieces[idx] == PIECE_KNIGHT && (board->byColor[COLOR_BLACK] & mask) != 0)
+                first = 6;
+            else if (board->pieces[idx] == PIECE_BISHOP && (board->byColor[COLOR_WHITE] & mask) != 0)
+                first = 7;
+            else if (board->pieces[idx] == PIECE_BISHOP && (board->byColor[COLOR_BLACK] & mask) != 0)
+                first = 8;
+            else if (board->pieces[idx] == PIECE_ROOK && (board->byColor[COLOR_WHITE] & mask) != 0)
+                first = 9;
+            else if (board->pieces[idx] == PIECE_ROOK && (board->byColor[COLOR_BLACK] & mask) != 0)
+                first = 10;
+            else if (board->pieces[idx] == PIECE_QUEEN && (board->byColor[COLOR_WHITE] & mask) != 0)
+                first = 11;
+            else if (board->pieces[idx] == PIECE_QUEEN && (board->byColor[COLOR_BLACK] & mask) != 0)
+                first = 12;
+            else if (board->pieces[idx] == PIECE_KING && (board->byColor[COLOR_WHITE] & mask) != 0)
+                first = 13;
+            else if (board->pieces[idx] == PIECE_KING && (board->byColor[COLOR_BLACK] & mask) != 0)
+                first = 14;
+            
+            if ((board->stack->enpassantTarget & mask) != 0)
+                second = 1;
+            else if (((board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) & mask) == 0)
+                second = 2;
+            else if ((board->byColor[COLOR_WHITE] & board->byPiece[PIECE_PAWN] & mask) != 0)
+                second = 3;
+            else if ((board->byColor[COLOR_BLACK] & board->byPiece[PIECE_PAWN] & mask) != 0)
+                second = 4;
+            else if ((board->byColor[COLOR_WHITE] & board->byPiece[PIECE_KNIGHT] & mask) != 0)
+                second = 5;
+            else if ((board->byColor[COLOR_BLACK] & board->byPiece[PIECE_KNIGHT] & mask) != 0)
+                second = 6;
+            else if ((board->byColor[COLOR_WHITE] & board->byPiece[PIECE_BISHOP] & mask) != 0)
+                second = 7;
+            else if ((board->byColor[COLOR_BLACK] & board->byPiece[PIECE_BISHOP] & mask) != 0)
+                second = 8;
+            else if ((board->byColor[COLOR_WHITE] & board->byPiece[PIECE_ROOK] & mask) != 0)
+                second = 9;
+            else if ((board->byColor[COLOR_BLACK] & board->byPiece[PIECE_ROOK] & mask) != 0)
+                second = 10;
+            else if ((board->byColor[COLOR_WHITE] & board->byPiece[PIECE_QUEEN] & mask) != 0)
+                second = 11;
+            else if ((board->byColor[COLOR_BLACK] & board->byPiece[PIECE_QUEEN] & mask) != 0)
+                second = 12;
+            else if ((board->byColor[COLOR_WHITE] & board->byPiece[PIECE_KING] & mask) != 0)
+                second = 13;
+            else if ((board->byColor[COLOR_BLACK] & board->byPiece[PIECE_KING] & mask) != 0)
+                second = 14;
+            
+            if (first != second)
+                return idx;
+        }
+    }
+    return -1;
 }
 
 void debugBitboard(Bitboard bb) {

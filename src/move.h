@@ -134,7 +134,7 @@ constexpr bool isCapture(Board* board, Move move) {
     return board->pieces[moveTarget(move)] != NO_PIECE;
 }
 
-bool isValid(Board* board, Move move);
+bool isPseudoLegal(Board* board, Move move);
 bool isLegal(Board* board, Move move);
 bool givesCheck(Board* board, Move move);
 

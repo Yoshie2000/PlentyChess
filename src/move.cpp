@@ -32,10 +32,14 @@ bool isPseudoLegal(Board* board, Move move) {
     // Non-standard movetypes
     Move specialMove = move & 0x3000;
     switch (specialMove) {
-    case MOVE_CASTLING:
+    case MOVE_CASTLING: {
         if (piece != PIECE_KING || board->stack->checkers) return false;
+        // Check for pieces between king and rook
+        Bitboard importantSquares = board->stm == COLOR_WHITE ? (target > origin ? 0x60 : 0x0E) : (target > origin ? 0x6000000000000000 : 0x0E00000000000000);
+        if ((board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) & importantSquares) return false;
         // Check for castling flags (Attackers are done in isLegal())
         return board->stack->castling & (board->stm == COLOR_WHITE ? (target > origin ? 0b0001 : 0b0010) : (target > origin ? 0b0100 : 0b1000));
+    }
     case MOVE_ENPASSANT:
         if (piece != PIECE_PAWN) return false;
         if (board->stack->checkerCount > 1) return false;
@@ -143,7 +147,8 @@ bool isLegal(Board* board, Move move) {
                     return false;
             }
         }
-        return true;
+        // Check for castling flags
+        return board->stack->castling & (board->stm == COLOR_WHITE ? (target > origin ? 0b0001 : 0b0010) : (target > origin ? 0b0100 : 0b1000));
     }
 
     if (board->pieces[origin] == PIECE_KING) {
@@ -185,8 +190,8 @@ bool givesCheck(Board* board, Move move) {
         Square epSquare = target - UP[board->stm];
         Bitboard occupied = (occ ^ (C64(1) << origin) ^ (C64(1) << epSquare)) | (C64(1) << target);
         Square ek = lsb(enemyKing);
-        return (attackedSquaresByPiece(PIECE_ROOK,   ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_ROOK]   | board->byPiece[PIECE_QUEEN]))
-             | (attackedSquaresByPiece(PIECE_BISHOP, ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]));
+        return (attackedSquaresByPiece(PIECE_ROOK, ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]))
+            | (attackedSquaresByPiece(PIECE_BISHOP, ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]));
     }
     default:
         return false;
@@ -290,14 +295,24 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
         Bitboard leftEp = pAttacksLeft & epBB;
         if (leftEp) {
             Square target = popLSB(&leftEp);
-            *(*moves)++ = createMove(target - UP_LEFT[board->stm], target) | MOVE_ENPASSANT;
-            (*counter)++;
+            Square origin = target - UP_LEFT[board->stm];
+
+            // Don't make ep move if the pawn is blocking a check
+            if (!(board->stack->blockers[board->stm] & (C64(1) << origin))) {
+                *(*moves)++ = createMove(origin, target) | MOVE_ENPASSANT;
+                (*counter)++;
+            }
         }
         Bitboard rightEp = pAttacksRight & epBB;
         if (rightEp) {
             Square target = popLSB(&rightEp);
-            *(*moves)++ = createMove(target - UP_RIGHT[board->stm], target) | MOVE_ENPASSANT;
-            (*counter)++;
+            Square origin = target - UP_RIGHT[board->stm];
+
+            // Don't make ep move if the pawn is blocking a check
+            if (!(board->stack->blockers[board->stm] & (C64(1) << origin))) {
+                *(*moves)++ = createMove(origin, target) | MOVE_ENPASSANT;
+                (*counter)++;
+            }
         }
     }
 }
