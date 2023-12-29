@@ -25,14 +25,7 @@ typedef uint8_t Piece;
 typedef uint8_t Square;
 typedef uint8_t Color;
 typedef uint64_t Bitboard;
-typedef int16_t Eval;
-
-struct PhaseEval {
-    Eval mg;
-    Eval eg;
-
-    PhaseEval(Eval mg, Eval eg) : mg(mg), eg(eg) {};
-};
+typedef int32_t Eval;
 
 // 00 promotion piece 00 special move type 000000 target 000000 origin
 // Special move type: 01 == promotion, 10 == en passant, 11 == castling
