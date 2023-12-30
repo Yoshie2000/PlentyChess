@@ -23,6 +23,8 @@ const Bitboard FILE_F = 0x2020202020202020;
 const Bitboard FILE_G = 0x4040404040404040;
 const Bitboard FILE_H = 0x8080808080808080;
 
+const Bitboard FILES[8] = { FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H };
+
 const Bitboard RANK_1 = 0x00000000000000FF;
 const Bitboard RANK_2 = 0x000000000000FF00;
 const Bitboard RANK_3 = 0x0000000000FF0000;
@@ -31,6 +33,8 @@ const Bitboard RANK_5 = 0x000000FF00000000;
 const Bitboard RANK_6 = 0x0000FF0000000000;
 const Bitboard RANK_7 = 0x00FF000000000000;
 const Bitboard RANK_8 = 0xFF00000000000000;
+
+const Bitboard RANKS[8] = { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8 };
 
 void startpos(Board* result) {
     parseFen(result, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -57,6 +61,7 @@ size_t parseFen(Board* board, std::string fen) {
     board->stack->checkers = C64(0);
     board->stack->capturedPiece = NO_PIECE;
     board->stack->hash = 0;
+    board->stack->pawnHash = ZOBRIST_NO_PAWNS;
     board->stack->nullmove_ply = 0;
 
     // Board position and everything
@@ -77,6 +82,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->stack->pieceCount[COLOR_BLACK][PIECE_PAWN]++;
             board->pieces[currentSquare] = PIECE_PAWN;
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
+            board->stack->pawnHash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
             currentSquare++;
             break;
         case 'P':
@@ -85,6 +91,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->stack->pieceCount[COLOR_WHITE][PIECE_PAWN]++;
             board->pieces[currentSquare] = PIECE_PAWN;
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
+            board->stack->pawnHash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
             currentSquare++;
             break;
         case 'n':
@@ -320,6 +327,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(Eval) * 4 + sizeof(uint8_t));
 
     newStack->hash = newStack->previous->hash ^ ZOBRIST_STM_BLACK;
+    newStack->pawnHash = newStack->previous->pawnHash;
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
     newStack->nullmove_ply = newStack->previous->nullmove_ply + 1;
 
@@ -345,8 +353,10 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     board->pieces[origin] = NO_PIECE;
     board->pieces[target] = piece;
 
-    if (piece == PIECE_PAWN)
+    if (piece == PIECE_PAWN) {
         newStack->rule50_ply = 0;
+        newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][origin] ^ ZOBRIST_PIECE_SQUARES[PIECE_PAWN][target];
+    }
 
     // This move is en passent
     Move specialMove = move & 0x3000;
@@ -371,6 +381,9 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
         newStack->pieceCount[1 - board->stm][newStack->capturedPiece]--;
         newStack->rule50_ply = 0;
+
+        if (newStack->capturedPiece == PIECE_PAWN)
+            newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][captureTarget];
     }
 
     // En passent square
@@ -414,6 +427,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         board->pieces[target] = promotionPiece;
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][target] ^ ZOBRIST_PIECE_SQUARES[promotionPiece][target];
+        newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][target];
 
         newStack->psq[board->stm][PHASE_MG] -= PSQ[piece][psqIndex(target, board->stm)].mg;
         newStack->psq[board->stm][PHASE_EG] -= PSQ[piece][psqIndex(target, board->stm)].eg;

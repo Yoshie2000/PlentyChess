@@ -42,4 +42,10 @@ constexpr Eval matedIn(int ply) {
     return -EVAL_MATE + ply;
 }
 
+struct PawnEval {
+    Eval pawnEval[2] = { 0, 0 };
+
+    uint64_t pawnHash = 0;
+};
+
 #endif

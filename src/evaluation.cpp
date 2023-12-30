@@ -85,6 +85,50 @@ const PhaseEval PSQ[PIECE_TYPES][64] = {
 
 int GAMEPHASE_VALUES[PIECE_TYPES] = { 0, 1, 1, 2, 4, 0 };
 
+std::vector<PawnEval> pawnTable = std::vector<PawnEval>(131072);
+
+template<Color side>
+Eval evaluatePawns(Board* board) {
+    Eval result = 0;
+
+    // Doubled pawns
+    Bitboard ourPawns = board->byPiece[PIECE_PAWN] & board->byColor[side];
+    Bitboard theirPawns = board->byPiece[PIECE_PAWN] & board->byColor[1 - side];
+    result -= 30 * __builtin_popcount((ourPawns & (ourPawns >> 8)) | (ourPawns & (ourPawns >> 16)));
+
+    // Passed pawns
+    while (ourPawns) {
+        Square pawn = popLSB(&ourPawns);
+        int file = pawn % 8;
+        Bitboard passedPawnMask = FILES[file];
+        Bitboard widePassedPawnMask = passedPawnMask;
+        if (file != 0)
+            widePassedPawnMask |= FILES[file - 1];
+        if (file != 7)
+            widePassedPawnMask |= FILES[file + 1];
+
+        bool passedPawn = theirPawns & passedPawnMask;
+        bool widePassedPawn = theirPawns & widePassedPawnMask;
+        result += passedPawn * PIECE_VALUES[PIECE_PAWN] / 2 + widePassedPawn * PIECE_VALUES[PIECE_PAWN];
+    }
+
+    return result;
+}
+
+PawnEval* probePawnTable(Board* board) {
+    uint64_t pawnHash = board->stack->pawnHash;
+
+    PawnEval* entry = &pawnTable[((uint32_t)pawnHash) & (131072 - 1)];
+    if (pawnHash == entry->pawnHash)
+        return entry;
+    
+    entry->pawnHash = pawnHash;
+    entry->pawnEval[COLOR_WHITE] = evaluatePawns<COLOR_WHITE>(board);
+    entry->pawnEval[COLOR_BLACK] = evaluatePawns<COLOR_BLACK>(board);
+
+    return entry;
+}
+
 template<Color side>
 Eval evaluate(Board* board) {
     Eval result = 0;
@@ -102,6 +146,15 @@ Eval evaluate(Board* board) {
     int egPhase = 24 - mgPhase;
     result += (board->stack->psq[side][PHASE_MG] * mgPhase + board->stack->psq[side][PHASE_EG] * egPhase) / 24;
 
+    // Pawn eval
+    PawnEval* pawnEval = probePawnTable(board);
+    result += pawnEval->pawnEval[side];
+
+    // if (evaluatePawns<side>(board) != pawnEval->pawnEval[side]) {
+    //     debugBoard(board);
+    //     std::cout << (int) evaluatePawns<side>(board) << " " << (int) pawnEval->pawnEval[side] << std::endl;
+    // }
+
     return result;
 }
 
@@ -110,7 +163,7 @@ Eval evaluate(Board* board) {
     if (board->stm == COLOR_WHITE)
         result = evaluate<COLOR_WHITE>(board) - evaluate<COLOR_BLACK>(board);
     else
-        result = evaluate<COLOR_BLACK>(board) - evaluate<COLOR_WHITE>(board);  
+        result = evaluate<COLOR_BLACK>(board) - evaluate<COLOR_WHITE>(board);
     return result;
 }
 
