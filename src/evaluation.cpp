@@ -102,6 +102,27 @@ Eval evaluate(Board* board) {
     int egPhase = 24 - mgPhase;
     result += (board->stack->psq[side][PHASE_MG] * mgPhase + board->stack->psq[side][PHASE_EG] * egPhase) / 24;
 
+    // Doubled pawns
+    Bitboard ourPawns = board->byPiece[PIECE_PAWN] & board->byColor[side];
+    Bitboard theirPawns = board->byPiece[PIECE_PAWN] & board->byColor[1 - side];
+    result -= 30 * __builtin_popcount((ourPawns & (ourPawns >> 8)) | (ourPawns & (ourPawns >> 16)));
+
+    // Passed pawns
+    while (ourPawns) {
+        Square pawn = popLSB(&ourPawns);
+        int file = pawn % 8;
+        Bitboard passedPawnMask = FILES[file];
+        Bitboard widePassedPawnMask = passedPawnMask;
+        if (file != 0)
+            widePassedPawnMask |= FILES[file - 1];
+        if (file != 7)
+            widePassedPawnMask |= FILES[file + 1];
+        
+        bool passedPawn = !(theirPawns & passedPawnMask);
+        bool widePassedPawn = !(theirPawns & widePassedPawnMask); 
+        result += (passedPawn + 3 * widePassedPawn) * egPhase * PIECE_VALUES[PIECE_PAWN] / 4 / 96;
+    }
+
     return result;
 }
 

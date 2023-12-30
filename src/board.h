@@ -16,6 +16,8 @@ extern const Bitboard FILE_F;
 extern const Bitboard FILE_G;
 extern const Bitboard FILE_H;
 
+extern const Bitboard FILES[8];
+
 extern const Bitboard RANK_1;
 extern const Bitboard RANK_2;
 extern const Bitboard RANK_3;
@@ -24,6 +26,8 @@ extern const Bitboard RANK_5;
 extern const Bitboard RANK_6;
 extern const Bitboard RANK_7;
 extern const Bitboard RANK_8;
+
+extern const Bitboard RANKS[8];
 
 struct Board {
     Bitboard byPiece[PIECE_TYPES];

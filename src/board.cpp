@@ -23,6 +23,8 @@ const Bitboard FILE_F = 0x2020202020202020;
 const Bitboard FILE_G = 0x4040404040404040;
 const Bitboard FILE_H = 0x8080808080808080;
 
+const Bitboard FILES[8] = { FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H };
+
 const Bitboard RANK_1 = 0x00000000000000FF;
 const Bitboard RANK_2 = 0x000000000000FF00;
 const Bitboard RANK_3 = 0x0000000000FF0000;
@@ -31,6 +33,8 @@ const Bitboard RANK_5 = 0x000000FF00000000;
 const Bitboard RANK_6 = 0x0000FF0000000000;
 const Bitboard RANK_7 = 0x00FF000000000000;
 const Bitboard RANK_8 = 0xFF00000000000000;
+
+const Bitboard RANKS[8] = { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8 };
 
 void startpos(Board* result) {
     parseFen(result, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
