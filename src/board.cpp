@@ -801,6 +801,7 @@ void debugBoard(Board* board) {
         printf(" -");
     }
     printf("\n%" PRIu64 "\n", board->stack->hash);
+    printf("%" PRIu64 "\n", board->stack->pawnHash);
 }
 
 int validateBoard(Board* board) {

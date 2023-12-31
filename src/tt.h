@@ -32,8 +32,8 @@ struct TTEntry {
     Move bestMove = MOVE_NONE;
     uint8_t depth = 0;
     uint8_t flags = TT_NOBOUND;
-    Eval eval = EVAL_NONE;
-    Eval value = EVAL_NONE;
+    int16_t eval = EVAL_NONE;
+    int16_t value = EVAL_NONE;
 
     void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int flags) {
         if (_depth >= depth || bestMove == MOVE_NONE) {

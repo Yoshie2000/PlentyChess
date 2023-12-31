@@ -13,7 +13,7 @@ TranspositionTable TT;
 
 void initZobrist() {
     std::mt19937 rng;
-    rng.seed(934572);
+    rng.seed(1070372);
     std::uniform_int_distribution<uint64_t> dist;
 
     for (int i = 0; i < PIECE_TYPES; i++) {
@@ -21,12 +21,12 @@ void initZobrist() {
             ZOBRIST_PIECE_SQUARES[i][j] = dist(rng);
         }
     }
-    ZOBRIST_STM_BLACK = dist(rng);
-    for (int i = 0; i < 16; i++) {
-        ZOBRIST_CASTLING[i] = dist(rng);
-    }
     for (int i = 0; i < 8; i++) {
         ZOBRIST_ENPASSENT[i] = dist(rng);
     }
+    for (int i = 0; i < 16; i++) {
+        ZOBRIST_CASTLING[i] = dist(rng);
+    }
+    ZOBRIST_STM_BLACK = dist(rng);
     ZOBRIST_NO_PAWNS = dist(rng);
 }

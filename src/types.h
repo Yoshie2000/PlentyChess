@@ -26,7 +26,7 @@
     typedef uint8_t Square;
     typedef uint8_t Color;
     typedef uint64_t Bitboard;
-    typedef int16_t Eval;
+    typedef int32_t Eval;
 
     struct PhaseEval {
         Eval mg;
