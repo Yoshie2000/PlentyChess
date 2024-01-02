@@ -130,7 +130,7 @@ constexpr Square moveTarget(Move move) {
 
 constexpr bool isCapture(Board* board, Move move) {
     Move moveType = 0x3000 & move;
-    if (moveType == MOVE_ENPASSANT) return true;
+    if (moveType == MOVE_ENPASSANT || (moveType == MOVE_PROMOTION && (move & 0xC000) == PROMOTION_QUEEN)) return true;
     return board->pieces[moveTarget(move)] != NO_PIECE;
 }
 

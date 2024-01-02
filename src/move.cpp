@@ -221,8 +221,8 @@ void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targe
         Move move = createMove(target - UP[board->stm], target);
 
         if ((C64(1) << target) & enemyBackrank) {
-            // Promotion
-            for (uint8_t promotion = 0; promotion <= 3; promotion++) {
+            // Promotion: Queen promotions are considered captures
+            for (uint8_t promotion = 1; promotion <= 3; promotion++) {
                 *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
                 (*counter)++;
             }
@@ -248,7 +248,23 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
     Bitboard pAttacksRight = pawnAttacksRight(pawns, board->stm);
     Bitboard blockedEnemy = board->byColor[1 - board->stm];
     Bitboard enemyBackrank = board->stm == COLOR_WHITE ? RANK_8 : RANK_1;
+    Bitboard free = ~(board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]);
 
+    // Queen promotions (without capture)
+    Bitboard pushedPawns;
+    if (board->stm == COLOR_WHITE) {
+        pushedPawns = (pawns << 8) & free & targetMask & RANK_8;
+    }
+    else {
+        pushedPawns = (pawns >> 8) & free & targetMask & RANK_1;
+    }
+    while (pushedPawns) {
+        Square target = popLSB(&pushedPawns);
+        *(*moves)++ = createMove(target - UP[board->stm], target) | PROMOTION_QUEEN | MOVE_PROMOTION;
+        (*counter)++;
+    }
+
+    // Capture promotions
     Bitboard leftCaptures = pAttacksLeft & blockedEnemy & targetMask;
     while (leftCaptures) {
         Square target = popLSB(&leftCaptures);
