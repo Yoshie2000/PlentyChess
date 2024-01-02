@@ -8,6 +8,7 @@ int main(int argc, char* argv[]) {
     initZobrist();
     generateMagics();
     initBitboard();
+    initReductions();
     TT.clear();
     initHistory();
 

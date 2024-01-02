@@ -12,6 +12,10 @@
 #include "move.h"
 #include "evaluation.h"
 
+extern int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
+
+void initReductions();
+
 struct SearchParameters {
     bool perft; // Perft (requires depth)
 

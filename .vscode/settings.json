@@ -61,7 +61,8 @@
         "iostream": "cpp",
         "numbers": "cpp",
         "semaphore": "cpp",
-        "cstring": "cpp"
+        "cstring": "cpp",
+        "complex": "cpp"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }
