@@ -217,10 +217,11 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, 
     Move bestMove = MOVE_NONE;
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
-    bool improving = false, skipQuiets = false;
+    bool improving = false;
 
     Move quietMoves[MAX_MOVES] = { MOVE_NONE };
     int quietMoveCount = 0;
+    bool skipQuiets = false;
 
     stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
@@ -299,16 +300,16 @@ movesLoop:
         if (!isLegal(board, move))
             continue;
 
-        moveCount++;
         bool capture = isCapture(board, move);
         if (!capture && skipQuiets)
             continue;
+        moveCount++;
 
         if (!rootNode
             && bestValue > -EVAL_MATE_IN_MAX_PLY
             && (board->stack->pieceCount[board->stm][PIECE_KNIGHT] > 0 || board->stack->pieceCount[board->stm][PIECE_BISHOP] > 0 || board->stack->pieceCount[board->stm][PIECE_ROOK] > 0 || board->stack->pieceCount[board->stm][PIECE_QUEEN] > 0)
             ) {
-            
+
             if (!skipQuiets) {
 
                 // Movecount pruning (LMP)
@@ -316,6 +317,12 @@ movesLoop:
                     && !board->stack->checkers
                     && moveCount >= LMP_MARGIN[depth][improving]) {
                     skipQuiets = true;
+                }
+                else {
+                    // Futility pruning
+                    int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount]);
+                    if (!board->stack->checkers && lmrDepth < 11 && eval + 250 + 150 * lmrDepth <= alpha)
+                        skipQuiets = true;
                 }
             }
 
