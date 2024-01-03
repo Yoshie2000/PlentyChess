@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 
 #include "search.h"
 #include "board.h"
@@ -10,6 +11,20 @@
 #include "evaluation.h"
 #include "thread.h"
 #include "tt.h"
+
+int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
+
+void initReductions() {
+    REDUCTIONS[0][0][0] = 0;
+    REDUCTIONS[1][0][0] = 0;
+
+    for (int i = 1; i < MAX_PLY; i++) {
+        for (int j = 1; j < MAX_MOVES; j++) {
+            REDUCTIONS[0][i][j] = -0.50 + log(i) * log(j) / 3.00; // non-quiet
+            REDUCTIONS[1][i][j] = +0.00 + log(i) * log(j) / 2.50; // quiet
+        }
+    }
+}
 
 uint64_t perftInternal(Board* board, int depth) {
     if (depth == 0) return C64(1);
@@ -273,8 +288,10 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
         
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > 10) {
-            value = -search<NON_PV_NODE>(board, stack + 1, newDepth - 1, -(alpha + 1), -alpha);
+        if (moveCount > 6 + 8 * pvNode && depth >= 3) {
+            int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
+
+            value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha);
 
             if (value > alpha)
                 value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha);
