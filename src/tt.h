@@ -53,6 +53,19 @@ struct TTCluster {
     char padding[2];
 };
 
+inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
+#if defined(__MINGW32__)
+    int offset = alignment - 1;
+    void* p = (void * ) malloc(requiredBytes + offset);
+    void* q = (void * ) (((size_t)(p) + offset) & ~(alignment - 1));
+    return q;
+#elif defined (__GNUC__)
+    return std::aligned_alloc(alignment, requiredBytes);
+#else
+    #error "Compiler not supported"
+#endif
+}
+
 class TranspositionTable {
 
     TTCluster* table;
@@ -64,7 +77,7 @@ public:
         size_t mb = 64;
 
         clusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
-        table = static_cast<TTCluster*>(std::aligned_alloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
+        table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
 
         clear();
     }
