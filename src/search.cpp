@@ -174,12 +174,22 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     }
 
-    // if (moveCount != 0 && moveCount == skippedMoves) {
-    //     if (isInCheck(board, board->stm)) {
-    //         return matedIn(stack->ply); // Checkmate
-    //     }
-    //     return 0; // Stalemate
-    // }
+    if (moveCount == 0) {
+        // Generate the remaining moves and check for (stale)mate
+        MoveGen quietMovegen(board, false);
+        while ((move = movegen.nextMove()) != MOVE_NONE) {
+            if (!isLegal(board, move))
+                continue;
+            moveCount++;
+        }
+
+        if (moveCount == 0) {
+            if (isInCheck(board, board->stm)) {
+                return matedIn(stack->ply); // Checkmate
+            }
+            return 0; // Stalemate
+        }
+    }
 
     return bestValue;
 }
