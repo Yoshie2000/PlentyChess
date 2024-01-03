@@ -76,12 +76,14 @@ void updatePv(Move* pv, Move move, const Move* currentPv) {
 }
 
 int valueToTT(int value, int ply) {
+    if (value == EVAL_NONE) return EVAL_NONE;
     if (value > EVAL_MATE_IN_MAX_PLY) value += ply;
     else if (value < -EVAL_MATE_IN_MAX_PLY) value -= ply;
     return value;
 }
 
 int valueFromTt(int value, int ply) {
+    if (value == EVAL_NONE) return EVAL_NONE;
     if (value > EVAL_MATE_IN_MAX_PLY) value -= ply;
     else if (value < -EVAL_MATE_IN_MAX_PLY) value += ply;
     return value;
