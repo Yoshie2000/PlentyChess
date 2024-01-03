@@ -240,7 +240,9 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
-    Eval eval;
+    Eval eval = EVAL_NONE;
+    if (board->stack->checkers)
+        goto movesLoop;
     if (ttHit) {
         eval = ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board);
 
@@ -260,6 +262,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
             return razorValue;
     }
 
+movesLoop:
     // Moves loop
     MoveGen movegen(board, ttMove, stack->killers);
     Move move;
