@@ -434,17 +434,14 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
 
 Move MoveGen::nextMove() {
     // If there's still unused moves in the list, return those
-    if (returnedMoves < generatedMoves) {
-        assert(returnedMoves < MAX_MOVES && moveList[returnedMoves] != MOVE_NONE);
-
-        return moveList[returnedMoves++];
-    }
+    if (returnedMoves < generatedMoves || returnedBadCaptures < generatedBadCaptures)
+        return cycleUntilNextMove();
 
     assert((board->byColor[board->stm] & board->byPiece[PIECE_KING]) > 0);
 
     Move* moves = moveList + generatedMoves;
 
-    while (returnedMoves >= generatedMoves && generationStage <= GEN_STAGE_REMAINING) {
+    while (returnedMoves >= generatedMoves && returnedBadCaptures >= generatedBadCaptures && generationStage < GEN_STAGE_DONE) {
 
         // Generate moves for the current stage
         switch (generationStage) {
@@ -477,9 +474,22 @@ Move MoveGen::nextMove() {
             int scores[MAX_MOVES] = { 0 };
             for (int i = beginIndex; i < endIndex; i++) {
                 Move move = moveList[i];
+                bool goodCapture = SEE(board, move, -107);
+
+                // Store bad captures in a separate list
+                if (!goodCapture) {
+                    moveList[i] = moveList[endIndex - 1];
+                    moveList[endIndex - 1] = MOVE_NONE;
+                    badCaptureList[flaggedBadCaptures++] = move;
+                    endIndex--;
+                    generatedMoves--;
+                    i--;
+                    continue;
+                }
+
                 int score;
                 if (move == ttMove)
-                    score = INT32_MIN;
+                    score = INT32_MIN + 1;
                 else if ((move & 0x3000) == MOVE_ENPASSANT)
                     score = 0;
                 else if ((move & 0x3000) == MOVE_PROMOTION)
@@ -488,9 +498,10 @@ Move MoveGen::nextMove() {
                     score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
                 scores[i] = score;
             }
+            moves = moveList + generatedMoves;
 
             for (int i = beginIndex + 1; i < endIndex; i++) {
-                int move = moveList[i];
+                Move move = moveList[i];
                 int score = scores[i];
                 int j = i - 1;
 
@@ -506,7 +517,7 @@ Move MoveGen::nextMove() {
 
             generationStage++;
             if (onlyCaptures)
-                generationStage = GEN_STAGE_REMAINING + 1;
+                generationStage = GEN_STAGE_BAD_CAPTURES;
         }
                                break;
         case GEN_STAGE_KILLERS:
@@ -564,10 +575,52 @@ Move MoveGen::nextMove() {
             generationStage++;
         }
                                 break;
+        case GEN_STAGE_BAD_CAPTURES: {
+            int scores[32] = { 0 };
+            generatedBadCaptures = flaggedBadCaptures;
+            for (int i = 0; i < generatedBadCaptures; i++) {
+                Move move = badCaptureList[i];
+                int score;
+                if (move == ttMove)
+                    score = INT32_MIN;
+                // En passent and promotion will always pass SEE
+                else
+                    score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
+                scores[i] = score;
+            }
+
+            for (int i = 1; i < generatedBadCaptures; i++) {
+                Move move = badCaptureList[i];
+                int score = scores[i];
+                int j = i - 1;
+
+                while (j >= 0 && scores[j] < score) {
+                    badCaptureList[j + 1] = badCaptureList[j];
+                    scores[j + 1] = scores[j];
+                    j--;
+                }
+
+                badCaptureList[j + 1] = move;
+                scores[j + 1] = score;
+            }
+
+            generationStage = GEN_STAGE_DONE;
+        }
+                                   break;
         }
     }
 
-    return moveList[returnedMoves++];
+    return cycleUntilNextMove();
+}
+
+Move MoveGen::cycleUntilNextMove() {
+    assert(returnedMoves < MAX_MOVES);
+    assert(returnedBadCaptures < 32);
+    assert(moveList[returnedMoves] != MOVE_NONE || returnedBadCaptures < generatedBadCaptures || badCaptureList[generatedBadCaptures] == MOVE_NONE);
+
+    if (returnedMoves < generatedMoves)
+        return moveList[returnedMoves++];
+    return badCaptureList[returnedBadCaptures++];
 }
 
 inline char fileFromSquare(Square square) {
@@ -615,6 +668,7 @@ std::string squareToString(Square square) {
 }
 
 std::string moveToString(Move move) {
+    if (move == MOVE_NONE) return "move_none";
     std::string result = "";
 
     Square origin = moveOrigin(move);

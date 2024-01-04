@@ -17,6 +17,8 @@ const Eval EVAL_NONE = 31010;
 extern const Eval PIECE_VALUES[PIECE_TYPES];
 extern const PhaseEval PSQ[PIECE_TYPES][64];
 
+extern const Eval SEE_VALUES[PIECE_TYPES + 1];
+
 constexpr Square psqIndex(Square square, Color side) {
     if (side == COLOR_BLACK)
         return square;
@@ -28,6 +30,9 @@ Eval evaluate(Board* board);
 void debugEval(Board* board);
 
 std::string formatEval(Eval value);
+
+bool SEE(Board* board, Move move, Eval threshold);
+void debugSEE(Board* board);
 
 constexpr Eval mateIn(int ply) {
     return EVAL_MATE - ply;
