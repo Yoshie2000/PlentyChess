@@ -102,6 +102,21 @@ Eval evaluate(Board* board) {
     int egPhase = 24 - mgPhase;
     result += (board->stack->psq[side][PHASE_MG] * mgPhase + board->stack->psq[side][PHASE_EG] * egPhase) / 24;
 
+    // Bishop pair bonus
+    if (__builtin_popcount(board->byColor[side] & board->byPiece[PIECE_BISHOP]) > 1) {
+        result += (21 * mgPhase + 57 * egPhase) / 24;
+    }
+
+    // Minor behind pawn bonus
+    Bitboard downShiftedPawns = board->byColor[side] & board->byPiece[PIECE_PAWN];
+    if constexpr (side == COLOR_WHITE) {
+        downShiftedPawns >>= 8;
+    } else {
+        downShiftedPawns <<= 8;
+    }
+    int minorBehindPawnCount = __builtin_popcount(board->byColor[side] & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_KNIGHT]) & downShiftedPawns);
+    result += minorBehindPawnCount * (5 * mgPhase + 21 * egPhase) / 24;
+
     return result;
 }
 
