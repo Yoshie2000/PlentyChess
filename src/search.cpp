@@ -14,6 +14,8 @@
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 
+int SEE_MARGIN[MAX_PLY][2];
+
 void initReductions() {
     REDUCTIONS[0][0][0] = 0;
     REDUCTIONS[1][0][0] = 0;
@@ -23,6 +25,12 @@ void initReductions() {
             REDUCTIONS[0][i][j] = -0.50 + log(i) * log(j) / 3.00; // non-quiet
             REDUCTIONS[1][i][j] = +0.00 + log(i) * log(j) / 2.50; // quiet
         }
+    }
+
+    for (int depth = 0; depth < MAX_PLY; depth++) {
+        SEE_MARGIN[depth][0] = -30 * depth * depth; // non-quiet
+        SEE_MARGIN[depth][1] = -80 * depth; // quiet
+
     }
 }
 
@@ -246,9 +254,10 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     if (ttHit) {
         eval = ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board);
 
-        if (ttValue != EVAL_NONE && ( (ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND) ))
+        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
-    } else {
+    }
+    else {
         eval = evaluate(board);
     }
 
@@ -271,24 +280,35 @@ movesLoop:
 
         if (!isLegal(board, move))
             continue;
-        
+
+        moveCount++;
+        bool capture = isCapture(board, move);
+
+        if (!rootNode
+            && bestValue > -EVAL_MATE_IN_MAX_PLY
+            && (board->stack->pieceCount[board->stm][PIECE_KNIGHT] > 0 || board->stack->pieceCount[board->stm][PIECE_BISHOP] > 0 || board->stack->pieceCount[board->stm][PIECE_ROOK] > 0 || board->stack->pieceCount[board->stm][PIECE_QUEEN] > 0)
+            ) {
+
+            // SEE Pruning
+            if (depth <= 8 && !SEE(board, move, SEE_MARGIN[depth][!capture]))
+                continue;
+
+        }
+
         if (pvNode)
             (stack + 1)->pv = nullptr;
-        
-        bool check = givesCheck(board, move);
-        bool capture = isCapture(board, move);
+
         if (!capture)
             quietMoves[quietMoveCount++] = move;
 
-        moveCount++;
         stack->nodes++;
         doMove(board, &boardStack, move);
 
         Eval value;
         int newDepth = depth - 1;
-        if (check)
+        if (board->stack->checkers)
             newDepth++;
-        
+
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > 6 + 8 * pvNode && depth >= 3) {
