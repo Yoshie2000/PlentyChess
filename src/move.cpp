@@ -49,7 +49,12 @@ bool isPseudoLegal(Board* board, Move move) {
     case MOVE_PROMOTION:
         if (piece != PIECE_PAWN) return false;
         if (board->stack->checkerCount > 1) return false;
-        if (board->stack->checkers && (!(board->stack->checkers & targetBB) || (board->stack->blockers[board->stm] & originBB))) return false;
+        if (board->stack->checkers) {
+            bool capturesChecker = target == lsb(board->stack->checkers);
+            bool blocksCheck = BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[PIECE_KING])][lsb(board->stack->checkers)] & (C64(1) << target);
+            if (!capturesChecker && !blocksCheck)
+                return false;
+        }
         if (
             !(pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture promotion?
             !(origin + UP[board->stm] == target && board->pieces[target] == NO_PIECE)) // Push promotion?

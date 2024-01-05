@@ -317,9 +317,10 @@ movesLoop:
             if (!ttPv)
                 reducedDepth--;
 
+            reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha);
 
-            if (value > alpha)
+            if (value > alpha && reducedDepth < newDepth)
                 value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha);
         }
         else {
