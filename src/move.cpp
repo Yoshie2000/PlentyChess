@@ -493,9 +493,9 @@ Move MoveGen::nextMove() {
                 else if ((move & 0x3000) == MOVE_ENPASSANT)
                     score = 0;
                 else if ((move & 0x3000) == MOVE_PROMOTION)
-                    score = PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
+                    score = PIECE_VALUES[PROMOTION_PIECE[move >> 14]].mg;
                 else
-                    score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
+                    score = PIECE_VALUES[board->pieces[moveTarget(move)]].mg - PIECE_VALUES[board->pieces[moveOrigin(move)]].mg;
                 scores[i] = score;
             }
             moves = moveList + generatedMoves;
@@ -585,7 +585,7 @@ Move MoveGen::nextMove() {
                     score = INT32_MIN;
                 // En passent and promotion will always pass SEE
                 else
-                    score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
+                    score = PIECE_VALUES[board->pieces[moveTarget(move)]].mg - PIECE_VALUES[board->pieces[moveOrigin(move)]].mg;
                 scores[i] = score;
             }
 

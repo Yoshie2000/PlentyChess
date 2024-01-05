@@ -6,8 +6,8 @@
 #include "evaluation.h"
 #include "magic.h"
 
-const Eval PIECE_VALUES[PIECE_TYPES] = {
-    100, 290, 310, 500, 900, 0
+const PhaseEval PIECE_VALUES[PIECE_TYPES] = {
+    PhaseEval(104, 204), PhaseEval(420, 632), PhaseEval(427, 659), PhaseEval(569, 1111), PhaseEval(1485, 1963), PhaseEval(0, 0)
 };
 
 const Eval SEE_VALUES[PIECE_TYPES + 1] = {
@@ -90,9 +90,12 @@ Eval evaluate(Board* board) {
     Eval result = 0;
 
     int gamePhase = 0;
+    Eval materialMg = 0;
+    Eval materialEg = 0;
     // Basic material evaluation
     for (Piece piece = 0; piece < PIECE_TYPES - 1; piece++) {
-        result += PIECE_VALUES[piece] * board->stack->pieceCount[side][piece];
+        materialMg += PIECE_VALUES[piece].mg * board->stack->pieceCount[side][piece];
+        materialEg += PIECE_VALUES[piece].eg * board->stack->pieceCount[side][piece];
         gamePhase += GAMEPHASE_VALUES[piece] * (board->stack->pieceCount[COLOR_WHITE][piece] + board->stack->pieceCount[COLOR_BLACK][piece]);
     }
 
@@ -100,6 +103,7 @@ Eval evaluate(Board* board) {
     int mgPhase = gamePhase;
     if (mgPhase > 24) mgPhase = 24;
     int egPhase = 24 - mgPhase;
+    result += (materialMg * mgPhase + materialEg * egPhase) / 24;
     result += (board->stack->psq[side][PHASE_MG] * mgPhase + board->stack->psq[side][PHASE_EG] * egPhase) / 24;
 
     return result;
