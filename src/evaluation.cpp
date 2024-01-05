@@ -11,7 +11,7 @@ const Eval PIECE_VALUES[PIECE_TYPES] = {
 };
 
 const Eval SEE_VALUES[PIECE_TYPES + 1] = {
-    100, 450, 450, 650, 1250, 0, 0
+    100, 300, 300, 500, 900, 0, 0
 };
 
 const PhaseEval PSQ[PIECE_TYPES][64] = {
@@ -184,7 +184,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
         
         // Value beats (or can't beat) threshold (negamax)
         if (value >= 0) {
-            if (piece == PIECE_KING && (attackersToTarget && board->byColor[side]))
+            if (piece == PIECE_KING && (attackersToTarget & board->byColor[side]))
                 side = 1 - side;
             break;
         }

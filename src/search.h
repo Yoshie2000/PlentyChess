@@ -13,6 +13,7 @@
 #include "evaluation.h"
 
 extern int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
+extern int SEE_MARGIN[MAX_PLY][2];
 
 void initReductions();
 

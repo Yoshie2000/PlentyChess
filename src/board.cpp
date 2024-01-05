@@ -233,34 +233,39 @@ size_t parseFen(Board* board, std::string fen) {
         board->stack->hash ^= ZOBRIST_ENPASSENT[epTargetSquare % 8];
     }
 
-    // 50 move rule
-    std::string rule50String = "--";
-    int rule50tmp = 0;
-    while (fen.at(i) != ' ') {
-        rule50String.replace(rule50tmp++, 1, 1, fen.at(i++));
-    }
-    if (rule50String.at(1) == '-') {
-        board->stack->rule50_ply = (int)(rule50String.at(0)) - 48;
-    }
-    else {
-        board->stack->rule50_ply = 10 * ((int)(rule50String.at(0)) - 48) + ((int)(rule50String.at(1)) - 48);
-    }
-    i++;
+    if (fen.length() <= i) {
+        board->stack->rule50_ply = 0;
+        board->ply = 0;
+    } else {
+        // 50 move rule
+        std::string rule50String = "--";
+        int rule50tmp = 0;
+        while (fen.at(i) != ' ') {
+            rule50String.replace(rule50tmp++, 1, 1, fen.at(i++));
+        }
+        if (rule50String.at(1) == '-') {
+            board->stack->rule50_ply = (int)(rule50String.at(0)) - 48;
+        }
+        else {
+            board->stack->rule50_ply = 10 * ((int)(rule50String.at(0)) - 48) + ((int)(rule50String.at(1)) - 48);
+        }
+        i++;
 
-    // Move number
-    std::string plyString = "---";
-    int plyTmp = 0;
-    while (i < fen.length() && fen.at(i) != ' ') {
-        plyString.replace(plyTmp++, 1, 1, fen.at(i++));
-    }
-    if (plyString.at(1) == '-') {
-        board->ply = (int)(plyString.at(0)) - 48;
-    }
-    else if (plyString.at(2) == '-') {
-        board->ply = 10 * ((int)(plyString.at(0)) - 48) + ((int)(plyString.at(1)) - 48);
-    }
-    else {
-        board->ply = 100 * ((int)(plyString.at(0)) - 48) + 10 * ((int)(plyString.at(1)) - 48) + ((int)(plyString.at(2)) - 48);
+        // Move number
+        std::string plyString = "---";
+        int plyTmp = 0;
+        while (i < fen.length() && fen.at(i) != ' ') {
+            plyString.replace(plyTmp++, 1, 1, fen.at(i++));
+        }
+        if (plyString.at(1) == '-') {
+            board->ply = (int)(plyString.at(0)) - 48;
+        }
+        else if (plyString.at(2) == '-') {
+            board->ply = 10 * ((int)(plyString.at(0)) - 48) + ((int)(plyString.at(1)) - 48);
+        }
+        else {
+            board->ply = 100 * ((int)(plyString.at(0)) - 48) + 10 * ((int)(plyString.at(1)) - 48) + ((int)(plyString.at(2)) - 48);
+        }
     }
 
     // Update king checking stuff
