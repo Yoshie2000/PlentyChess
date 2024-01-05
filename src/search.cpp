@@ -195,12 +195,14 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 }
 
 template <NodeType nt>
-Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) {
+Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, bool cutNode) {
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
     constexpr NodeType nodeType = nt == ROOT_NODE ? PV_NODE : NON_PV_NODE;
 
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
+    assert(!(pvNode && cutNode));
+    assert(pvNode || alpha == beta - 1);
 
     if (depth <= 0) return qsearch<nodeType>(board, stack, alpha, beta);
 
@@ -345,14 +347,17 @@ movesLoop:
             if (!ttPv)
                 reducedDepth--;
 
+            if (cutNode)
+                reducedDepth--;
+
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
-            value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha);
+            value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
 
             if (value > alpha && reducedDepth < newDepth)
-                value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha);
+                value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
         }
         else {
-            value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha);
+            value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
         }
 
         // PV moves will be researched at full depth if good enough
@@ -360,7 +365,7 @@ movesLoop:
             // Set up pv for the next search
             (stack + 1)->pv = pv;
             (stack + 1)->pv[0] = MOVE_NONE;
-            value = -search<PV_NODE>(board, stack + 1, newDepth, -beta, -alpha);
+            value = -search<PV_NODE>(board, stack + 1, newDepth, -beta, -alpha, false);
         }
 
         undoMove(board, move);
@@ -439,7 +444,7 @@ void Thread::tsearch() {
 
         // Search
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-        Eval value = search<ROOT_NODE>(&rootBoard, stack, depth, -EVAL_INFINITE, EVAL_INFINITE);
+        Eval value = search<ROOT_NODE>(&rootBoard, stack, depth, -EVAL_INFINITE, EVAL_INFINITE, false);
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
         nodesSearched += stack->nodes;
