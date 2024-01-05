@@ -177,7 +177,7 @@ void bench(Thread* searchThread, std::deque<BoardStack>* stackQueue, Board* boar
     for (const std::string fen : benchPositions) {
         parseFen(board, fen);
         SearchParameters parameters;
-        parameters.depth = 9;
+        parameters.depth = 10;
 
         std::cerr << "\nPosition: " << position++ << '/' << totalPositions << " (" << fen << ")" << std::endl;
 

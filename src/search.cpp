@@ -13,8 +13,8 @@
 #include "tt.h"
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
-
 int SEE_MARGIN[MAX_PLY][2];
+int LMP_MARGIN[MAX_PLY][2];
 
 void initReductions() {
     REDUCTIONS[0][0][0] = 0;
@@ -31,6 +31,8 @@ void initReductions() {
         SEE_MARGIN[depth][0] = -30 * depth * depth; // non-quiet
         SEE_MARGIN[depth][1] = -80 * depth; // quiet
 
+        LMP_MARGIN[depth][0] = 1.5 + 0.5 * std::pow(depth, 2.0); // non-improving
+        LMP_MARGIN[depth][1] = 3.0 + 1.0 * std::pow(depth, 2.0); // improving
     }
 }
 
@@ -213,6 +215,7 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
     Move bestMove = MOVE_NONE;
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
+    bool improving = false, skipQuiets = false;
 
     Move quietMoves[MAX_MOVES] = { MOVE_NONE };
     int quietMoveCount = 0;
@@ -249,16 +252,29 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta) 
         return ttValue;
 
     Eval eval = EVAL_NONE;
-    if (board->stack->checkers)
+    if (board->stack->checkers) {
+        stack->staticEval = EVAL_NONE;
         goto movesLoop;
+    }
     if (ttHit) {
-        eval = ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board);
+        eval = stack->staticEval = ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
-        eval = evaluate(board);
+        eval = stack->staticEval = evaluate(board);
+    }
+
+    // Improving
+    if ((stack - 2)->staticEval != EVAL_NONE) {
+        improving = stack->staticEval > (stack - 2)->staticEval;
+    }
+    else if ((stack - 4)->staticEval != EVAL_NONE) {
+        improving = stack->staticEval > (stack - 4)->staticEval;
+    }
+    else {
+        improving = true;
     }
 
     // Reverse futility pruning
@@ -283,11 +299,23 @@ movesLoop:
 
         moveCount++;
         bool capture = isCapture(board, move);
+        if (!capture && skipQuiets)
+            continue;
 
         if (!rootNode
             && bestValue > -EVAL_MATE_IN_MAX_PLY
             && (board->stack->pieceCount[board->stm][PIECE_KNIGHT] > 0 || board->stack->pieceCount[board->stm][PIECE_BISHOP] > 0 || board->stack->pieceCount[board->stm][PIECE_ROOK] > 0 || board->stack->pieceCount[board->stm][PIECE_QUEEN] > 0)
             ) {
+            
+            if (!skipQuiets) {
+
+                // Movecount pruning (LMP)
+                if (!pvNode
+                    && !board->stack->checkers
+                    && moveCount >= LMP_MARGIN[depth][improving]) {
+                    skipQuiets = true;
+                }
+            }
 
             // SEE Pruning
             if (depth <= 8 && !SEE(board, move, SEE_MARGIN[depth][!capture]))
