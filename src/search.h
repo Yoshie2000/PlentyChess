@@ -14,6 +14,7 @@
 
 extern int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 extern int SEE_MARGIN[MAX_PLY][2];
+extern int LMP_MARGIN[MAX_PLY][2];
 
 void initReductions();
 
@@ -55,6 +56,8 @@ struct SearchStack {
     Move* pv;
     int ply;
     uint64_t nodes;
+
+    Eval staticEval;
 
     Move killers[2];
 };
