@@ -23,15 +23,15 @@ struct SearchParameters {
 
     std::vector<Move> searchmoves; // TODO: Search only these moves at root
     bool ponder; // TODO: Search in pondering mode => after "ponderhit", continue on ponder move
-    uint64_t wtime; // TODO: White's remaining time (ms)
-    uint64_t btime; // TODO: Black's remaining time (ms)
-    uint64_t winc; // TODO: White's increment per move (ms)
-    uint64_t binc; // TODO: Black's increment per move (ms)
+    uint64_t wtime; // White's remaining time (ms)
+    uint64_t btime; // Black's remaining time (ms)
+    uint64_t winc; // White's increment per move (ms)
+    uint64_t binc; // Black's increment per move (ms)
     int movestogo; // TODO: Moves to the next time control
     int depth; // Search depth
     uint64_t nodes; // TODO: Search exactly this many nodes
     int mate; // TODO: Search for mate in X moves
-    uint64_t movetime; // TODO: Search exactly this many ms
+    uint64_t movetime; // Search exactly this many ms
     bool infinite; // Search forever (until a stop / quit command)
 
     SearchParameters() {
@@ -50,17 +50,6 @@ struct SearchParameters {
         infinite = true;
     }
 
-};
-
-struct SearchStack {
-    Move* pv;
-    int ply;
-    uint64_t nodes;
-
-    Eval staticEval;
-
-    Move move;
-    Move killers[2];
 };
 
 enum NodeType {

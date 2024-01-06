@@ -3,6 +3,7 @@
 #include "tt.h"
 #include "magic.h"
 #include "bitboard.h"
+#include "history.h"
 
 int main(int argc, char* argv[]) {
     initZobrist();

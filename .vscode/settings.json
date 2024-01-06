@@ -62,7 +62,8 @@
         "numbers": "cpp",
         "semaphore": "cpp",
         "cstring": "cpp",
-        "complex": "cpp"
+        "complex": "cpp",
+        "cassert": "cpp"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }

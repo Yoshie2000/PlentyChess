@@ -11,6 +11,7 @@
 #include "evaluation.h"
 #include "thread.h"
 #include "tt.h"
+#include "history.h"
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
@@ -154,18 +155,18 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     }
 
     // Moves loop
-    MoveGen movegen(board, true);
+    MoveGen movegen(board, stack, true);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
-        if (   bestValue >= -EVAL_MATE_IN_MAX_PLY
+        if (bestValue >= -EVAL_MATE_IN_MAX_PLY
             && futilityValue <= alpha
             && !SEE(board, move, 1)
             ) {
-                bestValue = std::max(bestValue, futilityValue);
-                continue;
-            }
+            bestValue = std::max(bestValue, futilityValue);
+            continue;
+        }
 
         if (!isLegal(board, move))
             continue;
@@ -302,43 +303,43 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
 
     // Null move pruning
-    if (  !pvNode
+    if (!pvNode
         && eval >= stack->staticEval
         && eval >= beta
         && stack->ply
-        && (stack-1)->move != MOVE_NULL
-        && (stack-1)->move != MOVE_NONE
+        && (stack - 1)->move != MOVE_NULL
+        && (stack - 1)->move != MOVE_NONE
         && depth >= 3
         && !board->stack->checkers
         && stack->ply >= thread->nmpPlies
         && hasNonPawns(board)
         ) {
-            stack->move = MOVE_NULL;
-            int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
+        stack->move = MOVE_NULL;
+        int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
 
-            doNullMove(board, &boardStack);
-            Eval nullValue = -search<NON_PV_NODE>(board, stack + 1, thread, depth - R, -beta, -beta + 1, !cutNode);
-            undoNullMove(board);
+        doNullMove(board, &boardStack);
+        Eval nullValue = -search<NON_PV_NODE>(board, stack + 1, thread, depth - R, -beta, -beta + 1, !cutNode);
+        undoNullMove(board);
 
-            if (nullValue >= beta) {
-                if (nullValue > EVAL_MATE_IN_MAX_PLY)
-                    nullValue = beta;
-                
-                if (thread->nmpPlies || depth < 15)
-                    return nullValue;
-                
-                thread->nmpPlies = stack->ply + (depth - R) * 2 / 3;
-                Eval verificationValue = search<NON_PV_NODE>(board, stack, thread, depth - R, beta - 1, beta, false);
-                thread->nmpPlies = 0;
+        if (nullValue >= beta) {
+            if (nullValue > EVAL_MATE_IN_MAX_PLY)
+                nullValue = beta;
 
-                if (verificationValue >= beta)
-                    return nullValue;
-            }
+            if (thread->nmpPlies || depth < 15)
+                return nullValue;
+
+            thread->nmpPlies = stack->ply + (depth - R) * 2 / 3;
+            Eval verificationValue = search<NON_PV_NODE>(board, stack, thread, depth - R, beta - 1, beta, false);
+            thread->nmpPlies = 0;
+
+            if (verificationValue >= beta)
+                return nullValue;
         }
+    }
 
 movesLoop:
     // Moves loop
-    MoveGen movegen(board, ttMove, counterMoves[moveOrigin((stack-1)->move)][moveTarget((stack-1)->move)], stack->killers);
+    MoveGen movegen(board, stack, ttMove, counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)], stack->killers);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -350,11 +351,11 @@ movesLoop:
         if (!capture && skipQuiets)
             continue;
 
-        if (  !rootNode
+        if (!rootNode
             && bestValue > -EVAL_MATE_IN_MAX_PLY
             && hasNonPawns(board)
             ) {
-            
+
             if (!skipQuiets) {
 
                 // Movecount pruning (LMP)
@@ -381,6 +382,7 @@ movesLoop:
 
         stack->nodes++;
         stack->move = move;
+        stack->movedPiece = board->pieces[moveOrigin(move)];
         doMove(board, &boardStack, move);
 
         Eval value;
@@ -402,8 +404,14 @@ movesLoop:
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
 
-            if (value > alpha && reducedDepth < newDepth)
+            if (value > alpha && reducedDepth < newDepth) {
                 value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
+
+                if (!capture) {
+                    int bonus = depth * depth;
+                    updateContinuationHistory(board, stack, move, bonus);
+                }
+            }
         }
         else {
             value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
@@ -443,18 +451,10 @@ movesLoop:
 
                         // Update counter move
                         if (stack->ply >= 1)
-                            counterMoves[moveOrigin((stack-1)->move)][moveTarget((stack-1)->move)] = move;
+                            counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)] = move;
 
                         int bonus = depth * depth;
-                        // Increase stats for this move
-                        quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += bonus;
-
-                        // Decrease stats for all other quiets
-                        for (int i = 0; i < quietMoveCount; i++) {
-                            Move qMove = quietMoves[i];
-                            if (move == qMove) continue;
-                            quietHistory[board->stm][moveOrigin(qMove)][moveTarget(qMove)] -= bonus;
-                        }
+                        updateHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }
                     break;
                 }
@@ -494,6 +494,7 @@ void Thread::tsearch() {
         stack->pv = pv;
         stack->ply = 0;
         stack->move = MOVE_NONE;
+        stack->movedPiece = NO_PIECE;
         stack->killers[0] = stack->killers[1] = MOVE_NONE;
 
         // Search

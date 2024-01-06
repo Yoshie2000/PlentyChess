@@ -50,4 +50,17 @@
         return l;
     }
 
+    struct SearchStack {
+        Move* pv;
+        int ply;
+        uint64_t nodes;
+
+        Eval staticEval;
+
+        Move move;
+        Piece movedPiece;
+
+        Move killers[2];
+    };
+
 #endif

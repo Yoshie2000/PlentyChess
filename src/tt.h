@@ -83,7 +83,7 @@ public:
 
     void resize(size_t mb) {
         if (table)
-            free(table);
+            std::free(table);
 
         clusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
         table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
@@ -121,9 +121,5 @@ public:
 };
 
 extern TranspositionTable TT;
-
-void initHistory();
-extern int quietHistory[2][64][64];
-extern Move counterMoves[64][64];
 
 #endif
