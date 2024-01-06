@@ -323,9 +323,6 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
     newStack->nullmove_ply = newStack->previous->nullmove_ply + 1;
 
-    if (move == MOVE_NULL)
-        newStack->nullmove_ply = 0;
-
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
 
@@ -470,7 +467,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
     Square enemyKing = lsb(board->byColor[1 - board->stm] & board->byPiece[PIECE_KING]);
     newStack->checkers = attackersTo(board, enemyKing, board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) & board->byColor[board->stm];
-    newStack->checkerCount = newStack->checkers ? __builtin_popcountll(newStack->checkers) : 0; // TODO: givesCheck(move) implementation
+    newStack->checkerCount = newStack->checkers ? __builtin_popcountll(newStack->checkers) : 0;
     updateSliderPins(board, COLOR_WHITE);
     updateSliderPins(board, COLOR_BLACK);
 
@@ -554,6 +551,37 @@ void undoMove(Board* board, Move move) {
         board->pieces[origin] = PIECE_PAWN;
     }
 
+    board->stack = board->stack->previous;
+}
+
+void doNullMove(Board* board, BoardStack* newStack) {
+    assert(!board->stack->checkers);
+
+    newStack->previous = board->stack;
+    board->stack = newStack;
+    memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(Eval) * 4 + sizeof(uint8_t));
+
+    newStack->hash = newStack->previous->hash ^ ZOBRIST_STM_BLACK;
+    newStack->rule50_ply = newStack->previous->rule50_ply + 1;
+    newStack->nullmove_ply = 0;
+    newStack->enpassantTarget = 0;
+
+    // Update king checking stuff
+    assert((board->byColor[1 - board->stm] & board->byPiece[PIECE_KING]) > 0);
+
+    newStack->checkers = C64(0);
+    newStack->checkerCount = 0;
+    updateSliderPins(board, COLOR_WHITE);
+    updateSliderPins(board, COLOR_BLACK);
+
+    newStack->repetition = 0;
+
+    board->stm = 1 - board->stm;
+    newStack->move = MOVE_NULL;
+}
+
+void undoNullMove(Board* board) {
+    board->stm = 1 - board->stm;
     board->stack = board->stack->previous;
 }
 
@@ -724,13 +752,6 @@ Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupie
     default:
         return getBishopMoves(square, occupied) | getRookMoves(square, occupied);
     }
-}
-
-bool isInCheck(Board* board, Color side) {
-    assert((board->byPiece[PIECE_KING] & board->byColor[side]) > 0);
-
-    Square kingSquare = lsb(board->byPiece[PIECE_KING] & board->byColor[side]);
-    return attackersTo(board, kingSquare, board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) > 0;
 }
 
 void debugBoard(Board* board) {

@@ -59,6 +59,7 @@ struct SearchStack {
 
     Eval staticEval;
 
+    Move move;
     Move killers[2];
 };
 
