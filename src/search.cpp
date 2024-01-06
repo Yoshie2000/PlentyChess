@@ -299,7 +299,6 @@ movesLoop:
         if (!isLegal(board, move))
             continue;
 
-        moveCount++;
         bool capture = isCapture(board, move);
         if (!capture && skipQuiets)
             continue;
@@ -325,6 +324,8 @@ movesLoop:
 
         }
 
+        moveCount++;
+
         if (pvNode)
             (stack + 1)->pv = nullptr;
 
@@ -341,7 +342,7 @@ movesLoop:
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > 6 + 8 * pvNode && depth >= 3) {
+        if (moveCount > 5 + 5 * pvNode && depth >= 3) {
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
             if (!ttPv)
