@@ -280,10 +280,10 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, 
     }
 
     // Reverse futility pruning
-    if (depth < 7 && eval - (70 * depth) >= beta) return eval;
+    if (!pvNode && depth < 7 && eval - (70 * depth) >= beta) return eval;
 
     // Razoring
-    if (depth <= 4 && eval + 250 * depth < alpha) {
+    if (!pvNode && depth <= 4 && eval + 250 * depth < alpha) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
         if (razorValue <= alpha)
             return razorValue;
