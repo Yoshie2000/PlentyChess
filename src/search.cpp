@@ -126,18 +126,22 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     BoardStack boardStack;
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
-    Eval bestValue;
+    Eval bestValue, futilityValue;
 
     stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
     (stack + 1)->nodes = 0;
 
-    bestValue = evaluate(board);
+    stack->staticEval = bestValue = evaluate(board);
+    futilityValue = stack->staticEval + 75;
+
+    // Stand pat
     if (bestValue >= beta)
         return beta;
     if (alpha < bestValue)
         alpha = bestValue;
 
+    // Mate distance pruning
     alpha = std::max((int)alpha, (int)matedIn(stack->ply));
     beta = std::min((int)beta, (int)mateIn(stack->ply + 1));
     if (alpha >= beta)
@@ -154,6 +158,14 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
+
+        if (   bestValue >= -EVAL_MATE_IN_MAX_PLY
+            && futilityValue <= alpha
+            && !SEE(board, move, 1)
+            ) {
+                bestValue = std::max(bestValue, futilityValue);
+                continue;
+            }
 
         if (!isLegal(board, move))
             continue;
