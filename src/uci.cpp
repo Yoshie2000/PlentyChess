@@ -12,6 +12,7 @@
 #include "move.h"
 #include "thread.h"
 #include "search.h"
+#include "tt.h"
 
 const std::vector<std::string> benchPositions = {
     //   "setoption name UCI_Chess960 value false",
@@ -327,6 +328,26 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
     }
 }
 
+void setoption(std::string line) {
+    std::string name, value;
+
+    if (matchesToken(line, "name")) {
+        line = line.substr(5);
+        name = line.substr(0, line.find(' '));
+        line = line.substr(name.length() + 1);
+    }
+
+    if (matchesToken(line, "value")) {
+        line = line.substr(6);
+        value = line.find(' ') != std::string::npos ? line.substr(0, line.find(' ')) : line;
+    }
+
+    if (name == "Hash") {
+        size_t hashSize = std::stoi(value);
+        TT.resize(hashSize);
+    }
+}
+
 void go(std::string line, Thread* searchThread, Board* board, std::deque<BoardStack>* stackQueue) {
     SearchParameters parameters;
 
@@ -408,10 +429,11 @@ void uciLoop(Thread* searchThread, int argc, char* argv[]) {
         else if (matchesToken(line, "stop")) searchThread->stopSearching();
 
         else if (matchesToken(line, "isready")) printf("readyok\n");
-        else if (matchesToken(line, "uci")) printf("id name yoshie2000-chess-engine\nuciok\n");
+        else if (matchesToken(line, "uci")) printf("id name yoshie2000-chess-engine\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 4096\nuciok\n");
         else if (matchesToken(line, "ucinewgame")) printf("TODO\n");
         else if (matchesToken(line, "go")) go(line.substr(3), searchThread, &board, &stackQueue);
         else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
+        else if (matchesToken(line, "setoption")) setoption(line.substr(10));
 
         /* NON UCI COMMANDS */
         else if (matchesToken(line, "bench")) bench(searchThread, &stackQueue, &board);

@@ -68,22 +68,27 @@ inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
 
 class TranspositionTable {
 
-    TTCluster* table;
+    TTCluster* table = nullptr;
     size_t clusterCount;
 
 public:
 
     TranspositionTable() {
-        size_t mb = 64;
+        resize(16);
+    }
+
+    ~TranspositionTable() {
+        std::free(table);
+    }
+
+    void resize(size_t mb) {
+        if (table)
+            free(table);
 
         clusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
         table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
 
         clear();
-    }
-
-    ~TranspositionTable() {
-        std::free(table);
     }
 
     TTEntry* probe(uint64_t hash, bool* found) {
