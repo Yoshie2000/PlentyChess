@@ -69,11 +69,17 @@ size_t parseFen(Board* board, std::string fen);
 
 void doMove(Board* board, BoardStack* newStack, Move move);
 void undoMove(Board* board, Move move);
+void doNullMove(Board* board, BoardStack* newStack);
+void undoNullMove(Board* board);
 
 void updateSliderPins(Board* board, Color side);
 
 bool hasRepeated(Board* board);
 bool isDraw(Board* board, int ply);
+
+constexpr bool hasNonPawns(Board* board) {
+    return board->stack->pieceCount[board->stm][PIECE_KNIGHT] > 0 || board->stack->pieceCount[board->stm][PIECE_BISHOP] > 0 || board->stack->pieceCount[board->stm][PIECE_ROOK] > 0 || board->stack->pieceCount[board->stm][PIECE_QUEEN] > 0;
+}
 
 Bitboard attackersTo(Board* board, Square square, Bitboard occupied);
 
@@ -101,8 +107,6 @@ Bitboard slidingPieceAttacksAll(Board* board, Color side, Piece pieceType);
 Bitboard attackedSquares(Board* board, Color side);
 Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType);
 Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupied, Color stm);
-
-bool isInCheck(Board* board, Color side);
 
 void debugBoard(Board* board);
 void debugBitboard(Bitboard bb);

@@ -185,7 +185,7 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     }
 
     // if (moveCount != 0 && moveCount == skippedMoves) {
-    //     if (isInCheck(board, board->stm)) {
+    //     if (board->stack->checkers) {
     //         return matedIn(stack->ply); // Checkmate
     //     }
     //     return 0; // Stalemate
@@ -195,7 +195,7 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 }
 
 template <NodeType nt>
-Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, bool cutNode) {
+Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval alpha, Eval beta, bool cutNode) {
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
     constexpr NodeType nodeType = nt == ROOT_NODE ? PV_NODE : NON_PV_NODE;
@@ -289,6 +289,41 @@ Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, 
             return razorValue;
     }
 
+    // Null move pruning
+    if (  !pvNode
+        && eval >= stack->staticEval
+        && eval >= beta
+        && stack->ply
+        && (stack-1)->move != MOVE_NULL
+        && (stack-1)->move != MOVE_NONE
+        && depth >= 3
+        && !board->stack->checkers
+        && stack->ply >= thread->nmpPlies
+        && hasNonPawns(board)
+        ) {
+            stack->move = MOVE_NULL;
+            int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
+
+            doNullMove(board, &boardStack);
+            Eval nullValue = -search<NON_PV_NODE>(board, stack + 1, thread, depth - R, -beta, -beta + 1, !cutNode);
+            undoNullMove(board);
+
+            if (nullValue >= beta) {
+                if (nullValue > EVAL_MATE_IN_MAX_PLY)
+                    nullValue = beta;
+                
+                if (thread->nmpPlies || depth < 15)
+                    return nullValue;
+                
+                thread->nmpPlies = stack->ply + (depth - R) * 2 / 3;
+                Eval verificationValue = search<NON_PV_NODE>(board, stack, thread, depth - R, beta - 1, beta, false);
+                thread->nmpPlies = 0;
+
+                if (verificationValue >= beta)
+                    return nullValue;
+            }
+        }
+
 movesLoop:
     // Moves loop
     MoveGen movegen(board, ttMove, stack->killers);
@@ -303,9 +338,9 @@ movesLoop:
         if (!capture && skipQuiets)
             continue;
 
-        if (!rootNode
+        if (  !rootNode
             && bestValue > -EVAL_MATE_IN_MAX_PLY
-            && (board->stack->pieceCount[board->stm][PIECE_KNIGHT] > 0 || board->stack->pieceCount[board->stm][PIECE_BISHOP] > 0 || board->stack->pieceCount[board->stm][PIECE_ROOK] > 0 || board->stack->pieceCount[board->stm][PIECE_QUEEN] > 0)
+            && hasNonPawns(board)
             ) {
             
             if (!skipQuiets) {
@@ -333,6 +368,7 @@ movesLoop:
             quietMoves[quietMoveCount++] = move;
 
         stack->nodes++;
+        stack->move = move;
         doMove(board, &boardStack, move);
 
         Eval value;
@@ -352,13 +388,13 @@ movesLoop:
                 reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
-            value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
+            value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
 
             if (value > alpha && reducedDepth < newDepth)
-                value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
+                value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
         }
         else {
-            value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
+            value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
         }
 
         // PV moves will be researched at full depth if good enough
@@ -366,7 +402,7 @@ movesLoop:
             // Set up pv for the next search
             (stack + 1)->pv = pv;
             (stack + 1)->pv[0] = MOVE_NONE;
-            value = -search<PV_NODE>(board, stack + 1, newDepth, -beta, -alpha, false);
+            value = -search<PV_NODE>(board, stack + 1, thread, newDepth, -beta, -alpha, false);
         }
 
         undoMove(board, move);
@@ -412,7 +448,7 @@ movesLoop:
     }
 
     if (moveCount == 0) {
-        if (isInCheck(board, board->stm)) {
+        if (board->stack->checkers) {
             return matedIn(stack->ply); // Checkmate
         }
         return 0; // Stalemate
@@ -441,11 +477,12 @@ void Thread::tsearch() {
         pv[0] = MOVE_NONE;
         stack->pv = pv;
         stack->ply = 0;
+        stack->move = MOVE_NONE;
         stack->killers[0] = stack->killers[1] = MOVE_NONE;
 
         // Search
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-        Eval value = search<ROOT_NODE>(&rootBoard, stack, depth, -EVAL_INFINITE, EVAL_INFINITE, false);
+        Eval value = search<ROOT_NODE>(&rootBoard, stack, this, depth, -EVAL_INFINITE, EVAL_INFINITE, false);
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
         nodesSearched += stack->nodes;

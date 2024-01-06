@@ -26,6 +26,8 @@ public:
 
     uint64_t nodesSearched;
 
+    int nmpPlies = 0;
+
     Thread(void);
     ~Thread();
 
