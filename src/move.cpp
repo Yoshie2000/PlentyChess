@@ -493,8 +493,15 @@ Move MoveGen::nextMove() {
                 }
 
                 int score;
-                if (move == ttMove)
-                    score = INT32_MIN + 1;
+                // Skip all previously searched moves
+                if (move == ttMove) {
+                    moveList[i] = moveList[endIndex - 1];
+                    moveList[endIndex - 1] = MOVE_NONE;
+                    endIndex--;
+                    generatedMoves--;
+                    i--;
+                    continue;
+                }
                 else if ((move & 0x3000) == MOVE_ENPASSANT)
                     score = 0;
                 else if ((move & 0x3000) == MOVE_PROMOTION)
@@ -532,6 +539,11 @@ Move MoveGen::nextMove() {
                 moveList[generatedMoves++] = killers[1];
             generationStage++;
             break;
+        case GEN_STAGE_COUNTERMOVES:
+            if (counterMove != MOVE_NONE && !isCapture(board, counterMove) && isPseudoLegal(board, counterMove))
+                moveList[generatedMoves++] = counterMove;
+            generationStage++;
+            break;
         case GEN_STAGE_REMAINING: {
             int beginIndex = generatedMoves;
             // If in double check, only generate king moves
@@ -557,10 +569,19 @@ Move MoveGen::nextMove() {
             for (int i = beginIndex; i < endIndex; i++) {
                 Move move = moveList[i];
                 int score = quietHistory[board->stm][moveOrigin(move)][moveTarget(move)];
-                if (move == ttMove || move == killers[0] || move == killers[1])
-                    score = INT32_MIN + 1;
+
+                // Skip all previously searched moves
+                if (move == ttMove || move == killers[0] || move == killers[1] || move == counterMove) {
+                    moveList[i] = moveList[endIndex - 1];
+                    moveList[endIndex - 1] = MOVE_NONE;
+                    endIndex--;
+                    generatedMoves--;
+                    i--;
+                    continue;
+                }
                 scores[i] = score;
             }
+            moves = moveList + generatedMoves;
 
             for (int i = beginIndex + 1; i < endIndex; i++) {
                 int move = moveList[i];

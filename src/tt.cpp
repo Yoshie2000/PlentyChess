@@ -10,9 +10,11 @@ uint64_t ZOBRIST_ENPASSENT[8];
 
 TranspositionTable TT;
 int quietHistory[2][64][64];
+Move counterMoves[64][64];
 
 void initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
+    memset(counterMoves, MOVE_NONE, sizeof(counterMoves));
 }
 
 void initZobrist() {
