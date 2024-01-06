@@ -338,7 +338,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
 movesLoop:
     // Moves loop
-    MoveGen movegen(board, ttMove, stack->killers);
+    MoveGen movegen(board, ttMove, counterMoves[moveOrigin((stack-1)->move)][moveTarget((stack-1)->move)], stack->killers);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -440,6 +440,10 @@ movesLoop:
                             stack->killers[1] = stack->killers[0];
                             stack->killers[0] = move;
                         }
+
+                        // Update counter move
+                        if (stack->ply >= 1)
+                            counterMoves[moveOrigin((stack-1)->move)][moveTarget((stack-1)->move)] = move;
 
                         int bonus = depth * depth;
                         // Increase stats for this move

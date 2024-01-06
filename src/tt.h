@@ -124,5 +124,6 @@ extern TranspositionTable TT;
 
 void initHistory();
 extern int quietHistory[2][64][64];
+extern Move counterMoves[64][64];
 
 #endif
