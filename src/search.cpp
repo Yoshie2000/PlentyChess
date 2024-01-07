@@ -408,7 +408,7 @@ movesLoop:
                 value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
 
                 if (!capture) {
-                    int bonus = depth * depth;
+                    int bonus = std::min(8 * (depth + 1) * (depth + 1), 1024);
                     updateContinuationHistory(board, stack, move, bonus);
                 }
             }
@@ -453,7 +453,7 @@ movesLoop:
                         if (stack->ply >= 1)
                             counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)] = move;
 
-                        int bonus = depth * depth;
+                        int bonus = std::min(8 * (depth + 1) * (depth + 1), 1024);
                         updateHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }
                     break;
