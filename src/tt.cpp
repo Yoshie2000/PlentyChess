@@ -6,6 +6,7 @@
 uint64_t ZOBRIST_PIECE_SQUARES[PIECE_TYPES][64];
 uint64_t ZOBRIST_STM_BLACK;
 uint64_t ZOBRIST_NO_PAWNS;
+uint64_t ZOBRIST_PAWNS[2][64];
 uint64_t ZOBRIST_CASTLING[16];
 uint64_t ZOBRIST_ENPASSENT[8];
 
@@ -13,13 +14,15 @@ TranspositionTable TT;
 
 void initZobrist() {
     std::mt19937 rng;
-    rng.seed(1070372);
+    rng.seed(333);
     std::uniform_int_distribution<uint64_t> dist;
 
-    for (int i = 0; i < PIECE_TYPES; i++) {
-        for (int j = 0; j < 64; j++) {
+    for (int j = 0; j < 64; j++) {
+        for (int i = 0; i < PIECE_TYPES; i++) {
             ZOBRIST_PIECE_SQUARES[i][j] = dist(rng);
         }
+        ZOBRIST_PAWNS[COLOR_WHITE][j] = dist(rng);
+        ZOBRIST_PAWNS[COLOR_BLACK][j] = dist(rng);
     }
     for (int i = 0; i < 8; i++) {
         ZOBRIST_ENPASSENT[i] = dist(rng);

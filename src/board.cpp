@@ -82,7 +82,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->stack->pieceCount[COLOR_BLACK][PIECE_PAWN]++;
             board->pieces[currentSquare] = PIECE_PAWN;
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
-            board->stack->pawnHash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
+            board->stack->pawnHash ^= ZOBRIST_PAWNS[COLOR_BLACK][currentSquare];
             currentSquare++;
             break;
         case 'P':
@@ -91,7 +91,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->stack->pieceCount[COLOR_WHITE][PIECE_PAWN]++;
             board->pieces[currentSquare] = PIECE_PAWN;
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
-            board->stack->pawnHash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
+            board->stack->pawnHash ^= ZOBRIST_PAWNS[COLOR_WHITE][currentSquare];
             currentSquare++;
             break;
         case 'n':
@@ -355,7 +355,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
     if (piece == PIECE_PAWN) {
         newStack->rule50_ply = 0;
-        newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][origin] ^ ZOBRIST_PIECE_SQUARES[PIECE_PAWN][target];
+        newStack->pawnHash ^= ZOBRIST_PAWNS[board->stm][origin] ^ ZOBRIST_PAWNS[board->stm][target];
     }
 
     // This move is en passent
@@ -383,7 +383,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         newStack->rule50_ply = 0;
 
         if (newStack->capturedPiece == PIECE_PAWN)
-            newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][captureTarget];
+            newStack->pawnHash ^= ZOBRIST_PAWNS[1 - board->stm][captureTarget];
     }
 
     // En passent square
@@ -427,7 +427,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         board->pieces[target] = promotionPiece;
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][target] ^ ZOBRIST_PIECE_SQUARES[promotionPiece][target];
-        newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][target];
+        newStack->pawnHash ^= ZOBRIST_PAWNS[board->stm][target];
 
         newStack->psq[board->stm][PHASE_MG] -= PSQ[piece][psqIndex(target, board->stm)].mg;
         newStack->psq[board->stm][PHASE_EG] -= PSQ[piece][psqIndex(target, board->stm)].eg;
