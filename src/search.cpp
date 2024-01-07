@@ -392,7 +392,7 @@ movesLoop:
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > 5 + 5 * pvNode && depth >= 3) {
+        if (moveCount > 4 + 4 * pvNode && depth >= 3 && (!capture || !ttPv)) {
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
             if (!ttPv)
