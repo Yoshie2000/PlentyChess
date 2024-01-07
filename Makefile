@@ -7,7 +7,7 @@ else
     CXXFLAGS := $(CXXFLAGS) -pthread
 endif
 
-SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp
+SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp
 OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
 
 PROGRAM = engine

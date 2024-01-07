@@ -203,9 +203,11 @@ bool SEE(Board* board, Move move, Eval threshold) {
 }
 
 void debugSEE(Board* board) {
+    SearchStack* stack = {};
+
     Move move;
     Move killers[2] = { MOVE_NONE, MOVE_NONE };
-    MoveGen movegen(board, MOVE_NONE, MOVE_NONE, killers);
+    MoveGen movegen(board, stack, MOVE_NONE, MOVE_NONE, killers);
     int i = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
         if (!isCapture(board, move)) {

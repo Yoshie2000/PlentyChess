@@ -10,6 +10,7 @@
 #include "bitboard.h"
 #include "evaluation.h"
 #include "tt.h"
+#include "history.h"
 
 constexpr Move createMove(Square origin, Square target) {
     return (Move)((origin & 0x3F) | ((target & 0x3F) << 6));
@@ -568,7 +569,7 @@ Move MoveGen::nextMove() {
             int scores[MAX_MOVES] = { 0 };
             for (int i = beginIndex; i < endIndex; i++) {
                 Move move = moveList[i];
-                int score = quietHistory[board->stm][moveOrigin(move)][moveTarget(move)];
+                int score = getQuietHistory(board, move) + 2 * getContinuationHistory(board, searchStack, move);
 
                 // Skip all previously searched moves
                 if (move == ttMove || move == killers[0] || move == killers[1] || move == counterMove) {
