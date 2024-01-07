@@ -3,9 +3,30 @@
 #include "board.h"
 #include "types.h"
 #include "magic.h"
+#include "move.h"
 
 Bitboard BETWEEN[64][64];
 Bitboard LINE[64][64];
+Bitboard KING_ATTACKS[64];
+
+Bitboard kingAttacks(Square origin) {
+    Bitboard attacksBB = C64(0);
+
+    int8_t direction;
+    Square lastSquare, toSquare;
+    Bitboard toSquareBB;
+
+    for (direction = DIRECTIONS[PIECE_KING][0]; direction <= DIRECTIONS[PIECE_KING][1]; direction++) {
+        lastSquare = LASTSQ_TABLE[origin][direction];
+        toSquare = origin + DIRECTION_DELTAS[direction];
+        if (toSquare >= 64) continue;
+
+        toSquareBB = C64(1) << toSquare;
+        if (origin != lastSquare && toSquareBB)
+            attacksBB |= toSquareBB;
+    }
+    return attacksBB;
+}
 
 void initBitboard() {
     for (Square a = 0; a < 64; a++) {
@@ -23,5 +44,7 @@ void initBitboard() {
             BETWEEN[a][b] |= C64(1) << b;
             BETWEEN[a][b] &= LINE[a][b];
         }
+
+        KING_ATTACKS[a] = kingAttacks(a);
     }
 }

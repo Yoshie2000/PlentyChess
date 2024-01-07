@@ -639,7 +639,7 @@ Bitboard attackersTo(Board* board, Square s, Bitboard occupied) {
     Bitboard knightAtks = knightAttacks(sBB) & board->byPiece[PIECE_KNIGHT];
     Bitboard bishopAtks = getBishopMoves(s, occupied) & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]);
     Bitboard rookAtks = getRookMoves(s, occupied) & (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]);
-    Bitboard kingAtks = kingAttacks(s) & board->byPiece[PIECE_KING];
+    Bitboard kingAtks = KING_ATTACKS[s] & board->byPiece[PIECE_KING];
     return pawnAtks | knightAtks | bishopAtks | rookAtks | kingAtks;
 }
 
@@ -673,26 +673,7 @@ Bitboard kingAttacks(Board* board, Color color) {
     assert((board->byColor[color] & board->byPiece[PIECE_KING]) > 0);
 
     Square origin = lsb(board->byPiece[PIECE_KING] & board->byColor[color]);
-    return kingAttacks(origin);
-}
-
-Bitboard kingAttacks(Square origin) {
-    Bitboard attacksBB = C64(0);
-
-    int8_t direction;
-    Square lastSquare, toSquare;
-    Bitboard toSquareBB;
-
-    for (direction = DIRECTIONS[PIECE_KING][0]; direction <= DIRECTIONS[PIECE_KING][1]; direction++) {
-        lastSquare = LASTSQ_TABLE[origin][direction];
-        toSquare = origin + DIRECTION_DELTAS[direction];
-        if (toSquare >= 64) continue;
-
-        toSquareBB = C64(1) << toSquare;
-        if (origin != lastSquare && toSquareBB)
-            attacksBB |= toSquareBB;
-    }
-    return attacksBB;
+    return KING_ATTACKS[origin];
 }
 
 Bitboard slidingPieceAttacksAll(Board* board, Color side, Piece pieceType) {

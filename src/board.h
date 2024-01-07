@@ -100,7 +100,6 @@ constexpr Bitboard knightAttacks(Bitboard knightBB) {
 Bitboard knightAttacksAll(Board* board, Color side);
 
 Bitboard kingAttacks(Board* board, Color side);
-Bitboard kingAttacks(Square origin);
 
 Bitboard slidingPieceAttacksAll(Board* board, Color side, Piece pieceType);
 

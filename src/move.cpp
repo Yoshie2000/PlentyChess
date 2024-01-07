@@ -90,7 +90,7 @@ bool isPseudoLegal(Board* board, Move move) {
         if (!((getBishopMoves(origin, occupied) | getRookMoves(origin, occupied)) & targetBB)) return false;
         break;
     case PIECE_KING:
-        if (!(kingAttacks(origin) & targetBB)) return false;
+        if (!(KING_ATTACKS[origin] & targetBB)) return false;
         break;
     default:
         return false;
