@@ -480,7 +480,6 @@ movesLoop:
 }
 
 void Thread::tsearch() {
-    initHistory();
     nodesSearched = 0;
 
     int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : searchParameters.depth;

@@ -22,7 +22,8 @@ int getQuietHistory(Board* board, Move move) {
 }
 
 void updateQuietHistory(Board* board, Move move, int bonus) {
-    quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += bonus;
+    int scaledBonus = bonus - getQuietHistory(board, move) * std::abs(bonus) / 32768;
+    quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += scaledBonus;
 }
 
 int getContinuationHistory(Board* board, SearchStack* stack, Move move) {
