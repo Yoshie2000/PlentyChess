@@ -105,14 +105,94 @@ Eval evaluate(Board* board) {
     return result;
 }
 
-Eval evaluate(Board* board) {
-    Eval result;
-    if (board->stm == COLOR_WHITE)
-        result = evaluate<COLOR_WHITE>(board) - evaluate<COLOR_BLACK>(board);
-    else
-        result = evaluate<COLOR_BLACK>(board) - evaluate<COLOR_WHITE>(board);  
-    return result;
+const uint64_t packedData[] = {
+        0x0000000000000000, 0x2328170f2d2a1401, 0x1f1f221929211507, 0x18202a1c2d261507,
+        0x252e3022373a230f, 0x585b47456d65321c, 0x8d986f66a5a85f50, 0x0002000300070005,
+        0xfffdfffd00060001, 0x2b1f011d20162306, 0x221c0b171f15220d, 0x1b1b131b271c1507,
+        0x232d212439321f0b, 0x5b623342826c2812, 0x8db65b45c8c01014, 0x0000000000000000,
+        0x615a413e423a382e, 0x6f684f506059413c, 0x82776159705a5543, 0x8b8968657a6a6150,
+        0x948c7479826c6361, 0x7e81988f73648160, 0x766f7a7e70585c4e, 0x6c7956116e100000,
+        0x3a3d2d2840362f31, 0x3c372a343b3a3838, 0x403e2e343c433934, 0x373e3b2e423b2f37,
+        0x383b433c45433634, 0x353d4b4943494b41, 0x46432e354640342b, 0x55560000504f0511,
+        0x878f635c8f915856, 0x8a8b5959898e5345, 0x8f9054518f8e514c, 0x96985a539a974a4c,
+        0x9a9c67659e9d5f59, 0x989c807a9b9c7a6a, 0xa09f898ba59c6f73, 0xa1a18386a09b7e84,
+        0xbcac7774b8c9736a, 0xbab17b7caebd7976, 0xc9ce7376cac57878, 0xe4de6f70dcd87577,
+        0xf4ef7175eedc7582, 0xf9fa8383dfe3908e, 0xfffe7a81f4ec707f, 0xdfe79b94e1ee836c,
+        0x2027252418003d38, 0x4c42091d31193035, 0x5e560001422c180a, 0x6e6200004d320200,
+        0x756c000e5f3c1001, 0x6f6c333f663e3f1d, 0x535b55395c293c1b, 0x2f1e3d5e22005300,
+        0x004c0037004b001f, 0x00e000ca00be00ad, 0x02e30266018800eb, 0xffdcffeeffddfff3,
+        0xfff9000700010007, 0xffe90003ffeefff4, 0x00000000fff5000d,
+};
+
+// bitshift amount is implicitly modulo 64, also used in pst part of eval function
+int EvalWeight(int item) {
+    return (int)(packedData[item >> 1] >> item * 32);
 }
+
+Eval evaluate(Board* board) {
+    Eval eval = 0, tmp = 0;
+    Bitboard pieces = board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK];
+    Bitboard occupied = board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK];
+
+    // use tmp as phase (initialized above)
+    while (pieces != 0) {
+        Square sqIndex = popLSB(&pieces);
+        Piece piece = board->pieces[sqIndex];
+
+        Color side = (board->byColor[COLOR_WHITE] & (C64(1) << sqIndex)) ? COLOR_WHITE : COLOR_BLACK;
+        int pieceType = (int)piece + 1 + 8 * (side == COLOR_BLACK);
+
+        Square kingSquare = lsb(board->byColor[side] & board->byPiece[PIECE_KING]);
+        int kingFile = kingSquare % 8;
+
+        // virtual pawn type
+        // consider pawns on the opposite half of the king as distinct piece types (piece 0)
+        pieceType -= (sqIndex & 0b111 ^ kingFile) >> 1 >> pieceType;
+        sqIndex =
+            // Material
+            // not incorporated into the psts to allow packing scheme
+            EvalWeight(112 + pieceType)
+            // psts
+            // piece square table weights are restricted to the range 0-255, so the
+            // bytes between mg and eg and above eg are empty, allowing us to
+            // interleave another packed weight in that space: ddCCddCCbbAAbbAA
+            +(int)(
+                packedData[pieceType * 64 + sqIndex >> 3 ^ (side == COLOR_WHITE ? 0 : 0b111)]
+                >> (0x01455410 >> sqIndex * 4) * 8
+                & 0xFF00FF
+                )
+            // mobility
+            // with the virtual pawn type we get 16 consecutive bytes of unused space
+            // representing impossible pawns on the first/last rank, which is exactly
+            // enough space to fit the 4 relevant mobility weights
+            // treating the king as having queen moves is a form of king safety eval
+            +EvalWeight(11 + pieceType) * __builtin_popcount(
+                piece == PIECE_PAWN ? 0 : attackedSquaresByPiece((Piece) std::min((int) piece, (int) PIECE_QUEEN), sqIndex, occupied, side)
+            )
+            // own pawn ahead
+            + EvalWeight(118 + pieceType) * __builtin_popcount(
+                (side == COLOR_WHITE ? 0x0101010101010100UL << sqIndex : 0x0080808080808080UL >> 63 - sqIndex)
+                & board->pieces[PIECE_PAWN] & board->pieces[side]
+            );
+        eval += side == board->stm ? sqIndex : -sqIndex;
+        // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
+        tmp += 0x0421100 >> pieceType * 4 & 0xF;
+    }
+    // the correct way to extract EG eval is (eval + 0x8000) >> 16, but this is shorter and
+    // the off-by-one error is insignificant
+    // the division is also moved outside Eval to save a token
+    return (short)eval * tmp + eval / 0x10000 * (24 - tmp);
+    // end tmp use
+}
+
+// Eval evaluate(Board* board) {
+//     Eval result;
+//     if (board->stm == COLOR_WHITE)
+//         result = evaluate<COLOR_WHITE>(board) - evaluate<COLOR_BLACK>(board);
+//     else
+//         result = evaluate<COLOR_BLACK>(board) - evaluate<COLOR_WHITE>(board);
+//     return result;
+// }
 
 void debugEval(Board* board) {
     if (board->stm == COLOR_WHITE)
@@ -141,7 +221,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
     // "Special" moves pass SEE
     if (move >> 12)
         return true;
-    
+
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
 
@@ -181,7 +261,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
 
         side = 1 - side;
         value = -value - 1 - SEE_VALUES[piece];
-        
+
         // Value beats (or can't beat) threshold (negamax)
         if (value >= 0) {
             if (piece == PIECE_KING && (attackersToTarget & board->byColor[side]))
