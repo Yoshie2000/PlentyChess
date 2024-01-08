@@ -155,7 +155,7 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     }
 
     // Moves loop
-    MoveGen movegen(board, stack, true);
+    MoveGen movegen(board, stack);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {

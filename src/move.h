@@ -166,7 +166,7 @@ class MoveGen {
     SearchStack* searchStack;
     Move ttMove;
     Move counterMove;
-    bool onlyCaptures;
+    bool qsearch;
     Move killers[2];
 
     Move moveList[MAX_MOVES];
@@ -181,11 +181,11 @@ class MoveGen {
     int generationStage;
 
 public:
-    MoveGen(Board* board, SearchStack* searchStack, Move ttMove, Move counterMove, Move _killers[2]) : board(board), searchStack(searchStack), ttMove(ttMove), counterMove(counterMove), onlyCaptures(false), killers{ _killers[0], _killers[1] }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE) {
+    MoveGen(Board* board, SearchStack* searchStack, Move ttMove, Move counterMove, Move _killers[2]) : board(board), searchStack(searchStack), ttMove(ttMove), counterMove(counterMove), qsearch(false), killers{ _killers[0], _killers[1] }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE) {
         std::fill(moveList, moveList + MAX_MOVES, MOVE_NONE);
         std::fill(badCaptureList, badCaptureList + 32, MOVE_NONE);
     }
-    MoveGen(Board* board, SearchStack* searchStack, bool onlyCaptures) : board(board), searchStack(searchStack), ttMove(MOVE_NONE), counterMove(MOVE_NONE), onlyCaptures(onlyCaptures), killers{ MOVE_NONE, MOVE_NONE }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_CAPTURES) {
+    MoveGen(Board* board, SearchStack* searchStack) : board(board), searchStack(searchStack), ttMove(MOVE_NONE), counterMove(MOVE_NONE), qsearch(true), killers{ MOVE_NONE, MOVE_NONE }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_CAPTURES) {
         std::fill(moveList, moveList + MAX_MOVES, MOVE_NONE);
         std::fill(badCaptureList, badCaptureList + 32, MOVE_NONE);
     }

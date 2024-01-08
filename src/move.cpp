@@ -486,7 +486,8 @@ Move MoveGen::nextMove() {
                 if (!goodCapture) {
                     moveList[i] = moveList[endIndex - 1];
                     moveList[endIndex - 1] = MOVE_NONE;
-                    badCaptureList[flaggedBadCaptures++] = move;
+                    if (!qsearch)
+                        badCaptureList[flaggedBadCaptures++] = move;
                     endIndex--;
                     generatedMoves--;
                     i--;
@@ -529,8 +530,8 @@ Move MoveGen::nextMove() {
             }
 
             generationStage++;
-            if (onlyCaptures)
-                generationStage = GEN_STAGE_BAD_CAPTURES;
+            if (qsearch) // in qsearch, we just don't want to search bad captures (they would be sorted out by SEE pruning anyway)
+                generationStage = GEN_STAGE_DONE;
         }
                                break;
         case GEN_STAGE_KILLERS:
