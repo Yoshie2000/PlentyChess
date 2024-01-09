@@ -1,5 +1,4 @@
-#ifndef BOARD_H_INCLUDED
-#define BOARD_H_INCLUDED
+#pragma once
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -56,12 +55,11 @@ struct BoardStack {
 
     // MEMCPY GOES FROM HERE
     int pieceCount[2][PIECE_TYPES];
-    Eval psq[2][2];
 
     uint8_t castling; // 0000 -> black queenside, black kingside, white queenside, white kingside
     // TO HERE
 
-    struct BoardStack* previous;
+    BoardStack* previous;
 };
 
 void startpos(Board* result);
@@ -110,5 +108,3 @@ Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupie
 void debugBoard(Board* board);
 void debugBitboard(Bitboard bb);
 int validateBoard(Board* board);
-
-#endif

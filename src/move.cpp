@@ -696,6 +696,7 @@ std::string squareToString(Square square) {
 
 std::string moveToString(Move move) {
     if (move == MOVE_NONE) return "move_none";
+    if (move == MOVE_NULL) return "move_null";
     std::string result = "";
 
     Square origin = moveOrigin(move);

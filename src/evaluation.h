@@ -1,5 +1,4 @@
-#ifndef INCLUDE_EVALUATION_H
-#define INCLUDE_EVALUATION_H
+#pragma once
 
 #include "types.h"
 #include "board.h"
@@ -14,20 +13,9 @@ const Eval EVAL_MATE_IN_MAX_PLY = EVAL_MATE - MAX_PLY;
 const Eval EVAL_INFINITE = 31000;
 const Eval EVAL_NONE = 31010;
 
-extern const Eval PIECE_VALUES[PIECE_TYPES];
-extern const PhaseEval PSQ[PIECE_TYPES][64];
-
-extern const Eval SEE_VALUES[PIECE_TYPES + 1];
-
-constexpr Square psqIndex(Square square, Color side) {
-    if (side == COLOR_BLACK)
-        return square;
-    return square ^ 56;
-}
+extern const Eval PIECE_VALUES[PIECE_TYPES + 1];
 
 Eval evaluate(Board* board);
-
-void debugEval(Board* board);
 
 std::string formatEval(Eval value);
 
@@ -41,5 +29,3 @@ constexpr Eval mateIn(int ply) {
 constexpr Eval matedIn(int ply) {
     return -EVAL_MATE + ply;
 }
-
-#endif

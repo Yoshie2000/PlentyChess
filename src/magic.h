@@ -1,7 +1,8 @@
-#include "types.h"
+#pragma once
+
 #include <cstddef>
-#ifndef MAGIC_H_INCLUDED
-#define MAGIC_H_INCLUDED
+
+#include "types.h"
 
 struct MagicEntry {
     Bitboard mask;
@@ -36,5 +37,3 @@ inline Bitboard getBishopMoves(Square square, Bitboard occupied) {
 }
 
 void generateMagics();
-
-#endif

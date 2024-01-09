@@ -1,10 +1,5 @@
-#ifndef UCI_H_INCLUDED
-    #define UCI_H_INCLUDED
+#pragma once
 
-    #include "thread.h"
+#include "thread.h"
 
-    #define UCI_LINE_LENGTH 256
-
-    void uciLoop(Thread* searchThread, int argc, char* argv[]);
-
-#endif
+void uciLoop(Thread* searchThread, int argc, char* argv[]);

@@ -1,5 +1,4 @@
-#ifndef HISTORY_H
-#define HISTORY_H
+#pragma once
 
 #include "types.h"
 #include "board.h"
@@ -16,5 +15,3 @@ void updateQuietHistory(Board* board, Move move, int bonus);
 int getContinuationHistory(Board* board, SearchStack* stack, Move move);
 void updateContinuationHistory(Board* board, SearchStack* stack, Move move, int bonus);
 void updateHistories(Board* board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount);
-
-#endif
