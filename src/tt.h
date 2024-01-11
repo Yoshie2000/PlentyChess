@@ -34,14 +34,12 @@ struct TTEntry {
     Eval value = EVAL_NONE;
 
     void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int flags) {
-        if (_depth >= depth || bestMove == MOVE_NONE) {
-            hash = (uint16_t)_hash;
-            bestMove = _bestMove;
-            depth = _depth;
-            value = _value;
-            eval = _eval;
-            flags = (uint8_t)(flags + (wasPv << 2));
-        }
+        hash = (uint16_t)_hash;
+        bestMove = _bestMove;
+        depth = _depth;
+        value = _value;
+        eval = _eval;
+        flags = (uint8_t)(flags + (wasPv << 2));
     }
 };
 
@@ -55,13 +53,13 @@ struct TTCluster {
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
 #if defined(__MINGW32__)
     int offset = alignment - 1;
-    void* p = (void * ) malloc(requiredBytes + offset);
-    void* q = (void * ) (((size_t)(p) + offset) & ~(alignment - 1));
+    void* p = (void*)malloc(requiredBytes + offset);
+    void* q = (void*)(((size_t)(p)+offset) & ~(alignment - 1));
     return q;
 #elif defined (__GNUC__)
     return std::aligned_alloc(alignment, requiredBytes);
 #else
-    #error "Compiler not supported"
+#error "Compiler not supported"
 #endif
 }
 
