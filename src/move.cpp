@@ -276,7 +276,7 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
         Square target = popLSB(&leftCaptures);
         Move move = createMove(target - UP_LEFT[board->stm], target);
 
-        if (__builtin_expect((C64(1) << target) & enemyBackrank, 0)) {
+        if ((C64(1) << target) & enemyBackrank) {
             // Promotion
             for (uint8_t promotion = 0; promotion <= 3; promotion++) {
                 *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;

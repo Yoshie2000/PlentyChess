@@ -175,7 +175,7 @@ void bench(Thread* searchThread, std::deque<BoardStack>* stackQueue, Board* boar
     searchThread->waitForSearchFinished();
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    for (const std::string fen : benchPositions) {
+    for (const std::string &fen : benchPositions) {
         parseFen(board, fen);
         SearchParameters parameters;
         parameters.depth = 12;
@@ -252,7 +252,7 @@ std::vector<std::string> splitString(const std::string& input, char delimiter) {
 void seetest(Board* board) {
     int passed = 0, failed = 0;
 
-    for (const std::string line : seeTest) {
+    for (const std::string &line : seeTest) {
         std::stringstream iss(line);
         std::vector<std::string> tokens = splitString(line, '|');
 
