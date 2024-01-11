@@ -276,6 +276,12 @@ size_t parseFen(Board* board, std::string fen) {
     updateSliderPins(board, COLOR_WHITE);
     updateSliderPins(board, COLOR_BLACK);
 
+    resetAccumulator(board);
+
+    return i;
+}
+
+void resetAccumulator(Board* board) {
     // Set up NNUE accumulator
     accumulatorStackHead = 0;
     for (size_t i = 0; i < sizeof(accumulatorStack) / sizeof(NNUE::Accumulator); i++)
@@ -287,8 +293,6 @@ size_t parseFen(Board* board, std::string fen) {
         Color pieceColor = (board->byColor[COLOR_WHITE] & (C64(1) << square)) ? COLOR_WHITE : COLOR_BLACK;
         accumulatorStack[0].addFeature(square, piece, pieceColor, &accumulatorStack[0]);
     }
-
-    return i;
 }
 
 void castlingRookSquares(Board* board, Square origin, Square target, Square* rookOrigin, Square* rookTarget) {

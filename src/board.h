@@ -33,8 +33,6 @@ struct Board {
     uint8_t ply;
 
     struct BoardStack* stack;
-
-    bool stopSearching;
 };
 
 struct BoardStack {
@@ -64,6 +62,8 @@ struct BoardStack {
 
 void startpos(Board* result);
 size_t parseFen(Board* board, std::string fen);
+
+void resetAccumulator(Board* board);
 
 void doMove(Board* board, BoardStack* newStack, Move move);
 void undoMove(Board* board, Move move);

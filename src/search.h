@@ -35,6 +35,7 @@ struct SearchParameters {
 
     SearchParameters() {
         perft = false;
+
         searchmoves = std::vector<Move>();
         ponder = false;
         wtime = 0;
@@ -49,6 +50,26 @@ struct SearchParameters {
         infinite = true;
     }
 
+};
+
+struct SearchData {
+    int nmpPlies;
+
+    bool stopSearching;
+    uint64_t nodesSearched;
+
+    int64_t startTime;
+    int64_t maxTime;
+
+    SearchData() {
+        nmpPlies = 0;
+
+        stopSearching = false;
+        nodesSearched = 0;
+
+        startTime = 0;
+        maxTime = 0;
+    }
 };
 
 enum NodeType {

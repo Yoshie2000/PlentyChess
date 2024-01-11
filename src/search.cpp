@@ -12,6 +12,7 @@
 #include "thread.h"
 #include "tt.h"
 #include "history.h"
+#include "time.h"
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
@@ -116,22 +117,20 @@ int valueFromTt(int value, int ply) {
 }
 
 template <NodeType nodeType>
-Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
+Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval beta) {
     constexpr bool pvNode = nodeType == PV_NODE;
 
     assert(alpha >= -EVAL_INFINITE && alpha < beta && beta <= EVAL_INFINITE);
 
     // Check for stop
-    if (board->stopSearching || stack->ply >= MAX_PLY)
+    if (thread->searchData.stopSearching || stack->ply >= MAX_PLY)
         return (stack->ply >= MAX_PLY) ? evaluate(board) : 0;
 
     BoardStack boardStack;
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
     Eval bestValue, futilityValue;
 
-    stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
-    (stack + 1)->nodes = 0;
 
     stack->staticEval = bestValue = evaluate(board);
     futilityValue = stack->staticEval + 75;
@@ -172,14 +171,12 @@ Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
             continue;
 
         moveCount++;
-        stack->nodes++;
+        thread->searchData.nodesSearched++;
         doMove(board, &boardStack, move);
 
-        Eval value = -qsearch<nodeType>(board, stack + 1, -beta, -alpha);
+        Eval value = -qsearch<nodeType>(board, thread, stack + 1, -beta, -alpha);
         undoMove(board, move);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
-
-        stack->nodes += (stack + 1)->nodes;
 
         if (value > bestValue) {
             bestValue = value;
@@ -217,7 +214,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     assert(!(pvNode && cutNode));
     assert(pvNode || alpha == beta - 1);
 
-    if (depth <= 0) return qsearch<nodeType>(board, stack, alpha, beta);
+    if (depth <= 0) return qsearch<nodeType>(board, thread, stack, alpha, beta);
 
     if (!rootNode && alpha < 0 && hasRepeated(board)) {
         alpha = 0;
@@ -235,15 +232,16 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     Move quietMoves[MAX_MOVES] = { MOVE_NONE };
     int quietMoveCount = 0;
 
-    stack->nodes = 0;
     (stack + 1)->ply = stack->ply + 1;
-    (stack + 1)->nodes = 0;
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
 
     if (!rootNode) {
 
+        if (timeOver(&thread->searchParameters, &thread->searchData))
+            thread->searchData.stopSearching = true;
+
         // Check for stop or max depth
-        if (board->stopSearching || stack->ply >= MAX_PLY || isDraw(board, stack->ply))
+        if (thread->searchData.stopSearching || stack->ply >= MAX_PLY || isDraw(board, stack->ply))
             return (stack->ply >= MAX_PLY) ? evaluate(board) : 0;
 
         // Mate distance pruning
@@ -297,7 +295,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     // Razoring
     if (depth <= 4 && eval + 250 * depth < alpha) {
-        Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
+        Eval razorValue = qsearch<NON_PV_NODE>(board, thread, stack, alpha, beta);
         if (razorValue <= alpha)
             return razorValue;
     }
@@ -311,7 +309,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         && (stack - 1)->move != MOVE_NONE
         && depth >= 3
         && !board->stack->checkers
-        && stack->ply >= thread->nmpPlies
+        && stack->ply >= thread->searchData.nmpPlies
         && hasNonPawns(board)
         ) {
         stack->move = MOVE_NULL;
@@ -325,12 +323,12 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
             if (nullValue > EVAL_MATE_IN_MAX_PLY)
                 nullValue = beta;
 
-            if (thread->nmpPlies || depth < 15)
+            if (thread->searchData.nmpPlies || depth < 15)
                 return nullValue;
 
-            thread->nmpPlies = stack->ply + (depth - R) * 2 / 3;
+            thread->searchData.nmpPlies = stack->ply + (depth - R) * 2 / 3;
             Eval verificationValue = search<NON_PV_NODE>(board, stack, thread, depth - R, beta - 1, beta, false);
-            thread->nmpPlies = 0;
+            thread->searchData.nmpPlies = 0;
 
             if (verificationValue >= beta)
                 return nullValue;
@@ -374,15 +372,14 @@ movesLoop:
 
         }
 
-        moveCount++;
-
         if (pvNode)
             (stack + 1)->pv = nullptr;
 
         if (!capture)
             quietMoves[quietMoveCount++] = move;
 
-        stack->nodes++;
+        moveCount++;
+        thread->searchData.nodesSearched++;
         stack->move = move;
         stack->movedPiece = board->pieces[moveOrigin(move)];
         doMove(board, &boardStack, move);
@@ -429,8 +426,6 @@ movesLoop:
 
         undoMove(board, move);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
-
-        stack->nodes += (stack + 1)->nodes;
 
         if (value > bestValue) {
             bestValue = value;
@@ -482,11 +477,13 @@ movesLoop:
 }
 
 void Thread::tsearch() {
-    nodesSearched = 0;
+    resetAccumulator(&rootBoard);
 
     int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : searchParameters.depth;
-
     Move bestMove = MOVE_NONE;
+
+    searchData.nodesSearched = 0;
+    initTimeManagement(&rootBoard, &searchParameters, &searchData);
 
     for (int depth = 1; depth <= maxDepth; depth++) {
         SearchStack stack[MAX_PLY];
@@ -499,22 +496,18 @@ void Thread::tsearch() {
         stack->killers[0] = stack->killers[1] = MOVE_NONE;
 
         // Search
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         Eval value = search<ROOT_NODE>(&rootBoard, stack, this, depth, -EVAL_INFINITE, EVAL_INFINITE, false);
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-        nodesSearched += stack->nodes;
-
-        if (rootBoard.stopSearching) {
+        if (searchData.stopSearching) {
             if (bestMove == MOVE_NONE)
                 bestMove = stack->pv[0];
             break;
         }
 
         // Send UCI info
-        int64_t ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
-        int64_t nps = ms == 0 ? 0 : (int64_t)((stack->nodes) / ((double)ms / 1000));
-        std::cout << "info depth " << depth << " score " << formatEval(value) << " nodes " << stack->nodes << " time " << ms << " nps " << nps << " pv ";
+        int64_t ms = getTime() - searchData.startTime;
+        int64_t nps = ms == 0 ? 0 : (int64_t)((searchData.nodesSearched) / ((double)ms / 1000));
+        std::cout << "info depth " << depth << " score " << formatEval(value) << " nodes " << searchData.nodesSearched << " time " << ms << " nps " << nps << " pv ";
 
         // Send PV
         bestMove = stack->pv[0];

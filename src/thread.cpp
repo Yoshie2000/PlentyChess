@@ -6,9 +6,7 @@
 #include "thread.h"
 #include "search.h"
 
-Thread::Thread(void) : thread(&Thread::idle, this) {
-    waitForSearchFinished();
-}
+Thread::Thread(void) : thread(&Thread::idle, this) {  }
 
 Thread::~Thread() {
     exit();
@@ -30,12 +28,12 @@ void Thread::idle() {
 
         lock.unlock();
 
-        rootBoard.stopSearching = false;
+        searchData.stopSearching = false;
         searching = true;
 
         // Do the search stuff here
         if (searchParameters.perft) {
-            nodesSearched = perft(&rootBoard, searchParameters.depth);
+            searchData.nodesSearched = perft(&rootBoard, searchParameters.depth);
         }
         else {
             tsearch();
@@ -71,7 +69,7 @@ void Thread::startSearching(Board board, std::deque<BoardStack> queue, SearchPar
 }
 
 void Thread::stopSearching() {
-    rootBoard.stopSearching = true;
+    searchData.stopSearching = true;
 }
 
 void Thread::waitForSearchFinished() {
