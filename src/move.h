@@ -1,5 +1,4 @@
-#ifndef MOVE_H_INCLUDED
-#define MOVE_H_INCLUDED
+#pragma once
 
 #include <stdint.h>
 #include <string>
@@ -197,5 +196,3 @@ private:
     Move cycleUntilNextMove();
 
 };
-
-#endif

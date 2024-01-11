@@ -1,5 +1,4 @@
-#ifndef SEARCH_H_INCLUDED
-#define SEARCH_H_INCLUDED
+#pragma once
 
 #include <thread>
 #include <mutex>
@@ -59,5 +58,3 @@ enum NodeType {
 };
 
 uint64_t perft(Board* board, int depth);
-
-#endif

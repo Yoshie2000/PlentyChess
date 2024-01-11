@@ -1,5 +1,4 @@
-#ifndef THREAD_H_INCLUDED
-#define THREAD_H_INCLUDED
+#pragma once
 
 #include <thread>
 #include <mutex>
@@ -45,5 +44,3 @@ private:
     void tsearch();
 
 };
-
-#endif

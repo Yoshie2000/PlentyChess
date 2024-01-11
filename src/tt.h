@@ -1,5 +1,4 @@
-#ifndef TT_H_INCLUDED
-#define TT_H_INCLUDED
+#pragma once
 
 #include <cstdio>
 #include <cstdlib>
@@ -121,5 +120,3 @@ public:
 };
 
 extern TranspositionTable TT;
-
-#endif

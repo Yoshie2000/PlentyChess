@@ -13,6 +13,7 @@
 #include "tt.h"
 #include "magic.h"
 #include "evaluation.h"
+#include "nnue.h"
 
 const Bitboard FILE_A = 0x0101010101010101;
 const Bitboard FILE_B = 0x0202020202020202;
@@ -47,8 +48,6 @@ size_t parseFen(Board* board, std::string fen) {
     }
     for (Color c = 0; c <= 1; c++) {
         board->byColor[c] = C64(0);
-        board->stack->psq[c][PHASE_MG] = 0;
-        board->stack->psq[c][PHASE_EG] = 0;
         for (Piece p = 0; p < PIECE_TYPES; p++) {
             board->stack->pieceCount[c][p] = 0;
             board->byPiece[p] = C64(0);
@@ -236,7 +235,8 @@ size_t parseFen(Board* board, std::string fen) {
     if (fen.length() <= i) {
         board->stack->rule50_ply = 0;
         board->ply = 0;
-    } else {
+    }
+    else {
         // 50 move rule
         std::string rule50String = "--";
         int rule50tmp = 0;
@@ -276,14 +276,16 @@ size_t parseFen(Board* board, std::string fen) {
     updateSliderPins(board, COLOR_WHITE);
     updateSliderPins(board, COLOR_BLACK);
 
-    // Set up piece values
-    for (Square s = 0; s < 64; s++) {
-        Piece p = board->pieces[s];
-        if (p != NO_PIECE) {
-            Color pieceColor = ((C64(1) << s) & board->byColor[COLOR_WHITE]) ? COLOR_WHITE : COLOR_BLACK;
-            board->stack->psq[pieceColor][PHASE_MG] += PSQ[PIECE_PAWN][psqIndex(s, pieceColor)].mg;
-            board->stack->psq[pieceColor][PHASE_EG] += PSQ[PIECE_PAWN][psqIndex(s, pieceColor)].eg;
-        }
+    // Set up NNUE accumulator
+    accumulatorStackHead = 0;
+    for (size_t i = 0; i < sizeof(accumulatorStack) / sizeof(NNUE::Accumulator); i++)
+        accumulatorStack[i].clear();
+
+    for (Square square = 0; square < 64; square++) {
+        Piece piece = board->pieces[square];
+        if (piece == NO_PIECE) continue;
+        Color pieceColor = (board->byColor[COLOR_WHITE] & (C64(1) << square)) ? COLOR_WHITE : COLOR_BLACK;
+        accumulatorStack[0].addFeature(square, piece, pieceColor, &accumulatorStack[0]);
     }
 
     return i;
@@ -317,11 +319,14 @@ void castlingRookSquares(Board* board, Square origin, Square target, Square* roo
 void doMove(Board* board, BoardStack* newStack, Move move) {
     newStack->previous = board->stack;
     board->stack = newStack;
-    memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(Eval) * 4 + sizeof(uint8_t));
+    memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(uint8_t));
 
     newStack->hash = newStack->previous->hash ^ ZOBRIST_STM_BLACK;
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
     newStack->nullmove_ply = newStack->previous->nullmove_ply + 1;
+
+    int dirtyPieceCount = 0;
+    DirtyPiece dirtyPieces[3];
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
@@ -364,10 +369,9 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     if (newStack->capturedPiece != NO_PIECE) {
         board->byColor[1 - board->stm] ^= captureTargetBB; // take away the captured piece
         board->byPiece[newStack->capturedPiece] ^= captureTargetBB;
+        dirtyPieces[dirtyPieceCount++] = { captureTarget, NO_SQUARE, newStack->capturedPiece, (Color)(1 - board->stm) };
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[newStack->capturedPiece][captureTarget];
-        newStack->psq[1 - board->stm][PHASE_MG] -= PSQ[newStack->capturedPiece][psqIndex(captureTarget, 1 - board->stm)].mg;
-        newStack->psq[1 - board->stm][PHASE_EG] -= PSQ[newStack->capturedPiece][psqIndex(captureTarget, 1 - board->stm)].eg;
 
         newStack->pieceCount[1 - board->stm][newStack->capturedPiece]--;
         newStack->rule50_ply = 0;
@@ -399,10 +403,8 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         board->byPiece[PIECE_ROOK] ^= rookFromToBB;
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[PIECE_ROOK][rookTarget];
-        newStack->psq[board->stm][PHASE_MG] -= PSQ[PIECE_ROOK][psqIndex(rookOrigin, board->stm)].mg;
-        newStack->psq[board->stm][PHASE_EG] -= PSQ[PIECE_ROOK][psqIndex(rookOrigin, board->stm)].eg;
-        newStack->psq[board->stm][PHASE_MG] += PSQ[PIECE_ROOK][psqIndex(rookTarget, board->stm)].mg;
-        newStack->psq[board->stm][PHASE_EG] += PSQ[PIECE_ROOK][psqIndex(rookTarget, board->stm)].eg;
+
+        dirtyPieces[dirtyPieceCount++] = { rookOrigin, rookTarget, PIECE_ROOK, board->stm };
     }
 
     // This move is promotion
@@ -415,10 +417,8 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][target] ^ ZOBRIST_PIECE_SQUARES[promotionPiece][target];
 
-        newStack->psq[board->stm][PHASE_MG] -= PSQ[piece][psqIndex(target, board->stm)].mg;
-        newStack->psq[board->stm][PHASE_EG] -= PSQ[piece][psqIndex(target, board->stm)].eg;
-        newStack->psq[board->stm][PHASE_MG] += PSQ[promotionPiece][psqIndex(target, board->stm)].mg;
-        newStack->psq[board->stm][PHASE_EG] += PSQ[promotionPiece][psqIndex(target, board->stm)].eg;
+        dirtyPieces[dirtyPieceCount++] = { target, NO_SQUARE, piece, board->stm };
+        dirtyPieces[dirtyPieceCount++] = { NO_SQUARE, target, promotionPiece, board->stm };
 
         newStack->pieceCount[board->stm][PIECE_PAWN]--;
         newStack->pieceCount[board->stm][promotionPiece]++;
@@ -426,11 +426,6 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     }
 
     newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][origin] ^ ZOBRIST_PIECE_SQUARES[piece][target];
-
-    newStack->psq[board->stm][PHASE_MG] -= PSQ[piece][psqIndex(origin, board->stm)].mg;
-    newStack->psq[board->stm][PHASE_EG] -= PSQ[piece][psqIndex(origin, board->stm)].eg;
-    newStack->psq[board->stm][PHASE_MG] += PSQ[piece][psqIndex(target, board->stm)].mg;
-    newStack->psq[board->stm][PHASE_EG] += PSQ[piece][psqIndex(target, board->stm)].eg;
 
     // Unset castling flags if necessary
     if (piece == PIECE_KING) {
@@ -462,6 +457,16 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         newStack->hash ^= ZOBRIST_CASTLING[newStack->castling & 0xF];
     }
 
+    if ((board->byColor[1 - board->stm] & board->byPiece[PIECE_KING]) == 0) {
+        BoardStack* stack = board->stack->previous;
+        std::cout << moveToString(move) << std::endl;
+        while (stack) {
+            std::cout << moveToString(stack->move) << " ";
+            stack = stack->previous;
+        }
+        std::cout << std::endl;
+    }
+
     // Update king checking stuff
     assert((board->byColor[1 - board->stm] & board->byPiece[PIECE_KING]) > 0);
 
@@ -483,6 +488,23 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
                 break;
             }
         }
+    }
+
+    // Update NNUE accumulators
+    NNUE::Accumulator& oldAccumulator = accumulatorStack[accumulatorStackHead];
+    NNUE::Accumulator& newAccumulator = accumulatorStack[++accumulatorStackHead];
+
+    // Move the currently moved piece first
+    newAccumulator.moveFeature(origin, target, piece, board->stm, &oldAccumulator);
+
+    for (int i = 0; i < dirtyPieceCount; i++) {
+        DirtyPiece dp = dirtyPieces[i];
+        if (dp.origin == NO_SQUARE)
+            newAccumulator.addFeature(dp.target, dp.piece, dp.pieceColor, &newAccumulator);
+        else if (dp.target == NO_SQUARE)
+            newAccumulator.removeFeature(dp.origin, dp.piece, dp.pieceColor, &newAccumulator);
+        else
+            newAccumulator.moveFeature(dp.origin, dp.target, dp.piece, dp.pieceColor, &newAccumulator);
     }
 
     board->stm = 1 - board->stm;
@@ -551,6 +573,8 @@ void undoMove(Board* board, Move move) {
         board->pieces[origin] = PIECE_PAWN;
     }
 
+    accumulatorStackHead--;
+
     board->stack = board->stack->previous;
 }
 
@@ -559,7 +583,7 @@ void doNullMove(Board* board, BoardStack* newStack) {
 
     newStack->previous = board->stack;
     board->stack = newStack;
-    memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(Eval) * 4 + sizeof(uint8_t));
+    memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(uint8_t));
 
     newStack->hash = newStack->previous->hash ^ ZOBRIST_STM_BLACK;
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
@@ -796,7 +820,7 @@ int validateBoard(Board* board) {
             // Get piece at index
             int idx = file + 8 * rank;
             Bitboard mask = C64(1) << idx;
-                        int first = 0;
+            int first = 0;
             int second = 0;
             if ((board->stack->enpassantTarget & mask) != 0)
                 first = 1;
@@ -826,7 +850,7 @@ int validateBoard(Board* board) {
                 first = 13;
             else if (board->pieces[idx] == PIECE_KING && (board->byColor[COLOR_BLACK] & mask) != 0)
                 first = 14;
-            
+
             if ((board->stack->enpassantTarget & mask) != 0)
                 second = 1;
             else if (((board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) & mask) == 0)
@@ -855,7 +879,7 @@ int validateBoard(Board* board) {
                 second = 13;
             else if ((board->byColor[COLOR_BLACK] & board->byPiece[PIECE_KING] & mask) != 0)
                 second = 14;
-            
+
             if (first != second)
                 return idx;
         }

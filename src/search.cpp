@@ -337,6 +337,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         }
     }
 
+    assert(board->stack);
+
 movesLoop:
     // Moves loop
     MoveGen movegen(board, stack, ttMove, counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)], stack->killers);

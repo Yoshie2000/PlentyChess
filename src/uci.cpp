@@ -439,7 +439,7 @@ void uciLoop(Thread* searchThread, int argc, char* argv[]) {
         else if (matchesToken(line, "bench")) bench(searchThread, &stackQueue, &board);
         else if (matchesToken(line, "perfttest")) perfttest(searchThread, &stackQueue, &board);
         else if (matchesToken(line, "debug")) debugBoard(&board);
-        else if (matchesToken(line, "eval")) debugEval(&board);
+        else if (matchesToken(line, "eval")) std::cout << formatEval(evaluate(&board)) << std::endl;
         else if (matchesToken(line, "seetest")) seetest(&board);
         else if (matchesToken(line, "see")) debugSEE(&board);
         else printf("Unknown command\n");
