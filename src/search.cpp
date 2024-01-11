@@ -280,10 +280,10 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
 
     // Improving
-    if ((stack - 2)->staticEval != EVAL_NONE) {
+    if (stack->ply >= 2 && (stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
     }
-    else if ((stack - 4)->staticEval != EVAL_NONE) {
+    else if (stack->ply >= 4 && (stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
     }
     else {
@@ -339,7 +339,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
 movesLoop:
     // Moves loop
-    MoveGen movegen(board, stack, ttMove, counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)], stack->killers);
+    Move counterMove = stack->ply > 0 ? counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)] : MOVE_NONE;
+    MoveGen movegen(board, stack, ttMove, counterMove, stack->killers);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {

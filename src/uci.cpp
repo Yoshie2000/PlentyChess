@@ -307,6 +307,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
 
         char move[5];
         size_t lastStrlen = line.length();
+        int moveCount = 0;
         while (line.length() >= 4) {
             lastStrlen = line.length();
 
@@ -320,6 +321,13 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
 
             stackQueue->emplace_back();
             doMove(board, &stackQueue->back(), m);
+
+            if (moveCount > 200) {
+                resetAccumulator(board);
+                moveCount = 0;
+            }
+
+            moveCount++;
 
             if (line.length() > i)
                 line = line.substr(i + 1);
