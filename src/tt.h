@@ -90,10 +90,18 @@ public:
         clear();
     }
 
-    TTEntry* probe(uint64_t hash, bool* found) {
+    size_t index(uint64_t hash) {
         // Find cluster
         __extension__ using uint128 = unsigned __int128;
-        TTCluster* cluster = &table[((uint128)hash * (uint128)clusterCount) >> 64];
+        return ((uint128)hash * (uint128)clusterCount) >> 64;
+    }
+
+    void prefetch(uint64_t hash) {
+        __builtin_prefetch(&table[index(hash)]);
+    }
+
+    TTEntry* probe(uint64_t hash, bool* found) {
+        TTCluster* cluster = &table[index(hash)];
 
         int smallestDepth = 0;
         for (int i = 0; i < CLUSTER_SIZE; i++) {
