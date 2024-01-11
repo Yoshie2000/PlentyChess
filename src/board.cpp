@@ -211,7 +211,7 @@ size_t parseFen(Board* board, std::string fen) {
             break;
         case ' ':
         default:
-            printf("Weird char in fen castling: %c (index %ld)\n", c, i);
+            std::cout << "Weird char in fen castling: " << c << " (index " << i << ")" << std::endl;
             exit(-1);
             break;
         }
@@ -896,7 +896,7 @@ void debugBitboard(Bitboard bb) {
 
             // Get piece at index
             int idx = file + 8 * rank;
-            Bitboard mask = 1L << idx;
+            Bitboard mask = C64(1) << idx;
             if ((bb & mask) == 0)
                 printf("|   ");
             else
