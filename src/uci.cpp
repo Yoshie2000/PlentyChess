@@ -184,7 +184,7 @@ void bench(Thread* searchThread, std::deque<BoardStack>* stackQueue, Board* boar
 
         searchThread->startSearching(*board, *stackQueue, parameters);
         searchThread->waitForSearchFinished();
-        nodes += searchThread->nodesSearched;
+        nodes += searchThread->searchData.nodesSearched;
     }
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
@@ -205,34 +205,34 @@ void perfttest(Thread* searchThread, std::deque<BoardStack>* stackQueue, Board* 
     startpos(board);
     searchThread->startSearching(*board, *stackQueue, parameters);
     searchThread->waitForSearchFinished();
-    if (searchThread->nodesSearched != 4865609) std::cout << "Failed perft for startpos" << std::endl;
+    if (searchThread->searchData.nodesSearched != 4865609) std::cout << "Failed perft for startpos" << std::endl;
 
     parseFen(board, "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
     searchThread->startSearching(*board, *stackQueue, parameters);
     searchThread->waitForSearchFinished();
-    if (searchThread->nodesSearched != 193690690) std::cout << "Failed perft for r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1" << std::endl;
+    if (searchThread->searchData.nodesSearched != 193690690) std::cout << "Failed perft for r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1" << std::endl;
 
     parseFen(board, "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
     parameters.depth = 6;
     searchThread->startSearching(*board, *stackQueue, parameters);
     searchThread->waitForSearchFinished();
-    if (searchThread->nodesSearched != 11030083) std::cout << "Failed perft for 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1" << std::endl;
+    if (searchThread->searchData.nodesSearched != 11030083) std::cout << "Failed perft for 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1" << std::endl;
 
     parseFen(board, "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
     parameters.depth = 5;
     searchThread->startSearching(*board, *stackQueue, parameters);
     searchThread->waitForSearchFinished();
-    if (searchThread->nodesSearched != 15833292) std::cout << "Failed perft for r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1" << std::endl;
+    if (searchThread->searchData.nodesSearched != 15833292) std::cout << "Failed perft for r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1" << std::endl;
 
     parseFen(board, "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
     searchThread->startSearching(*board, *stackQueue, parameters);
     searchThread->waitForSearchFinished();
-    if (searchThread->nodesSearched != 89941194) std::cout << "Failed perft for rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8" << std::endl;
+    if (searchThread->searchData.nodesSearched != 89941194) std::cout << "Failed perft for rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8" << std::endl;
 
     parseFen(board, "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
     searchThread->startSearching(*board, *stackQueue, parameters);
     searchThread->waitForSearchFinished();
-    if (searchThread->nodesSearched != 164075551) std::cout << "Failed perft for r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10" << std::endl;
+    if (searchThread->searchData.nodesSearched != 164075551) std::cout << "Failed perft for r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10" << std::endl;
 
     std::cout << "Perfttest done" << std::endl;
 }
@@ -365,6 +365,11 @@ void go(std::string line, Thread* searchThread, Board* board, std::deque<BoardSt
             parameters.depth = std::stoi(token);
         }
 
+        if (matchesToken(token, "nodes")) {
+            nextToken(&line, &token);
+            parameters.nodes = std::stoi(token);
+        }
+
         if (matchesToken(token, "infinite")) {
             parameters.infinite = true;
         }
@@ -393,19 +398,6 @@ void go(std::string line, Thread* searchThread, Board* board, std::deque<BoardSt
     }
 
     searchThread->startSearching(*board, *stackQueue, parameters);
-    if (parameters.movetime > 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(parameters.movetime));
-        searchThread->stopSearching();
-    }
-    if (parameters.wtime > 0 && parameters.btime > 0) {
-        uint64_t time = board->stm == COLOR_WHITE ? parameters.wtime : parameters.btime;
-        uint64_t inc = board->stm == COLOR_WHITE ? parameters.winc : parameters.binc;
-
-        uint64_t totalTime = time / 20 + inc / 2;
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(totalTime));
-        searchThread->stopSearching();
-    }
 }
 
 void uciLoop(Thread* searchThread, int argc, char* argv[]) {
@@ -414,6 +406,7 @@ void uciLoop(Thread* searchThread, int argc, char* argv[]) {
     board.stack = &stackQueue.back();
     startpos(&board);
 
+    searchThread->waitForSearchFinished();
     printf("UCI thread running\n");
 
     if (argc > 1 && matchesToken(argv[1], "bench")) {

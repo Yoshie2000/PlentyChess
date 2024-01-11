@@ -52,7 +52,6 @@ inline Square popLSB(Bitboard* bb) {
 struct SearchStack {
     Move* pv;
     int ply;
-    uint64_t nodes;
 
     Eval staticEval;
 

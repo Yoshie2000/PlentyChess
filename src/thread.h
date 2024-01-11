@@ -19,13 +19,11 @@ class Thread {
     Board rootBoard;
     BoardStack rootStack;
     std::deque<BoardStack> rootStackQueue;
-    SearchParameters searchParameters;
 
 public:
 
-    uint64_t nodesSearched;
-
-    int nmpPlies = 0;
+    SearchParameters searchParameters;
+    SearchData searchData;
 
     Thread(void);
     ~Thread();
