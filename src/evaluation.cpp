@@ -12,7 +12,7 @@ const Eval PIECE_VALUES[PIECE_TYPES + 1] = {
 };
 
 Eval evaluate(Board* board) {
-    Eval eval = NNUE::evaluate(accumulatorStack[accumulatorStackHead], board->stm);
+    Eval eval = nnue.evaluate(board->stm);
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
     return eval;
 }

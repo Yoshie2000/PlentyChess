@@ -276,23 +276,9 @@ size_t parseFen(Board* board, std::string fen) {
     updateSliderPins(board, COLOR_WHITE);
     updateSliderPins(board, COLOR_BLACK);
 
-    resetAccumulator(board);
+    nnue.resetAccumulators(board);
 
     return i;
-}
-
-void resetAccumulator(Board* board) {
-    // Set up NNUE accumulator
-    accumulatorStackHead = 0;
-    for (size_t i = 0; i < sizeof(accumulatorStack) / sizeof(NNUE::Accumulator); i++)
-        accumulatorStack[i].clear();
-
-    for (Square square = 0; square < 64; square++) {
-        Piece piece = board->pieces[square];
-        if (piece == NO_PIECE) continue;
-        Color pieceColor = (board->byColor[COLOR_WHITE] & (C64(1) << square)) ? COLOR_WHITE : COLOR_BLACK;
-        accumulatorStack[0].addFeature(square, piece, pieceColor, &accumulatorStack[0]);
-    }
 }
 
 void castlingRookSquares(Board* board, Square origin, Square target, Square* rookOrigin, Square* rookTarget) {
@@ -329,9 +315,6 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
     newStack->nullmove_ply = newStack->previous->nullmove_ply + 1;
 
-    int dirtyPieceCount = 0;
-    DirtyPiece dirtyPieces[3];
-
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
 
@@ -354,6 +337,8 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     board->pieces[origin] = NO_PIECE;
     board->pieces[target] = piece;
 
+    nnue.movePiece(origin, target, piece, board->stm, true);
+
     if (piece == PIECE_PAWN)
         newStack->rule50_ply = 0;
 
@@ -373,7 +358,8 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     if (newStack->capturedPiece != NO_PIECE) {
         board->byColor[1 - board->stm] ^= captureTargetBB; // take away the captured piece
         board->byPiece[newStack->capturedPiece] ^= captureTargetBB;
-        dirtyPieces[dirtyPieceCount++] = { captureTarget, NO_SQUARE, newStack->capturedPiece, (Color)(1 - board->stm) };
+
+        nnue.removePiece(captureTarget, newStack->capturedPiece, (Color) (1 - board->stm), false);
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[newStack->capturedPiece][captureTarget];
 
@@ -408,7 +394,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[PIECE_ROOK][rookTarget];
 
-        dirtyPieces[dirtyPieceCount++] = { rookOrigin, rookTarget, PIECE_ROOK, board->stm };
+        nnue.movePiece(rookOrigin, rookTarget, PIECE_ROOK, board->stm, false);
     }
 
     // This move is promotion
@@ -421,8 +407,8 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][target] ^ ZOBRIST_PIECE_SQUARES[promotionPiece][target];
 
-        dirtyPieces[dirtyPieceCount++] = { target, NO_SQUARE, piece, board->stm };
-        dirtyPieces[dirtyPieceCount++] = { NO_SQUARE, target, promotionPiece, board->stm };
+        nnue.removePiece(target, piece, board->stm, false);
+        nnue.addPiece(target, promotionPiece, board->stm, false);
 
         newStack->pieceCount[board->stm][PIECE_PAWN]--;
         newStack->pieceCount[board->stm][promotionPiece]++;
@@ -485,23 +471,6 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
                 break;
             }
         }
-    }
-
-    // Update NNUE accumulators
-    NNUE::Accumulator& oldAccumulator = accumulatorStack[accumulatorStackHead];
-    NNUE::Accumulator& newAccumulator = accumulatorStack[++accumulatorStackHead];
-
-    // Move the currently moved piece first
-    newAccumulator.moveFeature(origin, target, piece, board->stm, &oldAccumulator);
-
-    for (int i = 0; i < dirtyPieceCount; i++) {
-        DirtyPiece dp = dirtyPieces[i];
-        if (dp.origin == NO_SQUARE)
-            newAccumulator.addFeature(dp.target, dp.piece, dp.pieceColor, &newAccumulator);
-        else if (dp.target == NO_SQUARE)
-            newAccumulator.removeFeature(dp.origin, dp.piece, dp.pieceColor, &newAccumulator);
-        else
-            newAccumulator.moveFeature(dp.origin, dp.target, dp.piece, dp.pieceColor, &newAccumulator);
     }
 
     board->stm = 1 - board->stm;
@@ -570,7 +539,7 @@ void undoMove(Board* board, Move move) {
         board->pieces[origin] = PIECE_PAWN;
     }
 
-    accumulatorStackHead--;
+    nnue.undoMove();
 
     board->stack = board->stack->previous;
 }

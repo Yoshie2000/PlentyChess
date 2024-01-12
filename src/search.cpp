@@ -13,6 +13,7 @@
 #include "tt.h"
 #include "history.h"
 #include "time.h"
+#include "nnue.h"
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
@@ -478,7 +479,7 @@ movesLoop:
 }
 
 void Thread::tsearch() {
-    resetAccumulator(&rootBoard);
+    nnue.resetAccumulators(&rootBoard);
 
     int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : searchParameters.depth;
     Move bestMove = MOVE_NONE;

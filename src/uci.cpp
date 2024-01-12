@@ -13,6 +13,7 @@
 #include "thread.h"
 #include "search.h"
 #include "tt.h"
+#include "nnue.h"
 
 const std::vector<std::string> benchPositions = {
     //   "setoption name UCI_Chess960 value false",
@@ -323,7 +324,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
             doMove(board, &stackQueue->back(), m);
 
             if (moveCount > 200) {
-                resetAccumulator(board);
+                nnue.resetAccumulators(board);
                 moveCount = 0;
             }
 

@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
     initHistory();
 
     TT.clear();
-    NNUE::init();
+    nnue.initNetwork();
 
     Thread searchThread;
     uciLoop(&searchThread, argc, argv);
