@@ -1,5 +1,5 @@
 /**
- * NNUE Evaluation is heavily inspired by Alexandria (https://github.com/PGG106/Alexandria/) and Obsidian (https://github.com/gab8192/Obsidian/)
+ * NNUE Evaluation is heavily inspired by Obsidian (https://github.com/gab8192/Obsidian/)
 */
 #include <iostream>
 #include <fstream>
