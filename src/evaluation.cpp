@@ -26,7 +26,7 @@ std::string formatEval(Eval value) {
         evalString = "mate " + std::to_string(-EVAL_MATE - value);
     }
     else {
-        evalString = "cp " + std::to_string(value);
+        evalString = "cp " + std::to_string(100 * value / 250);
     }
     return evalString;
 }
