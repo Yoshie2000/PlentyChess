@@ -1,6 +1,7 @@
 src/*.o
 engine
 engine.exe
+PlentyChess*
 *.out
 perf*
 stuff/

@@ -18,6 +18,8 @@ ifeq ($(arch), avx512)
 	CXXFLAGS := $(CXXFLAGS) -march=skylake-avx512
 else ifeq ($(arch), avx2)
 	CXXFLAGS := $(CXXFLAGS) -march=haswell
+else ifeq ($(arch), generic)
+	CXXFLAGS := $(CXXFLAGS)
 else
 	CXXFLAGS := $(CXXFLAGS) -march=native
 endif
