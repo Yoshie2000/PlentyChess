@@ -388,8 +388,6 @@ movesLoop:
 
         Eval value;
         int newDepth = depth - 1;
-        if (board->stack->checkers)
-            newDepth++;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
@@ -401,6 +399,9 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth--;
+            
+            if (board->stack->checkers)
+                reducedDepth++;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
