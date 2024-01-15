@@ -26,7 +26,7 @@ extern uint64_t ZOBRIST_ENPASSENT[8]; // 8 files
 void initZobrist();
 
 struct TTEntry {
-    uint16_t hash = 0;
+    uint32_t hash = 0;
     Move bestMove = MOVE_NONE;
     uint8_t depth = 0;
     uint8_t flags = TT_NOBOUND;
@@ -34,41 +34,32 @@ struct TTEntry {
     Eval value = EVAL_NONE;
 
     void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int flags) {
-        if (_depth >= depth || bestMove == MOVE_NONE) {
-            hash = (uint16_t)_hash;
-            bestMove = _bestMove;
-            depth = _depth;
-            value = _value;
-            eval = _eval;
-            flags = (uint8_t)(flags + (wasPv << 2));
-        }
+        hash = (uint32_t)_hash;
+        bestMove = _bestMove;
+        depth = _depth;
+        value = _value;
+        eval = _eval;
+        flags = (uint8_t)(flags + (wasPv << 2));
     }
-};
-
-#define CLUSTER_SIZE 3
-
-struct TTCluster {
-    TTEntry entry[CLUSTER_SIZE];
-    char padding[2];
 };
 
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
 #if defined(__MINGW32__)
     int offset = alignment - 1;
-    void* p = (void * ) malloc(requiredBytes + offset);
-    void* q = (void * ) (((size_t)(p) + offset) & ~(alignment - 1));
+    void* p = (void*)malloc(requiredBytes + offset);
+    void* q = (void*)(((size_t)(p)+offset) & ~(alignment - 1));
     return q;
 #elif defined (__GNUC__)
     return std::aligned_alloc(alignment, requiredBytes);
 #else
-    #error "Compiler not supported"
+#error "Compiler not supported"
 #endif
 }
 
 class TranspositionTable {
 
-    TTCluster* table = nullptr;
-    size_t clusterCount;
+    TTEntry* table = nullptr;
+    size_t entryCount;
 
 public:
 
@@ -84,16 +75,16 @@ public:
         if (table)
             std::free(table);
 
-        clusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
-        table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
+        entryCount = mb * 1024 * 1024 / sizeof(TTEntry);
+        table = static_cast<TTEntry*>(alignedAlloc(sizeof(TTEntry), entryCount * sizeof(TTEntry)));
 
         clear();
     }
 
     size_t index(uint64_t hash) {
-        // Find cluster
+        // Find entry
         __extension__ using uint128 = unsigned __int128;
-        return ((uint128)hash * (uint128)clusterCount) >> 64;
+        return ((uint128)hash * (uint128)entryCount) >> 64;
     }
 
     void prefetch(uint64_t hash) {
@@ -101,27 +92,14 @@ public:
     }
 
     TTEntry* probe(uint64_t hash, bool* found) {
-        TTCluster* cluster = &table[index(hash)];
-
-        int smallestDepth = 0;
-        for (int i = 0; i < CLUSTER_SIZE; i++) {
-            if (cluster->entry[i].hash == (uint16_t)hash) {
-                *found = true;
-                return &cluster->entry[i];
-            }
-            if (cluster->entry[i].depth < cluster->entry[smallestDepth].depth)
-                smallestDepth = i;
-        }
-        *found = false;
-        return &cluster->entry[smallestDepth];
+        TTEntry* entry = &table[index(hash)];
+        *found = entry->hash == (uint32_t)hash;
+        return entry;
     }
 
     void clear() {
-        // size_t maxMemsetInput = 65536;
-        // size_t clustersAtOnce = maxMemsetInput / sizeof(TTCluster);
-
-        for (size_t i = 0; i < clusterCount; i++) {
-            table[i] = TTCluster();
+        for (size_t i = 0; i < entryCount; i++) {
+            table[i] = TTEntry();
         }
     }
 
