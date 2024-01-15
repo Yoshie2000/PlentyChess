@@ -281,6 +281,9 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, eval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
+    if (ttFlag == TT_NOBOUND && depth >= 4)
+        depth--;
+
     // Improving
     if (stack->ply >= 2 && (stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
