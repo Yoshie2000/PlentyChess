@@ -184,8 +184,18 @@ constexpr int WEIGHTS_PER_VEC = sizeof(Vec) / sizeof(int16_t);
 
 constexpr int HIDDEN_ITERATIONS = HIDDEN_WIDTH / WEIGHTS_PER_VEC;
 
+struct DirtyPiece {
+  Square origin;
+  Square target;
+  Piece piece;
+  Color pieceColor;
+};
+
 struct Accumulator {
   alignas(ALIGNMENT) int16_t colors[2][HIDDEN_WIDTH];
+
+  DirtyPiece dirtyPieces[4];
+  int numDirtyPieces;
 };
 
 struct NetworkData {
@@ -199,7 +209,8 @@ class NNUE {
 
   NetworkData networkData;
   Accumulator accumulatorStack[MAX_PLY];
-  int accumulatorStackHead;
+  int currentAccumulator;
+  int lastCalculatedAccumulator;
 
   alignas(ALIGNMENT) int cachedFeatureOffsets[2][PIECE_TYPES * 2 + 1][64];
 
@@ -209,13 +220,21 @@ public:
 
   void resetAccumulators(Board* board);
   
-  void addPiece(Square square, Piece piece, Color pieceColor, bool incrementAcc);
-  void removePiece(Square square, Piece piece, Color pieceColor, bool incrementAcc);
-  void movePiece(Square origin, Square target, Piece piece, Color pieceColor, bool incrementAcc);
+  void addPiece(Square square, Piece piece, Color pieceColor);
+  void removePiece(Square square, Piece piece, Color pieceColor);
+  void movePiece(Square origin, Square target, Piece piece, Color pieceColor);
 
-  void undoMove();
+  void incrementAccumulator();
+  void decrementAccumulator();
 
   Eval evaluate(Color side);
+
+private:
+
+  void calculateAccumulators();
+  void addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
+  void removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
+  void movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor);
 
 };
 

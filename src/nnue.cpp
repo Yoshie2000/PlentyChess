@@ -63,11 +63,13 @@ void NNUE::initNetwork() {
 
 void NNUE::resetAccumulators(Board* board) {
     // Sets up the NNUE accumulator completely from scratch by adding each piece individually
-    accumulatorStackHead = 0;
+    currentAccumulator = 0;
+    lastCalculatedAccumulator = 0;
     for (size_t i = 0; i < sizeof(accumulatorStack) / sizeof(Accumulator); i++) {
         for (int side = COLOR_WHITE; side <= COLOR_BLACK; ++side) {
             memcpy(accumulatorStack[i].colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
         }
+        accumulatorStack[i].numDirtyPieces = 0;
     }
 
     for (Square square = 0; square < 64; square++) {
@@ -75,18 +77,62 @@ void NNUE::resetAccumulators(Board* board) {
         if (piece == NO_PIECE) continue;
 
         Color pieceColor = (board->byColor[COLOR_WHITE] & (C64(1) << square)) ? COLOR_WHITE : COLOR_BLACK;
-        addPiece(square, piece, pieceColor, false);
+        addPieceToAccumulator(&accumulatorStack[0], &accumulatorStack[0], square, piece, pieceColor);
     }
 }
 
-void NNUE::addPiece(Square square, Piece piece, Color pieceColor, bool incrementAcc) {
+void NNUE::addPiece(Square square, Piece piece, Color pieceColor) {
     assert(piece < NO_PIECE);
 
-    Accumulator* inputAcc = &accumulatorStack[accumulatorStackHead];
-    if (incrementAcc)
-        accumulatorStackHead++;
-    Accumulator* outputAcc = &accumulatorStack[accumulatorStackHead];
+    Accumulator* acc = &accumulatorStack[currentAccumulator];
+    acc->dirtyPieces[acc->numDirtyPieces++] = { NO_SQUARE, square, piece, pieceColor };
+}
 
+void NNUE::removePiece(Square square, Piece piece, Color pieceColor) {
+    assert(piece < NO_PIECE);
+
+    Accumulator* acc = &accumulatorStack[currentAccumulator];
+    acc->dirtyPieces[acc->numDirtyPieces++] = { square, NO_SQUARE, piece, pieceColor };
+}
+
+void NNUE::movePiece(Square origin, Square target, Piece piece, Color pieceColor) {
+    assert(piece < NO_PIECE);
+
+    Accumulator* acc = &accumulatorStack[currentAccumulator];
+    acc->dirtyPieces[acc->numDirtyPieces++] = { origin, target, piece, pieceColor };
+}
+
+void NNUE::calculateAccumulators() {
+    // Starting from the last calculated accumulator, calculate all incremental updates
+
+    while (lastCalculatedAccumulator < currentAccumulator) {
+
+        Accumulator* inputAcc = &accumulatorStack[lastCalculatedAccumulator];
+        Accumulator* outputAcc = &accumulatorStack[lastCalculatedAccumulator + 1];
+
+        // Incrementally update all the dirty pieces
+        for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
+            DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
+
+            if (dirtyPiece.origin == NO_SQUARE) {
+                addPieceToAccumulator(inputAcc, outputAcc, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+            }
+            else if (dirtyPiece.target == NO_SQUARE) {
+                removePieceFromAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.piece, dirtyPiece.pieceColor);
+            }
+            else {
+                movePieceInAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+            }
+
+            // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
+            inputAcc = outputAcc;
+        }
+
+        lastCalculatedAccumulator++;
+    }
+}
+
+void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
     int pieceIndex = 2 * piece + pieceColor;
     for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
         // Get the index of the piece for this color in the input layer
@@ -102,14 +148,7 @@ void NNUE::addPiece(Square square, Piece piece, Color pieceColor, bool increment
     }
 }
 
-void NNUE::removePiece(Square square, Piece piece, Color pieceColor, bool incrementAcc) {
-    assert(piece < NO_PIECE);
-
-    Accumulator* inputAcc = &accumulatorStack[accumulatorStackHead];
-    if (incrementAcc)
-        accumulatorStackHead++;
-    Accumulator* outputAcc = &accumulatorStack[accumulatorStackHead];
-
+void NNUE::removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
     int pieceIndex = 2 * piece + pieceColor;
     for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
         // Get the index of the piece for this color in the input layer
@@ -125,14 +164,7 @@ void NNUE::removePiece(Square square, Piece piece, Color pieceColor, bool increm
     }
 }
 
-void NNUE::movePiece(Square origin, Square target, Piece piece, Color pieceColor, bool incrementAcc) {
-    assert(piece < NO_PIECE);
-
-    Accumulator* inputAcc = &accumulatorStack[accumulatorStackHead];
-    if (incrementAcc)
-        accumulatorStackHead++;
-    Accumulator* outputAcc = &accumulatorStack[accumulatorStackHead];
-
+void NNUE::movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor) {
     int pieceIndex = 2 * piece + pieceColor;
     for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
         // Get the index of the piece squares for this color in the input layer
@@ -150,12 +182,25 @@ void NNUE::movePiece(Square origin, Square target, Piece piece, Color pieceColor
     }
 }
 
-void NNUE::undoMove() {
-    accumulatorStackHead--;
+void NNUE::incrementAccumulator() {
+    currentAccumulator++;
+}
+
+void NNUE::decrementAccumulator() {
+    accumulatorStack[currentAccumulator].numDirtyPieces = 0;
+    currentAccumulator--;
+    lastCalculatedAccumulator = std::min(currentAccumulator, lastCalculatedAccumulator);
 }
 
 Eval NNUE::evaluate(Color sideToMove) {
-    Accumulator& accumulator = accumulatorStack[accumulatorStackHead];
+    assert(currentAccumulator >= lastCalculatedAccumulator);
+
+    // Make sure the current accumulator is up to date
+    calculateAccumulators();
+
+    assert(currentAccumulator == lastCalculatedAccumulator);
+
+    Accumulator& accumulator = accumulatorStack[currentAccumulator];
 
     Vec* stmAcc = (Vec*)accumulator.colors[sideToMove];
     Vec* oppAcc = (Vec*)accumulator.colors[1 - sideToMove];
