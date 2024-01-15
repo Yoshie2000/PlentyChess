@@ -278,6 +278,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
     else {
         eval = stack->staticEval = evaluate(board);
+        ttEntry->update(board->stack->hash, MOVE_NONE, 0, eval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
     // Improving
