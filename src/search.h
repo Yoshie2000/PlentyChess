@@ -59,6 +59,7 @@ struct SearchData {
     uint64_t nodesSearched;
 
     int64_t startTime;
+    int64_t optTime;
     int64_t maxTime;
 
     SearchData() {

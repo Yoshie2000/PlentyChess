@@ -7,7 +7,11 @@ int64_t getTime() {
 }
 
 bool timeOver(SearchParameters* parameters, SearchData* data) {
-    return (data->maxTime && getTime() >= data->maxTime) || (parameters->nodes && data->nodesSearched >= parameters->nodes);
+    return (data->maxTime && (data->nodesSearched % 1000) == 0 && getTime() >= data->maxTime) || (parameters->nodes && data->nodesSearched >= parameters->nodes);
+}
+
+bool timeOverDepthCleared(SearchParameters* parameters, SearchData* data) {
+    return (data->maxTime && getTime() >= data->optTime) || (parameters->nodes && data->nodesSearched >= parameters->nodes);
 }
 
 void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchData* data) {
@@ -38,7 +42,9 @@ void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchDa
     }
     else if (parameters->wtime && parameters->btime) {
         int64_t totalTime = time / 20 + increment / 2;
+        int64_t maxTime = 3 * time / 4;
 
-        data->maxTime = data->startTime + totalTime;
+        data->optTime = data->startTime + std::min<int64_t>(maxTime, 0.8 * totalTime);
+        data->maxTime = data->startTime + std::min<int64_t>(maxTime, 2.5 * totalTime);
     }
 }

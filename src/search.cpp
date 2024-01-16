@@ -519,6 +519,9 @@ void Thread::tsearch() {
             std::cout << moveToString(move) << " ";
         }
         std::cout << std::endl;
+
+        if (timeOverDepthCleared(&searchParameters, &searchData))
+            break;
     }
 
     std::cout << "bestmove " << moveToString(bestMove) << std::endl;
