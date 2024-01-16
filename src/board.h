@@ -41,7 +41,6 @@ struct BoardStack {
 
     uint8_t rule50_ply;
     uint8_t nullmove_ply;
-    int8_t repetition;
     uint64_t hash;
 
     Bitboard blockers[2];
@@ -72,8 +71,8 @@ void undoNullMove(Board* board);
 
 void updateSliderPins(Board* board, Color side);
 
-bool hasRepeated(Board* board);
-bool isDraw(Board* board, int ply);
+bool hasUpcomingRepetition(Board* board, int ply);
+bool isDraw(Board* board);
 
 constexpr bool hasNonPawns(Board* board) {
     return board->stack->pieceCount[board->stm][PIECE_KNIGHT] > 0 || board->stack->pieceCount[board->stm][PIECE_BISHOP] > 0 || board->stack->pieceCount[board->stm][PIECE_ROOK] > 0 || board->stack->pieceCount[board->stm][PIECE_QUEEN] > 0;

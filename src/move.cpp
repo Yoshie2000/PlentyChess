@@ -12,10 +12,6 @@
 #include "tt.h"
 #include "history.h"
 
-constexpr Move createMove(Square origin, Square target) {
-    return (Move)((origin & 0x3F) | ((target & 0x3F) << 6));
-}
-
 bool isPseudoLegal(Board* board, Move move) {
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);

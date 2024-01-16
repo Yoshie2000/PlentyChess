@@ -117,6 +117,10 @@ int valueFromTt(int value, int ply) {
     return value;
 }
 
+Eval drawEval(Thread* thread) {
+    return 4 - (thread->searchData.nodesSearched & 3);  // Small overhead to avoid 3-fold blindness
+}
+
 template <NodeType nodeType>
 Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval beta) {
     constexpr bool pvNode = nodeType == PV_NODE;
@@ -124,8 +128,8 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     assert(alpha >= -EVAL_INFINITE && alpha < beta && beta <= EVAL_INFINITE);
 
     // Check for stop
-    if (thread->searchData.stopSearching || stack->ply >= MAX_PLY)
-        return (stack->ply >= MAX_PLY) ? evaluate(board) : 0;
+    if (stack->ply >= MAX_PLY || isDraw(board))
+        return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board) : drawEval(thread);
 
     BoardStack boardStack;
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
@@ -215,13 +219,13 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     assert(!(pvNode && cutNode));
     assert(pvNode || alpha == beta - 1);
 
-    if (depth <= 0) return qsearch<nodeType>(board, thread, stack, alpha, beta);
-
-    if (!rootNode && alpha < 0 && hasRepeated(board)) {
-        alpha = 0;
+    if (!rootNode && alpha < 0 && hasUpcomingRepetition(board, stack->ply)) {
+        alpha = drawEval(thread);
         if (alpha >= beta)
             return alpha;
     }
+
+    if (depth <= 0) return qsearch<nodeType>(board, thread, stack, alpha, beta);
 
     BoardStack boardStack;
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
@@ -242,8 +246,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
             thread->searchData.stopSearching = true;
 
         // Check for stop or max depth
-        if (thread->searchData.stopSearching || stack->ply >= MAX_PLY || isDraw(board, stack->ply))
-            return (stack->ply >= MAX_PLY) ? evaluate(board) : 0;
+        if (thread->searchData.stopSearching || stack->ply >= MAX_PLY || isDraw(board))
+            return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board) : drawEval(thread);
 
         // Mate distance pruning
         alpha = std::max((int)alpha, (int)matedIn(stack->ply));
