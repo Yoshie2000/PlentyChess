@@ -75,7 +75,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_PAWN] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_PAWN]++;
             board->pieces[currentSquare] = PIECE_PAWN;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_BLACK][PIECE_PAWN][currentSquare];
             currentSquare++;
             break;
         case 'P':
@@ -83,7 +83,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_PAWN] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_PAWN]++;
             board->pieces[currentSquare] = PIECE_PAWN;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_PAWN][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_WHITE][PIECE_PAWN][currentSquare];
             currentSquare++;
             break;
         case 'n':
@@ -91,7 +91,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_KNIGHT] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_KNIGHT]++;
             board->pieces[currentSquare] = PIECE_KNIGHT;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KNIGHT][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_BLACK][PIECE_KNIGHT][currentSquare];
             currentSquare++;
             break;
         case 'N':
@@ -99,7 +99,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_KNIGHT] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_KNIGHT]++;
             board->pieces[currentSquare] = PIECE_KNIGHT;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KNIGHT][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_WHITE][PIECE_KNIGHT][currentSquare];
             currentSquare++;
             break;
         case 'b':
@@ -107,7 +107,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_BISHOP] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_BISHOP]++;
             board->pieces[currentSquare] = PIECE_BISHOP;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_BISHOP][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_BLACK][PIECE_BISHOP][currentSquare];
             currentSquare++;
             break;
         case 'B':
@@ -115,7 +115,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_BISHOP] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_BISHOP]++;
             board->pieces[currentSquare] = PIECE_BISHOP;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_BISHOP][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_WHITE][PIECE_BISHOP][currentSquare];
             currentSquare++;
             break;
         case 'r':
@@ -123,7 +123,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_ROOK] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_ROOK]++;
             board->pieces[currentSquare] = PIECE_ROOK;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_ROOK][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_BLACK][PIECE_ROOK][currentSquare];
             currentSquare++;
             break;
         case 'R':
@@ -131,7 +131,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_ROOK] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_ROOK]++;
             board->pieces[currentSquare] = PIECE_ROOK;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_ROOK][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_WHITE][PIECE_ROOK][currentSquare];
             currentSquare++;
             break;
         case 'q':
@@ -139,7 +139,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_QUEEN] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_QUEEN]++;
             board->pieces[currentSquare] = PIECE_QUEEN;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_QUEEN][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_BLACK][PIECE_QUEEN][currentSquare];
             currentSquare++;
             break;
         case 'Q':
@@ -147,7 +147,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_QUEEN] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_QUEEN]++;
             board->pieces[currentSquare] = PIECE_QUEEN;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_QUEEN][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_WHITE][PIECE_QUEEN][currentSquare];
             currentSquare++;
             break;
         case 'k':
@@ -155,7 +155,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_KING] |= currentSquareBB;
             board->stack->pieceCount[COLOR_BLACK][PIECE_KING]++;
             board->pieces[currentSquare] = PIECE_KING;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KING][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_BLACK][PIECE_KING][currentSquare];
             currentSquare++;
             break;
         case 'K':
@@ -163,7 +163,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->byPiece[PIECE_KING] |= currentSquareBB;
             board->stack->pieceCount[COLOR_WHITE][PIECE_KING]++;
             board->pieces[currentSquare] = PIECE_KING;
-            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_KING][currentSquare];
+            board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_WHITE][PIECE_KING][currentSquare];
             currentSquare++;
             break;
         case '/':
@@ -362,7 +362,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
         nnue.removePiece(captureTarget, newStack->capturedPiece, (Color)(1 - board->stm));
 
-        newStack->hash ^= ZOBRIST_PIECE_SQUARES[newStack->capturedPiece][captureTarget];
+        newStack->hash ^= ZOBRIST_PIECE_SQUARES[1 - board->stm][newStack->capturedPiece][captureTarget];
 
         newStack->pieceCount[1 - board->stm][newStack->capturedPiece]--;
         newStack->rule50_ply = 0;
@@ -393,7 +393,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         board->byColor[board->stm] ^= rookFromToBB;
         board->byPiece[PIECE_ROOK] ^= rookFromToBB;
 
-        newStack->hash ^= ZOBRIST_PIECE_SQUARES[PIECE_ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[PIECE_ROOK][rookTarget];
+        newStack->hash ^= ZOBRIST_PIECE_SQUARES[board->stm][PIECE_ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[board->stm][PIECE_ROOK][rookTarget];
 
         nnue.movePiece(rookOrigin, rookTarget, PIECE_ROOK, board->stm);
     }
@@ -406,7 +406,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
         board->pieces[target] = promotionPiece;
 
-        newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][target] ^ ZOBRIST_PIECE_SQUARES[promotionPiece][target];
+        newStack->hash ^= ZOBRIST_PIECE_SQUARES[board->stm][piece][target] ^ ZOBRIST_PIECE_SQUARES[board->stm][promotionPiece][target];
 
         // Promotion, we don't move the current piece, instead we remove it from the origin square
         // and place the promotionPiece on the target square. This saves one accumulator update
@@ -422,7 +422,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         nnue.movePiece(origin, target, piece, board->stm);
     }
 
-    newStack->hash ^= ZOBRIST_PIECE_SQUARES[piece][origin] ^ ZOBRIST_PIECE_SQUARES[piece][target];
+    newStack->hash ^= ZOBRIST_PIECE_SQUARES[board->stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[board->stm][piece][target];
 
     // Unset castling flags if necessary
     if (piece == PIECE_KING) {
@@ -465,20 +465,6 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     newStack->checkerCount = newStack->checkers ? __builtin_popcountll(newStack->checkers) : 0;
     updateSliderPins(board, COLOR_WHITE);
     updateSliderPins(board, COLOR_BLACK);
-
-    // Calculate repetition information
-    newStack->repetition = 0;
-    int end = std::min(newStack->rule50_ply - 1, newStack->nullmove_ply - 1);
-    if (end >= 4) {
-        BoardStack* st = newStack;
-        for (int i = 2; i <= end; i += 2) {
-            st = st->previous->previous;
-            if (newStack->hash == st->hash) {
-                newStack->repetition = st->repetition ? -i : i;
-                break;
-            }
-        }
-    }
 
     board->stm = 1 - board->stm;
     newStack->move = move;
@@ -574,8 +560,6 @@ void doNullMove(Board* board, BoardStack* newStack) {
     updateSliderPins(board, COLOR_WHITE);
     updateSliderPins(board, COLOR_BLACK);
 
-    newStack->repetition = 0;
-
     board->stm = 1 - board->stm;
     newStack->move = MOVE_NULL;
 }
@@ -612,24 +596,88 @@ void updateSliderPins(Board* board, Color side) {
     }
 }
 
-// Check for any repetition since the last capture / pawn move
-bool hasRepeated(Board* board) {
-    BoardStack* stack = board->stack;
-    int end = std::min(board->stack->rule50_ply, board->stack->nullmove_ply);
-    for (; end >= 4; end--) {
-        if (stack->repetition)
-            return true;
-        stack = stack->previous;
+// Using cuckoo tables, check if the side to move has any move that would lead to a repetition
+bool hasUpcomingRepetition(Board* board, int ply) {
+
+    int maxPlyOffset = std::min(board->stack->rule50_ply, board->stack->nullmove_ply);
+    if (maxPlyOffset < 3)
+        return false;
+
+    uint64_t hash = board->stack->hash;
+    BoardStack* stack = board->stack->previous;
+
+    int j = 0;
+    for (int i = 3; i <= maxPlyOffset; i += 2) {
+        stack = stack->previous->previous;
+
+        uint64_t moveHash = hash ^ stack->hash;
+        if ((j = H1(moveHash), CUCKOO_HASHES[j] == moveHash) || (j = H2(moveHash), CUCKOO_HASHES[j] == moveHash)) {
+            Move move = CUCKOO_MOVES[j];
+            Square origin = moveOrigin(move);
+            Square target = moveTarget(move);
+
+            if (BETWEEN[origin][target] & (board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]))
+                continue;
+
+            if (ply > i)
+                return true;
+
+            Square pieceSquare = board->pieces[origin] == NO_PIECE ? target : origin;
+            Color pieceColor = (board->byColor[COLOR_WHITE] & (C64(1) << pieceSquare)) ? COLOR_WHITE : COLOR_BLACK;
+            if (pieceColor != board->stm)
+                continue;
+
+            // Check for 2-fold repetition
+            BoardStack* stack2 = stack;
+            for (int k = i + 4; k <= maxPlyOffset; k += 2) {
+                if (k == i + 4)
+                    stack2 = stack2->previous->previous;
+                stack2 = stack->previous->previous;
+                if (stack2->hash == stack->hash)
+                    return true;
+            }
+        }
     }
+
     return false;
 }
 
-// Check for any repetition since the last capture / pawn move
-bool isDraw(Board* board, int ply) {
-    if (board->stack->rule50_ply > 99)
-        return true;
+// Checks for 2-fold repetition and rule50 draw
+bool isDraw(Board* board) {
 
-    return board->stack->repetition && board->stack->repetition < ply;
+    // 2-fold repetition
+    int maxPlyOffset = std::min(board->stack->rule50_ply, board->stack->nullmove_ply);
+    BoardStack* stack = board->stack->previous->previous;
+
+    for (int i = 4; i <= maxPlyOffset; i += 2) {
+        stack = stack->previous->previous;
+        if (board->stack->hash == stack->hash) {
+            return true;
+        }
+    }
+
+    // 50 move rule draw
+    if (board->stack->rule50_ply > 99) {
+        if (!board->stack->checkers)
+            return true;
+
+        // If in check, it might be checkmate
+        Move moves[MAX_MOVES] = { MOVE_NONE };
+        int moveCount = 0;
+        int legalMoveCount = 0;
+        generateMoves(board, moves, &moveCount);
+        for (int i = 0; i < moveCount; i++) {
+            Move move = moves[i];
+            if (!isLegal(board, move))
+                continue;
+            legalMoveCount++;
+        }
+
+        return legalMoveCount > 0;
+    }
+
+    // Otherwise, no draw
+    return false;
 }
 
 Bitboard attackersTo(Board* board, Square s, Bitboard occupied) {
@@ -717,7 +765,6 @@ Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType) {
     }
 }
 
-// This function is only intended for check detection, so it doesn't work for kings
 Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupied, Color stm) {
     switch (pieceType) {
     case PIECE_PAWN:
@@ -725,7 +772,7 @@ Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupie
     case PIECE_KNIGHT:
         return knightAttacks(C64(1) << square);
     case PIECE_KING:
-        return C64(0);
+        return KING_ATTACKS[square];
     case PIECE_BISHOP:
         return getBishopMoves(square, occupied);
     case PIECE_ROOK:

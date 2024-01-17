@@ -119,6 +119,10 @@ constexpr Square LASTSQ_TABLE[64][8] = {
     { 63, 63, 7, 56, 63, 63, 0, 63 }
 };
 
+constexpr Move createMove(Square origin, Square target) {
+    return (Move)((origin & 0x3F) | ((target & 0x3F) << 6));
+}
+
 constexpr Square moveOrigin(Move move) {
     return (Square)(move & 0x3F);
 }

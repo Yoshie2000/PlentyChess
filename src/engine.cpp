@@ -9,10 +9,10 @@
 int main(int argc, char* argv[]) {
     generateMagics();
 
-    initZobrist();
     initBitboard();
     initReductions();
     initHistory();
+    initZobrist();
 
     TT.clear();
     nnue.initNetwork();
