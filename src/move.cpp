@@ -437,7 +437,7 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
 Move MoveGen::nextMove() {
     // If there's still unused moves in the list, return those
     if (returnedMoves < generatedMoves || returnedBadCaptures < generatedBadCaptures)
-        return cycleUntilNextMove();
+        return findNextMove();
 
     assert((board->byColor[board->stm] & board->byPiece[PIECE_KING]) > 0);
 
@@ -449,12 +449,14 @@ Move MoveGen::nextMove() {
         // Generate moves for the current stage
         switch (generationStage) {
         case GEN_STAGE_TTMOVE:
+            needsStagedSorting = false;
             if (ttMove != MOVE_NONE && ttMove != MOVE_NULL && isPseudoLegal(board, ttMove))
                 moveList[generatedMoves++] = ttMove;
             generationStage++;
             break;
 
         case GEN_STAGE_CAPTURES:
+            needsStagedSorting = true;
             beginIndex = generatedMoves;
 
             // If in double check, only generate king moves
@@ -474,9 +476,8 @@ Move MoveGen::nextMove() {
             }
             endIndex = generatedMoves;
 
-            endIndex = scoreGoodCaptures(beginIndex, endIndex);
+            endIndex = scoreGoodCaptures(beginIndex, endIndex); // changes generatedMoves
             moves = moveList + generatedMoves;
-            sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
             generationStage++;
             if (onlyCaptures)
@@ -484,6 +485,7 @@ Move MoveGen::nextMove() {
             break;
 
         case GEN_STAGE_KILLERS:
+            needsStagedSorting = false;
             if (killers[0] != MOVE_NONE && isPseudoLegal(board, killers[0]))
                 moveList[generatedMoves++] = killers[0];
             if (killers[1] != MOVE_NONE && isPseudoLegal(board, killers[1]))
@@ -492,12 +494,14 @@ Move MoveGen::nextMove() {
             break;
 
         case GEN_STAGE_COUNTERMOVES:
+            needsStagedSorting = false;
             if (counterMove != MOVE_NONE && !isCapture(board, counterMove) && isPseudoLegal(board, counterMove))
                 moveList[generatedMoves++] = counterMove;
             generationStage++;
             break;
 
         case GEN_STAGE_REMAINING:
+            needsStagedSorting = true;
             beginIndex = generatedMoves;
             // If in double check, only generate king moves
             if (board->stack->checkerCount > 1) {
@@ -518,25 +522,24 @@ Move MoveGen::nextMove() {
             }
             endIndex = generatedMoves;
 
-            endIndex = scoreQuiets(beginIndex, endIndex);
+            endIndex = scoreQuiets(beginIndex, endIndex); // changes generatedMoves
             moves = moveList + generatedMoves;
-            sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
             generationStage++;
             break;
 
         case GEN_STAGE_BAD_CAPTURES:
+            needsStagedSorting = true;
             generatedBadCaptures = flaggedBadCaptures;
 
             scoreBadCaptures();
-            sortMoves(badCaptureList, badCaptureScores, 0, generatedBadCaptures);
 
             generationStage = GEN_STAGE_DONE;
             break;
         }
     }
 
-    return cycleUntilNextMove();
+    return findNextMove();
 }
 
 int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
@@ -608,34 +611,36 @@ void MoveGen::scoreBadCaptures() {
     }
 }
 
-void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) {
-    for (int i = beginIndex + 1; i < endIndex; i++) {
-        Move move = moves[i];
-        int score = scores[i];
-        int j = i - 1;
-
-        while (j >= beginIndex && scores[j] < score) {
-            moves[j + 1] = moves[j];
-            scores[j + 1] = scores[j];
-            j--;
-        }
-
-        moves[j + 1] = move;
-        scores[j + 1] = score;
-    }
-}
-
-Move MoveGen::cycleUntilNextMove() {
+Move MoveGen::findNextMove() {
     assert(returnedMoves < MAX_MOVES);
     assert(returnedBadCaptures < 32);
-    if (!(moveList[returnedMoves] != MOVE_NONE || returnedBadCaptures < generatedBadCaptures || badCaptureList[generatedBadCaptures] == MOVE_NONE)) {
-        std::cout << generationStage << " " << returnedMoves << " " << generatedMoves << " " << returnedBadCaptures << " " << generatedBadCaptures << std::endl;
-        std::cout << (moveList[returnedMoves] != MOVE_NONE) << " " << (returnedBadCaptures < generatedBadCaptures) << " " << (badCaptureList[generatedBadCaptures] == MOVE_NONE) << std::endl;
-    }
     assert(moveList[returnedMoves] != MOVE_NONE || returnedBadCaptures < generatedBadCaptures || badCaptureList[generatedBadCaptures] == MOVE_NONE);
 
-    if (returnedMoves < generatedMoves)
+    if (returnedMoves < generatedMoves) {
+
+        // Sort the best sorted move to the top, if it's not a ttMove / killer / counter
+        if (needsStagedSorting) {
+            int bestScoreIndex = returnedMoves;
+            for (int i = returnedMoves; i < generatedMoves; i++) {
+                if (moveListScores[i] > moveListScores[bestScoreIndex])
+                    bestScoreIndex = i;
+            }
+            std::swap(moveListScores[returnedMoves], moveListScores[bestScoreIndex]);
+            std::swap(moveList[returnedMoves], moveList[bestScoreIndex]);
+        }
+
         return moveList[returnedMoves++];
+    }
+
+    // Sort the best sorted move to the top, if it's not a ttMove / killer / counter
+    int bestScoreIndex = returnedBadCaptures;
+    for (int i = returnedBadCaptures; i < generatedBadCaptures; i++) {
+        if (badCaptureScores[i] > badCaptureScores[bestScoreIndex])
+            bestScoreIndex = i;
+    }
+    std::swap(badCaptureScores[returnedBadCaptures], badCaptureScores[bestScoreIndex]);
+    std::swap(badCaptureList[returnedBadCaptures], badCaptureList[bestScoreIndex]);
+
     return badCaptureList[returnedBadCaptures++];
 }
 

@@ -44,14 +44,15 @@ uint64_t perftInternal(Board* board, int depth) {
 
     BoardStack stack;
 
-    Move moves[MAX_MOVES] = { MOVE_NONE };
-    int moveCount = 0;
-    generateMoves(board, moves, &moveCount);
+    SearchStack searchStack;
+    searchStack.ply = 0;
+
+    Move killers[2] = { MOVE_NONE, MOVE_NONE };
+    Move move;
+    MoveGen movegen(board, &searchStack, MOVE_NONE, MOVE_NONE, killers);
 
     uint64_t nodes = 0;
-    for (int i = 0; i < moveCount; i++) {
-        Move move = moves[i];
-
+    while ((move = movegen.nextMove()) != MOVE_NONE) {
         if (!isLegal(board, move))
             continue;
 
@@ -68,14 +69,15 @@ uint64_t perft(Board* board, int depth) {
     clock_t begin = clock();
     BoardStack stack;
 
-    Move moves[MAX_MOVES] = { MOVE_NONE };
-    int moveCount = 0;
-    generateMoves(board, moves, &moveCount);
+    SearchStack searchStack;
+    searchStack.ply = 0;
+
+    Move killers[2] = { MOVE_NONE, MOVE_NONE };
+    Move move;
+    MoveGen movegen(board, &searchStack, MOVE_NONE, MOVE_NONE, killers);
 
     uint64_t nodes = 0;
-    for (int i = 0; i < moveCount; i++) {
-        Move move = moves[i];
-
+    while ((move = movegen.nextMove()) != MOVE_NONE) {
         if (!isLegal(board, move))
             continue;
 
