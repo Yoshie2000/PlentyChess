@@ -5,37 +5,68 @@
 #include <vector>
 #include <iostream>
 
+template<
+    typename T,
+    typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type
+>
 struct SPSAValue {
     std::string varName;
-    void* varPointer;
+    bool isFloat;
+    T* varPointer;
+    T minimumValue;
+    T maximumValue;
+
+    void printParam() {
+        if (isFloat)
+            printf("%s, float, %f, %f, %f, %f, 0.002\n", varName.c_str(), (float)*varPointer, (float)minimumValue, (float)maximumValue, (float)((maximumValue - minimumValue) / 20.0));
+        else
+            printf("%s, int, %d, %d, %d, %f, 0.002\n", varName.c_str(), (int)*varPointer, (int)minimumValue, (int)maximumValue, (float)((maximumValue - minimumValue) / 20.0));
+    }
+
+    void printUCIOption() {
+        if (isFloat)
+            printf("option name %s type string default %f\n", varName.c_str(), (float)*varPointer);
+        else
+            printf("option name %s type spin default %d min %d max %d\n", varName.c_str(), (int)*varPointer, (int)minimumValue, (int)maximumValue);
+    }
+
 };
 
 class SPSA {
 
 public:
-    std::vector<SPSAValue> tuneValues;
+    std::vector<SPSAValue<int>> intValues;
+    std::vector<SPSAValue<float>> floatValues;
 
     static SPSA& instance() {
         static SPSA t;
         return t;
     }  // Singleton
 
-    template<
-        typename T,
-        typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type
-    >
-    int tune(std::string varName, T* initialValue, T minimumValue, T maximumValue) {
-        bool isFloat = std::is_floating_point<T>::value;
-
-        if (isFloat)
-            printf("%s, float, %f, %f, %f, %f, 0.002\n", varName.c_str(), (float)*initialValue, (float)minimumValue, (float)maximumValue, (float)((maximumValue - minimumValue) / 20.0));
-        else
-            printf("%s, int, %d, %d, %d, %f, 0.002\n", varName.c_str(), (int)*initialValue, (int)minimumValue, (int)maximumValue, (float)((maximumValue - minimumValue) / 20.0));
-
-        SPSAValue value;
+    int tune(std::string varName, float* initialValue, float minimumValue, float maximumValue) {
+        SPSAValue<float> value;
         value.varName = varName;
-        value.varPointer = (void*)initialValue;
-        tuneValues.push_back(value);
+        value.isFloat = true;
+        value.varPointer = initialValue;
+        value.minimumValue = minimumValue;
+        value.maximumValue = maximumValue;
+
+        floatValues.push_back(static_cast<SPSAValue<float>>(value));
+        value.printParam();
+
+        return 0;
+    }
+
+    int tune(std::string varName, int* initialValue, int minimumValue, int maximumValue) {
+        SPSAValue<int> value;
+        value.varName = varName;
+        value.isFloat = false;
+        value.varPointer = initialValue;
+        value.minimumValue = minimumValue;
+        value.maximumValue = maximumValue;
+
+        intValues.push_back(static_cast<SPSAValue<int>>(value));
+        value.printParam();
 
         return 0;
     }
@@ -49,6 +80,15 @@ public:
     }
 
     static void trySetParam(std::string varName, std::string value);
+
+    static void printUCI() {
+        for (SPSAValue<int>& value : instance().intValues) {
+            value.printUCIOption();
+        }
+        for (SPSAValue<float>& value : instance().floatValues) {
+            value.printUCIOption();
+        }
+    }
 
 };
 

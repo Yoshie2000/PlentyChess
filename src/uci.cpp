@@ -435,7 +435,11 @@ void uciLoop(Thread* searchThread, int argc, char* argv[]) {
         else if (matchesToken(line, "stop")) searchThread->stopSearching();
 
         else if (matchesToken(line, "isready")) printf("readyok\n");
-        else if (matchesToken(line, "uci")) printf("id name yoshie2000-chess-engine\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 4096\nuciok\n");
+        else if (matchesToken(line, "uci")) {
+            printf("id name PlentyChess\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 4096\n");
+            SPSA::printUCI();
+            printf("\nuciok\n");
+        }
         else if (matchesToken(line, "ucinewgame")) printf("TODO\n");
         else if (matchesToken(line, "go")) go(line.substr(3), searchThread, &board, &stackQueue);
         else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);

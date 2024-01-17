@@ -16,6 +16,77 @@
 #include "nnue.h"
 #include "spsa.h"
 
+// Reduction / Margin tables
+float lmrReductionNoisyBase = -0.50f;
+TUNE(lmrReductionNoisyBase, -5.00f, 5.00f);
+float lmrReductionNoisyFactor = 3.00f;
+TUNE(lmrReductionNoisyFactor, 1.00f, 10.00f);
+float lmrReductionQuietBase = 0.00f;
+TUNE(lmrReductionQuietBase, -5.00f, 5.00f);
+float lmrReductionQuietFactor = 2.50f;
+TUNE(lmrReductionQuietFactor, 1.00f, 10.00f);
+
+float seeMarginNoisy = -30.0f;
+TUNE(seeMarginNoisy, -100.0f, -1.0f);
+float seeMarginQuiet = -80.0f;
+TUNE(seeMarginQuiet, -200.0f, -1.0f);
+float lmpMarginWorseningBase = 1.5f;
+TUNE(lmpMarginWorseningBase, -2.5f, 10.0f);
+float lmpMarginWorseningFactor = 0.5f;
+TUNE(lmpMarginWorseningFactor, 0.05f, 2.5f);
+float lmpMarginWorseningPower = 2.0f;
+TUNE(lmpMarginWorseningPower, 0.5f, 5.0f);
+float lmpMarginImprovingBase = 3.0f;
+TUNE(lmpMarginImprovingBase, -2.5f, 10.0f);
+float lmpMarginImprovingFactor = 1.0f;
+TUNE(lmpMarginImprovingFactor, 0.05f, 2.5f);
+float lmpMarginImprovingPower = 2.0f;
+TUNE(lmpMarginImprovingPower, 0.5f, 5.0f);
+
+// Search values
+int qsFutilityOffset = 75;
+TUNE(qsFutilityOffset, 0, 250);
+
+// Pre-search pruning
+int rfpDepth = 7;
+TUNE(rfpDepth, 2, 20);
+int rfpFactor = 70;
+TUNE(rfpFactor, 1, 250);
+
+int razoringDepth = 5;
+TUNE(razoringDepth, 2, 20);
+int razoringFactor = 250;
+TUNE(razoringFactor, 1, 1000);
+
+int nmpRedBase = 3;
+TUNE(nmpRedBase, 1, 5);
+int nmpDepthDiv = 3;
+TUNE(nmpDepthDiv, 1, 6);
+int nmpMin = 3;
+TUNE(nmpMin, 1, 10);
+int nmpDivisor = 200;
+TUNE(nmpDivisor, 10, 1000);
+
+int seeDepth = 9;
+TUNE(seeDepth, 2, 20);
+
+int lmrMcBase = 4;
+TUNE(lmrMcBase, 1, 10);
+int lmrMcPv = 4;
+TUNE(lmrMcPv, 1, 10);
+int lmrMinDepth = 3;
+TUNE(lmrMinDepth, 1, 10);
+
+int lmrPassBonusFactor = 12;
+TUNE(lmrPassBonusFactor, 1, 32);
+int lmrPassBonusMax = 1536;
+TUNE(lmrPassBonusMax, 32, 8192);
+
+int quietBonusFactor = 12;
+TUNE(quietBonusFactor, 1, 32);
+int quietBonusMax = 1536;
+TUNE(quietBonusMax, 32, 8192);
+
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
 int LMP_MARGIN[MAX_PLY][2];
@@ -26,17 +97,17 @@ void initReductions() {
 
     for (int i = 1; i < MAX_PLY; i++) {
         for (int j = 1; j < MAX_MOVES; j++) {
-            REDUCTIONS[0][i][j] = -0.50 + log(i) * log(j) / 3.00; // non-quiet
-            REDUCTIONS[1][i][j] = +0.00 + log(i) * log(j) / 2.50; // quiet
+            REDUCTIONS[0][i][j] = lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor; // non-quiet
+            REDUCTIONS[1][i][j] = lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor; // quiet
         }
     }
 
     for (int depth = 0; depth < MAX_PLY; depth++) {
-        SEE_MARGIN[depth][0] = -30 * depth * depth; // non-quiet
-        SEE_MARGIN[depth][1] = -80 * depth; // quiet
+        SEE_MARGIN[depth][0] = seeMarginNoisy * depth * depth; // non-quiet
+        SEE_MARGIN[depth][1] = seeMarginQuiet * depth; // quiet
 
-        LMP_MARGIN[depth][0] = 1.5 + 0.5 * std::pow(depth, 2.0); // non-improving
-        LMP_MARGIN[depth][1] = 3.0 + 1.0 * std::pow(depth, 2.0); // improving
+        LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
+        LMP_MARGIN[depth][1] = lmpMarginImprovingBase + lmpMarginImprovingFactor * std::pow(depth, lmpMarginImprovingPower); // improving
     }
 }
 
@@ -139,7 +210,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     (stack + 1)->ply = stack->ply + 1;
 
     stack->staticEval = bestValue = evaluate(board);
-    futilityValue = stack->staticEval + 75;
+    futilityValue = stack->staticEval + qsFutilityOffset;
 
     // Stand pat
     if (bestValue >= beta)
@@ -311,10 +382,10 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
 
     // Reverse futility pruning
-    if (depth < 7 && eval - (70 * depth) >= beta) return eval;
+    if (depth < rfpDepth && eval - (rfpFactor * depth) >= beta) return eval;
 
     // Razoring
-    if (depth <= 4 && eval + 250 * depth < alpha) {
+    if (depth < razoringDepth && eval + (razoringFactor * depth) < alpha) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, thread, stack, alpha, beta);
         if (razorValue <= alpha)
             return razorValue;
@@ -333,7 +404,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         && hasNonPawns(board)
         ) {
         stack->move = MOVE_NULL;
-        int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
+        int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
         doNullMove(board, &boardStack);
         Eval nullValue = -search<NON_PV_NODE>(board, stack + 1, thread, depth - R, -beta, -beta + 1, !cutNode);
@@ -391,7 +462,7 @@ movesLoop:
             }
 
             // SEE Pruning
-            if (depth <= 8 && !SEE(board, move, SEE_MARGIN[depth][!capture]))
+            if (depth < seeDepth && !SEE(board, move, SEE_MARGIN[depth][!capture]))
                 continue;
 
         }
@@ -442,7 +513,7 @@ movesLoop:
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > 4 + 4 * pvNode && depth >= 3 && (!capture || !ttPv)) {
+        if (moveCount > lmrMcBase + lmrMcPv * pvNode && depth >= lmrMinDepth && (!capture || !ttPv)) {
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
             if (!ttPv)
@@ -458,7 +529,7 @@ movesLoop:
                 value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
 
                 if (!capture) {
-                    int bonus = std::min(12 * (depth + 1) * (depth + 1), 1536);
+                    int bonus = std::min(lmrPassBonusFactor * (depth + 1) * (depth + 1), lmrPassBonusMax);
                     updateContinuationHistory(board, stack, move, bonus);
                 }
             }
@@ -501,7 +572,7 @@ movesLoop:
                         if (stack->ply >= 1)
                             counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)] = move;
 
-                        int bonus = std::min(12 * (depth + 1) * (depth + 1), 1536);
+                        int bonus = std::min(quietBonusFactor * (depth + 1) * (depth + 1), quietBonusMax);
                         updateHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }
                     break;
