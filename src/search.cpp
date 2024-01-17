@@ -17,45 +17,45 @@
 #include "spsa.h"
 
 // Reduction / Margin tables
-float lmrReductionNoisyBase = -0.50f;
+float lmrReductionNoisyBase = -0.5644801477938305f;
 TUNE(lmrReductionNoisyBase, -5.00f, 5.00f);
-float lmrReductionNoisyFactor = 3.00f;
+float lmrReductionNoisyFactor = 2.969836944423788f;
 TUNE(lmrReductionNoisyFactor, 1.00f, 10.00f);
-float lmrReductionQuietBase = 0.00f;
+float lmrReductionQuietBase = 0.09243945358419976f;
 TUNE(lmrReductionQuietBase, -5.00f, 5.00f);
-float lmrReductionQuietFactor = 2.50f;
+float lmrReductionQuietFactor = 2.6762372199592814f;
 TUNE(lmrReductionQuietFactor, 1.00f, 10.00f);
 
-float seeMarginNoisy = -30.0f;
+float seeMarginNoisy = -29.051517652498877f;
 TUNE(seeMarginNoisy, -100.0f, -1.0f);
-float seeMarginQuiet = -80.0f;
+float seeMarginQuiet = -78.57035600169341f;
 TUNE(seeMarginQuiet, -200.0f, -1.0f);
-float lmpMarginWorseningBase = 1.5f;
+float lmpMarginWorseningBase = 1.2105359457633742f;
 TUNE(lmpMarginWorseningBase, -2.5f, 10.0f);
-float lmpMarginWorseningFactor = 0.5f;
+float lmpMarginWorseningFactor = 0.5197107065464943f;
 TUNE(lmpMarginWorseningFactor, 0.05f, 2.5f);
-float lmpMarginWorseningPower = 2.0f;
+float lmpMarginWorseningPower = 2.0976545057993152f;
 TUNE(lmpMarginWorseningPower, 0.5f, 5.0f);
-float lmpMarginImprovingBase = 3.0f;
+float lmpMarginImprovingBase = 2.9333543531169344f;
 TUNE(lmpMarginImprovingBase, -2.5f, 10.0f);
-float lmpMarginImprovingFactor = 1.0f;
+float lmpMarginImprovingFactor = 1.0419184561634693f;
 TUNE(lmpMarginImprovingFactor, 0.05f, 2.5f);
-float lmpMarginImprovingPower = 2.0f;
+float lmpMarginImprovingPower = 1.9009374946142727f;
 TUNE(lmpMarginImprovingPower, 0.5f, 5.0f);
 
 // Search values
-int qsFutilityOffset = 75;
+int qsFutilityOffset = 69;
 TUNE(qsFutilityOffset, 0, 250);
 
 // Pre-search pruning
-int rfpDepth = 7;
+int rfpDepth = 6;
 TUNE(rfpDepth, 2, 20);
-int rfpFactor = 70;
+int rfpFactor = 64;
 TUNE(rfpFactor, 1, 250);
 
 int razoringDepth = 5;
 TUNE(razoringDepth, 2, 20);
-int razoringFactor = 250;
+int razoringFactor = 271;
 TUNE(razoringFactor, 1, 1000);
 
 int nmpRedBase = 3;
@@ -64,7 +64,7 @@ int nmpDepthDiv = 3;
 TUNE(nmpDepthDiv, 1, 6);
 int nmpMin = 3;
 TUNE(nmpMin, 1, 10);
-int nmpDivisor = 200;
+int nmpDivisor = 201;
 TUNE(nmpDivisor, 10, 1000);
 
 int seeDepth = 9;
@@ -77,14 +77,14 @@ TUNE(lmrMcPv, 1, 10);
 int lmrMinDepth = 3;
 TUNE(lmrMinDepth, 1, 10);
 
-int lmrPassBonusFactor = 12;
+int lmrPassBonusFactor = 11;
 TUNE(lmrPassBonusFactor, 1, 32);
-int lmrPassBonusMax = 1536;
+int lmrPassBonusMax = 1289;
 TUNE(lmrPassBonusMax, 32, 8192);
 
-int quietBonusFactor = 12;
+int quietBonusFactor = 13;
 TUNE(quietBonusFactor, 1, 32);
-int quietBonusMax = 1536;
+int quietBonusMax = 1567;
 TUNE(quietBonusMax, 32, 8192);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
