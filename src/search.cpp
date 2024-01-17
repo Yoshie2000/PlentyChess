@@ -14,6 +14,7 @@
 #include "history.h"
 #include "time.h"
 #include "nnue.h"
+#include "spsa.h"
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];

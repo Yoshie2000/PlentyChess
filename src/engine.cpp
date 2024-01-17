@@ -1,3 +1,4 @@
+#include "spsa.h"
 #include "thread.h"
 #include "uci.h"
 #include "tt.h"

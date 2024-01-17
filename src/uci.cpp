@@ -14,6 +14,7 @@
 #include "search.h"
 #include "tt.h"
 #include "nnue.h"
+#include "spsa.h"
 
 const std::vector<std::string> benchPositions = {
     //   "setoption name UCI_Chess960 value false",
@@ -354,6 +355,9 @@ void setoption(std::string line) {
     if (name == "Hash") {
         size_t hashSize = std::stoi(value);
         TT.resize(hashSize);
+    } else {
+        // No option found, maybe it's actually an SPSA parameter?
+        SPSA::trySetParam(name, value);
     }
 }
 
