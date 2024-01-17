@@ -173,10 +173,12 @@ class MoveGen {
     Move killers[2];
 
     Move moveList[MAX_MOVES];
+    int moveListScores[MAX_MOVES];
     int generatedMoves;
     int returnedMoves;
 
     Move badCaptureList[32]; // There can never be more than 32 pieces on the board => never more than 32 captures possible
+    int badCaptureScores[32];
     int generatedBadCaptures; // Bad captures only count as "generated" when the corresponding stage sorts them
     int flaggedBadCaptures; // Before that, this counter will keep track of them
     int returnedBadCaptures;
@@ -196,6 +198,12 @@ public:
     Move nextMove();
 
 private:
+
+    int scoreGoodCaptures(int beginIndex, int endIndex);
+    int scoreQuiets(int beginIndex, int endIndex);
+    void scoreBadCaptures();
+
+    void sortMoves(Move* moves, int* scores, int beginIndex, int endIndex);
 
     Move cycleUntilNextMove();
 

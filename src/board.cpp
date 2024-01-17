@@ -317,6 +317,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
+    Move specialMove = move & 0x3000;
 
     assert(origin < 64 && target < 64);
 
@@ -340,19 +341,31 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     // Increment the NNUE accumulator to indicate that we're on a different move now
     nnue.incrementAccumulator();
 
-    if (piece == PIECE_PAWN)
+    // En passent square
+    if (newStack->previous->enpassantTarget != 0) {
+        newStack->hash ^= ZOBRIST_ENPASSENT[lsb(newStack->previous->enpassantTarget) % 8];
+    }
+    newStack->enpassantTarget = 0;
+
+    if (piece == PIECE_PAWN) {
         newStack->rule50_ply = 0;
 
-    // This move is en passent
-    Move specialMove = move & 0x3000;
-    if (specialMove == MOVE_ENPASSANT) {
-        newStack->capturedPiece = PIECE_PAWN;
-        captureTarget = target - UP[board->stm];
+        // This move is en passent
+        if (specialMove == MOVE_ENPASSANT) {
+            newStack->capturedPiece = PIECE_PAWN;
+            captureTarget = target - UP[board->stm];
 
-        assert(captureTarget < 64);
+            assert(captureTarget < 64);
 
-        captureTargetBB = C64(1) << captureTarget;
-        board->pieces[captureTarget] = NO_PIECE; // remove the captured pawn
+            captureTargetBB = C64(1) << captureTarget;
+            board->pieces[captureTarget] = NO_PIECE; // remove the captured pawn
+        }
+
+        if ((origin ^ target) == 16) {
+            assert(target - UP[board->stm] < 64);
+            newStack->enpassantTarget = C64(1) << (target - UP[board->stm]);
+            newStack->hash ^= ZOBRIST_ENPASSENT[origin % 8];
+        }
     }
 
     // Handle capture
@@ -366,17 +379,6 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
         newStack->pieceCount[1 - board->stm][newStack->capturedPiece]--;
         newStack->rule50_ply = 0;
-    }
-
-    // En passent square
-    if (newStack->previous->enpassantTarget != 0) {
-        newStack->hash ^= ZOBRIST_ENPASSENT[lsb(newStack->previous->enpassantTarget) % 8];
-    }
-    newStack->enpassantTarget = 0;
-    if (piece == PIECE_PAWN && (origin ^ target) == 16) {
-        assert(target - UP[board->stm] < 64);
-        newStack->enpassantTarget = C64(1) << (target - UP[board->stm]);
-        newStack->hash ^= ZOBRIST_ENPASSENT[origin % 8];
     }
 
     // This move is castling
