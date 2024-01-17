@@ -4,24 +4,33 @@
 #include "spsa.h"
 
 void SPSA::trySetParam(std::string varName, std::string value) {
-    SPSAValue* entry = {};
-    bool found = false;
-    for (SPSAValue& other : instance().tuneValues) {
+    
+    SPSAValue<int>* intEntry = {};
+    SPSAValue<float>* floatEntry = {};
+    bool foundInt = false;
+    bool foundFloat = false;
+    for (SPSAValue<int>& other : instance().intValues) {
         if (other.varName == varName) {
-            entry = &other;
-            found = true;
+            intEntry = &other;
+            foundInt = true;
             break;
         }
     }
-    if (!found) return;
+    for (SPSAValue<float>& other : instance().floatValues) {
+        if (other.varName == varName) {
+            floatEntry = &other;
+            foundFloat = true;
+            break;
+        }
+    }
 
     bool isFloat = value.find(".") <= value.size();
-    if (isFloat) {
-        float* floatVariable = (float*)entry->varPointer;
+    if (isFloat && foundFloat) {
+        float* floatVariable = (float*)floatEntry->varPointer;
         *floatVariable = std::stof(value);
     }
-    else {
-        int* intVariable = (int*)entry->varPointer;
+    else if (foundInt) {
+        int* intVariable = (int*)intEntry->varPointer;
         *intVariable = std::stoi(value);
     }
 }
