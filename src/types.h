@@ -58,5 +58,6 @@ struct SearchStack {
     Move move;
     Piece movedPiece;
 
+    Move excludedMove;
     Move killers[2];
 };
