@@ -2,4 +2,4 @@
 
 #include "thread.h"
 
-void uciLoop(Thread* searchThread, int argc, char* argv[]);
+void uciLoop(ThreadPool* searchThread, int argc, char* argv[]);

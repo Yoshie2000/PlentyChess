@@ -8,7 +8,6 @@
 #include <immintrin.h>
 
 #include "types.h"
-#include "board.h"
 
 #define NETWORK_FILE "network.bin"
 #define ALT_NETWORK_FILE "alt-network.bin"
@@ -207,19 +206,17 @@ struct NetworkData {
 
 class NNUE {
 
+  alignas(ALIGNMENT) int cachedFeatureOffsets[2][PIECE_TYPES * 2 + 1][64];
+
+public:
+
   NetworkData networkData;
   Accumulator accumulatorStack[MAX_PLY];
   int currentAccumulator;
   int lastCalculatedAccumulator;
 
-  alignas(ALIGNMENT) int cachedFeatureOffsets[2][PIECE_TYPES * 2 + 1][64];
-
-public:
-
   void initNetwork();
 
-  void resetAccumulators(Board* board);
-  
   void addPiece(Square square, Piece piece, Color pieceColor);
   void removePiece(Square square, Piece piece, Color pieceColor);
   void movePiece(Square origin, Square target, Piece piece, Color pieceColor);
@@ -229,8 +226,6 @@ public:
 
   Eval evaluate(Color side);
 
-private:
-
   void calculateAccumulators();
   void addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
   void removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
@@ -238,4 +233,6 @@ private:
 
 };
 
-extern NNUE nnue;
+#include "board.h"
+
+void resetAccumulators(Board* board, NNUE* nnue);
