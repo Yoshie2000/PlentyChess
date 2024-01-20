@@ -13,7 +13,6 @@
 #include "tt.h"
 #include "magic.h"
 #include "evaluation.h"
-#include "nnue.h"
 
 const Bitboard FILE_A = 0x0101010101010101;
 const Bitboard FILE_B = 0x0202020202020202;
@@ -276,8 +275,6 @@ size_t parseFen(Board* board, std::string fen) {
     updateSliderPins(board, COLOR_WHITE);
     updateSliderPins(board, COLOR_BLACK);
 
-    nnue.resetAccumulators(board);
-
     return i;
 }
 
@@ -306,7 +303,7 @@ void castlingRookSquares(Board* board, Square origin, Square target, Square* roo
     }
 }
 
-void doMove(Board* board, BoardStack* newStack, Move move) {
+void doMove(Board* board, BoardStack* newStack, Move move, NNUE* nnue) {
     newStack->previous = board->stack;
     board->stack = newStack;
     memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(uint8_t));
@@ -339,7 +336,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     board->pieces[target] = piece;
 
     // Increment the NNUE accumulator to indicate that we're on a different move now
-    nnue.incrementAccumulator();
+    nnue->incrementAccumulator();
 
     // En passent square
     if (newStack->previous->enpassantTarget != 0) {
@@ -373,7 +370,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
         board->byColor[1 - board->stm] ^= captureTargetBB; // take away the captured piece
         board->byPiece[newStack->capturedPiece] ^= captureTargetBB;
 
-        nnue.removePiece(captureTarget, newStack->capturedPiece, (Color)(1 - board->stm));
+        nnue->removePiece(captureTarget, newStack->capturedPiece, (Color)(1 - board->stm));
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[1 - board->stm][newStack->capturedPiece][captureTarget];
 
@@ -397,7 +394,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[board->stm][PIECE_ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[board->stm][PIECE_ROOK][rookTarget];
 
-        nnue.movePiece(rookOrigin, rookTarget, PIECE_ROOK, board->stm);
+        nnue->movePiece(rookOrigin, rookTarget, PIECE_ROOK, board->stm);
     }
 
     // This move is promotion
@@ -412,8 +409,8 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
 
         // Promotion, we don't move the current piece, instead we remove it from the origin square
         // and place the promotionPiece on the target square. This saves one accumulator update
-        nnue.removePiece(origin, piece, board->stm);
-        nnue.addPiece(target, promotionPiece, board->stm);
+        nnue->removePiece(origin, piece, board->stm);
+        nnue->addPiece(target, promotionPiece, board->stm);
 
         newStack->pieceCount[board->stm][PIECE_PAWN]--;
         newStack->pieceCount[board->stm][promotionPiece]++;
@@ -421,7 +418,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     }
     else {
         // No promotion, we can normally move the piece in the accumulator
-        nnue.movePiece(origin, target, piece, board->stm);
+        nnue->movePiece(origin, target, piece, board->stm);
     }
 
     newStack->hash ^= ZOBRIST_PIECE_SQUARES[board->stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[board->stm][piece][target];
@@ -472,7 +469,7 @@ void doMove(Board* board, BoardStack* newStack, Move move) {
     newStack->move = move;
 }
 
-void undoMove(Board* board, Move move) {
+void undoMove(Board* board, Move move, NNUE* nnue) {
     board->stm = 1 - board->stm;
 
     Square origin = moveOrigin(move);
@@ -534,7 +531,7 @@ void undoMove(Board* board, Move move) {
         board->pieces[origin] = PIECE_PAWN;
     }
 
-    nnue.decrementAccumulator();
+    nnue->decrementAccumulator();
 
     board->stack = board->stack->previous;
 }

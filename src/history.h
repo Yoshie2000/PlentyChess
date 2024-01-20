@@ -2,24 +2,33 @@
 
 #include "types.h"
 #include "board.h"
-#include "search.h"
 
-extern int quietHistory[2][64][64];
-extern Move counterMoves[64][64];
-extern int continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES][64];
-extern int captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
+class History {
 
-void initHistory();
+    int quietHistory[2][64][64];
+    Move counterMoves[64][64];
+    int continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES][64];
+    int captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
 
-int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
 
-int getQuietHistory(Board* board, Move move);
-void updateQuietHistory(Board* board, Move move, int bonus);
+public:
+    void initHistory();
 
-int getContinuationHistory(Board* board, SearchStack* stack, Move move);
-void updateContinuationHistory(Board* board, SearchStack* stack, Move move, int bonus);
+    int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
 
-int* getCaptureHistory(Board* board, Move move);
-void updateCaptureHistory(Board* board, Move move, int bonus, Move* captureMoves, int captureMoveCount);
+    int getQuietHistory(Board* board, Move move);
+    void updateQuietHistory(Board* board, Move move, int bonus);
 
-void updateQuietHistories(Board* board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount);
+    int getContinuationHistory(Board* board, SearchStack* stack, Move move);
+    void updateContinuationHistory(Board* board, SearchStack* stack, Move move, int bonus);
+
+    int* getCaptureHistory(Board* board, Move move);
+    void updateSingleCaptureHistory(Board* board, Move move, int bonus);
+    void updateCaptureHistory(Board* board, Move move, int bonus, Move* captureMoves, int captureMoveCount);
+
+    void updateQuietHistories(Board* board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount);
+
+    Move getCounterMove(Move move);
+    void setCounterMove(Move move, Move counter);
+
+};
