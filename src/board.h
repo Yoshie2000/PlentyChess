@@ -62,10 +62,10 @@ struct BoardStack {
 void startpos(Board* result);
 size_t parseFen(Board* board, std::string fen);
 
-void resetAccumulator(Board* board);
+#include "nnue.h"
 
-void doMove(Board* board, BoardStack* newStack, Move move);
-void undoMove(Board* board, Move move);
+void doMove(Board* board, BoardStack* newStack, Move move, NNUE* nnue);
+void undoMove(Board* board, Move move, NNUE* nnue);
 void doNullMove(Board* board, BoardStack* newStack);
 void undoNullMove(Board* board);
 

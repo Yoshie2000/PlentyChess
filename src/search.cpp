@@ -11,8 +11,8 @@
 #include "evaluation.h"
 #include "thread.h"
 #include "tt.h"
-#include "history.h"
 #include "time.h"
+#include "spsa.h"
 #include "nnue.h"
 #include "spsa.h"
 
@@ -106,6 +106,7 @@ uint64_t perftInternal(Board* board, int depth) {
     if (depth == 0) return C64(1);
 
     BoardStack stack;
+    NNUE nnue;
 
     Move moves[MAX_MOVES] = { MOVE_NONE };
     int moveCount = 0;
@@ -118,9 +119,9 @@ uint64_t perftInternal(Board* board, int depth) {
         if (!isLegal(board, move))
             continue;
 
-        doMove(board, &stack, move);
+        doMove(board, &stack, move, &nnue);
         uint64_t subNodes = perftInternal(board, depth - 1);
-        undoMove(board, move);
+        undoMove(board, move, &nnue);
 
         nodes += subNodes;
     }
@@ -130,6 +131,7 @@ uint64_t perftInternal(Board* board, int depth) {
 uint64_t perft(Board* board, int depth) {
     clock_t begin = clock();
     BoardStack stack;
+    NNUE nnue;
 
     Move moves[MAX_MOVES] = { MOVE_NONE };
     int moveCount = 0;
@@ -142,9 +144,9 @@ uint64_t perft(Board* board, int depth) {
         if (!isLegal(board, move))
             continue;
 
-        doMove(board, &stack, move);
+        doMove(board, &stack, move, &nnue);
         uint64_t subNodes = perftInternal(board, depth - 1);
-        undoMove(board, move);
+        undoMove(board, move, &nnue);
 
         std::cout << moveToString(move) << ": " << subNodes << std::endl;
 
@@ -197,7 +199,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
 
     // Check for stop
     if (thread->searchData.stopSearching || stack->ply >= MAX_PLY || isDraw(board))
-        return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board) : drawEval(thread);
+        return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &thread->nnue) : drawEval(thread);
 
     BoardStack boardStack;
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
@@ -227,7 +229,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
-    stack->staticEval = bestValue = ttHit && ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board);
+    stack->staticEval = bestValue = ttHit && ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board, &thread->nnue);
     futilityValue = stack->staticEval + qsFutilityOffset;
 
     // Stand pat
@@ -249,7 +251,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     }
 
     // Moves loop
-    MoveGen movegen(board, stack, isCapture(board, ttMove) ? ttMove : MOVE_NONE, true);
+    MoveGen movegen(board, stack, &thread->history, isCapture(board, ttMove) ? ttMove : MOVE_NONE, true);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -267,10 +269,10 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
 
         moveCount++;
         thread->searchData.nodesSearched++;
-        doMove(board, &boardStack, move);
+        doMove(board, &boardStack, move, &thread->nnue);
 
         Eval value = -qsearch<nodeType>(board, thread, stack + 1, -beta, -alpha);
-        undoMove(board, move);
+        undoMove(board, move, &thread->nnue);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
         if (value > bestValue) {
@@ -343,12 +345,12 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     if (!rootNode) {
 
-        if (timeOver(&thread->searchParameters, &thread->searchData))
+        if (timeOver(thread->searchParameters, &thread->searchData))
             thread->searchData.stopSearching = true;
 
         // Check for stop or max depth
         if (thread->searchData.stopSearching || stack->ply >= MAX_PLY || isDraw(board))
-            return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board) : drawEval(thread);
+            return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &thread->nnue) : drawEval(thread);
 
         // Mate distance pruning
         alpha = std::max((int)alpha, (int)matedIn(stack->ply));
@@ -387,13 +389,13 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         goto movesLoop;
     }
     if (ttHit) {
-        eval = stack->staticEval = ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board);
+        eval = stack->staticEval = ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board, &thread->nnue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
-        eval = stack->staticEval = evaluate(board);
+        eval = stack->staticEval = evaluate(board, &thread->nnue);
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, eval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
@@ -462,8 +464,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
 movesLoop:
     // Moves loop
-    Move counterMove = stack->ply > 0 ? counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)] : MOVE_NONE;
-    MoveGen movegen(board, stack, ttMove, counterMove, stack->killers);
+    MoveGen movegen(board, &thread->history, stack, ttMove, stack->killers);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -558,7 +559,7 @@ movesLoop:
         thread->searchData.nodesSearched++;
         stack->move = move;
         stack->movedPiece = board->pieces[moveOrigin(move)];
-        doMove(board, &boardStack, move);
+        doMove(board, &boardStack, move, &thread->nnue);
 
         if (doExtensions && extension == 0 && board->stack->checkers)
             extension = 1;
@@ -590,7 +591,7 @@ movesLoop:
 
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusFactor * (depth + 1) * (depth + 1), lmrPassBonusMax);
-                    updateContinuationHistory(board, stack, move, bonus);
+                    thread->history.updateContinuationHistory(board, stack, move, bonus);
                 }
             }
         }
@@ -606,7 +607,7 @@ movesLoop:
             value = -search<PV_NODE>(board, stack + 1, thread, newDepth, -beta, -alpha, false);
         }
 
-        undoMove(board, move);
+        undoMove(board, move, &thread->nnue);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
         if (value > bestValue) {
@@ -630,13 +631,13 @@ movesLoop:
 
                         // Update counter move
                         if (stack->ply >= 1)
-                            counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)] = move;
+                            thread->history.setCounterMove((stack - 1)->move, move);
 
                         int bonus = std::min(historyBonusFactor * (depth + 1) * (depth + 1), historyBonusMax);
-                        updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
+                        thread->history.updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }
                     int bonus = std::min(historyBonusFactor * (depth + 1) * (depth + 1), historyBonusMax);
-                    updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
+                    thread->history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
                 }
             }
@@ -665,9 +666,9 @@ void Thread::tsearch() {
     if (TUNE_ENABLED)
         initReductions();
 
-    nnue.resetAccumulators(&rootBoard);
+    resetAccumulators(&rootBoard, &nnue);
 
-    int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : searchParameters.depth;
+    int maxDepth = searchParameters->depth == 0 ? MAX_PLY - 1 : searchParameters->depth;
     Move bestMove = MOVE_NONE;
 
     searchData.nodesSearched = 0;
@@ -755,7 +756,7 @@ void Thread::tsearch() {
         }
         std::cout << std::endl;
 
-        if (timeOverDepthCleared(&searchParameters, &searchData))
+        if (timeOverDepthCleared(searchParameters, &searchData))
             break;
     }
 

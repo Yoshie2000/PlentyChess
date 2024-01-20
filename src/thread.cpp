@@ -5,8 +5,12 @@
 
 #include "thread.h"
 #include "search.h"
+#include "history.h"
 
-Thread::Thread(void) : thread(&Thread::idle, this) {  }
+Thread::Thread(void) : thread(&Thread::idle, this) {
+    history.initHistory();
+    nnue.initNetwork();
+}
 
 Thread::~Thread() {
     exit();
@@ -32,8 +36,8 @@ void Thread::idle() {
         searching = true;
 
         // Do the search stuff here
-        if (searchParameters.perft) {
-            searchData.nodesSearched = perft(&rootBoard, searchParameters.depth);
+        if (searchParameters->perft) {
+            searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
         }
         else {
             tsearch();
@@ -54,13 +58,13 @@ void Thread::exit() {
     cv.notify_one();
 }
 
-void Thread::startSearching(Board board, std::deque<BoardStack> queue, SearchParameters parameters) {
-    rootBoard = std::move(board);
-    rootStackQueue = std::move(queue);
-    searchParameters = std::move(parameters);
+void Thread::startSearching(Board board, std::deque<BoardStack>* queue, SearchParameters* parameters) {
+    memcpy(&rootBoard, &board, sizeof(Board));
+    rootStackQueue = queue;
+    searchParameters = parameters;
 
-    rootStack = rootStackQueue.back();
-    rootBoard.stack = &rootStack;
+    rootStack = &rootStackQueue->back();
+    rootBoard.stack = rootStack;
 
     mutex.lock();
     searching = true;
