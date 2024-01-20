@@ -9,6 +9,7 @@ void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
     memset(counterMoves, MOVE_NONE, sizeof(counterMoves));
     memset(continuationHistory, 0, sizeof(continuationHistory));
+    memset(captureHistory, 0, sizeof(captureHistory));
 }
 
 int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
