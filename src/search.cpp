@@ -67,8 +67,8 @@ TUNE_INT(lmrMinDepth, 3, 1, 10);
 TUNE_INT(lmrPassBonusFactor, 11, 1, 32);
 TUNE_INT(lmrPassBonusMax, 1403, 32, 8192);
 
-TUNE_INT(quietBonusFactor, 16, 1, 32);
-TUNE_INT(quietBonusMax, 1663, 32, 8192);
+TUNE_INT(historyBonusFactor, 16, 1, 32);
+TUNE_INT(historyBonusMax, 1663, 32, 8192);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
@@ -566,10 +566,10 @@ movesLoop:
                         if (stack->ply >= 1)
                             counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)] = move;
 
-                        int bonus = std::min(quietBonusFactor * (depth + 1) * (depth + 1), quietBonusMax);
+                        int bonus = std::min(historyBonusFactor * (depth + 1) * (depth + 1), historyBonusMax);
                         updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }
-                    int bonus = std::min(quietBonusFactor * (depth + 1) * (depth + 1), quietBonusMax);
+                    int bonus = std::min(historyBonusFactor * (depth + 1) * (depth + 1), historyBonusMax);
                     updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
                 }
