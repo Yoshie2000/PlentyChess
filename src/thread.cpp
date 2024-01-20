@@ -7,34 +7,33 @@
 #include "search.h"
 #include "history.h"
 
-Thread::Thread(void) : thread(&Thread::idle, this) {
+Thread::Thread(std::shared_ptr<std::function<void()>> stopSearchingPtr, std::shared_ptr<std::function<uint64_t()>> nodesSearchedPtr, int threadId) : stopSearchingPtr(stopSearchingPtr), nodesSearchedPtr(nodesSearchedPtr), threadId(threadId), mainThread(threadId == 0) {
     history.initHistory();
     nnue.initNetwork();
 }
 
 Thread::~Thread() {
     exit();
-    thread.join();
 }
 
-void Thread::idle() {
-    printf("Engine thread running\n");
+void Thread::exit() {
+    stopSearching();
+    waitForSearchFinished();
+}
 
-    while (true) {
+void Thread::startSearching(Board board, std::deque<BoardStack>* queue, SearchParameters* parameters) {
+    if (thread.joinable())
+        return;
 
-        std::unique_lock<std::mutex> lock(mutex);
-        searching = false;
-        cv.notify_one();
-        cv.wait(lock, [&] { return searching; });
+    memcpy(&rootBoard, &board, sizeof(Board));
+    rootStackQueue = queue;
+    searchParameters = parameters;
 
-        if (exiting)
-            break;
+    rootStack = &rootStackQueue->back();
+    rootBoard.stack = rootStack;
+    searchData.stopSearching = false;
 
-        lock.unlock();
-
-        searchData.stopSearching = false;
-        searching = true;
-
+    thread = std::thread([this]() {
         // Do the search stuff here
         if (searchParameters->perft) {
             searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
@@ -42,34 +41,7 @@ void Thread::idle() {
         else {
             tsearch();
         }
-
-        if (exiting)
-            break;
-    }
-    printf("Engine thread stopping\n");
-}
-
-void Thread::exit() {
-    exiting = true;
-    stopSearching();
-    mutex.lock();
-    searching = true;
-    mutex.unlock();
-    cv.notify_one();
-}
-
-void Thread::startSearching(Board board, std::deque<BoardStack>* queue, SearchParameters* parameters) {
-    memcpy(&rootBoard, &board, sizeof(Board));
-    rootStackQueue = queue;
-    searchParameters = parameters;
-
-    rootStack = &rootStackQueue->back();
-    rootBoard.stack = rootStack;
-
-    mutex.lock();
-    searching = true;
-    mutex.unlock();
-    cv.notify_one();
+    });
 }
 
 void Thread::stopSearching() {
@@ -77,6 +49,11 @@ void Thread::stopSearching() {
 }
 
 void Thread::waitForSearchFinished() {
-    std::unique_lock<std::mutex> lock(mutex);
-    cv.wait(lock, [&] { return !searching; });
+    if (thread.joinable())
+        thread.join();
+}
+
+void Thread::ucinewgame() {
+    history.initHistory();
+    nnue.initNetwork();
 }
