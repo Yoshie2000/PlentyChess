@@ -6,10 +6,10 @@
 #include "move.h"
 #include "search.h"
 
-
 int quietHistory[2][64][64];
 Move counterMoves[64][64];
 int continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES][64];
+int captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
 
 void initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
@@ -78,7 +78,44 @@ void updateContinuationHistory(Board* board, SearchStack* stack, Move move, int 
     }
 }
 
-void updateHistories(Board* board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount) {
+int* getCaptureHistory(Board* board, Move move) {
+    Piece movedPiece = board->pieces[moveOrigin(move)];
+    Piece capturedPiece = board->pieces[moveTarget(move)];
+    Square target = moveTarget(move);
+
+    if (capturedPiece == NO_PIECE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
+        capturedPiece = PIECE_PAWN;
+
+    if (movedPiece == NO_PIECE || capturedPiece == NO_PIECE) {
+        debugBoard(board);
+        std::cout << moveToString(move) << std::endl;
+    }
+
+    assert(movedPiece != NO_PIECE && capturedPiece != NO_PIECE);
+
+    return &captureHistory[board->stm][movedPiece][target][capturedPiece];
+}
+
+void updateSingleCaptureHistory(Board* board, Move move, int bonus) {
+    int* captHistScore = getCaptureHistory(board, move);
+
+    int scaledBonus = bonus - *captHistScore * std::abs(bonus) / 32768;
+    *captHistScore += scaledBonus;
+}
+
+void updateCaptureHistory(Board* board, Move move, int bonus, Move* captureMoves, int captureMoveCount) {
+    if (isCapture(board, move)) {
+        updateSingleCaptureHistory(board, move, bonus);
+    }
+
+    for (int i = 0; i < captureMoveCount; i++) {
+        Move cMove = captureMoves[i];
+        if (move == cMove) continue;
+        updateSingleCaptureHistory(board, cMove, -bonus);
+    }
+}
+
+void updateQuietHistories(Board* board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
     updateQuietHistory(board, move, bonus);
     updateContinuationHistory(board, stack, move, bonus);
