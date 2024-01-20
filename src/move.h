@@ -5,8 +5,7 @@
 
 #include "types.h"
 #include "board.h"
-
-#define MAX_MOVES 218
+#include "history.h"
 
 #define PROMOTION_QUEEN (Move) (0 << 14)
 #define PROMOTION_ROOK (Move) (1 << 14)
@@ -158,17 +157,12 @@ Move stringToMove(char* string, Board* board = nullptr);
 #define GEN_STAGE_BAD_CAPTURES 5
 #define GEN_STAGE_DONE 100
 
-struct ScoredMove {
-    Move move;
-    int value;
-};
-
 class MoveGen {
 
     Board* board;
+    History* history;
     SearchStack* searchStack;
     Move ttMove;
-    Move counterMove;
     bool onlyCaptures;
     Move killers[2];
 
@@ -185,14 +179,18 @@ class MoveGen {
 
     int generationStage;
 
+    Move counterMove;
+
 public:
-    MoveGen(Board* board, SearchStack* searchStack, Move ttMove, Move counterMove, Move _killers[2]) : board(board), searchStack(searchStack), ttMove(ttMove), counterMove(counterMove), onlyCaptures(false), killers{ _killers[0], _killers[1] }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE) {
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, Move _killers[2]) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(false), killers{ _killers[0], _killers[1] }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE) {
         std::fill(moveList, moveList + MAX_MOVES, MOVE_NONE);
         std::fill(badCaptureList, badCaptureList + 32, MOVE_NONE);
+        counterMove = searchStack->ply > 0 ? history->getCounterMove((searchStack - 1)->move) : MOVE_NONE;
     }
-    MoveGen(Board* board, SearchStack* searchStack, bool onlyCaptures) : board(board), searchStack(searchStack), ttMove(MOVE_NONE), counterMove(MOVE_NONE), onlyCaptures(onlyCaptures), killers{ MOVE_NONE, MOVE_NONE }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_CAPTURES) {
+    MoveGen(Board* board, History* history, SearchStack* searchStack, bool onlyCaptures) : board(board), history(history), searchStack(searchStack), ttMove(MOVE_NONE), onlyCaptures(onlyCaptures), killers{ MOVE_NONE, MOVE_NONE }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_CAPTURES) {
         std::fill(moveList, moveList + MAX_MOVES, MOVE_NONE);
         std::fill(badCaptureList, badCaptureList + 32, MOVE_NONE);
+        counterMove = searchStack->ply > 0 ? history->getCounterMove((searchStack - 1)->move) : MOVE_NONE;
     }
 
     Move nextMove();

@@ -11,8 +11,8 @@ const Eval PIECE_VALUES[PIECE_TYPES + 1] = {
     100, 300, 300, 500, 900, 0, 0
 };
 
-Eval evaluate(Board* board) {
-    Eval eval = nnue.evaluate(board->stm);
+Eval evaluate(Board* board, NNUE* nnue) {
+    Eval eval = nnue->evaluate(board->stm);
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
     return eval;
 }
@@ -96,27 +96,4 @@ bool SEE(Board* board, Move move, Eval threshold) {
     }
 
     return side != board->stm;
-}
-
-void debugSEE(Board* board) {
-    SearchStack* stack = {};
-
-    Move move;
-    Move killers[2] = { MOVE_NONE, MOVE_NONE };
-    MoveGen movegen(board, stack, MOVE_NONE, MOVE_NONE, killers);
-    int i = 0;
-    while ((move = movegen.nextMove()) != MOVE_NONE) {
-        if (!isCapture(board, move)) {
-            std::cout << i << ": " << moveToString(move) << " is not a capture!" << std::endl;
-            i++;
-            continue;
-        }
-
-        bool goodCapture = SEE(board, move, -107);
-        if (goodCapture)
-            std::cout << i << ": " << moveToString(move) << " is a good capture!" << std::endl;
-        else
-            std::cout << i << ": " << moveToString(move) << " is a bad capture!" << std::endl;
-        i++;
-    }
 }

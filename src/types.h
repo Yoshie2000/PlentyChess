@@ -5,6 +5,7 @@
 #define C64(x) ((uint64_t)(x))
 
 #define MAX_PLY 246
+#define MAX_MOVES 218
 
 #define PIECE_TYPES 6
 

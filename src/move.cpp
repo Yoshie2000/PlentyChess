@@ -10,7 +10,6 @@
 #include "bitboard.h"
 #include "evaluation.h"
 #include "tt.h"
-#include "history.h"
 
 bool isPseudoLegal(Board* board, Move move) {
     Square origin = moveOrigin(move);
@@ -571,7 +570,7 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
             score = PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
         else
             score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
-        moveListScores[i] = score + *getCaptureHistory(board, move);
+        moveListScores[i] = score + *history->getCaptureHistory(board, move);
     }
     return endIndex;
 }
@@ -579,7 +578,7 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
 int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
-        int score = getQuietHistory(board, move) + 2 * getContinuationHistory(board, searchStack, move);
+        int score = history->getQuietHistory(board, move) + 2 * history->getContinuationHistory(board, searchStack, move);
 
         // Skip all previously searched moves
         if (move == ttMove || move == killers[0] || move == killers[1] || move == counterMove) {

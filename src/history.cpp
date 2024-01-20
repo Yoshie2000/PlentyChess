@@ -4,29 +4,23 @@
 #include "history.h"
 #include "types.h"
 #include "move.h"
-#include "search.h"
 
-int quietHistory[2][64][64];
-Move counterMoves[64][64];
-int continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES][64];
-int captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
-
-void initHistory() {
+void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
     memset(counterMoves, MOVE_NONE, sizeof(counterMoves));
     memset(continuationHistory, 0, sizeof(continuationHistory));
 }
 
-int getQuietHistory(Board* board, Move move) {
+int History::getQuietHistory(Board* board, Move move) {
     return quietHistory[board->stm][moveOrigin(move)][moveTarget(move)];
 }
 
-void updateQuietHistory(Board* board, Move move, int bonus) {
+void History::updateQuietHistory(Board* board, Move move, int bonus) {
     int scaledBonus = bonus - getQuietHistory(board, move) * std::abs(bonus) / 32768;
     quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += scaledBonus;
 }
 
-int getContinuationHistory(Board* board, SearchStack* stack, Move move) {
+int History::getContinuationHistory(Board* board, SearchStack* stack, Move move) {
     Piece piece = board->pieces[moveOrigin(move)];
     if (piece == NO_PIECE)
         piece = board->pieces[moveTarget(move)];
@@ -51,7 +45,7 @@ int getContinuationHistory(Board* board, SearchStack* stack, Move move) {
     return score;
 }
 
-void updateContinuationHistory(Board* board, SearchStack* stack, Move move, int bonus) {
+void History::updateContinuationHistory(Board* board, SearchStack* stack, Move move, int bonus) {
     // Update continuationHistory
     if (stack->ply > 0) {
         Piece piece = board->pieces[moveOrigin(move)];
@@ -78,7 +72,7 @@ void updateContinuationHistory(Board* board, SearchStack* stack, Move move, int 
     }
 }
 
-int* getCaptureHistory(Board* board, Move move) {
+int* History::getCaptureHistory(Board* board, Move move) {
     Piece movedPiece = board->pieces[moveOrigin(move)];
     Piece capturedPiece = board->pieces[moveTarget(move)];
     Square target = moveTarget(move);
@@ -86,24 +80,19 @@ int* getCaptureHistory(Board* board, Move move) {
     if (capturedPiece == NO_PIECE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
         capturedPiece = PIECE_PAWN;
 
-    if (movedPiece == NO_PIECE || capturedPiece == NO_PIECE) {
-        debugBoard(board);
-        std::cout << moveToString(move) << std::endl;
-    }
-
     assert(movedPiece != NO_PIECE && capturedPiece != NO_PIECE);
 
     return &captureHistory[board->stm][movedPiece][target][capturedPiece];
 }
 
-void updateSingleCaptureHistory(Board* board, Move move, int bonus) {
+void History::updateSingleCaptureHistory(Board* board, Move move, int bonus) {
     int* captHistScore = getCaptureHistory(board, move);
 
     int scaledBonus = bonus - *captHistScore * std::abs(bonus) / 32768;
     *captHistScore += scaledBonus;
 }
 
-void updateCaptureHistory(Board* board, Move move, int bonus, Move* captureMoves, int captureMoveCount) {
+void History::updateCaptureHistory(Board* board, Move move, int bonus, Move* captureMoves, int captureMoveCount) {
     if (isCapture(board, move)) {
         updateSingleCaptureHistory(board, move, bonus);
     }
@@ -115,7 +104,7 @@ void updateCaptureHistory(Board* board, Move move, int bonus, Move* captureMoves
     }
 }
 
-void updateQuietHistories(Board* board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount) {
+void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
     updateQuietHistory(board, move, bonus);
     updateContinuationHistory(board, stack, move, bonus);
@@ -127,4 +116,12 @@ void updateQuietHistories(Board* board, SearchStack* stack, Move move, int bonus
         updateQuietHistory(board, qMove, -bonus);
         updateContinuationHistory(board, stack, qMove, -bonus);
     }
+}
+
+Move History::getCounterMove(Move move) {
+    return counterMoves[moveOrigin(move)][moveTarget(move)];
+}
+
+void History::setCounterMove(Move move, Move counter) {
+    counterMoves[moveOrigin(move)][moveTarget(move)] = counter;
 }
