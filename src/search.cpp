@@ -279,7 +279,9 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
     Move quietMoves[MAX_MOVES] = { MOVE_NONE };
+    Move captureMoves[MAX_MOVES] = { MOVE_NONE };
     int quietMoveCount = 0;
+    int captureMoveCount = 0;
 
     (stack + 1)->ply = stack->ply + 1;
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
@@ -469,6 +471,8 @@ movesLoop:
 
         if (!capture)
             quietMoves[quietMoveCount++] = move;
+        else
+            captureMoves[captureMoveCount++] = move;
 
         moveCount++;
         thread->searchData.nodesSearched++;
@@ -544,8 +548,10 @@ movesLoop:
                             counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)] = move;
 
                         int bonus = std::min(quietBonusFactor * (depth + 1) * (depth + 1), quietBonusMax);
-                        updateHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
+                        updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }
+                    int bonus = std::min(quietBonusFactor * (depth + 1) * (depth + 1), quietBonusMax);
+                    updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
                 }
             }
