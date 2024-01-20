@@ -171,18 +171,6 @@ bool nextToken(std::string* line, std::string* token) {
     return true;
 }
 
-void ucinewgame() {
-    TT.clear();
-    initHistory();
-    nnue.initNetwork();
-}
-
-void ucinewgame() {
-    TT.clear();
-    initHistory();
-    nnue.initNetwork();
-}
-
 void bench(ThreadPool* threads, std::deque<BoardStack>* stackQueue, Board* board) {
     uint64_t nodes = 0;
     int position = 1;
@@ -192,7 +180,7 @@ void bench(ThreadPool* threads, std::deque<BoardStack>* stackQueue, Board* board
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     for (const std::string& fen : benchPositions) {
-        ucinewgame();
+        threads->ucinewgame();
         parseFen(board, fen);
         SearchParameters parameters;
         parameters.depth = 12;
@@ -319,11 +307,14 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
 
     // Make further moves
     NNUE nnue;
+    nnue.initNetwork();
+    resetAccumulators(board, &nnue);
     if (matchesToken(line, "moves")) {
         line = line.substr(6);
 
         char move[5];
         size_t lastStrlen = line.length();
+        int moveCount = 0;
         while (line.length() >= 4) {
             lastStrlen = line.length();
 
@@ -338,6 +329,10 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
             stackQueue->emplace_back();
             doMove(board, &stackQueue->back(), m, &nnue);
 
+            if (moveCount++ > 200) {
+                resetAccumulators(board, &nnue);
+            }
+
             if (line.length() > i)
                 line = line.substr(i + 1);
             if (line.length() >= lastStrlen) break;
@@ -345,7 +340,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
     }
 }
 
-void setoption(std::string line) {
+void setoption(std::string line, ThreadPool* threads) {
     std::string name, value;
 
     if (matchesToken(line, "name")) {
@@ -362,6 +357,9 @@ void setoption(std::string line) {
     if (name == "Hash") {
         size_t hashSize = std::stoi(value);
         TT.resize(hashSize);
+    } else if (name == "Threads") {
+        int numThreads = std::stoi(value);
+        threads->resize(numThreads);
     }
     else {
         // No option found, maybe it's actually an SPSA parameter?
@@ -427,7 +425,6 @@ void uciLoop(ThreadPool* threads, int argc, char* argv[]) {
     board.stack = &stackQueue.back();
     startpos(&board);
 
-    threads->waitForSearchFinished();
     printf("UCI thread running\n");
 
     if (argc > 1 && matchesToken(argv[1], "bench")) {
@@ -443,15 +440,15 @@ void uciLoop(ThreadPool* threads, int argc, char* argv[]) {
         else if (matchesToken(line, "stop")) threads->stopSearching();
 
         else if (matchesToken(line, "isready")) printf("readyok\n");
-        else if (matchesToken(line, "ucinewgame")) ucinewgame();
+        else if (matchesToken(line, "ucinewgame")) threads->ucinewgame();
         else if (matchesToken(line, "uci")) {
-            printf("id name PlentyChess\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 4096\n");
+            printf("id name PlentyChess\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 4096\noption name Threads type spin default 1 min 1 max 512\n");
             SPSA::printUCI();
             printf("\nuciok\n");
         }
         else if (matchesToken(line, "go")) go(line.substr(3), threads, &board, &stackQueue);
         else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
-        else if (matchesToken(line, "setoption")) setoption(line.substr(10));
+        else if (matchesToken(line, "setoption")) setoption(line.substr(10), threads);
 
         /* NON UCI COMMANDS */
         else if (matchesToken(line, "bench")) bench(threads, &stackQueue, &board);
