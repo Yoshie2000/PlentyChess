@@ -92,9 +92,18 @@ public:
 
 };
 
+#define TUNE_ENABLED false
+
 // Some fancy macro stuff to call the tune() methods inline from anywhere
 #define STRINGIFY(x) #x
 #define UNIQUE2(x, y) x##y
 #define UNIQUE(x, y) UNIQUE2(x, y)
 #define GET_FIRST_ARG(arg1, ...) arg1
-#define TUNE(arg1, ...) int UNIQUE(p, __LINE__) = SPSA::tuneStatic(STRINGIFY(arg1), &arg1, __VA_ARGS__)
+
+#if TUNE_ENABLED == true
+    #define TUNE_FLOAT(arg1, arg2, ...) float arg1 = arg2; int UNIQUE(p, __LINE__) = SPSA::tuneStatic(STRINGIFY(arg1), &arg1, __VA_ARGS__)
+    #define TUNE_INT(arg1, arg2, ...) int arg1 = arg2; int UNIQUE(p, __LINE__) = SPSA::tuneStatic(STRINGIFY(arg1), &arg1, __VA_ARGS__)
+#else
+    #define TUNE_FLOAT(arg1, arg2, ...) constexpr float arg1 = arg2
+    #define TUNE_INT(arg1, arg2, ...) constexpr int arg1 = arg2
+#endif

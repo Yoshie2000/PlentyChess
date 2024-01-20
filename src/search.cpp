@@ -17,75 +17,46 @@
 #include "spsa.h"
 
 // Reduction / Margin tables
-float lmrReductionNoisyBase = -0.4096330074311659;
-// TUNE(lmrReductionNoisyBase, -5.00f, 5.00f);
-float lmrReductionNoisyFactor = 2.914479938734182f;
-// TUNE(lmrReductionNoisyFactor, 1.00f, 10.00f);
-float lmrReductionQuietBase = 0.5797128756040184f;
-// TUNE(lmrReductionQuietBase, -5.00f, 5.00f);
-float lmrReductionQuietFactor = 2.7676234985659187f;
-// TUNE(lmrReductionQuietFactor, 1.00f, 10.00f);
+TUNE_FLOAT(lmrReductionNoisyBase, -0.4096330074311659f, -5.00f, 5.00f);
+TUNE_FLOAT(lmrReductionNoisyFactor, 2.914479938734182f, 1.00f, 10.00f);
+TUNE_FLOAT(lmrReductionQuietBase, 0.5797128756040184f, -5.00f, 5.00f);
+TUNE_FLOAT(lmrReductionQuietFactor, 2.7676234985659187f, 1.00f, 10.00f);
 
-float seeMarginNoisy =  -27.39960199367735f;
-// TUNE(seeMarginNoisy, -100.0f, -1.0f);
-float seeMarginQuiet = -76.35829934140916f;
-// TUNE(seeMarginQuiet, -200.0f, -1.0f);
-float lmpMarginWorseningBase = 1.0825945418931069f;
-// TUNE(lmpMarginWorseningBase, -2.5f, 10.0f);
-float lmpMarginWorseningFactor = 0.5334710035758581f;
-// TUNE(lmpMarginWorseningFactor, 0.05f, 2.5f);
-float lmpMarginWorseningPower = 1.995993533227606f;
-// TUNE(lmpMarginWorseningPower, 0.5f, 5.0f);
-float lmpMarginImprovingBase = 2.7970589698247568f;
-// TUNE(lmpMarginImprovingBase, -2.5f, 10.0f);
-float lmpMarginImprovingFactor = 1.0496859839425705f;
-// TUNE(lmpMarginImprovingFactor, 0.05f, 2.5f);
-float lmpMarginImprovingPower = 1.717757682160649f;
-// TUNE(lmpMarginImprovingPower, 0.5f, 5.0f);
+TUNE_FLOAT(seeMarginNoisy, -27.39960199367735f, -100.0f, -1.0f);
+TUNE_FLOAT(seeMarginQuiet, -76.35829934140916f, -200.0f, -1.0f);
+TUNE_FLOAT(lmpMarginWorseningBase, 1.0825945418931069f, -2.5f, 10.0f);
+TUNE_FLOAT(lmpMarginWorseningFactor, 0.5334710035758581f, 0.05f, 2.5f);
+TUNE_FLOAT(lmpMarginWorseningPower, 1.995993533227606f, 0.5f, 5.0f);
+TUNE_FLOAT(lmpMarginImprovingBase, 2.7970589698247568f, -2.5f, 10.0f);
+TUNE_FLOAT(lmpMarginImprovingFactor, 1.0496859839425705f, 0.05f, 2.5f);
+TUNE_FLOAT(lmpMarginImprovingPower, 1.717757682160649f, 0.5f, 5.0f);
 
 // Search values
-int qsFutilityOffset = 63;
-// TUNE(qsFutilityOffset, 0, 250);
+TUNE_INT(qsFutilityOffset, 63, 0, 250);
 
 // Pre-search pruning
-int rfpDepth = 5;
-// TUNE(rfpDepth, 2, 20);
-int rfpFactor = 74;
-// TUNE(rfpFactor, 1, 250);
+TUNE_INT(rfpDepth, 5, 2, 20);
+TUNE_INT(rfpFactor, 74, 1, 250);
 
-int razoringDepth = 4;
-// TUNE(razoringDepth, 2, 20);
-int razoringFactor = 321;
-// TUNE(razoringFactor, 1, 1000);
+TUNE_INT(razoringDepth, 4, 2, 20);
+TUNE_INT(razoringFactor, 321, 1, 1000);
 
-int nmpRedBase = 3;
-// TUNE(nmpRedBase, 1, 5);
-int nmpDepthDiv = 3;
-// TUNE(nmpDepthDiv, 1, 6);
-int nmpMin = 3;
-// TUNE(nmpMin, 1, 10);
-int nmpDivisor = 199;
-// TUNE(nmpDivisor, 10, 1000);
+TUNE_INT(nmpRedBase, 3, 1, 5);
+TUNE_INT(nmpDepthDiv, 3, 1, 6);
+TUNE_INT(nmpMin, 3, 1, 10);
+TUNE_INT(nmpDivisor, 199, 10, 1000);
 
-int seeDepth = 9;
-// TUNE(seeDepth, 2, 20);
+TUNE_INT(seeDepth, 9, 2, 20);
 
-int lmrMcBase = 4;
-// TUNE(lmrMcBase, 1, 10);
-int lmrMcPv = 4;
-// TUNE(lmrMcPv, 1, 10);
-int lmrMinDepth = 3;
-// TUNE(lmrMinDepth, 1, 10);
+TUNE_INT(lmrMcBase, 4, 1, 10);
+TUNE_INT(lmrMcPv, 4, 1, 10);
+TUNE_INT(lmrMinDepth, 3, 1, 10);
 
-int lmrPassBonusFactor = 11;
-// TUNE(lmrPassBonusFactor, 1, 32);
-int lmrPassBonusMax = 1403;
-// TUNE(lmrPassBonusMax, 32, 8192);
+TUNE_INT(lmrPassBonusFactor, 11, 1, 32);
+TUNE_INT(lmrPassBonusMax, 1403, 32, 8192);
 
-int quietBonusFactor = 16;
-// TUNE(quietBonusFactor, 1, 32);
-int quietBonusMax = 1663;
-// TUNE(quietBonusMax, 32, 8192);
+TUNE_INT(quietBonusFactor, 16, 1, 32);
+TUNE_INT(quietBonusMax, 1663, 32, 8192);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
@@ -600,6 +571,9 @@ movesLoop:
 }
 
 void Thread::tsearch() {
+    if (TUNE_ENABLED)
+        initReductions();
+
     nnue.resetAccumulators(&rootBoard);
 
     int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : searchParameters.depth;
