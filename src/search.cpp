@@ -345,8 +345,9 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     if (!rootNode) {
 
-        if (timeOver(thread->searchParameters, &thread->searchData))
-            thread->searchData.stopSearching = true;
+        if (thread->mainThread && timeOver(thread->searchParameters, &thread->searchData)) {
+            (*thread->stopSearchingPtr.get())();
+        }
 
         // Check for stop or max depth
         if (thread->searchData.stopSearching || stack->ply >= MAX_PLY || isDraw(board))
@@ -479,7 +480,7 @@ movesLoop:
         if (!isLegal(board, move))
             continue;
         
-        int moveHistory = getHistory(board, stack, move, capture);
+        int moveHistory = thread->history.getHistory(board, stack, move, capture);
 
         if (!rootNode
             && bestValue > -EVAL_MATE_IN_MAX_PLY
@@ -672,8 +673,8 @@ void Thread::tsearch() {
     Move bestMove = MOVE_NONE;
 
     searchData.nodesSearched = 0;
-    searchData.selDepth = 0;
-    initTimeManagement(&rootBoard, &searchParameters, &searchData);
+    if (mainThread)
+        initTimeManagement(&rootBoard, searchParameters, &searchData);
 
     // Necessary for aspiration windows
     Eval previousValue = EVAL_NONE;
@@ -690,6 +691,7 @@ void Thread::tsearch() {
         stack->killers[0] = stack->killers[1] = MOVE_NONE;
         stack->excludedMove = MOVE_NONE;
         searchData.rootDepth = depth;
+        searchData.selDepth = 0;
 
         // Aspiration Windows
         Eval delta = 2 * EVAL_INFINITE;
@@ -743,22 +745,29 @@ void Thread::tsearch() {
             break;
         }
 
-        // Send UCI info
-        int64_t ms = getTime() - searchData.startTime;
-        int64_t nps = ms == 0 ? 0 : (int64_t)((searchData.nodesSearched) / ((double)ms / 1000));
-        std::cout << "info depth " << depth << " seldepth " << searchData.selDepth << " score " << formatEval(value) << " nodes " << searchData.nodesSearched << " time " << ms << " nps " << nps << " pv ";
+        if (mainThread) {
+            // Send UCI info
+            int64_t ms = getTime() - searchData.startTime;
+            int64_t nodes = (*nodesSearchedPtr.get())();
+            int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
+            std::cout << "info depth " << depth << " seldepth " << searchData.selDepth << " score " << formatEval(value) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
 
-        // Send PV
-        bestMove = stack->pv[0];
-        Move move;
-        while ((move = *stack->pv++) != MOVE_NONE) {
-            std::cout << moveToString(move) << " ";
+            // Send PV
+            bestMove = stack->pv[0];
+            Move move;
+            while ((move = *stack->pv++) != MOVE_NONE) {
+                std::cout << moveToString(move) << " ";
+            }
+            std::cout << std::endl;
+
+            if (timeOverDepthCleared(searchParameters, &searchData)) {
+                (*stopSearchingPtr.get())();
+                break;
+            }
         }
-        std::cout << std::endl;
-
-        if (timeOverDepthCleared(searchParameters, &searchData))
-            break;
     }
 
-    std::cout << "bestmove " << moveToString(bestMove) << std::endl;
+    if (mainThread) {
+        std::cout << "bestmove " << moveToString(bestMove) << std::endl;
+    }
 }
