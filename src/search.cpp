@@ -16,6 +16,12 @@
 #include "nnue.h"
 #include "spsa.h"
 
+// Aspiration windows
+TUNE_INT(aspirationWindowMinDepth, 4, 2, 20);
+TUNE_INT(aspirationWindowDelta, 20, 1, 200);
+TUNE_INT(aspirationWindowMaxFailHighs, 3, 0, 20);
+TUNE_FLOAT(aspirationWindowDeltaFactor, 1.5, 1.0f, 10.0f);
+
 // Reduction / Margin tables
 TUNE_FLOAT(lmrReductionNoisyBase, -0.4096330074311659f, -5.00f, 5.00f);
 TUNE_FLOAT(lmrReductionNoisyFactor, 2.914479938734182f, 1.00f, 10.00f);
@@ -588,8 +594,12 @@ void Thread::tsearch() {
     searchData.nodesSearched = 0;
     initTimeManagement(&rootBoard, &searchParameters, &searchData);
 
+    // Necessary for aspiration windows
+    Eval previousValue = EVAL_NONE;
+
     for (int depth = 1; depth <= maxDepth; depth++) {
-        SearchStack stack[MAX_PLY];
+        SearchStack stackList[MAX_PLY + 1];
+        SearchStack* stack = &stackList[1];
         Move pv[MAX_PLY + 1];
         pv[0] = MOVE_NONE;
         stack->pv = pv;
@@ -600,8 +610,51 @@ void Thread::tsearch() {
         stack->excludedMove = MOVE_NONE;
         searchData.rootDepth = depth;
 
-        // Search
-        Eval value = search<ROOT_NODE>(&rootBoard, stack, this, depth, -EVAL_INFINITE, EVAL_INFINITE, false);
+        // Aspiration Windows
+        Eval delta = 2 * EVAL_INFINITE;
+        Eval alpha = -EVAL_INFINITE;
+        Eval beta = EVAL_INFINITE;
+        Eval value;
+
+        if (depth >= aspirationWindowMinDepth) {
+            // Set up interval for the start of this aspiration window
+            delta = aspirationWindowDelta;
+            alpha = std::max(previousValue - delta, -EVAL_INFINITE);
+            beta = std::min(previousValue + delta, (int)EVAL_INFINITE);
+        }
+
+        int failHighs = 0;
+        while (true) {
+            int searchDepth = std::max(1, depth - failHighs);
+            value = search<ROOT_NODE>(&rootBoard, stack, this, searchDepth, alpha, beta, false);
+
+            // Stop if we need to
+            if (searchData.stopSearching)
+                break;
+
+            // Our window was too high, lower alpha for next iteration
+            if (value <= alpha) {
+                beta = (alpha + beta) / 2;
+                alpha = std::max(value - delta, -EVAL_INFINITE);
+                failHighs = 0;
+            }
+            // Our window was too low, increase beta for next iteration
+            else if (value >= beta) {
+                beta = std::min(value + delta, (int)EVAL_INFINITE);
+                failHighs = std::min(failHighs + 1, aspirationWindowMaxFailHighs);
+            }
+            // Our window was good, increase depth for next iteration
+            else
+                break;
+
+            if (value >= EVAL_MATE_IN_MAX_PLY) {
+                beta = EVAL_INFINITE;
+                failHighs = 0;
+            }
+
+            delta *= aspirationWindowDeltaFactor;
+        }
+        previousValue = value;
 
         if (searchData.stopSearching) {
             if (bestMove == MOVE_NONE)
