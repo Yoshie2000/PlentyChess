@@ -14,6 +14,49 @@
 #include "history.h"
 #include "time.h"
 #include "nnue.h"
+#include "spsa.h"
+
+// Reduction / Margin tables
+TUNE_FLOAT(lmrReductionNoisyBase, -0.4096330074311659f, -5.00f, 5.00f);
+TUNE_FLOAT(lmrReductionNoisyFactor, 2.914479938734182f, 1.00f, 10.00f);
+TUNE_FLOAT(lmrReductionQuietBase, 0.5797128756040184f, -5.00f, 5.00f);
+TUNE_FLOAT(lmrReductionQuietFactor, 2.7676234985659187f, 1.00f, 10.00f);
+
+TUNE_FLOAT(seeMarginNoisy, -27.39960199367735f, -100.0f, -1.0f);
+TUNE_FLOAT(seeMarginQuiet, -76.35829934140916f, -200.0f, -1.0f);
+TUNE_FLOAT(lmpMarginWorseningBase, 1.0825945418931069f, -2.5f, 10.0f);
+TUNE_FLOAT(lmpMarginWorseningFactor, 0.5334710035758581f, 0.05f, 2.5f);
+TUNE_FLOAT(lmpMarginWorseningPower, 1.995993533227606f, 0.5f, 5.0f);
+TUNE_FLOAT(lmpMarginImprovingBase, 2.7970589698247568f, -2.5f, 10.0f);
+TUNE_FLOAT(lmpMarginImprovingFactor, 1.0496859839425705f, 0.05f, 2.5f);
+TUNE_FLOAT(lmpMarginImprovingPower, 1.717757682160649f, 0.5f, 5.0f);
+
+// Search values
+TUNE_INT(qsFutilityOffset, 63, 0, 250);
+
+// Pre-search pruning
+TUNE_INT(rfpDepth, 5, 2, 20);
+TUNE_INT(rfpFactor, 74, 1, 250);
+
+TUNE_INT(razoringDepth, 4, 2, 20);
+TUNE_INT(razoringFactor, 321, 1, 1000);
+
+TUNE_INT(nmpRedBase, 3, 1, 5);
+TUNE_INT(nmpDepthDiv, 3, 1, 6);
+TUNE_INT(nmpMin, 3, 1, 10);
+TUNE_INT(nmpDivisor, 199, 10, 1000);
+
+TUNE_INT(seeDepth, 9, 2, 20);
+
+TUNE_INT(lmrMcBase, 4, 1, 10);
+TUNE_INT(lmrMcPv, 4, 1, 10);
+TUNE_INT(lmrMinDepth, 3, 1, 10);
+
+TUNE_INT(lmrPassBonusFactor, 11, 1, 32);
+TUNE_INT(lmrPassBonusMax, 1403, 32, 8192);
+
+TUNE_INT(quietBonusFactor, 16, 1, 32);
+TUNE_INT(quietBonusMax, 1663, 32, 8192);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
@@ -25,17 +68,17 @@ void initReductions() {
 
     for (int i = 1; i < MAX_PLY; i++) {
         for (int j = 1; j < MAX_MOVES; j++) {
-            REDUCTIONS[0][i][j] = -0.50 + log(i) * log(j) / 3.00; // non-quiet
-            REDUCTIONS[1][i][j] = +0.00 + log(i) * log(j) / 2.50; // quiet
+            REDUCTIONS[0][i][j] = lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor; // non-quiet
+            REDUCTIONS[1][i][j] = lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor; // quiet
         }
     }
 
     for (int depth = 0; depth < MAX_PLY; depth++) {
-        SEE_MARGIN[depth][0] = -30 * depth * depth; // non-quiet
-        SEE_MARGIN[depth][1] = -80 * depth; // quiet
+        SEE_MARGIN[depth][0] = seeMarginNoisy * depth * depth; // non-quiet
+        SEE_MARGIN[depth][1] = seeMarginQuiet * depth; // quiet
 
-        LMP_MARGIN[depth][0] = 1.5 + 0.5 * std::pow(depth, 2.0); // non-improving
-        LMP_MARGIN[depth][1] = 3.0 + 1.0 * std::pow(depth, 2.0); // improving
+        LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
+        LMP_MARGIN[depth][1] = lmpMarginImprovingBase + lmpMarginImprovingFactor * std::pow(depth, lmpMarginImprovingPower); // improving
     }
 }
 
@@ -138,7 +181,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     (stack + 1)->ply = stack->ply + 1;
 
     stack->staticEval = bestValue = evaluate(board);
-    futilityValue = stack->staticEval + 75;
+    futilityValue = stack->staticEval + qsFutilityOffset;
 
     // Stand pat
     if (bestValue >= beta)
@@ -310,10 +353,10 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
 
     // Reverse futility pruning
-    if (depth < 7 && eval - (70 * depth) >= beta) return eval;
+    if (depth < rfpDepth && eval - (rfpFactor * depth) >= beta) return eval;
 
     // Razoring
-    if (depth <= 4 && eval + 250 * depth < alpha) {
+    if (depth < razoringDepth && eval + (razoringFactor * depth) < alpha) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, thread, stack, alpha, beta);
         if (razorValue <= alpha)
             return razorValue;
@@ -332,7 +375,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         && hasNonPawns(board)
         ) {
         stack->move = MOVE_NULL;
-        int R = 3 + depth / 3 + std::min((eval - beta) / 200, 3);
+        int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
         doNullMove(board, &boardStack);
         Eval nullValue = -search<NON_PV_NODE>(board, stack + 1, thread, depth - R, -beta, -beta + 1, !cutNode);
@@ -390,7 +433,7 @@ movesLoop:
             }
 
             // SEE Pruning
-            if (depth <= 8 && !SEE(board, move, SEE_MARGIN[depth][!capture]))
+            if (depth < seeDepth && !SEE(board, move, SEE_MARGIN[depth][!capture]))
                 continue;
 
         }
@@ -441,7 +484,7 @@ movesLoop:
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > 4 + 4 * pvNode && depth >= 3 && (!capture || !ttPv)) {
+        if (moveCount > lmrMcBase + lmrMcPv * pvNode && depth >= lmrMinDepth && (!capture || !ttPv)) {
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
             if (!ttPv)
@@ -457,7 +500,7 @@ movesLoop:
                 value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
 
                 if (!capture) {
-                    int bonus = std::min(12 * (depth + 1) * (depth + 1), 1536);
+                    int bonus = std::min(lmrPassBonusFactor * (depth + 1) * (depth + 1), lmrPassBonusMax);
                     updateContinuationHistory(board, stack, move, bonus);
                 }
             }
@@ -500,7 +543,7 @@ movesLoop:
                         if (stack->ply >= 1)
                             counterMoves[moveOrigin((stack - 1)->move)][moveTarget((stack - 1)->move)] = move;
 
-                        int bonus = std::min(12 * (depth + 1) * (depth + 1), 1536);
+                        int bonus = std::min(quietBonusFactor * (depth + 1) * (depth + 1), quietBonusMax);
                         updateHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }
                     break;
@@ -528,6 +571,9 @@ movesLoop:
 }
 
 void Thread::tsearch() {
+    if (TUNE_ENABLED)
+        initReductions();
+
     nnue.resetAccumulators(&rootBoard);
 
     int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : searchParameters.depth;
