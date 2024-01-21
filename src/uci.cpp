@@ -184,7 +184,11 @@ void bench(Thread* searchThread, std::deque<BoardStack>* stackQueue, Board* boar
     searchThread->waitForSearchFinished();
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+<<<<<<< HEAD
     for (const std::string& fen : benchPositions) {
+=======
+    for (const std::string &fen : benchPositions) {
+>>>>>>> Fix ucinewgame. Bench: 4334885
         ucinewgame();
         parseFen(board, fen);
         SearchParameters parameters;
