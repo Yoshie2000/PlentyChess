@@ -41,6 +41,8 @@ TUNE_FLOAT(lmpMarginImprovingPower, 1.717757682160649f, 0.5f, 5.0f);
 TUNE_INT(qsFutilityOffset, 63, 0, 250);
 
 // Pre-search pruning
+TUNE_INT(iirMinDepth, 4, 1, 20);
+
 TUNE_INT(rfpDepth, 5, 2, 20);
 TUNE_INT(rfpFactor, 74, 1, 250);
 
@@ -348,6 +350,10 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         eval = stack->staticEval = evaluate(board);
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, eval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
+
+    // IIR
+    if (ttMove == MOVE_NONE && depth >= iirMinDepth)
+        depth--;
 
     // Improving
     if (stack->ply >= 2 && (stack - 2)->staticEval != EVAL_NONE) {
