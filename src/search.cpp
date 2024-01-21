@@ -54,6 +54,10 @@ TUNE_INT(nmpDepthDiv, 3, 1, 6);
 TUNE_INT(nmpMin, 3, 1, 10);
 TUNE_INT(nmpDivisor, 199, 10, 1000);
 
+TUNE_INT(fpDepth, 11, 1, 20);
+TUNE_INT(fpBase, 250, 0, 1000);
+TUNE_INT(fpFactor, 150, 1, 500);
+
 TUNE_INT(seeDepth, 9, 2, 20);
 
 TUNE_INT(lmrMcBase, 4, 1, 10);
@@ -436,13 +440,16 @@ movesLoop:
             && hasNonPawns(board)
             ) {
 
-            if (!skipQuiets) {
+            if (!pvNode && !skipQuiets && !board->stack->checkers) {
 
                 // Movecount pruning (LMP)
-                if (!pvNode
-                    && !board->stack->checkers
-                    && moveCount >= LMP_MARGIN[depth][improving]) {
+                if (moveCount >= LMP_MARGIN[depth][improving]) {
                     skipQuiets = true;
+                } else {
+                    // Futility pruning
+                    int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount]);
+                    if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                        skipQuiets = true;
                 }
             }
 
