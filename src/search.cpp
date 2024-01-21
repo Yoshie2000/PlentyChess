@@ -482,6 +482,9 @@ movesLoop:
                 // This move is singular and we should investigate it further
                 extension = 1;
             }
+            // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
+            else if (singularBeta >= beta)
+                return singularBeta;
         }
 
         // Some setup stuff
