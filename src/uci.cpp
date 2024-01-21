@@ -15,6 +15,7 @@
 #include "tt.h"
 #include "nnue.h"
 #include "spsa.h"
+#include "history.h"
 
 const std::vector<std::string> benchPositions = {
     //   "setoption name UCI_Chess960 value false",
@@ -169,6 +170,12 @@ bool nextToken(std::string* line, std::string* token) {
     return true;
 }
 
+void ucinewgame() {
+    TT.clear();
+    initHistory();
+    nnue.initNetwork();
+}
+
 void bench(Thread* searchThread, std::deque<BoardStack>* stackQueue, Board* board) {
     uint64_t nodes = 0;
     int position = 1;
@@ -177,7 +184,8 @@ void bench(Thread* searchThread, std::deque<BoardStack>* stackQueue, Board* boar
     searchThread->waitForSearchFinished();
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    for (const std::string &fen : benchPositions) {
+    for (const std::string& fen : benchPositions) {
+        ucinewgame();
         parseFen(board, fen);
         SearchParameters parameters;
         parameters.depth = 12;
@@ -254,7 +262,7 @@ std::vector<std::string> splitString(const std::string& input, char delimiter) {
 void seetest(Board* board) {
     int passed = 0, failed = 0;
 
-    for (const std::string &line : seeTest) {
+    for (const std::string& line : seeTest) {
         std::stringstream iss(line);
         std::vector<std::string> tokens = splitString(line, '|');
 
@@ -271,8 +279,7 @@ void seetest(Board* board) {
 
         if (result == expected)
             passed++;
-        else
-        {
+        else {
             std::cout << "FAILED " << fen << "|" << uciMove << "(" << moveToString(move) << ")" << " | Expected: " << expected << std::endl;
             failed++;
         }
@@ -355,7 +362,8 @@ void setoption(std::string line) {
     if (name == "Hash") {
         size_t hashSize = std::stoi(value);
         TT.resize(hashSize);
-    } else {
+    }
+    else {
         // No option found, maybe it's actually an SPSA parameter?
         SPSA::trySetParam(name, value);
     }
@@ -435,12 +443,12 @@ void uciLoop(Thread* searchThread, int argc, char* argv[]) {
         else if (matchesToken(line, "stop")) searchThread->stopSearching();
 
         else if (matchesToken(line, "isready")) printf("readyok\n");
+        else if (matchesToken(line, "ucinewgame")) ucinewgame();
         else if (matchesToken(line, "uci")) {
             printf("id name PlentyChess\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 4096\n");
             SPSA::printUCI();
             printf("\nuciok\n");
         }
-        else if (matchesToken(line, "ucinewgame")) printf("TODO\n");
         else if (matchesToken(line, "go")) go(line.substr(3), searchThread, &board, &stackQueue);
         else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
         else if (matchesToken(line, "setoption")) setoption(line.substr(10));
