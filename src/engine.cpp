@@ -1,5 +1,4 @@
 #include "spsa.h"
-#include "thread.h"
 #include "uci.h"
 #include "tt.h"
 #include "magic.h"
@@ -14,8 +13,6 @@ int main(int argc, char* argv[]) {
 
     TT.clear();
 
-    ThreadPool threads(1);
-
-    uciLoop(&threads, argc, argv);
+    uciLoop(argc, argv);
     return 0;
 }
