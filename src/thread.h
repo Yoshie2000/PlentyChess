@@ -62,12 +62,10 @@ class ThreadPool {
 
 public:
 
-    ThreadPool(int numThreads) : threads(0), rootStackQueue(), searchParameters{},
+    ThreadPool() : threads(0), rootStackQueue(), searchParameters{},
         stopSearchingPtr(std::make_shared<std::function<void()>>(std::bind(&ThreadPool::stopSearching, this))),
         nodesSearchedPtr(std::make_shared<std::function<uint64_t()>>(std::bind(&ThreadPool::nodesSearched, this))) {
-        for (int i = 0; i < numThreads; i++) {
-            threads.push_back(std::make_unique<Thread>(stopSearchingPtr, nodesSearchedPtr, i));
-        }
+        resize(1);
     }
 
     void resize(int numThreads) {
