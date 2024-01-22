@@ -38,6 +38,7 @@ void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchDa
 
     // Figure out how we should spend this time
     if (parameters->movetime) {
+        data->optTime = data->startTime + time;
         data->maxTime = data->startTime + time;
     }
     else if (parameters->wtime && parameters->btime) {

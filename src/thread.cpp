@@ -2,55 +2,54 @@
 #include <inttypes.h>
 #include <deque>
 #include <string.h>
+#include <mutex>
+#include <condition_variable>
 
 #include "thread.h"
 #include "search.h"
 #include "history.h"
 
-Thread::Thread(std::shared_ptr<std::function<void()>> stopSearchingPtr, std::shared_ptr<std::function<uint64_t()>> nodesSearchedPtr, int threadId) : stopSearchingPtr(stopSearchingPtr), nodesSearchedPtr(nodesSearchedPtr), threadId(threadId), mainThread(threadId == 0) {
+Thread::Thread(ThreadPool* threadPool, int threadId) : thread(std::thread(&Thread::idle, this)), threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
     history.initHistory();
     nnue.initNetwork();
 }
 
-Thread::~Thread() {
-    exit();
-}
-
-void Thread::exit() {
-    stopSearching();
-    waitForSearchFinished();
-}
-
-void Thread::startSearching(Board board, std::deque<BoardStack>* queue, SearchParameters* parameters) {
-    if (thread.joinable())
-        return;
-
-    memcpy(&rootBoard, &board, sizeof(Board));
-    rootStackQueue = queue;
-    searchParameters = parameters;
+void Thread::startSearching() {
+    memcpy(&rootBoard, &threadPool->rootBoard, sizeof(Board));
+    rootStackQueue = &threadPool->rootStackQueue;
+    searchParameters = &threadPool->searchParameters;
 
     rootStack = &rootStackQueue->back();
     rootBoard.stack = rootStack;
-    searchData.stopSearching = false;
 
-    thread = std::thread([this]() {
-        // Do the search stuff here
-        if (searchParameters->perft) {
-            searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
-        }
-        else {
-            tsearch();
-        }
-    });
-}
-
-void Thread::stopSearching() {
-    searchData.stopSearching = true;
+    tsearch();
 }
 
 void Thread::waitForSearchFinished() {
-    if (thread.joinable())
-        thread.join();
+    std::unique_lock<std::mutex> lock(mutex);
+    cv.wait(lock, [&] { return !searching; });
+}
+
+void Thread::idle() {
+    while (!exiting) {
+        std::unique_lock<std::mutex> lock(mutex);
+        cv.wait(lock, [&] { return searching; });
+
+        if (exiting)
+            return;
+
+        startSearching();
+        searching = false;
+
+        cv.notify_all();
+    }
+}
+
+void Thread::exit() {
+    searching = true;
+    exiting = true;
+    cv.notify_all();
+    thread.join();
 }
 
 void Thread::ucinewgame() {

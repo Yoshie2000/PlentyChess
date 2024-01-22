@@ -239,7 +239,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     }
 
     // Moves loop
-    MoveGen movegen(board, stack, &thread->history, isCapture(board, ttMove) ? ttMove : MOVE_NONE, true);
+    MoveGen movegen(board, &thread->history, stack, isCapture(board, ttMove) ? ttMove : MOVE_NONE, true);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -327,11 +327,11 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (!rootNode) {
 
         if (thread->mainThread && timeOver(thread->searchParameters, &thread->searchData)) {
-            (*thread->stopSearchingPtr.get())();
+            thread->threadPool->stopSearching();
         }
 
         // Check for stop or max depth
-        if (thread->searchData.stopSearching || stack->ply >= MAX_PLY || isDraw(board))
+        if (!thread->searching || thread->exiting || stack->ply >= MAX_PLY || isDraw(board))
             return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &thread->nnue) : drawEval(thread);
 
         // Mate distance pruning
@@ -683,7 +683,7 @@ void Thread::tsearch() {
             value = search<ROOT_NODE>(&rootBoard, stack, this, searchDepth, alpha, beta, false);
 
             // Stop if we need to
-            if (searchData.stopSearching)
+            if (!searching || exiting)
                 break;
 
             // Our window was too high, lower alpha for next iteration
@@ -710,7 +710,7 @@ void Thread::tsearch() {
         }
         previousValue = value;
 
-        if (searchData.stopSearching) {
+        if (!searching || exiting) {
             if (bestMove == MOVE_NONE)
                 bestMove = stack->pv[0];
             break;
@@ -719,7 +719,7 @@ void Thread::tsearch() {
         if (mainThread) {
             // Send UCI info
             int64_t ms = getTime() - searchData.startTime;
-            int64_t nodes = (*nodesSearchedPtr.get())();
+            int64_t nodes = threadPool->nodesSearched();
             int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
             std::cout << "info depth " << depth << " score " << formatEval(value) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
 
@@ -732,7 +732,7 @@ void Thread::tsearch() {
             std::cout << std::endl;
 
             if (timeOverDepthCleared(searchParameters, &searchData)) {
-                (*stopSearchingPtr.get())();
+                threadPool->stopSearching();
                 break;
             }
         }
