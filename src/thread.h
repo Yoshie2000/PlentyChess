@@ -12,9 +12,12 @@
 #include "nnue.h"
 #include "tt.h"
 
+class ThreadPool;
+
 class Thread {
 
     std::thread thread;
+    std::mutex mutex;
 
     Board rootBoard;
     BoardStack* rootStack;
@@ -22,25 +25,26 @@ class Thread {
 
 public:
 
+    std::condition_variable cv;
+
+    bool searching = false;
+    bool exiting = false;
+
     SearchData searchData;
     SearchParameters* searchParameters;
     History history;
     NNUE nnue;
 
-    std::shared_ptr<std::function<void()>> stopSearchingPtr;
-    std::shared_ptr<std::function<uint64_t()>> nodesSearchedPtr;
+    ThreadPool* threadPool;
+
     int threadId;
     bool mainThread;
 
-    Thread(std::shared_ptr<std::function<void()>> stopSearchingPtr, std::shared_ptr<std::function<uint64_t()>> nodesSearchedPtr, int threadId);
-    ~Thread();
+    Thread(ThreadPool* threadPool, int threadId);
 
-    void startSearching(Board board, std::deque<BoardStack>* stackQueue, SearchParameters* parameters);
-
-    void stopSearching();
-
+    void startSearching();
     void waitForSearchFinished();
-
+    void idle();
     void exit();
 
     void ucinewgame();
@@ -54,44 +58,45 @@ private:
 class ThreadPool {
 
     std::vector<std::unique_ptr<Thread>> threads;
-    std::deque<BoardStack> rootStackQueue;
-    SearchParameters searchParameters;
-
-    std::shared_ptr<std::function<void()>> stopSearchingPtr;
-    std::shared_ptr<std::function<uint64_t()>> nodesSearchedPtr;
 
 public:
 
-    ThreadPool(int numThreads) : threads(0), rootStackQueue(), searchParameters{},
-        stopSearchingPtr(std::make_shared<std::function<void()>>(std::bind(&ThreadPool::stopSearching, this))),
-        nodesSearchedPtr(std::make_shared<std::function<uint64_t()>>(std::bind(&ThreadPool::nodesSearched, this))) {
-        for (int i = 0; i < numThreads; i++) {
-            threads.push_back(std::make_unique<Thread>(stopSearchingPtr, nodesSearchedPtr, i));
-        }
+    std::deque<BoardStack> rootStackQueue;
+    SearchParameters searchParameters;
+    Board rootBoard;
+
+    ThreadPool() : threads(0), rootStackQueue(), searchParameters{} {
+        resize(1);
+    }
+
+    ~ThreadPool() {
+        exit();
     }
 
     void resize(int numThreads) {
         exit();
-        threads.resize(0);
+        threads.clear();
         for (int i = 0; i < numThreads; i++) {
-            threads.push_back(std::make_unique<Thread>(stopSearchingPtr, nodesSearchedPtr, i));
+            threads.push_back(std::make_unique<Thread>(this, i));
         }
     }
 
     void startSearching(Board board, std::deque<BoardStack> stackQueue, SearchParameters parameters) {
         waitForSearchFinished();
 
+        rootBoard = std::move(board);
         rootStackQueue = std::move(stackQueue);
         searchParameters = std::move(parameters);
 
         for (auto& thread : threads) {
-            thread.get()->startSearching(board, &rootStackQueue, &searchParameters);
+            thread.get()->searching = true;
+            thread.get()->cv.notify_all();
         }
     }
 
     void stopSearching() {
         for (auto& thread : threads) {
-            thread.get()->stopSearching();
+            thread.get()->searching = false;
         }
     }
 
