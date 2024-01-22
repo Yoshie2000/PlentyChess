@@ -6,66 +6,38 @@
 #include "thread.h"
 #include "search.h"
 
-Thread::Thread(void) : thread(&Thread::idle, this) {  }
+Thread::Thread(void) {}
 
 Thread::~Thread() {
     exit();
-    thread.join();
 }
 
-void Thread::idle() {
-    printf("Engine thread running\n");
+void Thread::startSearching(Board board, std::deque<BoardStack>* queue, SearchParameters* parameters) {
+    if (thread.joinable())
+        return;
 
-    while (true) {
+    memcpy(&rootBoard, &board, sizeof(Board));
+    rootStackQueue = queue;
+    searchParameters = parameters;
 
-        std::unique_lock<std::mutex> lock(mutex);
-        searching = false;
-        cv.notify_one();
-        cv.wait(lock, [&] { return searching; });
+    rootStack = &rootStackQueue->back();
+    rootBoard.stack = rootStack;
+    searchData.stopSearching = false;
 
-        if (exiting)
-            break;
-
-        lock.unlock();
-
-        searchData.stopSearching = false;
-        searching = true;
-
+    thread = std::thread([this]() {
         // Do the search stuff here
-        if (searchParameters.perft) {
-            searchData.nodesSearched = perft(&rootBoard, searchParameters.depth);
+        if (searchParameters->perft) {
+            searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
         }
         else {
             tsearch();
         }
-
-        if (exiting)
-            break;
-    }
-    printf("Engine thread stopping\n");
+    });
 }
 
 void Thread::exit() {
-    exiting = true;
     stopSearching();
-    mutex.lock();
-    searching = true;
-    mutex.unlock();
-    cv.notify_one();
-}
-
-void Thread::startSearching(Board board, std::deque<BoardStack> queue, SearchParameters parameters) {
-    rootBoard = std::move(board);
-    rootStackQueue = std::move(queue);
-    searchParameters = std::move(parameters);
-
-    rootStack = rootStackQueue.back();
-    rootBoard.stack = &rootStack;
-
-    mutex.lock();
-    searching = true;
-    mutex.unlock();
-    cv.notify_one();
+    waitForSearchFinished();
 }
 
 void Thread::stopSearching() {
@@ -73,6 +45,6 @@ void Thread::stopSearching() {
 }
 
 void Thread::waitForSearchFinished() {
-    std::unique_lock<std::mutex> lock(mutex);
-    cv.wait(lock, [&] { return !searching; });
+    if (thread.joinable())
+        thread.join();
 }

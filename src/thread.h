@@ -10,25 +10,21 @@
 
 class Thread {
 
-    bool exiting = false;
-    bool searching = true;
     std::thread thread;
-    std::mutex mutex;
-    std::condition_variable cv;
 
     Board rootBoard;
-    BoardStack rootStack;
-    std::deque<BoardStack> rootStackQueue;
+    BoardStack* rootStack;
+    std::deque<BoardStack>* rootStackQueue;
 
 public:
 
-    SearchParameters searchParameters;
+    SearchParameters* searchParameters;
     SearchData searchData;
 
     Thread(void);
     ~Thread();
 
-    void startSearching(Board board, std::deque<BoardStack> stackQueue, SearchParameters parameters);
+    void startSearching(Board board, std::deque<BoardStack>* stackQueue, SearchParameters* parameters);
 
     void stopSearching();
 
@@ -38,7 +34,6 @@ public:
 
 private:
 
-    void idle();
     void tsearch();
 
 };

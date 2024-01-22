@@ -301,7 +301,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     if (!rootNode) {
 
-        if (timeOver(&thread->searchParameters, &thread->searchData))
+        if (timeOver(thread->searchParameters, &thread->searchData))
             thread->searchData.stopSearching = true;
 
         // Check for stop or max depth
@@ -604,11 +604,11 @@ void Thread::tsearch() {
 
     nnue.resetAccumulators(&rootBoard);
 
-    int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : searchParameters.depth;
+    int maxDepth = searchParameters->depth == 0 ? MAX_PLY - 1 : searchParameters->depth;
     Move bestMove = MOVE_NONE;
 
     searchData.nodesSearched = 0;
-    initTimeManagement(&rootBoard, &searchParameters, &searchData);
+    initTimeManagement(&rootBoard, searchParameters, &searchData);
 
     // Necessary for aspiration windows
     Eval previousValue = EVAL_NONE;
@@ -691,7 +691,7 @@ void Thread::tsearch() {
         }
         std::cout << std::endl;
 
-        if (timeOverDepthCleared(&searchParameters, &searchData))
+        if (timeOverDepthCleared(searchParameters, &searchData))
             break;
     }
 
