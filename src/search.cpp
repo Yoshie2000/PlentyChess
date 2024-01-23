@@ -518,6 +518,9 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth--;
+            
+            if (pvNode)
+                reducedDepth += 15 / (3 + depth);
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
