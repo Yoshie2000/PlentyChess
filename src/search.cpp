@@ -620,6 +620,23 @@ movesLoop:
 }
 
 void Thread::tsearch() {
+
+    std::vector<Move> rootMoves;
+    {
+        Move moves[MAX_MOVES] = { MOVE_NONE };
+        int rootMoveCount = 0;
+        generateMoves(&rootBoard, moves, &rootMoveCount);
+        for (int i = 0; i < rootMoveCount; i++) {
+            if (isLegal(&rootBoard, moves[i]))
+                rootMoves.push_back(moves[i]);
+        }
+    }
+
+    if (rootMoves.size() == 1) {
+        std::cout << "bestmove " << moveToString(rootMoves[0]) << std::endl;
+        return;
+    }
+
     if (TUNE_ENABLED)
         initReductions();
 
