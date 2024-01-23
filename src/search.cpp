@@ -192,7 +192,27 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
 
     (stack + 1)->ply = stack->ply + 1;
 
-    stack->staticEval = bestValue = evaluate(board);
+    // TT Lookup
+    bool ttHit = false;
+    TTEntry* ttEntry = nullptr;
+    Move ttMove = MOVE_NONE;
+    Eval ttValue = EVAL_NONE;
+    uint8_t ttFlag = TT_NOBOUND;
+    bool ttPv = pvNode;
+
+    ttEntry = TT.probe(board->stack->hash, &ttHit);
+    if (ttHit) {
+        ttMove = ttEntry->bestMove;
+        ttValue = valueFromTt(ttEntry->value, stack->ply);
+        ttFlag = ttEntry->flags & 0x3;
+        ttPv = ttPv || (ttEntry->flags >> 2);
+    }
+
+    // TT cutoff
+    if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+        return ttValue;
+
+    stack->staticEval = bestValue = ttHit && ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board);
     futilityValue = stack->staticEval + qsFutilityOffset;
 
     // Stand pat
@@ -214,7 +234,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     }
 
     // Moves loop
-    MoveGen movegen(board, stack, true);
+    MoveGen movegen(board, stack, isCapture(board, ttMove) ? ttMove : MOVE_NONE, true);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -445,7 +465,8 @@ movesLoop:
                 // Movecount pruning (LMP)
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
                     skipQuiets = true;
-                } else {
+                }
+                else {
                     // Futility pruning
                     int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount]);
                     if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
