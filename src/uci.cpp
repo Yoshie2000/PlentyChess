@@ -418,6 +418,7 @@ void go(std::string line, Thread* searchThread, Board* board, std::deque<BoardSt
 
     }
 
+    TT.newSearch();
     searchThread->startSearching(*board, *stackQueue, parameters);
 }
 
