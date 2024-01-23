@@ -11,7 +11,6 @@
 
 Thread::Thread(ThreadPool* threadPool, int threadId) : thread(std::thread(&Thread::idle, this)), threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
     history.initHistory();
-    nnue.initNetwork();
 }
 
 void Thread::startSearching() {
@@ -54,5 +53,4 @@ void Thread::exit() {
 
 void Thread::ucinewgame() {
     history.initHistory();
-    nnue.initNetwork();
 }

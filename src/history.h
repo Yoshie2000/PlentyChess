@@ -10,7 +10,6 @@ class History {
     int continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES][64];
     int captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
 
-
 public:
     void initHistory();
 
