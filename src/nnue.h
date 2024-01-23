@@ -204,18 +204,17 @@ struct NetworkData {
   int16_t outputBias;
 };
 
+extern NetworkData networkData;
+alignas(ALIGNMENT) extern int cachedFeatureOffsets[2][PIECE_TYPES * 2 + 1][64];
+
+void initNetworkData();
+
 class NNUE {
-
-  alignas(ALIGNMENT) int cachedFeatureOffsets[2][PIECE_TYPES * 2 + 1][64];
-
 public:
 
-  NetworkData networkData;
   Accumulator accumulatorStack[MAX_PLY];
   int currentAccumulator;
   int lastCalculatedAccumulator;
-
-  void initNetwork();
 
   void addPiece(Square square, Piece piece, Color pieceColor);
   void removePiece(Square square, Piece piece, Color pieceColor);

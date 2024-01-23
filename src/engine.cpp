@@ -3,6 +3,7 @@
 #include "tt.h"
 #include "magic.h"
 #include "bitboard.h"
+#include "nnue.h"
 
 int main(int argc, char* argv[]) {
     generateMagics();
@@ -10,6 +11,8 @@ int main(int argc, char* argv[]) {
     initBitboard();
     initReductions();
     initZobrist();
+
+    initNetworkData();
 
     TT.clear();
 

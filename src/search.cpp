@@ -4,6 +4,8 @@
 #include <cassert>
 #include <chrono>
 #include <cmath>
+#include <thread>
+#include <map>
 
 #include "search.h"
 #include "board.h"
@@ -194,11 +196,11 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
 
     assert(alpha >= -EVAL_INFINITE && alpha < beta && beta <= EVAL_INFINITE);
 
-    if (timeOver(&thread->searchParameters, &thread->searchData))
-        thread->searchData.stopSearching = true;
+    if (thread->mainThread && timeOver(thread->searchParameters, &thread->searchData))
+        thread->threadPool->stopSearching();
 
     // Check for stop
-    if (thread->searchData.stopSearching || stack->ply >= MAX_PLY || isDraw(board))
+    if (!thread->searching || thread->exiting || stack->ply >= MAX_PLY || isDraw(board))
         return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &thread->nnue) : drawEval(thread);
 
     BoardStack boardStack;
@@ -213,7 +215,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
     Move ttMove = MOVE_NONE;
-    Eval ttValue = EVAL_NONE;
+    Eval ttValue = EVAL_NONE, ttEval = EVAL_NONE;
     uint8_t ttFlag = TT_NOBOUND;
     bool ttPv = pvNode;
 
@@ -221,6 +223,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     if (ttHit) {
         ttMove = ttEntry->bestMove;
         ttValue = valueFromTt(ttEntry->value, stack->ply);
+        ttEval = ttEntry->eval;
         ttFlag = ttEntry->flags & 0x3;
         ttPv = ttPv || ttEntry->flags & 0x4;
     }
@@ -229,7 +232,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
-    stack->staticEval = bestValue = ttHit && ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board, &thread->nnue);
+    stack->staticEval = bestValue = ttHit && ttEval != EVAL_NONE ? ttEval : evaluate(board, &thread->nnue);
     futilityValue = stack->staticEval + qsFutilityOffset;
 
     // Stand pat
@@ -345,9 +348,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     if (!rootNode) {
 
-        if (thread->mainThread && timeOver(thread->searchParameters, &thread->searchData)) {
+        if (thread->mainThread && timeOver(thread->searchParameters, &thread->searchData))
             thread->threadPool->stopSearching();
-        }
 
         // Check for stop or max depth
         if (!thread->searching || thread->exiting || stack->ply >= MAX_PLY || isDraw(board))
@@ -364,7 +366,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
     Move ttMove = MOVE_NONE;
-    Eval ttValue = EVAL_NONE;
+    Eval ttValue = EVAL_NONE, ttEval = EVAL_NONE;
     int ttDepth = 0;
     uint8_t ttFlag = TT_NOBOUND;
     bool ttPv = pvNode;
@@ -374,6 +376,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         if (ttHit) {
             ttMove = ttEntry->bestMove;
             ttValue = valueFromTt(ttEntry->value, stack->ply);
+            ttEval = ttEntry->eval;
             ttDepth = ttEntry->depth + TT_DEPTH_OFFSET;
             ttFlag = ttEntry->flags & 0x3;
             ttPv = ttPv || ttEntry->flags & 0x4;
@@ -390,14 +393,14 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         goto movesLoop;
     }
     if (ttHit) {
-        eval = stack->staticEval = ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board, &thread->nnue);
+        eval = stack->staticEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &thread->nnue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
         eval = stack->staticEval = evaluate(board, &thread->nnue);
-        ttEntry->update(board->stack->hash, MOVE_NONE, 0, eval, EVAL_NONE, ttPv, TT_NOBOUND);
+        ttEntry->update(board->stack->hash, MOVE_NONE, 0, stack->staticEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
     // IIR
@@ -479,7 +482,7 @@ movesLoop:
 
         if (!isLegal(board, move))
             continue;
-        
+
         int moveHistory = thread->history.getHistory(board, stack, move, capture);
 
         if (!rootNode
@@ -513,7 +516,7 @@ movesLoop:
         // Extensions
         bool doExtensions = !rootNode && stack->ply < thread->searchData.rootDepth * 2;
         int extension = 0;
-        if (   doExtensions
+        if (doExtensions
             && depth >= 7
             && move == ttMove
             && !excluded
@@ -656,7 +659,7 @@ movesLoop:
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(board->stack->hash, bestMove, depth, eval, valueToTT(bestValue, stack->ply), ttPv, flags);
+        ttEntry->update(board->stack->hash, bestMove, depth, stack->staticEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     assert(bestValue > -EVAL_INFINITE && bestValue < EVAL_INFINITE);
 
@@ -670,7 +673,6 @@ void Thread::tsearch() {
     resetAccumulators(&rootBoard, &nnue);
 
     int maxDepth = searchParameters->depth == 0 ? MAX_PLY - 1 : searchParameters->depth;
-    Move bestMove = MOVE_NONE;
 
     searchData.nodesSearched = 0;
     if (mainThread)
@@ -680,8 +682,8 @@ void Thread::tsearch() {
     Eval previousValue = EVAL_NONE;
 
     for (int depth = 1; depth <= maxDepth; depth++) {
-        SearchStack stackList[MAX_PLY + 1];
-        SearchStack* stack = &stackList[1];
+        SearchStack stackList[MAX_PLY + 4];
+        SearchStack* stack = &stackList[4];
         Move pv[MAX_PLY + 1];
         pv[0] = MOVE_NONE;
         stack->pv = pv;
@@ -740,10 +742,17 @@ void Thread::tsearch() {
         previousValue = value;
 
         if (!searching || exiting) {
-            if (bestMove == MOVE_NONE)
-                bestMove = stack->pv[0];
+            if (result.move == MOVE_NONE) {
+                result.move = stack->pv[0];
+                result.value = value;
+                result.depth = depth;
+            }
             break;
         }
+
+        result.move = stack->pv[0];
+        result.value = value;
+        result.depth = depth;
 
         if (mainThread) {
             // Send UCI info
@@ -753,13 +762,13 @@ void Thread::tsearch() {
             std::cout << "info depth " << depth << " seldepth " << searchData.selDepth << " score " << formatEval(value) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
 
             // Send PV
-            bestMove = stack->pv[0];
             Move move;
             while ((move = *stack->pv++) != MOVE_NONE) {
                 std::cout << moveToString(move) << " ";
             }
             std::cout << std::endl;
 
+            // Every thread can request a time stop when a depth is cleared
             if (timeOverDepthCleared(searchParameters, &searchData)) {
                 threadPool->stopSearching();
                 break;
@@ -767,7 +776,52 @@ void Thread::tsearch() {
         }
     }
 
+    result.finished = true;
+
     if (mainThread) {
-        std::cout << "bestmove " << moveToString(bestMove) << std::endl;
+        // The main thread stops all other threads and does some naive voting over the best move
+        threadPool->stopSearching();
+        bool allFinished = false;
+        while (!allFinished && threadPool->threads.size() > 1) {
+            allFinished = true;
+            for (auto& th : threadPool->threads) {
+                if (!th.get()->result.finished)
+                    allFinished = false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        std::map<Move, int64_t> votes;
+        Eval minValue = EVAL_INFINITE;
+        ThreadResult* bestResult = &threadPool->threads[0].get()->result;
+
+        if (threadPool->threads.size() > 1) {
+            for (auto& th : threadPool->threads) {
+                minValue = std::min(minValue, th.get()->result.value);
+            }
+            minValue++;
+
+            for (auto& th : threadPool->threads) {
+                ThreadResult* thResult = &th.get()->result;
+
+                // Votes weighted by depth and difference to the minimum value + 1
+                votes[thResult->move] += (thResult->value - minValue) * thResult->depth;
+
+                // In case of checkmate, take the shorter mate / longer getting mated
+                if (std::abs(bestResult->value) >= EVAL_MATE_IN_MAX_PLY) {
+                    if (thResult->value > bestResult->value)
+                        bestResult = thResult;
+                }
+                // We have found a mate, take it without voting
+                else if (thResult->value >= EVAL_MATE_IN_MAX_PLY) {
+                    bestResult = thResult;
+                }
+                // No mate found by any thread so far, take the thread with more votes
+                else if (votes[thResult->move] > votes[bestResult->move])
+                    bestResult = thResult;
+            }
+        }
+
+        std::cout << "bestmove " << moveToString(bestResult->move) << std::endl;
     }
 }
