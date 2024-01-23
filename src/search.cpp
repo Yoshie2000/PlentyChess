@@ -329,9 +329,9 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         if (ttHit) {
             ttMove = ttEntry->bestMove;
             ttValue = valueFromTt(ttEntry->value, stack->ply);
-            ttDepth = ttEntry->depth;
+            ttDepth = ttEntry->depth + TT_DEPTH_OFFSET;
             ttFlag = ttEntry->flags & 0x3;
-            ttPv = ttPv || (ttEntry->flags >> 2);
+            ttPv = ttPv || ttEntry->flags & 0x4;
         }
     }
 

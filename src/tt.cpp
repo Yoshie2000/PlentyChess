@@ -12,6 +12,8 @@ uint64_t ZOBRIST_ENPASSENT[8];
 uint64_t CUCKOO_HASHES[8192];
 Move CUCKOO_MOVES[8192];
 
+uint8_t TT_GENERATION_COUNTER = 0;
+
 TranspositionTable TT;
 
 void initZobrist() {
