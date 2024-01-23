@@ -15,9 +15,10 @@
 // const unsigned int         gNETWORKSize;
 INCBIN(NETWORK, NETWORK_FILE);
 
-NNUE nnue;
+NetworkData networkData;
+alignas(ALIGNMENT) int cachedFeatureOffsets[2][PIECE_TYPES * 2 + 1][64];
 
-void NNUE::initNetwork() {
+void initNetworkData() {
     FILE* nn = fopen(ALT_NETWORK_FILE, "rb");
 
     if (nn) {
@@ -67,7 +68,7 @@ void resetAccumulators(Board* board, NNUE* nnue) {
     nnue->lastCalculatedAccumulator = 0;
     for (size_t i = 0; i < sizeof(nnue->accumulatorStack) / sizeof(Accumulator); i++) {
         for (int side = COLOR_WHITE; side <= COLOR_BLACK; ++side) {
-            memcpy(nnue->accumulatorStack[i].colors[side], nnue->networkData.featureBiases, sizeof(nnue->networkData.featureBiases));
+            memcpy(nnue->accumulatorStack[i].colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
         }
         nnue->accumulatorStack[i].numDirtyPieces = 0;
     }

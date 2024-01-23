@@ -12,6 +12,14 @@
 #include "nnue.h"
 #include "tt.h"
 
+struct ThreadResult {
+    Move move;
+    Eval value;
+    int depth;
+    int selDepth;
+    bool finished;
+};
+
 class ThreadPool;
 
 class Thread {
@@ -40,6 +48,8 @@ public:
     int threadId;
     bool mainThread;
 
+    ThreadResult result;
+
     Thread(ThreadPool* threadPool, int threadId);
 
     void startSearching();
@@ -57,9 +67,9 @@ private:
 
 class ThreadPool {
 
-    std::vector<std::unique_ptr<Thread>> threads;
-
 public:
+
+    std::vector<std::unique_ptr<Thread>> threads;
 
     std::deque<BoardStack> rootStackQueue;
     SearchParameters searchParameters;
@@ -88,6 +98,10 @@ public:
         rootStackQueue = std::move(stackQueue);
         searchParameters = std::move(parameters);
 
+        for (auto& thread : threads) {
+            thread.get()->result = { MOVE_NONE, EVAL_NONE, 0, 0, false };
+        }
+        
         for (auto& thread : threads) {
             thread.get()->searching = true;
             thread.get()->cv.notify_all();

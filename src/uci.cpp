@@ -309,7 +309,6 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
 
     // Make further moves
     NNUE nnue;
-    nnue.initNetwork();
     resetAccumulators(board, &nnue);
     if (matchesToken(line, "moves")) {
         line = line.substr(6);
@@ -429,8 +428,6 @@ void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
     threads.startSearching(*board, *stackQueue, parameters);
 }
 
-NNUE nnue_;
-
 void uciLoop(int argc, char* argv[]) {
     Board board;
     std::deque<BoardStack> stackQueue = std::deque<BoardStack>(1);
@@ -467,9 +464,9 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "perfttest")) perfttest(&stackQueue, &board);
         else if (matchesToken(line, "debug")) debugBoard(&board);
         else if (matchesToken(line, "eval")) {
-            nnue_.initNetwork();
-            resetAccumulators(&board, &nnue_);
-            std::cout << formatEval(evaluate(&board, &nnue_)) << std::endl;
+            NNUE nnue;
+            resetAccumulators(&board, &nnue);
+            std::cout << formatEval(evaluate(&board, &nnue)) << std::endl;
         }
         else if (matchesToken(line, "seetest")) seetest(&board);
         else printf("Unknown command\n");

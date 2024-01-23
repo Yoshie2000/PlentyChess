@@ -101,7 +101,7 @@ public:
     }
 
     void newSearch() {
-        TT_GENERATION_COUNTER += (1 << 3);
+        TT_GENERATION_COUNTER += GENERATION_DELTA;
     }
 
     void resize(size_t mb) {
