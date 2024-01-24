@@ -579,7 +579,7 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
 int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
-        int score = getQuietHistory(board, move) + 2 * getContinuationHistory(board, searchStack, move);
+        int score = getHistory(board, searchStack, move, false);
 
         // Skip all previously searched moves
         if (move == ttMove || move == killers[0] || move == killers[1] || move == counterMove) {

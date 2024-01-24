@@ -17,6 +17,14 @@ void initHistory() {
     memset(continuationHistory, 0, sizeof(continuationHistory));
 }
 
+int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
+    if (isCapture) {
+        return *getCaptureHistory(board, move);
+    } else {
+        return getQuietHistory(board, move) + 2 * getContinuationHistory(board, searchStack, move);
+    }
+}
+
 int getQuietHistory(Board* board, Move move) {
     return quietHistory[board->stm][moveOrigin(move)][moveTarget(move)];
 }
