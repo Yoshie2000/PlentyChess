@@ -182,8 +182,11 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
 
     assert(alpha >= -EVAL_INFINITE && alpha < beta && beta <= EVAL_INFINITE);
 
+    if (timeOver(&thread->searchParameters, &thread->searchData))
+        thread->searchData.stopSearching = true;
+
     // Check for stop
-    if (stack->ply >= MAX_PLY || isDraw(board))
+    if (thread->searchData.stopSearching || stack->ply >= MAX_PLY || isDraw(board))
         return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board) : drawEval(thread);
 
     BoardStack boardStack;
