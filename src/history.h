@@ -11,6 +11,8 @@ extern int captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
 
 void initHistory();
 
+int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
+
 int getQuietHistory(Board* board, Move move);
 void updateQuietHistory(Board* board, Move move, int bonus);
 
