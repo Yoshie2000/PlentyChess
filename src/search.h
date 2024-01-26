@@ -55,6 +55,7 @@ struct SearchParameters {
 struct SearchData {
     int nmpPlies;
     int rootDepth;
+    int selDepth;
 
     bool stopSearching;
     uint64_t nodesSearched;

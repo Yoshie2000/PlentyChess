@@ -180,6 +180,8 @@ template <NodeType nodeType>
 Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval beta) {
     constexpr bool pvNode = nodeType == PV_NODE;
 
+    thread->searchData.selDepth = std::max(stack->ply, thread->searchData.selDepth);
+
     assert(alpha >= -EVAL_INFINITE && alpha < beta && beta <= EVAL_INFINITE);
 
     if (timeOver(&thread->searchParameters, &thread->searchData))
@@ -296,6 +298,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
     assert(!(pvNode && cutNode));
     assert(pvNode || alpha == beta - 1);
+
+    thread->searchData.selDepth = std::max(stack->ply, thread->searchData.selDepth);
 
     if (!rootNode && alpha < 0 && hasUpcomingRepetition(board, stack->ply)) {
         alpha = drawEval(thread);
@@ -643,6 +647,7 @@ void Thread::tsearch() {
     Move bestMove = MOVE_NONE;
 
     searchData.nodesSearched = 0;
+    searchData.selDepth = 0;
     initTimeManagement(&rootBoard, &searchParameters, &searchData);
 
     // Necessary for aspiration windows
@@ -716,7 +721,7 @@ void Thread::tsearch() {
         // Send UCI info
         int64_t ms = getTime() - searchData.startTime;
         int64_t nps = ms == 0 ? 0 : (int64_t)((searchData.nodesSearched) / ((double)ms / 1000));
-        std::cout << "info depth " << depth << " score " << formatEval(value) << " nodes " << searchData.nodesSearched << " time " << ms << " nps " << nps << " pv ";
+        std::cout << "info depth " << depth << " seldepth " << searchData.selDepth << " score " << formatEval(value) << " nodes " << searchData.nodesSearched << " time " << ms << " nps " << nps << " pv ";
 
         // Send PV
         bestMove = stack->pv[0];
