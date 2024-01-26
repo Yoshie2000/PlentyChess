@@ -54,15 +54,23 @@ TUNE_INT(nmpDepthDiv, 3, 1, 6);
 TUNE_INT(nmpMin, 3, 1, 10);
 TUNE_INT(nmpDivisor, 217, 10, 1000);
 
+// In-search pruning
 TUNE_INT(fpDepth, 11, 1, 20);
 TUNE_INT(fpBase, 250, 0, 1000);
 TUNE_INT(fpFactor, 150, 1, 500);
+
+TUNE_INT(historyPruningDepth, 4, 1, 15);
+TUNE_INT(historyPruningFactor, -2048, -8192, -128);
 
 TUNE_INT(seeDepth, 9, 2, 20);
 
 TUNE_INT(lmrMcBase, 4, 1, 10);
 TUNE_INT(lmrMcPv, 4, 1, 10);
 TUNE_INT(lmrMinDepth, 3, 1, 10);
+
+TUNE_INT(lmrHistoryFactor, 8192, 128, 32768);
+TUNE_INT(lmrDeeperBase, 49, 1, 200);
+TUNE_INT(lmrDeeperFactor, 2, 0, 10);
 
 TUNE_INT(lmrPassBonusFactor, 11, 1, 32);
 TUNE_INT(lmrPassBonusMax, 1017, 32, 8192);
@@ -484,7 +492,7 @@ movesLoop:
             }
 
             // History pruning
-            if (lmrDepth < 4 && moveHistory < -2048 * depth)
+            if (lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
                 continue;
 
             // SEE Pruning
@@ -559,12 +567,12 @@ movesLoop:
             if (cutNode)
                 reducedDepth--;
 
-            reducedDepth += moveHistory / 8192;
+            reducedDepth += moveHistory / lmrHistoryFactor;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
 
-            bool doDeeperSearch = value > (bestValue + 49 + 2 * newDepth);
+            bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth);
             newDepth += doDeeperSearch;
 
             if (value > alpha && reducedDepth < newDepth) {
