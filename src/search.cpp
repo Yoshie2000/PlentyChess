@@ -210,7 +210,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
         ttMove = ttEntry->bestMove;
         ttValue = valueFromTt(ttEntry->value, stack->ply);
         ttFlag = ttEntry->flags & 0x3;
-        ttPv = ttPv || (ttEntry->flags >> 2);
+        ttPv = ttPv || ttEntry->flags & 0x4;
     }
 
     // TT cutoff
