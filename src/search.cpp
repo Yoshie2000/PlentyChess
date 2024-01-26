@@ -561,9 +561,8 @@ movesLoop:
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
 
-            bool doShallowerSearch = value < bestValue + newDepth;
             bool doDeeperSearch = value > (bestValue + 49 + 2 * newDepth);
-            newDepth += doDeeperSearch - doShallowerSearch;
+            newDepth += doDeeperSearch;
 
             if (value > alpha && reducedDepth < newDepth) {
                 value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
