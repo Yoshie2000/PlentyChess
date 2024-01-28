@@ -647,6 +647,10 @@ bool hasUpcomingRepetition(Board* board, int ply) {
 // Checks for 2-fold repetition and rule50 draw
 bool isDraw(Board* board) {
 
+    // The stack needs to go back far enough
+    if (!board->stack->previous || !board->stack->previous->previous)
+        return false;
+
     // 2-fold repetition
     int maxPlyOffset = std::min(board->stack->rule50_ply, board->stack->nullmove_ply);
     BoardStack* stack = board->stack->previous->previous;
