@@ -189,6 +189,13 @@ public:
     MoveGen(Board* board, SearchStack* searchStack, Move ttMove, Move counterMove, Move _killers[2]) : board(board), searchStack(searchStack), ttMove(ttMove), counterMove(counterMove), onlyCaptures(false), killers{ _killers[0], _killers[1] }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE) {
         std::fill(moveList, moveList + MAX_MOVES, MOVE_NONE);
         std::fill(badCaptureList, badCaptureList + 32, MOVE_NONE);
+
+        if (killers[0] == ttMove)
+            killers[0] = MOVE_NONE;
+        if (killers[1] == ttMove)
+            killers[1] = MOVE_NONE;
+        if (counterMove == ttMove || counterMove == killers[0] || counterMove == killers[1])
+            counterMove = MOVE_NONE;
     }
     MoveGen(Board* board, SearchStack* searchStack, Move ttMove, bool onlyCaptures) : board(board), searchStack(searchStack), ttMove(ttMove), counterMove(MOVE_NONE), onlyCaptures(onlyCaptures), killers{ MOVE_NONE, MOVE_NONE }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_CAPTURES) {
         std::fill(moveList, moveList + MAX_MOVES, MOVE_NONE);
