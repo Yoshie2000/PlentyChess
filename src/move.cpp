@@ -503,7 +503,7 @@ Move MoveGen::nextMove() { // 2973208
         if (returnedMoves < generatedMoves)
             return moveList[returnedMoves++];
 
-        if (onlyCaptures) {
+        if (probCut || onlyCaptures) {
             generationStage = GEN_STAGE_DONE;
             return MOVE_NONE;
         }
@@ -602,7 +602,7 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
 
         // Store bad captures in a separate list
         // In qsearch, the SEE check is done later
-        bool goodCapture = onlyCaptures || SEE(board, move, -107);
+        bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : (onlyCaptures || SEE(board, move, -107));
         if (!goodCapture) {
             moveList[i] = moveList[endIndex - 1];
             moveList[endIndex - 1] = MOVE_NONE;
