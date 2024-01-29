@@ -64,8 +64,8 @@ TUNE_INT(historyPruningFactor, -1913, -8192, -128);
 
 TUNE_INT(seeDepth, 9, 2, 20);
 
-TUNE_INT(lmrMcBase, 4, 1, 10);
-TUNE_INT(lmrMcPv, 4, 1, 10);
+TUNE_INT(lmrMcBase, 2, 1, 10);
+TUNE_INT(lmrMcPv, 2, 1, 10);
 TUNE_INT(lmrMinDepth, 3, 1, 10);
 
 TUNE_INT(lmrHistoryFactor, 10983, 128, 32768);
