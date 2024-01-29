@@ -485,6 +485,10 @@ Move MoveGen::nextMove() { // 2973208
         if (returnedMoves < generatedMoves)
             return moveList[returnedMoves++];
 
+        if (probCut) {
+            generationStage = GEN_STAGE_DONE;
+            return MOVE_NONE;
+        }
         if (onlyCaptures) {
             generationStage = GEN_STAGE_GEN_BAD_CAPTURES;
             goto stage_gen_bad_captures;
@@ -584,7 +588,7 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
         }
 
         // Store bad captures in a separate list
-        bool goodCapture = SEE(board, move, -107);
+        bool goodCapture = SEE(board, move, !probCut ? -107 : probCutThreshold);
         if (!goodCapture) {
             moveList[i] = moveList[endIndex - 1];
             moveList[endIndex - 1] = MOVE_NONE;
