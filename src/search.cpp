@@ -225,7 +225,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
-    stack->staticEval = bestValue = ttHit && ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board);
+    stack->staticEval = bestValue = ttHit && ttEntry->eval != EVAL_NONE ? ttEntry->eval : stack->ply > 0 && (stack - 1)->move == MOVE_NULL ? -(stack - 1)->staticEval : evaluate(board);
     futilityValue = stack->staticEval + qsFutilityOffset;
 
     // Stand pat
@@ -380,13 +380,13 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         goto movesLoop;
     }
     if (ttHit) {
-        eval = stack->staticEval = ttEntry->eval != EVAL_NONE ? ttEntry->eval : evaluate(board);
+        eval = stack->staticEval = ttEntry->eval != EVAL_NONE ? ttEntry->eval : stack->ply > 0 && (stack - 1)->move == MOVE_NULL ? -(stack - 1)->staticEval : evaluate(board);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
-        eval = stack->staticEval = evaluate(board);
+        eval = stack->staticEval = stack->ply > 0 && (stack - 1)->move == MOVE_NULL ? -(stack - 1)->staticEval : evaluate(board);
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, eval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
