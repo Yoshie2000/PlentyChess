@@ -554,9 +554,6 @@ movesLoop:
         stack->movedPiece = board->pieces[moveOrigin(move)];
         doMove(board, &boardStack, move);
 
-        if (board->stack->checkers && extension == 0)
-            extension = 1;
-
         Eval value;
         int newDepth = depth - 1 + extension;
 
@@ -570,6 +567,9 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth--;
+            
+            if (board->stack->checkers)
+                reducedDepth++;
 
             reducedDepth += moveHistory / lmrHistoryFactor;
 
