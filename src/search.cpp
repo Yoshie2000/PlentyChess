@@ -201,7 +201,9 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
 
     BoardStack boardStack;
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
+    Move bestMove = MOVE_NONE;
     Eval bestValue, futilityValue;
+    Eval oldAlpha = alpha;
 
     (stack + 1)->ply = stack->ply + 1;
 
@@ -273,6 +275,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
 
         if (value > bestValue) {
             bestValue = value;
+            bestMove = move;
 
             if (value > alpha) {
                 alpha = value;
@@ -286,6 +289,10 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
         }
 
     }
+
+    // Insert into TT
+    int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
+    ttEntry->update(board->stack->hash, bestMove, 0, stack->staticEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // if (moveCount != 0 && moveCount == skippedMoves) {
     //     if (board->stack->checkers) {
