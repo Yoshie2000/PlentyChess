@@ -417,7 +417,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
-    Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE;
+    Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
     if (board->stack->checkers) {
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
@@ -500,6 +500,45 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         }
     }
 
+    // ProbCut
+    probCutBeta = beta + 140;
+    if (!pvNode
+        && !excluded
+        && depth > 3
+        && std::abs(beta) < EVAL_MATE_IN_MAX_PLY
+        && !(ttDepth >= depth - 3 && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
+
+        assert(probCutBeta > beta);
+        assert(probCutBeta < EVAL_MATE_IN_MAX_PLY);
+
+        MoveGen movegen(board, &thread->history, stack, ttMove, probCutBeta - stack->staticEval, depth);
+        Move move;
+        while ((move = movegen.nextMove()) != MOVE_NONE) {
+            if (move == excludedMove || !isLegal(board, move))
+                continue;
+            
+            uint64_t newHash = hashAfter(board, move);
+            TT.prefetch(newHash);
+
+            stack->move = move;
+            stack->movedPiece = board->pieces[moveOrigin(move)];
+            doMove(board, &boardStack, move, newHash, &thread->nnue);
+
+            Eval value = -qsearch<NON_PV_NODE>(board, thread, stack + 1, -probCutBeta, -probCutBeta + 1);
+
+            if (value >= probCutBeta)
+                value = -search<NON_PV_NODE>(board, stack + 1, thread, depth - 4, -probCutBeta, -probCutBeta + 1, !cutNode);
+            
+            undoMove(board, move, &thread->nnue);
+
+            if (value >= probCutBeta) {
+                ttEntry->update(board->stack->hash, move, depth - 3, unadjustedEval, valueToTT(value, stack->ply), ttPv, TT_LOWERBOUND);
+                return std::abs(value) < EVAL_MATE_IN_MAX_PLY ? value - probCutBeta + beta : value;
+            }
+        }
+
+    }
+
     assert(board->stack);
 
 movesLoop:
@@ -510,7 +549,7 @@ movesLoop:
     int captureMoveCount = 0;
 
     // Moves loop
-    MoveGen movegen(board, &thread->history, stack, ttMove, stack->killers, depth);
+    MoveGen movegen(board, &thread->history, stack, ttMove, depth);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
