@@ -247,7 +247,8 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     }
 
     // Moves loop
-    MoveGen movegen(board, stack, isCapture(board, ttMove) ? ttMove : MOVE_NONE, true);
+    // When in check, generate all moves, else only captures
+    MoveGen movegen(board, stack, isCapture(board, ttMove) ? ttMove : MOVE_NONE, board->stack->checkerCount == 0);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -287,12 +288,10 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
 
     }
 
-    // if (moveCount != 0 && moveCount == skippedMoves) {
-    //     if (board->stack->checkers) {
-    //         return matedIn(stack->ply); // Checkmate
-    //     }
-    //     return 0; // Stalemate
-    // }
+    if (moveCount == 0 && board->stack->checkers) {
+        return matedIn(stack->ply); // Checkmate
+        // No stalemate detection here because that would require generating all quiet moves when not in check
+    }
 
     return bestValue;
 }
