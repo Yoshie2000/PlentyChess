@@ -502,10 +502,9 @@ movesLoop:
         }
 
         // Extensions
+        bool doExtensions = !rootNode && stack->ply < thread->searchData.rootDepth * 2;
         int extension = 0;
-        if (
-            !rootNode
-            && stack->ply < thread->searchData.rootDepth * 2
+        if (   doExtensions
             && depth >= 7
             && move == ttMove
             && !excluded
@@ -554,7 +553,7 @@ movesLoop:
         stack->movedPiece = board->pieces[moveOrigin(move)];
         doMove(board, &boardStack, move);
 
-        if (board->stack->checkers && extension == 0)
+        if (doExtensions && extension == 0 && board->stack->checkers)
             extension = 1;
 
         Eval value;
