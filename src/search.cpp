@@ -523,6 +523,10 @@ movesLoop:
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
                 extension = 1;
+                if (!pvNode && singularValue + 25 < singularBeta && stack->doubleExtensions <= 12) {
+                    extension = 2;
+                    stack->doubleExtensions = (stack - 1)->doubleExtensions + 1;
+                }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta)
