@@ -69,6 +69,9 @@ public:
 private:
 
     void tsearch();
+    void iterativeDeepening();
+    void printUCI(ThreadResult* threadResult, int multiPvCount = 1);
+    ThreadResult* chooseBestThread();
 
 };
 
