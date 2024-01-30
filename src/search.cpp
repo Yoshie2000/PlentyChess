@@ -278,6 +278,9 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
         undoMove(board, move, &thread->nnue);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
+        if (!thread->searching || thread->exiting)
+            return 0;
+
         if (value > bestValue) {
             bestValue = value;
             bestMove = move;
@@ -292,7 +295,6 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
                     break;
             }
         }
-
     }
 
     // Insert into TT
@@ -447,6 +449,9 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         doNullMove(board, &boardStack);
         Eval nullValue = -search<NON_PV_NODE>(board, stack + 1, thread, depth - R, -beta, -beta + 1, !cutNode);
         undoNullMove(board);
+
+        if (!thread->searching || thread->exiting)
+            return 0;
 
         if (nullValue >= beta) {
             if (nullValue > EVAL_MATE_IN_MAX_PLY)
@@ -613,6 +618,9 @@ movesLoop:
 
         undoMove(board, move, &thread->nnue);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
+
+        if (!thread->searching || thread->exiting)
+            return 0;
 
         if (value > bestValue) {
             bestValue = value;
