@@ -15,9 +15,10 @@
 // const unsigned int         gNETWORKSize;
 INCBIN(NETWORK, NETWORK_FILE);
 
-NNUE nnue;
+NetworkData networkData;
+alignas(ALIGNMENT) int cachedFeatureOffsets[2][PIECE_TYPES * 2 + 1][64];
 
-void NNUE::initNetwork() {
+void initNetworkData() {
     FILE* nn = fopen(ALT_NETWORK_FILE, "rb");
 
     if (nn) {
@@ -61,15 +62,15 @@ void NNUE::initNetwork() {
     }
 }
 
-void NNUE::resetAccumulators(Board* board) {
+void resetAccumulators(Board* board, NNUE* nnue) {
     // Sets up the NNUE accumulator completely from scratch by adding each piece individually
-    currentAccumulator = 0;
-    lastCalculatedAccumulator = 0;
-    for (size_t i = 0; i < sizeof(accumulatorStack) / sizeof(Accumulator); i++) {
+    nnue->currentAccumulator = 0;
+    nnue->lastCalculatedAccumulator = 0;
+    for (size_t i = 0; i < sizeof(nnue->accumulatorStack) / sizeof(Accumulator); i++) {
         for (int side = COLOR_WHITE; side <= COLOR_BLACK; ++side) {
-            memcpy(accumulatorStack[i].colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
+            memcpy(nnue->accumulatorStack[i].colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
         }
-        accumulatorStack[i].numDirtyPieces = 0;
+        nnue->accumulatorStack[i].numDirtyPieces = 0;
     }
 
     for (Square square = 0; square < 64; square++) {
@@ -77,7 +78,7 @@ void NNUE::resetAccumulators(Board* board) {
         if (piece == NO_PIECE) continue;
 
         Color pieceColor = (board->byColor[COLOR_WHITE] & (C64(1) << square)) ? COLOR_WHITE : COLOR_BLACK;
-        addPieceToAccumulator(&accumulatorStack[0], &accumulatorStack[0], square, piece, pieceColor);
+        nnue->addPieceToAccumulator(&nnue->accumulatorStack[0], &nnue->accumulatorStack[0], square, piece, pieceColor);
     }
 }
 

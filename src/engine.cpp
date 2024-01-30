@@ -1,10 +1,8 @@
 #include "spsa.h"
-#include "thread.h"
 #include "uci.h"
 #include "tt.h"
 #include "magic.h"
 #include "bitboard.h"
-#include "history.h"
 #include "nnue.h"
 
 int main(int argc, char* argv[]) {
@@ -12,13 +10,12 @@ int main(int argc, char* argv[]) {
 
     initBitboard();
     initReductions();
-    initHistory();
     initZobrist();
 
-    TT.clear();
-    nnue.initNetwork();
+    initNetworkData();
 
-    Thread searchThread;
-    uciLoop(&searchThread, argc, argv);
+    TT.clear();
+
+    uciLoop(argc, argv);
     return 0;
 }

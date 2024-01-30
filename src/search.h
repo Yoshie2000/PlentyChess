@@ -57,7 +57,6 @@ struct SearchData {
     int rootDepth;
     int selDepth;
 
-    bool stopSearching;
     uint64_t nodesSearched;
 
     int64_t startTime;
@@ -66,11 +65,10 @@ struct SearchData {
 
     SearchData() {
         nmpPlies = 0;
-
-        stopSearching = false;
+        rootDepth = 0;
         nodesSearched = 0;
-
         startTime = 0;
+        optTime = 0;
         maxTime = 0;
     }
 };
