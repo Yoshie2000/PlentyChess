@@ -215,7 +215,8 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
     Move ttMove = MOVE_NONE;
-    Eval ttValue = EVAL_NONE, ttEval = EVAL_NONE;
+    Eval ttValue = EVAL_NONE;
+    Eval ttEval = EVAL_NONE;
     uint8_t ttFlag = TT_NOBOUND;
     bool ttPv = pvNode;
 
@@ -232,7 +233,13 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
-    stack->staticEval = bestValue = ttHit && ttEval != EVAL_NONE ? ttEval : evaluate(board, &thread->nnue);
+    if (ttHit && ttEval != EVAL_NONE) {
+        stack->staticEval = bestValue = ttEval;
+    }
+    else {
+        stack->staticEval = bestValue = evaluate(board, &thread->nnue);
+        ttEntry->update(board->stack->hash, MOVE_NONE, 0, stack->staticEval, EVAL_NONE, ttPv, TT_NOBOUND);
+    }
     futilityValue = stack->staticEval + qsFutilityOffset;
 
     // Stand pat
