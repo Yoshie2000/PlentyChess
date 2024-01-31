@@ -7,7 +7,11 @@
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
-    memset(counterMoves, MOVE_NONE, sizeof(counterMoves));
+    for (Square s1 = 0; s1 < 64; s1++) {
+        for (Square s2 = 0; s2 < 64; s2++) {
+            counterMoves[s1][s2] = MOVE_NONE;
+        }
+    }
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
 }
