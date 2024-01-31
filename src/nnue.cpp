@@ -16,7 +16,6 @@
 INCBIN(NETWORK, NETWORK_FILE);
 
 NetworkData networkData;
-alignas(ALIGNMENT) int cachedFeatureOffsets[2][PIECE_TYPES * 2 + 1][64];
 
 void initNetworkData() {
     FILE* nn = fopen(ALT_NETWORK_FILE, "rb");
@@ -43,22 +42,16 @@ void initNetworkData() {
     else {
         memcpy(&networkData, gNETWORKData, sizeof(networkData));
     }
+}
 
-    // Cache feature indexes
-    for (Color side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
-        for (int piece = PIECE_PAWN; piece < PIECE_TYPES; piece++) {
-            for (Square square = 0; square < 64; square++) {
-                int pieceIndex = piece * 2 + side;
-
-                int relativeSquareUs = (square ^ (side * 56));
-                cachedFeatureOffsets[side][pieceIndex][square] = 64 * piece + relativeSquareUs;
-                cachedFeatureOffsets[side][pieceIndex][square] *= HIDDEN_WIDTH;
-
-                int relativeSquareThem = (square ^ ((1 - side) * 56));
-                cachedFeatureOffsets[1 - side][pieceIndex][square] = 64 * (piece + 6) + relativeSquareThem;
-                cachedFeatureOffsets[1 - side][pieceIndex][square] *= HIDDEN_WIDTH;
-            }
-        }
+constexpr int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square square) {
+    if (side == pieceColor) {
+        int relativeSquare = (square ^ (pieceColor * 56));
+        return (64 * piece + relativeSquare) * HIDDEN_WIDTH / WEIGHTS_PER_VEC;
+    }
+    else {
+        int relativeSquare = (square ^ ((1 - pieceColor) * 56));
+        return (64 * (piece + 6) + relativeSquare) * HIDDEN_WIDTH / WEIGHTS_PER_VEC;
     }
 }
 
@@ -134,10 +127,9 @@ void NNUE::calculateAccumulators() {
 }
 
 void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
-    int pieceIndex = 2 * piece + pieceColor;
     for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
         // Get the index of the piece for this color in the input layer
-        int weightOffset = cachedFeatureOffsets[side][pieceIndex][square] / WEIGHTS_PER_VEC;
+        int weightOffset = getFeatureOffset(side, piece, pieceColor, square);
 
         Vec* inputVec = (Vec*)inputAcc->colors[side];
         Vec* outputVec = (Vec*)outputAcc->colors[side];
@@ -150,10 +142,9 @@ void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, 
 }
 
 void NNUE::removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
-    int pieceIndex = 2 * piece + pieceColor;
     for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
         // Get the index of the piece for this color in the input layer
-        int weightOffset = cachedFeatureOffsets[side][pieceIndex][square] / WEIGHTS_PER_VEC;
+        int weightOffset = getFeatureOffset(side, piece, pieceColor, square);
 
         Vec* inputVec = (Vec*)inputAcc->colors[side];
         Vec* outputVec = (Vec*)outputAcc->colors[side];
@@ -166,11 +157,10 @@ void NNUE::removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* output
 }
 
 void NNUE::movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor) {
-    int pieceIndex = 2 * piece + pieceColor;
     for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
         // Get the index of the piece squares for this color in the input layer
-        int subtractWeightOffset = cachedFeatureOffsets[side][pieceIndex][origin] / WEIGHTS_PER_VEC;
-        int addWeightOffset = cachedFeatureOffsets[side][pieceIndex][target] / WEIGHTS_PER_VEC;
+        int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin);
+        int addWeightOffset = getFeatureOffset(side, piece, pieceColor, target);
 
         Vec* inputVec = (Vec*)inputAcc->colors[side];
         Vec* outputVec = (Vec*)outputAcc->colors[side];
