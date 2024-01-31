@@ -80,28 +80,37 @@ TUNE_INT(lmrPassBonusMax, 1062, 32, 8192);
 TUNE_INT(historyBonusFactor, 16, 1, 32);
 TUNE_INT(historyBonusMax, 1732, 32, 8192);
 
-int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
-int SEE_MARGIN[MAX_PLY][2];
-int LMP_MARGIN[MAX_PLY][2];
+float REDUCTIONS[MAX_PLY][MAX_MOVES];
 
 void initReductions() {
-    REDUCTIONS[0][0][0] = 0;
-    REDUCTIONS[1][0][0] = 0;
+    REDUCTIONS[0][0] = 0;
 
     for (int i = 1; i < MAX_PLY; i++) {
         for (int j = 1; j < MAX_MOVES; j++) {
-            REDUCTIONS[0][i][j] = lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor; // non-quiet
-            REDUCTIONS[1][i][j] = lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor; // quiet
+            REDUCTIONS[i][j] = log(i) * log(j);
         }
     }
+}
 
-    for (int depth = 0; depth < MAX_PLY; depth++) {
-        SEE_MARGIN[depth][0] = seeMarginNoisy * depth * depth; // non-quiet
-        SEE_MARGIN[depth][1] = seeMarginQuiet * depth; // quiet
+inline int getReduction(bool capture, int depth, int moveCount) {
+    if (capture)
+        return lmrReductionNoisyBase + REDUCTIONS[depth][moveCount] / lmrReductionNoisyFactor;
+    else
+        return lmrReductionQuietBase + REDUCTIONS[depth][moveCount] / lmrReductionQuietFactor;
+}
 
-        LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
-        LMP_MARGIN[depth][1] = lmpMarginImprovingBase + lmpMarginImprovingFactor * std::pow(depth, lmpMarginImprovingPower); // improving
-    }
+inline int getSeeMargin(bool capture, int depth) {
+    if (capture)
+        return seeMarginNoisy * depth * depth;
+    else
+        return seeMarginQuiet * depth;
+}
+
+inline int getLmpMargin(bool improving, int depth) {
+    if (improving)
+        return lmpMarginImprovingBase + lmpMarginImprovingFactor * depth * depth;
+    else
+        return lmpMarginWorseningBase + lmpMarginWorseningFactor * depth * depth;
 }
 
 uint64_t perftInternal(Board* board, int depth) {
@@ -502,12 +511,12 @@ movesLoop:
             && hasNonPawns(board)
             ) {
 
-            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount]);
+            int lmrDepth = std::max(0, depth - getReduction(capture, depth, moveCount));
 
             if (!pvNode && !skipQuiets && !board->stack->checkers) {
 
                 // Movecount pruning (LMP)
-                if (moveCount >= LMP_MARGIN[depth][improving]) {
+                if (moveCount >= getLmpMargin(improving, depth)) {
                     skipQuiets = true;
                 }
                 // Futility pruning
@@ -520,7 +529,7 @@ movesLoop:
                 continue;
 
             // SEE Pruning
-            if (depth < seeDepth && !SEE(board, move, SEE_MARGIN[depth][!capture]))
+            if (depth < seeDepth && !SEE(board, move, getSeeMargin(capture, depth)))
                 continue;
 
         }
@@ -586,7 +595,7 @@ movesLoop:
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * pvNode && depth >= lmrMinDepth && (!capture || !ttPv)) {
-            int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
+            int reducedDepth = newDepth - getReduction(capture, depth, moveCount);
 
             if (!ttPv)
                 reducedDepth--;
