@@ -354,6 +354,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     (stack + 1)->ply = stack->ply + 1;
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
+    (stack + 1)->doubleExtensions = stack->doubleExtensions;
 
     if (!rootNode) {
 
@@ -707,6 +708,7 @@ void Thread::tsearch() {
         stack->movedPiece = NO_PIECE;
         stack->killers[0] = stack->killers[1] = MOVE_NONE;
         stack->excludedMove = MOVE_NONE;
+        stack->doubleExtensions = 0;
         searchData.rootDepth = depth;
         searchData.selDepth = 0;
 
