@@ -9,8 +9,9 @@
 #include "search.h"
 #include "history.h"
 
-Thread::Thread(ThreadPool* threadPool, int threadId) : thread(std::thread(&Thread::idle, this)), threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
+Thread::Thread(ThreadPool* threadPool, int threadId) : threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
     history.initHistory();
+    thread = std::thread(&Thread::idle, this);
 }
 
 void Thread::startSearching() {
