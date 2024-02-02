@@ -187,7 +187,7 @@ public:
         std::fill(badCaptureList, badCaptureList + 32, MOVE_NONE);
         counterMove = searchStack->ply > 0 ? history->getCounterMove((searchStack - 1)->move) : MOVE_NONE;
     }
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(onlyCaptures), killers{ MOVE_NONE, MOVE_NONE }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_CAPTURES) {
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(onlyCaptures), killers{ MOVE_NONE, MOVE_NONE }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE) {
         std::fill(moveList, moveList + MAX_MOVES, MOVE_NONE);
         std::fill(badCaptureList, badCaptureList + 32, MOVE_NONE);
         counterMove = MOVE_NONE;
