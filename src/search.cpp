@@ -413,10 +413,6 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, stack->staticEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
-    // IIR
-    if (ttMove == MOVE_NONE && depth >= iirMinDepth)
-        depth--;
-
     // Improving
     if (stack->ply >= 2 && (stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
@@ -476,6 +472,10 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
                 return nullValue;
         }
     }
+
+    // IIR
+    if (ttMove == MOVE_NONE && depth >= iirMinDepth)
+        depth--;
 
     assert(board->stack);
 
