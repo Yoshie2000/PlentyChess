@@ -261,7 +261,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     }
 
     // Moves loop
-    MoveGen movegen(board, &thread->history, stack, isCapture(board, ttMove) ? ttMove : MOVE_NONE, true);
+    MoveGen movegen(board, &thread->history, stack, ttMove, true);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
