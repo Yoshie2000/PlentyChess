@@ -23,10 +23,10 @@ Eval evaluate(Board* board, NNUE* nnue) {
 std::string formatEval(Eval value) {
     std::string evalString;
     if (value >= EVAL_MATE_IN_MAX_PLY) {
-        evalString = "mate " + std::to_string(EVAL_MATE - value);
+        evalString = "mate " + std::to_string((EVAL_MATE - value) / 2 + 1);
     }
     else if (value <= -EVAL_MATE_IN_MAX_PLY) {
-        evalString = "mate " + std::to_string(-EVAL_MATE - value);
+        evalString = "mate " + std::to_string(-(EVAL_MATE + value) / 2);
     }
     else {
         evalString = "cp " + std::to_string(100 * value / 250);
