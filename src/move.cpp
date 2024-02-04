@@ -565,12 +565,12 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
             continue;
         }
         else if ((move & 0x3000) == MOVE_ENPASSANT)
-            score = 0;
+            score = PIECE_VALUES[PIECE_PAWN];
         else if ((move & 0x3000) == MOVE_PROMOTION)
             score = PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
         else
-            score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
-        moveListScores[i] = score + *history->getCaptureHistory(board, move);
+            score = PIECE_VALUES[board->pieces[moveTarget(move)]];
+        moveListScores[i] = score * 10 + *history->getCaptureHistory(board, move);
     }
     return endIndex;
 }
