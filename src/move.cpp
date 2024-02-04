@@ -554,7 +554,6 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
             continue;
         }
 
-        int score;
         // Skip all previously searched moves
         if (move == ttMove) {
             moveList[i] = moveList[endIndex - 1];
@@ -564,13 +563,7 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
             i--;
             continue;
         }
-        else if ((move & 0x3000) == MOVE_ENPASSANT)
-            score = 0;
-        else if ((move & 0x3000) == MOVE_PROMOTION)
-            score = PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
-        else
-            score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
-        moveListScores[i] = score + *history->getCaptureHistory(board, move);
+        moveListScores[i] = *history->getCaptureHistory(board, move);
     }
     return endIndex;
 }
