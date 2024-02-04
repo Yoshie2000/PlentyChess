@@ -805,15 +805,17 @@ void Thread::tsearch() {
 
     result.finished = true;
 
-    if (mainThread && !finishedDepth) {
-        int64_t ms = getTime() - searchData.startTime;
-        int64_t nodes = threadPool->nodesSearched();
-        int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
-        std::cout << "info depth " << result.depth << " seldepth " << result.selDepth << " score " << formatEval(result.value) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
+    if (mainThread) {
+        if (!finishedDepth) {
+            int64_t ms = getTime() - searchData.startTime;
+            int64_t nodes = threadPool->nodesSearched();
+            int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
+            std::cout << "info depth " << result.depth << " seldepth " << result.selDepth << " score " << formatEval(result.value) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
 
-        for (Move move : pvVec)
-            std::cout << moveToString(move) << " ";
-        std::cout << std::endl;
+            for (Move move : pvVec)
+                std::cout << moveToString(move) << " ";
+            std::cout << std::endl;
+        }
 
         std::cout << "bestmove " << moveToString(result.move) << std::endl;
     }
