@@ -697,7 +697,12 @@ void Thread::tsearch() {
     // Necessary for aspiration windows
     Eval previousValue = EVAL_NONE;
 
+    std::vector<Move> pvVec;
+    bool finishedDepth = false;
+
     for (int depth = 1; depth <= maxDepth; depth++) {
+        finishedDepth = false;
+
         SearchStack stackList[MAX_PLY + 4];
         SearchStack* stack = &stackList[4];
         Move pv[MAX_PLY + 1];
@@ -772,6 +777,7 @@ void Thread::tsearch() {
         result.value = value;
         result.depth = depth;
         result.selDepth = searchData.selDepth;
+        finishedDepth = true;
 
         if (mainThread) {
             // Send UCI info
@@ -782,8 +788,10 @@ void Thread::tsearch() {
 
             // Send PV
             Move move;
+            pvVec.clear();
             while ((move = *stack->pv++) != MOVE_NONE) {
                 std::cout << moveToString(move) << " ";
+                pvVec.push_back(move);
             }
             std::cout << std::endl;
 
@@ -798,10 +806,16 @@ void Thread::tsearch() {
     result.finished = true;
 
     if (mainThread) {
-        int64_t ms = getTime() - searchData.startTime;
-        int64_t nodes = threadPool->nodesSearched();
-        int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
-        std::cout << "info depth " << result.depth << " seldepth " << result.selDepth << " score " << formatEval(result.value) << " nodes " << nodes << " time " << ms << " nps " << nps << std::endl;
+        if (!finishedDepth) {
+            int64_t ms = getTime() - searchData.startTime;
+            int64_t nodes = threadPool->nodesSearched();
+            int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
+            std::cout << "info depth " << result.depth << " seldepth " << result.selDepth << " score " << formatEval(result.value) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
+
+            for (Move move : pvVec)
+                std::cout << moveToString(move) << " ";
+            std::cout << std::endl;
+        }
 
         std::cout << "bestmove " << moveToString(result.move) << std::endl;
     }

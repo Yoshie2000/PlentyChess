@@ -87,7 +87,9 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "list": "cpp",
-        "xhash": "cpp"
+        "xhash": "cpp",
+        "span": "cpp",
+        "variant": "cpp"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }
