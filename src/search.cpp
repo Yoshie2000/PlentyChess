@@ -261,7 +261,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     }
 
     // Moves loop
-    MoveGen movegen(board, &thread->history, stack, ttMove, true);
+    MoveGen movegen(board, &thread->history, stack, ttMove, true, 1);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -481,7 +481,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
 movesLoop:
     // Moves loop
-    MoveGen movegen(board, &thread->history, stack, ttMove, stack->killers);
+    MoveGen movegen(board, &thread->history, stack, ttMove, stack->killers, depth);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
