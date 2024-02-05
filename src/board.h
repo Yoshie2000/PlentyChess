@@ -64,10 +64,12 @@ size_t parseFen(Board* board, std::string fen);
 
 #include "nnue.h"
 
-void doMove(Board* board, BoardStack* newStack, Move move, NNUE* nnue);
+void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue);
 void undoMove(Board* board, Move move, NNUE* nnue);
 void doNullMove(Board* board, BoardStack* newStack);
 void undoNullMove(Board* board);
+
+uint64_t hashAfter(Board* board, Move move);
 
 void updateSliderPins(Board* board, Color side);
 

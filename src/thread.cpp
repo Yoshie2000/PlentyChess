@@ -22,7 +22,10 @@ void Thread::startSearching() {
     rootStack = &rootStackQueue->back();
     rootBoard.stack = rootStack;
 
-    tsearch();
+    if (searchParameters->perft)
+        searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
+    else
+        tsearch();
 }
 
 void Thread::waitForSearchFinished() {

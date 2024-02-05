@@ -104,11 +104,10 @@ void initReductions() {
     }
 }
 
-uint64_t perftInternal(Board* board, int depth) {
+uint64_t perftInternal(Board* board, NNUE* nnue, int depth) {
     if (depth == 0) return C64(1);
 
     BoardStack stack;
-    NNUE nnue;
 
     Move moves[MAX_MOVES] = { MOVE_NONE };
     int moveCount = 0;
@@ -121,9 +120,9 @@ uint64_t perftInternal(Board* board, int depth) {
         if (!isLegal(board, move))
             continue;
 
-        doMove(board, &stack, move, &nnue);
-        uint64_t subNodes = perftInternal(board, depth - 1);
-        undoMove(board, move, &nnue);
+        doMove(board, &stack, move, hashAfter(board, move), nnue);
+        uint64_t subNodes = perftInternal(board, nnue, depth - 1);
+        undoMove(board, move, nnue);
 
         nodes += subNodes;
     }
@@ -134,6 +133,7 @@ uint64_t perft(Board* board, int depth) {
     clock_t begin = clock();
     BoardStack stack;
     NNUE nnue;
+    resetAccumulators(board, &nnue);
 
     Move moves[MAX_MOVES] = { MOVE_NONE };
     int moveCount = 0;
@@ -146,8 +146,8 @@ uint64_t perft(Board* board, int depth) {
         if (!isLegal(board, move))
             continue;
 
-        doMove(board, &stack, move, &nnue);
-        uint64_t subNodes = perftInternal(board, depth - 1);
+        doMove(board, &stack, move, hashAfter(board, move), &nnue);
+        uint64_t subNodes = perftInternal(board, &nnue, depth - 1);
         undoMove(board, move, &nnue);
 
         std::cout << moveToString(move) << ": " << subNodes << std::endl;
@@ -277,9 +277,11 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
         if (!isLegal(board, move))
             continue;
 
+        uint64_t newHash = hashAfter(board, move);
+        TT.prefetch(newHash);
         moveCount++;
         thread->searchData.nodesSearched++;
-        doMove(board, &boardStack, move, &thread->nnue);
+        doMove(board, &boardStack, move, newHash, &thread->nnue);
 
         Eval value = -qsearch<nodeType>(board, thread, stack + 1, -beta, -alpha);
         undoMove(board, move, &thread->nnue);
@@ -563,6 +565,9 @@ movesLoop:
                 extension = -1;
         }
 
+        uint64_t newHash = hashAfter(board, move);
+        TT.prefetch(newHash);
+
         // Some setup stuff
         if (pvNode)
             (stack + 1)->pv = nullptr;
@@ -576,7 +581,7 @@ movesLoop:
         thread->searchData.nodesSearched++;
         stack->move = move;
         stack->movedPiece = board->pieces[moveOrigin(move)];
-        doMove(board, &boardStack, move, &thread->nnue);
+        doMove(board, &boardStack, move, newHash, &thread->nnue);
 
         if (doExtensions && extension == 0 && board->stack->checkers)
             extension = 1;
