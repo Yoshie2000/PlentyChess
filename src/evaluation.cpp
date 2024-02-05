@@ -11,10 +11,10 @@ const Eval PIECE_VALUES[PIECE_TYPES + 1] = {
     100, 300, 300, 500, 900, 0, 0
 };
 
-Eval evaluate(Board* board, NNUE* nnue) {
-    Eval eval = nnue->evaluate(board->stm);
+Eval evaluate(Board& board, NNUE* nnue) {
+    Eval eval = nnue->evaluate(board.stm);
 
-    eval = eval * (220 - board->stack->rule50_ply) / 220;
+    eval = eval * (220 - board.rule50_ply) / 220;
 
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
     return eval;
@@ -34,7 +34,7 @@ std::string formatEval(Eval value) {
     return evalString;
 }
 
-bool SEE(Board* board, Move move, Eval threshold) {
+bool SEE(Board& board, Move move, Eval threshold) {
     assert(isPseudoLegal(board, move));
 
     // "Special" moves pass SEE
@@ -45,20 +45,20 @@ bool SEE(Board* board, Move move, Eval threshold) {
     Square target = moveTarget(move);
 
     // If winning the piece on the target square (if there is one) for free doesn't pass the threshold, fail
-    int value = PIECE_VALUES[board->pieces[target]] - threshold;
+    int value = PIECE_VALUES[board.pieces[target]] - threshold;
     if (value < 0) return false;
 
     // If we beat the threshold after losing our piece, pass
-    value -= PIECE_VALUES[board->pieces[origin]];
+    value -= PIECE_VALUES[board.pieces[origin]];
     if (value >= 0) return true;
 
-    Bitboard occupied = (board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) ^ (C64(1) << origin);
+    Bitboard occupied = (board.byColor[COLOR_WHITE] | board.byColor[COLOR_BLACK]) ^ (C64(1) << origin);
     Bitboard attackersToTarget = attackersTo(board, target, occupied);
 
-    Bitboard bishops = board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN];
-    Bitboard rooks = board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN];
+    Bitboard bishops = board.byPiece[PIECE_BISHOP] | board.byPiece[PIECE_QUEEN];
+    Bitboard rooks = board.byPiece[PIECE_ROOK] | board.byPiece[PIECE_QUEEN];
 
-    Color side = 1 - board->stm;
+    Color side = 1 - board.stm;
 
     // Make captures until one side has none left / fails to beat the threshold
     while (true) {
@@ -67,14 +67,14 @@ bool SEE(Board* board, Move move, Eval threshold) {
         attackersToTarget &= occupied;
 
         // No attackers left for the current side
-        Bitboard stmAttackers = board->byColor[side] & attackersToTarget;
+        Bitboard stmAttackers = board.byColor[side] & attackersToTarget;
         if (!stmAttackers) break;
 
         // Find least valuable piece
         Piece piece;
         for (piece = PIECE_PAWN; piece < PIECE_KING; piece++) {
             // If the piece attacks the target square, stop
-            if (stmAttackers & board->byPiece[piece])
+            if (stmAttackers & board.byPiece[piece])
                 break;
         }
 
@@ -83,13 +83,13 @@ bool SEE(Board* board, Move move, Eval threshold) {
         
         // Value beats (or can't beat) threshold (negamax)
         if (value >= 0) {
-            if (piece == PIECE_KING && (attackersToTarget & board->byColor[side]))
+            if (piece == PIECE_KING && (attackersToTarget & board.byColor[side]))
                 side = 1 - side;
             break;
         }
 
         // Remove the used piece
-        occupied ^= C64(1) << lsb(stmAttackers & board->byPiece[piece]);
+        occupied ^= C64(1) << lsb(stmAttackers & board.byPiece[piece]);
 
         // Add discovered attacks
         if (piece == PIECE_PAWN || piece == PIECE_BISHOP || piece == PIECE_QUEEN)
@@ -98,5 +98,5 @@ bool SEE(Board* board, Move move, Eval threshold) {
             attackersToTarget |= getRookMoves(target, occupied) & rooks;
     }
 
-    return side != board->stm;
+    return side != board.stm;
 }

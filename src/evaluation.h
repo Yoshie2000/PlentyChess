@@ -16,11 +16,11 @@ const Eval EVAL_NONE = 31010;
 
 extern const Eval PIECE_VALUES[PIECE_TYPES + 1];
 
-Eval evaluate(Board* board, NNUE* nnue);
+Eval evaluate(Board& board, NNUE* nnue);
 
 std::string formatEval(Eval value);
 
-bool SEE(Board* board, Move move, Eval threshold);
+bool SEE(Board& board, Move move, Eval threshold);
 
 constexpr Eval mateIn(int ply) {
     return EVAL_MATE - ply;

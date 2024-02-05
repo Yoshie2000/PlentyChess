@@ -31,16 +31,11 @@ struct Board {
 
     Color stm;
     uint8_t ply;
-
-    struct BoardStack* stack;
-};
-
-struct BoardStack {
-    Piece capturedPiece;
-    Bitboard enpassantTarget; // one-hot encoding -> 0 means no en passant possible
-
     uint8_t rule50_ply;
     uint8_t nullmove_ply;
+    uint8_t castling; // 0000 -> black queenside, black kingside, white queenside, white kingside
+
+    Bitboard enpassantTarget; // one-hot encoding -> 0 means no en passant possible
     uint64_t hash;
 
     Bitboard blockers[2];
@@ -48,42 +43,41 @@ struct BoardStack {
     Bitboard checkers;
     uint8_t checkerCount;
 
-    Move move;
-
-    // MEMCPY GOES FROM HERE
     int pieceCount[2][PIECE_TYPES];
 
-    uint8_t castling; // 0000 -> black queenside, black kingside, white queenside, white kingside
-    // TO HERE
+    struct BoardStack* stack;
+};
 
+struct BoardStack {
+    uint64_t hash;
     BoardStack* previous;
 };
 
-void startpos(Board* result);
-size_t parseFen(Board* board, std::string fen);
+void startpos(Board& result);
+size_t parseFen(Board& board, std::string fen);
 
 #include "nnue.h"
 
-void doMove(Board* board, BoardStack* newStack, Move move, NNUE* nnue);
-void undoMove(Board* board, Move move, NNUE* nnue);
-void doNullMove(Board* board, BoardStack* newStack);
-void undoNullMove(Board* board);
+void doMove(Board& board, BoardStack* newStack, Move move, NNUE* nnue);
+void undoMove(Board& board, Move move, NNUE* nnue);
+void doNullMove(Board& board, BoardStack* newStack);
+void undoNullMove(Board& board);
 
-void updateSliderPins(Board* board, Color side);
+void updateSliderPins(Board& board, Color side);
 
-bool hasUpcomingRepetition(Board* board, int ply);
-bool isDraw(Board* board);
+bool hasUpcomingRepetition(Board& board, int ply);
+bool isDraw(Board& board);
 
-constexpr bool hasNonPawns(Board* board) {
-    return board->stack->pieceCount[board->stm][PIECE_KNIGHT] > 0 || board->stack->pieceCount[board->stm][PIECE_BISHOP] > 0 || board->stack->pieceCount[board->stm][PIECE_ROOK] > 0 || board->stack->pieceCount[board->stm][PIECE_QUEEN] > 0;
+constexpr bool hasNonPawns(Board& board) {
+    return board.pieceCount[board.stm][PIECE_KNIGHT] > 0 || board.pieceCount[board.stm][PIECE_BISHOP] > 0 || board.pieceCount[board.stm][PIECE_ROOK] > 0 || board.pieceCount[board.stm][PIECE_QUEEN] > 0;
 }
 
-Bitboard attackersTo(Board* board, Square square, Bitboard occupied);
+Bitboard attackersTo(Board& board, Square square, Bitboard occupied);
 
 Bitboard pawnAttacksLeft(Bitboard pawns, Color side);
 Bitboard pawnAttacksRight(Bitboard pawns, Color side);
 Bitboard pawnAttacks(Bitboard pawns, Color side);
-Bitboard pawnAttacks(Board* board, Color side);
+Bitboard pawnAttacks(Board& board, Color side);
 
 constexpr Bitboard knightAttacks(Bitboard knightBB) {
     Bitboard l1 = (knightBB >> 1) & C64(0x7f7f7f7f7f7f7f7f);
@@ -94,16 +88,16 @@ constexpr Bitboard knightAttacks(Bitboard knightBB) {
     Bitboard h2 = l2 | r2;
     return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
 }
-Bitboard knightAttacksAll(Board* board, Color side);
+Bitboard knightAttacksAll(Board& board, Color side);
 
-Bitboard kingAttacks(Board* board, Color side);
+Bitboard kingAttacks(Board& board, Color side);
 
-Bitboard slidingPieceAttacksAll(Board* board, Color side, Piece pieceType);
+Bitboard slidingPieceAttacksAll(Board& board, Color side, Piece pieceType);
 
-Bitboard attackedSquares(Board* board, Color side);
-Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType);
+Bitboard attackedSquares(Board& board, Color side);
+Bitboard attackedSquaresByPiece(Board& board, Color side, Piece pieceType);
 Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupied, Color stm);
 
-void debugBoard(Board* board);
+void debugBoard(Board& board);
 void debugBitboard(Bitboard bb);
-int validateBoard(Board* board);
+int validateBoard(Board& board);

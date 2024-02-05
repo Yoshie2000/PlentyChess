@@ -62,7 +62,7 @@ void initNetworkData() {
     }
 }
 
-void resetAccumulators(Board* board, NNUE* nnue) {
+void resetAccumulators(Board& board, NNUE* nnue) {
     // Sets up the NNUE accumulator completely from scratch by adding each piece individually
     nnue->currentAccumulator = 0;
     nnue->lastCalculatedAccumulator = 0;
@@ -74,10 +74,10 @@ void resetAccumulators(Board* board, NNUE* nnue) {
     }
 
     for (Square square = 0; square < 64; square++) {
-        Piece piece = board->pieces[square];
+        Piece piece = board.pieces[square];
         if (piece == NO_PIECE) continue;
 
-        Color pieceColor = (board->byColor[COLOR_WHITE] & (C64(1) << square)) ? COLOR_WHITE : COLOR_BLACK;
+        Color pieceColor = (board.byColor[COLOR_WHITE] & (C64(1) << square)) ? COLOR_WHITE : COLOR_BLACK;
         nnue->addPieceToAccumulator(&nnue->accumulatorStack[0], &nnue->accumulatorStack[0], square, piece, pieceColor);
     }
 }

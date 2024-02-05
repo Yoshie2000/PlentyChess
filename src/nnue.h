@@ -234,4 +234,4 @@ public:
 
 #include "board.h"
 
-void resetAccumulators(Board* board, NNUE* nnue);
+void resetAccumulators(Board& board, NNUE* nnue);

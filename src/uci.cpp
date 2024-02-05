@@ -173,7 +173,7 @@ bool nextToken(std::string* line, std::string* token) {
     return true;
 }
 
-void bench(std::deque<BoardStack>* stackQueue, Board* board) {
+void bench(std::deque<BoardStack>* stackQueue, Board& board) {
     uint64_t nodes = 0;
     int position = 1;
     int totalPositions = benchPositions.size();
@@ -189,7 +189,7 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
 
         std::cerr << "\nPosition: " << position++ << '/' << totalPositions << " (" << fen << ")" << std::endl;
 
-        threads.startSearching(*board, *stackQueue, parameters);
+        threads.startSearching(board, *stackQueue, parameters);
         threads.waitForSearchFinished();
         nodes += threads.nodesSearched();
     }
@@ -202,7 +202,7 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
         << "\nNodes/second    : " << 1000 * nodes / elapsed << std::endl;
 }
 
-void perfttest(std::deque<BoardStack>* stackQueue, Board* board) {
+void perfttest(std::deque<BoardStack>* stackQueue, Board& board) {
 
     threads.waitForSearchFinished();
     SearchParameters parameters;
@@ -210,34 +210,34 @@ void perfttest(std::deque<BoardStack>* stackQueue, Board* board) {
     parameters.perft = true;
 
     startpos(board);
-    threads.startSearching(*board, *stackQueue, parameters);
+    threads.startSearching(board, *stackQueue, parameters);
     threads.waitForSearchFinished();
-    if (threads.nodesSearched() != 4865609) std::cout << "Failed perft for startpos" << std::endl;
+    if (threads.nodesSearched() != 4865609) std::cout << "Failed perft for startpos: Got " << threads.nodesSearched() << std::endl;
 
     parseFen(board, "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-    threads.startSearching(*board, *stackQueue, parameters);
+    threads.startSearching(board, *stackQueue, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 193690690) std::cout << "Failed perft for r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1" << std::endl;
 
     parseFen(board, "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
     parameters.depth = 6;
-    threads.startSearching(*board, *stackQueue, parameters);
+    threads.startSearching(board, *stackQueue, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 11030083) std::cout << "Failed perft for 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1" << std::endl;
 
     parseFen(board, "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
     parameters.depth = 5;
-    threads.startSearching(*board, *stackQueue, parameters);
+    threads.startSearching(board, *stackQueue, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 15833292) std::cout << "Failed perft for r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1" << std::endl;
 
     parseFen(board, "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
-    threads.startSearching(*board, *stackQueue, parameters);
+    threads.startSearching(board, *stackQueue, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 89941194) std::cout << "Failed perft for rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8" << std::endl;
 
     parseFen(board, "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
-    threads.startSearching(*board, *stackQueue, parameters);
+    threads.startSearching(board, *stackQueue, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 164075551) std::cout << "Failed perft for r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10" << std::endl;
 
@@ -256,7 +256,7 @@ std::vector<std::string> splitString(const std::string& input, char delimiter) {
     return tokens;
 }
 
-void seetest(Board* board) {
+void seetest(Board& board) {
     int passed = 0, failed = 0;
 
     for (const std::string& line : seeTest) {
@@ -271,7 +271,7 @@ void seetest(Board* board) {
         parseFen(board, fen);
         char charMove[6] = { '\0' };
         uciMove.copy(charMove, uciMove.length() - 2, 1);
-        Move move = stringToMove(charMove, board);
+        Move move = stringToMove(charMove, &board);
         bool result = SEE(board, move, 0);
 
         if (result == expected)
@@ -287,9 +287,9 @@ void seetest(Board* board) {
     std::cout << "Failed: " << failed << std::endl;
 }
 
-void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
+void position(std::string line, Board& board, std::deque<BoardStack>* stackQueue) {
     *stackQueue = std::deque<BoardStack>(1);
-    board->stack = &stackQueue->back();
+    board.stack = &stackQueue->back();
 
     // Set up startpos or moves
     if (matchesToken(line, "startpos")) {
@@ -325,7 +325,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
                 move[i] = line[i];
                 i++;
             }
-            Move m = stringToMove(move, board);
+            Move m = stringToMove(move, &board);
 
             stackQueue->emplace_back();
             doMove(board, &stackQueue->back(), m, &nnue);
@@ -369,7 +369,7 @@ void setoption(std::string line) {
     }
 }
 
-void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
+void go(std::string line, Board& board, std::deque<BoardStack>* stackQueue) {
     SearchParameters parameters;
     if (line.size() == 2) {
         line = "";
@@ -425,19 +425,19 @@ void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
     }
 
     TT.newSearch();
-    threads.startSearching(*board, *stackQueue, parameters);
+    threads.startSearching(board, *stackQueue, parameters);
 }
 
 void uciLoop(int argc, char* argv[]) {
     Board board;
     std::deque<BoardStack> stackQueue = std::deque<BoardStack>(1);
     board.stack = &stackQueue.back();
-    startpos(&board);
+    startpos(board);
 
     printf("UCI thread running\n");
 
     if (argc > 1 && matchesToken(argv[1], "bench")) {
-        bench(&stackQueue, &board);
+        bench(&stackQueue, board);
         return;
     }
     for (std::string line;std::getline(std::cin, line);) {
@@ -455,20 +455,20 @@ void uciLoop(int argc, char* argv[]) {
             SPSA::printUCI();
             printf("\nuciok\n");
         }
-        else if (matchesToken(line, "go")) go(line, &board, &stackQueue);
-        else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
+        else if (matchesToken(line, "go")) go(line, board, &stackQueue);
+        else if (matchesToken(line, "position")) position(line.substr(9), board, &stackQueue);
         else if (matchesToken(line, "setoption")) setoption(line.substr(10));
 
         /* NON UCI COMMANDS */
-        else if (matchesToken(line, "bench")) bench(&stackQueue, &board);
-        else if (matchesToken(line, "perfttest")) perfttest(&stackQueue, &board);
-        else if (matchesToken(line, "debug")) debugBoard(&board);
+        else if (matchesToken(line, "bench")) bench(&stackQueue, board);
+        else if (matchesToken(line, "perfttest")) perfttest(&stackQueue, board);
+        else if (matchesToken(line, "debug")) debugBoard(board);
         else if (matchesToken(line, "eval")) {
             NNUE nnue;
-            resetAccumulators(&board, &nnue);
-            std::cout << formatEval(evaluate(&board, &nnue)) << std::endl;
+            resetAccumulators(board, &nnue);
+            std::cout << formatEval(evaluate(board, &nnue)) << std::endl;
         }
-        else if (matchesToken(line, "seetest")) seetest(&board);
+        else if (matchesToken(line, "seetest")) seetest(board);
         else printf("Unknown command\n");
     }
 

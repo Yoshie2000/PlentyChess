@@ -13,19 +13,19 @@ class History {
 public:
     void initHistory();
 
-    int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
+    int getHistory(Board& board, SearchStack* searchStack, Move move, bool isCapture);
 
-    int getQuietHistory(Board* board, Move move);
-    void updateQuietHistory(Board* board, Move move, int bonus);
+    int getQuietHistory(Board& board, Move move);
+    void updateQuietHistory(Board& board, Move move, int bonus);
 
-    int getContinuationHistory(Board* board, SearchStack* stack, Move move);
-    void updateContinuationHistory(Board* board, SearchStack* stack, Move move, int bonus);
+    int getContinuationHistory(Board& board, SearchStack* stack, Move move);
+    void updateContinuationHistory(Board& board, SearchStack* stack, Move move, int bonus);
 
-    int* getCaptureHistory(Board* board, Move move);
-    void updateSingleCaptureHistory(Board* board, Move move, int bonus);
-    void updateCaptureHistory(Board* board, Move move, int bonus, Move* captureMoves, int captureMoveCount);
+    int* getCaptureHistory(Board& board, Move move);
+    void updateSingleCaptureHistory(Board& board, Move move, int bonus);
+    void updateCaptureHistory(Board& board, Move move, int bonus, Move* captureMoves, int captureMoveCount);
 
-    void updateQuietHistories(Board* board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount);
+    void updateQuietHistories(Board& board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount);
 
     Move getCounterMove(Move move);
     void setCounterMove(Move move, Move counter);
