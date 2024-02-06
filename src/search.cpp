@@ -387,7 +387,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
             ttMove = ttEntry->bestMove;
             ttValue = valueFromTt(ttEntry->value, stack->ply);
             ttEval = ttEntry->eval;
-            ttDepth = ttEntry->depth + TT_DEPTH_OFFSET;
+            ttDepth = ttEntry->depth;
             ttFlag = ttEntry->flags & 0x3;
             ttPv = ttPv || ttEntry->flags & 0x4;
         }

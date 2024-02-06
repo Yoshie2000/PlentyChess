@@ -18,8 +18,6 @@
 #define TT_LOWERBOUND 2
 #define TT_EXACTBOUND 3
 
-#define TT_DEPTH_OFFSET -7
-
 extern uint64_t ZOBRIST_PIECE_SQUARES[2][PIECE_TYPES][64];
 extern uint64_t ZOBRIST_STM_BLACK;
 extern uint64_t ZOBRIST_CASTLING[16]; // 2^4
@@ -48,10 +46,10 @@ struct TTEntry {
         if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
             bestMove = _bestMove;
 
-        if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth - TT_DEPTH_OFFSET + 2 * wasPv > depth - 4) {
+        if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + 4 + 2 * wasPv > depth) {
             hash = (uint16_t)_hash;
             bestMove = _bestMove;
-            depth = _depth - TT_DEPTH_OFFSET;
+            depth = _depth;
             value = _value;
             eval = _eval;
             flags = (uint8_t)(_flags + (wasPv << 2)) | TT_GENERATION_COUNTER;
