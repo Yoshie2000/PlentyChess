@@ -641,8 +641,21 @@ bool hasUpcomingRepetition(Board* board, int ply) {
     return false;
 }
 
-// Checks for 2-fold repetition and rule50 draw
+// Checks for 2-fold repetition, rule50 and material draw
 bool isDraw(Board* board) {
+
+    // Check for material draw
+    int pieceCount = __builtin_popcountll(board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]);
+    if (pieceCount == 2)
+        return true;
+    if (pieceCount == 3 && (board->byPiece[PIECE_KNIGHT] || board->byPiece[PIECE_BISHOP]))
+        return true;
+    if (pieceCount == 4) {
+        if (__builtin_popcountll(board->byPiece[PIECE_KNIGHT]) == 2)
+            return true;
+        if (__builtin_popcountll(board->byPiece[PIECE_BISHOP]) == 2 && (board->byPiece[PIECE_BISHOP] & board->byColor[COLOR_WHITE]) && (board->byPiece[PIECE_BISHOP] & board->byColor[COLOR_BLACK]))
+            return true;
+    }
 
     // The stack needs to go back far enough
     if (!board->stack->previous || !board->stack->previous->previous)
