@@ -453,7 +453,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     // Reverse futility pruning
     if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving) >= beta)
-        return eval;
+        return std::abs(beta) < EVAL_MATE_IN_MAX_PLY ? (beta + eval) / 2 : eval;
 
     // Razoring
     if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha) {
