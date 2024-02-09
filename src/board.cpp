@@ -55,6 +55,7 @@ size_t parseFen(Board* board, std::string fen) {
     board->stack->checkers = C64(0);
     board->stack->capturedPiece = NO_PIECE;
     board->stack->hash = 0;
+    board->stack->pawnHash = ZOBRIST_NO_PAWNS;
     board->stack->nullmove_ply = 0;
 
     // Board position and everything
@@ -75,6 +76,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->stack->pieceCount[COLOR_BLACK][PIECE_PAWN]++;
             board->pieces[currentSquare] = PIECE_PAWN;
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_BLACK][PIECE_PAWN][currentSquare];
+            board->stack->pawnHash ^= ZOBRIST_PIECE_SQUARES[COLOR_BLACK][PIECE_PAWN][currentSquare];
             currentSquare++;
             break;
         case 'P':
@@ -83,6 +85,7 @@ size_t parseFen(Board* board, std::string fen) {
             board->stack->pieceCount[COLOR_WHITE][PIECE_PAWN]++;
             board->pieces[currentSquare] = PIECE_PAWN;
             board->stack->hash ^= ZOBRIST_PIECE_SQUARES[COLOR_WHITE][PIECE_PAWN][currentSquare];
+            board->stack->pawnHash ^= ZOBRIST_PIECE_SQUARES[COLOR_WHITE][PIECE_PAWN][currentSquare];
             currentSquare++;
             break;
         case 'n':
@@ -309,6 +312,7 @@ void doMove(Board* board, BoardStack* newStack, Move move, NNUE* nnue) {
     memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(uint8_t));
 
     newStack->hash = newStack->previous->hash ^ ZOBRIST_STM_BLACK;
+    newStack->pawnHash = newStack->previous->pawnHash;
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
     newStack->nullmove_ply = newStack->previous->nullmove_ply + 1;
 
@@ -356,6 +360,8 @@ void doMove(Board* board, BoardStack* newStack, Move move, NNUE* nnue) {
 
             captureTargetBB = C64(1) << captureTarget;
             board->pieces[captureTarget] = NO_PIECE; // remove the captured pawn
+
+            newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[1 - board->stm][PIECE_PAWN][captureTarget];
         }
 
         if ((origin ^ target) == 16) {
@@ -363,6 +369,8 @@ void doMove(Board* board, BoardStack* newStack, Move move, NNUE* nnue) {
             newStack->enpassantTarget = C64(1) << (target - UP[board->stm]);
             newStack->hash ^= ZOBRIST_ENPASSENT[origin % 8];
         }
+
+        newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[board->stm][PIECE_PAWN][origin] ^ ZOBRIST_PIECE_SQUARES[board->stm][PIECE_PAWN][target];
     }
 
     // Handle capture
@@ -406,6 +414,7 @@ void doMove(Board* board, BoardStack* newStack, Move move, NNUE* nnue) {
         board->pieces[target] = promotionPiece;
 
         newStack->hash ^= ZOBRIST_PIECE_SQUARES[board->stm][piece][target] ^ ZOBRIST_PIECE_SQUARES[board->stm][promotionPiece][target];
+        newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[board->stm][PIECE_PAWN][target];
 
         // Promotion, we don't move the current piece, instead we remove it from the origin square
         // and place the promotionPiece on the target square. This saves one accumulator update
@@ -544,6 +553,7 @@ void doNullMove(Board* board, BoardStack* newStack) {
     memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(uint8_t));
 
     newStack->hash = newStack->previous->hash ^ ZOBRIST_STM_BLACK;
+    newStack->pawnHash = newStack->previous->pawnHash;
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
     newStack->nullmove_ply = 0;
     newStack->enpassantTarget = 0;
