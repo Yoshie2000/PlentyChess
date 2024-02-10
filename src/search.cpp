@@ -431,11 +431,11 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving) >= beta)
+    if (!pvNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving) >= beta)
         return eval;
 
     // Razoring
-    if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha) {
+    if (!pvNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, thread, stack, alpha, beta);
         if (razorValue <= alpha)
             return razorValue;
