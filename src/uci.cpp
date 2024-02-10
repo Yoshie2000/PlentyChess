@@ -328,7 +328,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
             Move m = stringToMove(move, board);
 
             stackQueue->emplace_back();
-            doMove(board, &stackQueue->back(), m, &nnue);
+            doMove(board, &stackQueue->back(), m, hashAfter(board, m), &nnue);
 
             if (moveCount++ > 200) {
                 resetAccumulators(board, &nnue);

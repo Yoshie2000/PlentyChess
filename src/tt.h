@@ -124,7 +124,7 @@ public:
         __builtin_prefetch(&table[index(hash)]);
     }
 
-    TTEntry* probe(uint64_t hash, bool* found) {
+    __attribute_noinline__ TTEntry* probe(uint64_t hash, bool* found) {
         TTCluster* cluster = &table[index(hash)];
         uint64_t hash16 = (uint16_t)hash;
 
