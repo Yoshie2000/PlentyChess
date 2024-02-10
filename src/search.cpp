@@ -209,6 +209,11 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     Eval bestValue, futilityValue, unadjustedEval;
     Eval oldAlpha = alpha;
 
+    // Set up pv for the next search
+    if (pvNode) {
+        (stack + 1)->pv = pv;
+        stack->pv[0] = MOVE_NONE;
+    }
     (stack + 1)->ply = stack->ply + 1;
 
     // TT Lookup
@@ -233,7 +238,11 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
-    if (ttHit && ttEval != EVAL_NONE) {
+    if (board->stack->checkers) {
+        stack->staticEval = bestValue = unadjustedEval = futilityValue = -EVAL_INFINITE;
+        goto movesLoopQsearch;
+    }
+    else if (ttHit && ttEval != EVAL_NONE) {
         unadjustedEval = ttEval;
         stack->staticEval = bestValue = thread->history.correctStaticEval(unadjustedEval, board);
     }
@@ -250,25 +259,21 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     if (alpha < bestValue)
         alpha = bestValue;
 
+movesLoopQsearch:
     // Mate distance pruning
     alpha = std::max((int)alpha, (int)matedIn(stack->ply));
     beta = std::min((int)beta, (int)mateIn(stack->ply + 1));
     if (alpha >= beta)
         return alpha;
 
-    // Set up pv for the next search
-    if (pvNode) {
-        (stack + 1)->pv = pv;
-        stack->pv[0] = MOVE_NONE;
-    }
-
     // Moves loop
-    MoveGen movegen(board, &thread->history, stack, ttMove, true, 1);
+    MoveGen movegen(board, &thread->history, stack, ttMove, !board->stack->checkers, 1);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
-        if (bestValue >= -EVAL_MATE_IN_MAX_PLY
+        if (   bestValue >= -EVAL_MATE_IN_MAX_PLY
+            && futilityValue > -EVAL_INFINITE
             && futilityValue <= alpha
             && !SEE(board, move, 1)
             ) {
@@ -308,16 +313,14 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
         }
     }
 
+    if (bestValue == -EVAL_INFINITE) {
+        assert(board->stack->checkers && moveCount == 0);
+        bestValue = matedIn(stack->ply); // Checkmate
+    }
+
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
     ttEntry->update(board->stack->hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
-
-    // if (moveCount != 0 && moveCount == skippedMoves) {
-    //     if (board->stack->checkers) {
-    //         return matedIn(stack->ply); // Checkmate
-    //     }
-    //     return 0; // Stalemate
-    // }
 
     return bestValue;
 }
