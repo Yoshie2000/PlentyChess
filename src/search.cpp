@@ -266,22 +266,31 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
-        if (bestValue >= -EVAL_MATE_IN_MAX_PLY
-            && futilityValue <= alpha
-            && !SEE(board, move, 1)
-            ) {
-            bestValue = std::max(bestValue, futilityValue);
-            continue;
-        }
-
         if (!isLegal(board, move))
             continue;
 
         uint64_t newHash = hashAfter(board, move);
+
+        bool moveDone = false;
+        if (bestValue >= -EVAL_MATE_IN_MAX_PLY
+            && futilityValue > -EVAL_INFINITE
+            && futilityValue <= alpha
+            && !SEE(board, move, 1)
+            ) {
+            moveDone = true;
+            doMove(board, &boardStack, move, newHash, &thread->nnue);
+            if (!board->stack->checkers) {
+                undoMove(board, move, &thread->nnue);
+                bestValue = std::max(bestValue, futilityValue);
+                continue;
+            }
+        }
+
         TT.prefetch(newHash);
         moveCount++;
         thread->searchData.nodesSearched++;
-        doMove(board, &boardStack, move, newHash, &thread->nnue);
+        if (!moveDone)
+            doMove(board, &boardStack, move, newHash, &thread->nnue);
 
         Eval value = -qsearch<nodeType>(board, thread, stack + 1, -beta, -alpha);
         undoMove(board, move, &thread->nnue);
