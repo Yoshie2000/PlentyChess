@@ -6,6 +6,7 @@
 
 uint64_t ZOBRIST_PIECE_SQUARES[2][PIECE_TYPES][64];
 uint64_t ZOBRIST_STM_BLACK;
+uint64_t ZOBRIST_NO_PAWNS;
 uint64_t ZOBRIST_CASTLING[16];
 uint64_t ZOBRIST_ENPASSENT[8];
 
@@ -29,6 +30,7 @@ void initZobrist() {
         }
     }
     ZOBRIST_STM_BLACK = dist(rng);
+    ZOBRIST_NO_PAWNS = dist(rng);
     for (int i = 0; i < 16; i++) {
         ZOBRIST_CASTLING[i] = dist(rng);
     }

@@ -4,6 +4,7 @@
 #include "history.h"
 #include "types.h"
 #include "move.h"
+#include "evaluation.h"
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
@@ -14,6 +15,19 @@ void History::initHistory() {
     }
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
+    memset(correctionHistory, 0, sizeof(correctionHistory));
+}
+
+Eval History::correctStaticEval(Eval eval, Board* board) {
+    Eval history = getCorrectionHistory(board);
+    Eval adjustedEval = eval + (history * std::abs(history)) / 16384;
+    adjustedEval = std::clamp((int) adjustedEval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
+    return adjustedEval;
+}
+
+void History::updateCorrectionHistory(Board* board, int bonus) {
+    int scaledBonus = bonus - getCorrectionHistory(board) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 }
 
 int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {

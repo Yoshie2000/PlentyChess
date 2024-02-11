@@ -42,6 +42,7 @@ struct BoardStack {
     uint8_t rule50_ply;
     uint8_t nullmove_ply;
     uint64_t hash;
+    uint64_t pawnHash;
 
     Bitboard blockers[2];
     Bitboard pinners[2];

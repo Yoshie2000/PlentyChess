@@ -206,7 +206,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     BoardStack boardStack;
     Move pv[MAX_PLY + 1] = { MOVE_NONE };
     Move bestMove = MOVE_NONE;
-    Eval bestValue, futilityValue;
+    Eval bestValue, futilityValue, unadjustedEval;
     Eval oldAlpha = alpha;
 
     (stack + 1)->ply = stack->ply + 1;
@@ -234,11 +234,13 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
         return ttValue;
 
     if (ttHit && ttEval != EVAL_NONE) {
-        stack->staticEval = bestValue = ttEval;
+        unadjustedEval = ttEval;
+        stack->staticEval = bestValue = thread->history.correctStaticEval(unadjustedEval, board);
     }
     else {
-        stack->staticEval = bestValue = evaluate(board, &thread->nnue);
-        ttEntry->update(board->stack->hash, MOVE_NONE, 0, stack->staticEval, EVAL_NONE, ttPv, TT_NOBOUND);
+        unadjustedEval = evaluate(board, &thread->nnue);
+        stack->staticEval = bestValue = thread->history.correctStaticEval(unadjustedEval, board);
+        ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
     futilityValue = stack->staticEval + qsFutilityOffset;
 
@@ -308,7 +310,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
 
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
-    ttEntry->update(board->stack->hash, bestMove, 0, stack->staticEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+    ttEntry->update(board->stack->hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // if (moveCount != 0 && moveCount == skippedMoves) {
     //     if (board->stack->checkers) {
@@ -399,20 +401,23 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
-    Eval eval = EVAL_NONE;
+    Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE;
     if (board->stack->checkers || excluded) {
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
     }
     if (ttHit) {
-        eval = stack->staticEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &thread->nnue);
+        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &thread->nnue);
+        eval = stack->staticEval = thread->history.correctStaticEval(unadjustedEval, board);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
-        eval = stack->staticEval = evaluate(board, &thread->nnue);
-        ttEntry->update(board->stack->hash, MOVE_NONE, 0, stack->staticEval, EVAL_NONE, ttPv, TT_NOBOUND);
+        unadjustedEval = evaluate(board, &thread->nnue);
+        eval = stack->staticEval = thread->history.correctStaticEval(unadjustedEval, board);
+
+        ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
     // IIR
@@ -680,7 +685,17 @@ movesLoop:
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(board->stack->hash, bestMove, depth, thread->threadPool->threads.size() == 1 ? eval : stack->staticEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+        ttEntry->update(board->stack->hash, bestMove, depth, thread->threadPool->threads.size() == 1 ? eval : unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+
+    // Adjust correction history
+    if (!board->stack->checkers
+        && (bestMove == MOVE_NONE || !isCapture(board, bestMove))
+        && !(bestValue >= beta && bestValue <= stack->staticEval)
+        && !(bestMove == MOVE_NONE && bestValue >= stack->staticEval)
+        ) {
+        int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth / 8, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+        thread->history.updateCorrectionHistory(board, bonus);
+    }
 
     assert(bestValue > -EVAL_INFINITE && bestValue < EVAL_INFINITE);
 
