@@ -24,6 +24,11 @@ else
 	CXXFLAGS := $(CXXFLAGS) -march=native
 endif
 
+# Windows only flags
+ifeq ($(OS), Windows_NT)
+	CXXFLAGS := $(CXXFLAGS) -lstdc++ -static -Wl,--no-as-needed
+endif
+
 all:	engine
 
 engine:	$(OBJS)
