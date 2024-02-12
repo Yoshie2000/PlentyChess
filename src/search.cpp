@@ -604,6 +604,9 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth--;
+            
+            if (move == stack->killers[0] || move == stack->killers[1] || (stack->ply > 0 && move == thread->history.getCounterMove((stack-1)->move)))
+                reducedDepth++;
 
             reducedDepth += moveHistory / lmrHistoryFactor;
 
