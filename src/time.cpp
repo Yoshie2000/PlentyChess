@@ -10,8 +10,9 @@ bool timeOver(SearchParameters* parameters, SearchData* data) {
     return (data->maxTime && (data->nodesSearched % 1024) == 0 && getTime() >= data->maxTime) || (parameters->nodes && data->nodesSearched >= parameters->nodes);
 }
 
-bool timeOverDepthCleared(SearchParameters* parameters, SearchData* data) {
-    return (data->maxTime && getTime() >= data->optTime) || (parameters->nodes && data->nodesSearched >= parameters->nodes);
+bool timeOverDepthCleared(SearchParameters* parameters, SearchData* data, float factor) {
+    int64_t adjustedOptTime = data->startTime + (data->optTime - data->startTime) * factor;
+    return (data->maxTime && getTime() >= adjustedOptTime) || (parameters->nodes && data->nodesSearched >= parameters->nodes);
 }
 
 void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchData* data) {
