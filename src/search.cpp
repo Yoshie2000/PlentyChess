@@ -717,8 +717,10 @@ void Thread::tsearch() {
     if (mainThread)
         initTimeManagement(&rootBoard, searchParameters, &searchData);
 
-    // Necessary for aspiration windows
     Eval previousValue = EVAL_NONE;
+    Move previousMove = MOVE_NONE;
+
+    int bestMoveStability = 0;
 
     std::vector<Move> pvVec;
     bool finishedDepth = false;
@@ -818,12 +820,22 @@ void Thread::tsearch() {
             }
             std::cout << std::endl;
 
-            // Every thread can request a time stop when a depth is cleared
-            if (timeOverDepthCleared(searchParameters, &searchData)) {
+            // Adjust time management
+            float tmAdjustment = 1.0f;
+            if (result.move == previousMove)
+                bestMoveStability = std::min(bestMoveStability + 1, 10);
+            else
+                bestMoveStability = 0;
+            
+            tmAdjustment *= 1.45 - bestMoveStability * 0.075;
+
+            if (timeOverDepthCleared(searchParameters, &searchData, tmAdjustment)) {
                 threadPool->stopSearching();
                 break;
             }
         }
+
+        previousMove = result.move;
     }
 
     result.finished = true;
