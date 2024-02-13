@@ -603,7 +603,7 @@ void MoveGen::scoreBadCaptures() {
         // En passent and promotion will always pass SEE
         else
             score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
-        badCaptureScores[i] = score;
+        badCaptureScores[i] = score + *history->getCaptureHistory(board, move);;
     }
 }
 
