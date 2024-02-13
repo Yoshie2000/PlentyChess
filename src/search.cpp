@@ -603,7 +603,7 @@ movesLoop:
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
             if (!ttPv)
-                reducedDepth--;
+                reducedDepth -= 1 + (ttValue == EVAL_NONE || ttValue < alpha);
 
             if (cutNode)
                 reducedDepth--;
