@@ -541,20 +541,7 @@ Move MoveGen::nextMove() {
 int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
-        bool goodCapture = SEE(board, move, -107);
 
-        // Store bad captures in a separate list
-        if (!goodCapture) {
-            moveList[i] = moveList[endIndex - 1];
-            moveList[endIndex - 1] = MOVE_NONE;
-            badCaptureList[flaggedBadCaptures++] = move;
-            endIndex--;
-            generatedMoves--;
-            i--;
-            continue;
-        }
-
-        int score;
         // Skip all previously searched moves
         if (move == ttMove) {
             moveList[i] = moveList[endIndex - 1];
@@ -564,7 +551,21 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
             i--;
             continue;
         }
-        else if ((move & 0x3000) == MOVE_ENPASSANT)
+
+        // Store bad captures in a separate list
+        bool goodCapture = SEE(board, move, -107);
+        if (!goodCapture) {
+            moveList[i] = moveList[endIndex - 1];
+            moveList[endIndex - 1] = MOVE_NONE;
+            badCaptureList[flaggedBadCaptures++] = move;
+            endIndex--;
+            generatedMoves--;
+            i--;
+            continue;
+        }
+        
+        int score;
+        if ((move & 0x3000) == MOVE_ENPASSANT)
             score = 0;
         else if ((move & 0x3000) == MOVE_PROMOTION)
             score = PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
@@ -578,7 +579,6 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
 int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
-        int score = history->getHistory(board, searchStack, move, false);
 
         // Skip all previously searched moves
         if (move == ttMove || move == killers[0] || move == killers[1] || move == counterMove) {
@@ -589,7 +589,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
             i--;
             continue;
         }
-        moveListScores[i] = score;
+        moveListScores[i] = history->getHistory(board, searchStack, move, false);
     }
     return endIndex;
 }
@@ -597,13 +597,8 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
 void MoveGen::scoreBadCaptures() {
     for (int i = 0; i < generatedBadCaptures; i++) {
         Move move = badCaptureList[i];
-        int score;
-        if (move == ttMove)
-            score = INT32_MIN;
-        // En passent and promotion will always pass SEE
-        else
-            score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
-        badCaptureScores[i] = score;
+        // En passent and promotion will always pass SEE, no ttMove will appear here
+        badCaptureScores[i] = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
     }
 }
 
@@ -630,10 +625,10 @@ void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) 
 Move MoveGen::cycleUntilNextMove() {
     assert(returnedMoves < MAX_MOVES);
     assert(returnedBadCaptures < 32);
-    if (!(moveList[returnedMoves] != MOVE_NONE || returnedBadCaptures < generatedBadCaptures || badCaptureList[generatedBadCaptures] == MOVE_NONE)) {
-        std::cout << generationStage << " " << returnedMoves << " " << generatedMoves << " " << returnedBadCaptures << " " << generatedBadCaptures << std::endl;
-        std::cout << (moveList[returnedMoves] != MOVE_NONE) << " " << (returnedBadCaptures < generatedBadCaptures) << " " << (badCaptureList[generatedBadCaptures] == MOVE_NONE) << std::endl;
-    }
+    // if (!(moveList[returnedMoves] != MOVE_NONE || returnedBadCaptures < generatedBadCaptures || badCaptureList[generatedBadCaptures] == MOVE_NONE)) {
+    //     std::cout << generationStage << " " << returnedMoves << " " << generatedMoves << " " << returnedBadCaptures << " " << generatedBadCaptures << std::endl;
+    //     std::cout << (moveList[returnedMoves] != MOVE_NONE) << " " << (returnedBadCaptures < generatedBadCaptures) << " " << (badCaptureList[generatedBadCaptures] == MOVE_NONE) << std::endl;
+    // }
     assert(moveList[returnedMoves] != MOVE_NONE || returnedBadCaptures < generatedBadCaptures || badCaptureList[generatedBadCaptures] == MOVE_NONE);
 
     if (returnedMoves < generatedMoves)
