@@ -21,7 +21,7 @@ void History::initHistory() {
 Eval History::correctStaticEval(Eval eval, Board* board) {
     Eval history = getCorrectionHistory(board);
     Eval adjustedEval = eval + (history * std::abs(history)) / 16384;
-    adjustedEval = std::clamp((int) adjustedEval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
+    adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
     return adjustedEval;
 }
 
@@ -33,7 +33,8 @@ void History::updateCorrectionHistory(Board* board, int bonus) {
 int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
     if (isCapture) {
         return *getCaptureHistory(board, move);
-    } else {
+    }
+    else {
         return getQuietHistory(board, move) + 2 * getContinuationHistory(board, searchStack, move);
     }
 }
@@ -120,9 +121,7 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int bonus) {
 }
 
 void History::updateCaptureHistory(Board* board, Move move, int bonus, Move* captureMoves, int captureMoveCount) {
-    if (isCapture(board, move)) {
-        updateSingleCaptureHistory(board, move, bonus);
-    }
+    updateSingleCaptureHistory(board, move, bonus);
 
     for (int i = 0; i < captureMoveCount; i++) {
         Move cMove = captureMoves[i];
