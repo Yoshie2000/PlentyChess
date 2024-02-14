@@ -73,7 +73,7 @@ bool isPseudoLegal(Board* board, Move move) {
             return false;
         break;
     case PIECE_KNIGHT:
-        if (!(knightAttacks(originBB) & targetBB)) return false;
+        if (!(KNIGHT_ATTACKS[origin] & targetBB)) return false;
         break;
     case PIECE_BISHOP:
         if (!(getBishopMoves(origin, occupied) & targetBB)) return false;
@@ -351,7 +351,7 @@ void generatePiece(Board* board, Move** moves, int* counter, bool captures, Bitb
     Bitboard pieces = board->byPiece[pieceType] & blockedUs;
     while (pieces) {
         Square piece = popLSB(&pieces);
-        Bitboard targets = pieceType == PIECE_KNIGHT ? knightAttacks(C64(1) << piece) : pieceType == PIECE_BISHOP ? getBishopMoves(piece, occupied) : pieceType == PIECE_ROOK ? getRookMoves(piece, occupied) : pieceType == PIECE_QUEEN ? (getRookMoves(piece, occupied) | getBishopMoves(piece, occupied)) : pieceType == PIECE_KING ? kingAttacks(board, board->stm) : C64(0);
+        Bitboard targets = pieceType == PIECE_KNIGHT ? KNIGHT_ATTACKS[piece] : pieceType == PIECE_BISHOP ? getBishopMoves(piece, occupied) : pieceType == PIECE_ROOK ? getRookMoves(piece, occupied) : pieceType == PIECE_QUEEN ? (getRookMoves(piece, occupied) | getBishopMoves(piece, occupied)) : pieceType == PIECE_KING ? kingAttacks(board, board->stm) : C64(0);
         targets &= mask;
 
         while (targets) {
