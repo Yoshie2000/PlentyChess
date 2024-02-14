@@ -22,6 +22,14 @@ else ifeq ($(arch), generic)
 	CXXFLAGS := $(CXXFLAGS)
 else
 	CXXFLAGS := $(CXXFLAGS) -march=native
+	HAS_BMI2 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__BMI2__")
+	ifeq ($(HAS_BMI2),1)
+		CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2
+	endif
+endif
+
+ifdef BMI2
+	CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2 -mbmi2
 endif
 
 # Windows only flags
