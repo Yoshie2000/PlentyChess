@@ -341,15 +341,18 @@ void generatePiece(Board* board, Move** moves, int* counter, bool captures, Bitb
     Bitboard blockedEnemy = board->byColor[1 - board->stm];
     Bitboard occupied = blockedUs | blockedEnemy;
 
+    // Decide whether only captures or only non-captures
+    Bitboard mask;
+    if (captures)
+        mask = blockedEnemy & ~blockedUs & targetMask;
+    else
+        mask = ~blockedEnemy & ~blockedUs & targetMask;
+
     Bitboard pieces = board->byPiece[pieceType] & blockedUs;
     while (pieces) {
         Square piece = popLSB(&pieces);
         Bitboard targets = pieceType == PIECE_KNIGHT ? knightAttacks(C64(1) << piece) : pieceType == PIECE_BISHOP ? getBishopMoves(piece, occupied) : pieceType == PIECE_ROOK ? getRookMoves(piece, occupied) : pieceType == PIECE_QUEEN ? (getRookMoves(piece, occupied) | getBishopMoves(piece, occupied)) : pieceType == PIECE_KING ? kingAttacks(board, board->stm) : C64(0);
-        // Decide whether only captures or only non-captures
-        if (captures)
-            targets &= blockedEnemy & ~blockedUs & targetMask;
-        else
-            targets &= ~blockedEnemy & ~blockedUs & targetMask;
+        targets &= mask;
 
         while (targets) {
             Square target = popLSB(&targets);
@@ -433,109 +436,137 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
     }
 }
 
-Move MoveGen::nextMove() {
-    // If there's still unused moves in the list, return those
-    if (returnedMoves < generatedMoves || returnedBadCaptures < generatedBadCaptures)
-        return cycleUntilNextMove();
-
+Move MoveGen::nextMove() { // 2973208
     assert((board->byColor[board->stm] & board->byPiece[PIECE_KING]) > 0);
 
     Move* moves = moveList + generatedMoves;
     int beginIndex, endIndex;
 
-    while (returnedMoves >= generatedMoves && returnedBadCaptures >= generatedBadCaptures && generationStage < GEN_STAGE_DONE) {
+    // Generate moves for the current stage
+    switch (generationStage) {
+    case GEN_STAGE_TTMOVE:
 
-        // Generate moves for the current stage
-        switch (generationStage) {
-        case GEN_STAGE_TTMOVE:
-            if (ttMove != MOVE_NONE && ttMove != MOVE_NULL && isPseudoLegal(board, ttMove))
-                moveList[generatedMoves++] = ttMove;
-            generationStage++;
-            break;
-
-        case GEN_STAGE_CAPTURES:
-            beginIndex = generatedMoves;
-
-            // If in double check, only generate king moves
-            if (board->stack->checkerCount > 1) {
-                generatePiece<PIECE_KING>(board, &moves, &generatedMoves, true, ~C64(0));
-            }
-            else {
-                // If in check, only generate targets that take care of the check
-                Bitboard checkMask = board->stack->checkers ? BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[PIECE_KING])][lsb(board->stack->checkers)] : ~C64(0);
-
-                generatePawn_capture(board, &moves, &generatedMoves, checkMask);
-                generatePiece<PIECE_KNIGHT>(board, &moves, &generatedMoves, true, checkMask);
-                generatePiece<PIECE_BISHOP>(board, &moves, &generatedMoves, true, checkMask);
-                generatePiece<PIECE_ROOK>(board, &moves, &generatedMoves, true, checkMask);
-                generatePiece<PIECE_QUEEN>(board, &moves, &generatedMoves, true, checkMask);
-                generatePiece<PIECE_KING>(board, &moves, &generatedMoves, true, ~C64(0));
-            }
-            endIndex = generatedMoves;
-
-            endIndex = scoreGoodCaptures(beginIndex, endIndex);
-            moves = moveList + generatedMoves;
-            sortMoves(moveList, moveListScores, beginIndex, endIndex);
-
-            generationStage++;
-            if (onlyCaptures)
-                generationStage = GEN_STAGE_BAD_CAPTURES;
-            break;
-
-        case GEN_STAGE_KILLERS:
-            if (killers[0] != MOVE_NONE && isPseudoLegal(board, killers[0]))
-                moveList[generatedMoves++] = killers[0];
-            if (killers[1] != MOVE_NONE && isPseudoLegal(board, killers[1]))
-                moveList[generatedMoves++] = killers[1];
-            generationStage++;
-            break;
-
-        case GEN_STAGE_COUNTERMOVES:
-            if (counterMove != MOVE_NONE && !isCapture(board, counterMove) && isPseudoLegal(board, counterMove))
-                moveList[generatedMoves++] = counterMove;
-            generationStage++;
-            break;
-
-        case GEN_STAGE_REMAINING:
-            beginIndex = generatedMoves;
-            // If in double check, only generate king moves
-            if (board->stack->checkerCount > 1) {
-                generatePiece<PIECE_KING>(board, &moves, &generatedMoves, false, ~C64(0));
-            }
-            else {
-                // If in check, only generate targets that take care of the check
-                Bitboard checkMask = board->stack->checkers ? BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[PIECE_KING])][lsb(board->stack->checkers)] : ~C64(0);
-
-                generatePawn_quiet(board, &moves, &generatedMoves, checkMask);
-                generatePiece<PIECE_KNIGHT>(board, &moves, &generatedMoves, false, checkMask);
-                generatePiece<PIECE_BISHOP>(board, &moves, &generatedMoves, false, checkMask);
-                generatePiece<PIECE_ROOK>(board, &moves, &generatedMoves, false, checkMask);
-                generatePiece<PIECE_QUEEN>(board, &moves, &generatedMoves, false, checkMask);
-                generatePiece<PIECE_KING>(board, &moves, &generatedMoves, false, ~C64(0));
-                if (!board->stack->checkers)
-                    generateCastling(board, &moves, &generatedMoves);
-            }
-            endIndex = generatedMoves;
-
-            endIndex = scoreQuiets(beginIndex, endIndex);
-            moves = moveList + generatedMoves;
-            sortMoves(moveList, moveListScores, beginIndex, endIndex);
-
-            generationStage++;
-            break;
-
-        case GEN_STAGE_BAD_CAPTURES:
-            generatedBadCaptures = flaggedBadCaptures;
-
-            scoreBadCaptures();
-            sortMoves(badCaptureList, badCaptureScores, 0, generatedBadCaptures);
-
-            generationStage = GEN_STAGE_DONE;
-            break;
+        generationStage++;
+        if (ttMove != MOVE_NONE && ttMove != MOVE_NULL && isPseudoLegal(board, ttMove)) {
+            return ttMove;
         }
+
+        [[fallthrough]];
+
+    case GEN_STATE_GEN_CAPTURES:
+        beginIndex = generatedMoves;
+
+        // If in double check, only generate king moves
+        if (board->stack->checkerCount > 1) {
+            generatePiece<PIECE_KING>(board, &moves, &generatedMoves, true, ~C64(0));
+        }
+        else {
+            // If in check, only generate targets that take care of the check
+            Bitboard checkMask = board->stack->checkers ? BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[PIECE_KING])][lsb(board->stack->checkers)] : ~C64(0);
+
+            generatePawn_capture(board, &moves, &generatedMoves, checkMask);
+            generatePiece<PIECE_KNIGHT>(board, &moves, &generatedMoves, true, checkMask);
+            generatePiece<PIECE_BISHOP>(board, &moves, &generatedMoves, true, checkMask);
+            generatePiece<PIECE_ROOK>(board, &moves, &generatedMoves, true, checkMask);
+            generatePiece<PIECE_QUEEN>(board, &moves, &generatedMoves, true, checkMask);
+            generatePiece<PIECE_KING>(board, &moves, &generatedMoves, true, ~C64(0));
+        }
+        endIndex = generatedMoves;
+
+        endIndex = scoreGoodCaptures(beginIndex, endIndex);
+        moves = moveList + generatedMoves;
+        sortMoves(moveList, moveListScores, beginIndex, endIndex);
+
+        generationStage++;
+        [[fallthrough]];
+
+    case GEN_STAGE_CAPTURES:
+
+        if (returnedMoves < generatedMoves)
+            return moveList[returnedMoves++];
+
+        if (onlyCaptures) {
+            generationStage = GEN_STAGE_GEN_BAD_CAPTURES;
+            goto stage_gen_bad_captures;
+        }
+        generationStage++;
+        [[fallthrough]];
+
+    case GEN_STAGE_KILLERS:
+
+        while (killerCount < 2) {
+            Move killer = killers[killerCount++];
+
+            if (killer != MOVE_NONE && isPseudoLegal(board, killer))
+                return killer;
+        }
+
+        generationStage++;
+        [[fallthrough]];
+
+    case GEN_STAGE_COUNTERMOVES:
+
+        generationStage++;
+        if (counterMove != MOVE_NONE && !isCapture(board, counterMove) && isPseudoLegal(board, counterMove))
+            return counterMove;
+
+        [[fallthrough]];
+
+    case GEN_STAGE_GEN_REMAINING:
+        beginIndex = generatedMoves;
+        // If in double check, only generate king moves
+        if (board->stack->checkerCount > 1) {
+            generatePiece<PIECE_KING>(board, &moves, &generatedMoves, false, ~C64(0));
+        }
+        else {
+            // If in check, only generate targets that take care of the check
+            Bitboard checkMask = board->stack->checkers ? BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[PIECE_KING])][lsb(board->stack->checkers)] : ~C64(0);
+
+            generatePawn_quiet(board, &moves, &generatedMoves, checkMask);
+            generatePiece<PIECE_KNIGHT>(board, &moves, &generatedMoves, false, checkMask);
+            generatePiece<PIECE_BISHOP>(board, &moves, &generatedMoves, false, checkMask);
+            generatePiece<PIECE_ROOK>(board, &moves, &generatedMoves, false, checkMask);
+            generatePiece<PIECE_QUEEN>(board, &moves, &generatedMoves, false, checkMask);
+            generatePiece<PIECE_KING>(board, &moves, &generatedMoves, false, ~C64(0));
+            if (!board->stack->checkers)
+                generateCastling(board, &moves, &generatedMoves);
+        }
+        endIndex = generatedMoves;
+
+        endIndex = scoreQuiets(beginIndex, endIndex);
+        moves = moveList + generatedMoves;
+        sortMoves(moveList, moveListScores, beginIndex, endIndex);
+
+        generationStage++;
+        [[fallthrough]];
+
+    case GEN_STAGE_REMAINING:
+
+        if (returnedMoves < generatedMoves)
+            return moveList[returnedMoves++];
+
+        generationStage++;
+        [[fallthrough]];
+
+    case GEN_STAGE_GEN_BAD_CAPTURES:
+    stage_gen_bad_captures:
+        generatedBadCaptures = flaggedBadCaptures;
+
+        scoreBadCaptures();
+        sortMoves(badCaptureList, badCaptureScores, 0, generatedBadCaptures);
+
+        generationStage++;
+        [[fallthrough]];
+
+    case GEN_STAGE_BAD_CAPTURES:
+
+        if (returnedBadCaptures < generatedBadCaptures)
+            return badCaptureList[returnedBadCaptures++];
+
+        generationStage = GEN_STAGE_DONE;
     }
 
-    return cycleUntilNextMove();
+    return MOVE_NONE;
 }
 
 int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
@@ -563,7 +594,7 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
             i--;
             continue;
         }
-        
+
         int score;
         if ((move & 0x3000) == MOVE_ENPASSANT)
             score = 0;
@@ -620,20 +651,6 @@ void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) 
         moves[j + 1] = move;
         scores[j + 1] = score;
     }
-}
-
-Move MoveGen::cycleUntilNextMove() {
-    assert(returnedMoves < MAX_MOVES);
-    assert(returnedBadCaptures < 32);
-    // if (!(moveList[returnedMoves] != MOVE_NONE || returnedBadCaptures < generatedBadCaptures || badCaptureList[generatedBadCaptures] == MOVE_NONE)) {
-    //     std::cout << generationStage << " " << returnedMoves << " " << generatedMoves << " " << returnedBadCaptures << " " << generatedBadCaptures << std::endl;
-    //     std::cout << (moveList[returnedMoves] != MOVE_NONE) << " " << (returnedBadCaptures < generatedBadCaptures) << " " << (badCaptureList[generatedBadCaptures] == MOVE_NONE) << std::endl;
-    // }
-    assert(moveList[returnedMoves] != MOVE_NONE || returnedBadCaptures < generatedBadCaptures || badCaptureList[generatedBadCaptures] == MOVE_NONE);
-
-    if (returnedMoves < generatedMoves)
-        return moveList[returnedMoves++];
-    return badCaptureList[returnedBadCaptures++];
 }
 
 inline char fileFromSquare(Square square) {
