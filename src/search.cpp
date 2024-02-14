@@ -506,7 +506,7 @@ movesLoop:
         if (!isLegal(board, move))
             continue;
 
-        int moveHistory = thread->history.getHistory(board, stack, move, capture);
+        int moveHistory = capture ? *thread->history.getCaptureHistory(board, move) : thread->history.getQuietHistory(board, move);
 
         if (!rootNode
             && bestValue > -EVAL_MATE_IN_MAX_PLY
