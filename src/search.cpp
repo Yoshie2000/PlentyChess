@@ -272,7 +272,7 @@ movesLoopQsearch:
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
-        if (   bestValue >= -EVAL_MATE_IN_MAX_PLY
+        if (bestValue >= -EVAL_MATE_IN_MAX_PLY
             && futilityValue > -EVAL_INFINITE
             && futilityValue <= alpha
             && !SEE(board, move, 1)
@@ -665,11 +665,9 @@ movesLoop:
                         // Update counter move
                         if (stack->ply >= 1)
                             thread->history.setCounterMove((stack - 1)->move, move);
-
-                        int bonus = std::min(historyBonusFactor * (depth + 1) * (depth + 1), historyBonusMax);
-                        thread->history.updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }
                     int bonus = std::min(historyBonusFactor * (depth + 1) * (depth + 1), historyBonusMax);
+                    thread->history.updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     thread->history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
                 }

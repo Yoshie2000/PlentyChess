@@ -133,8 +133,10 @@ void History::updateCaptureHistory(Board* board, Move move, int bonus, Move* cap
 
 void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
-    updateQuietHistory(board, move, bonus);
-    updateContinuationHistory(board, stack, move, bonus);
+    if (!isCapture(board, move)) {
+        updateQuietHistory(board, move, bonus);
+        updateContinuationHistory(board, stack, move, bonus);
+    }
 
     // Decrease stats for all other quiets
     for (int i = 0; i < quietMoveCount; i++) {
