@@ -163,11 +163,12 @@ uint64_t perft(Board* board, int depth) {
     return nodes;
 }
 
-void updatePv(Move* pv, Move move, const Move* currentPv) {
-    *pv++ = move;
-    while (currentPv && *currentPv != MOVE_NONE)
-        *pv++ = *currentPv++;
-    *pv = MOVE_NONE;
+void updatePv(SearchStack* stack, PvTable* pvTable, Move move) {
+    pvTable->pvTable[stack->ply][stack->ply] = move;
+    for (int i = stack->ply + 1; i < pvTable->pvLength[stack->ply + 1]; i++) {
+        pvTable->pvTable[stack->ply][i] = pvTable->pvTable[stack->ply + 1][i];
+    }
+    pvTable->pvLength[stack->ply] = pvTable->pvLength[stack->ply + 1];
 }
 
 int valueToTT(int value, int ply) {
@@ -192,7 +193,11 @@ template <NodeType nodeType>
 Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval beta) {
     constexpr bool pvNode = nodeType == PV_NODE;
 
+    PvTable* pvTable = &thread->pvTable;
+    if (pvNode)
+        pvTable->pvLength[stack->ply] = stack->ply;
     thread->searchData.selDepth = std::max(stack->ply, thread->searchData.selDepth);
+    (stack + 1)->ply = stack->ply + 1;
 
     assert(alpha >= -EVAL_INFINITE && alpha < beta && beta <= EVAL_INFINITE);
 
@@ -204,17 +209,9 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
         return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &thread->nnue) : drawEval(thread);
 
     BoardStack boardStack;
-    Move pv[MAX_PLY + 1] = { MOVE_NONE };
     Move bestMove = MOVE_NONE;
     Eval bestValue, futilityValue, unadjustedEval;
     Eval oldAlpha = alpha;
-
-    // Set up pv for the next search
-    if (pvNode) {
-        (stack + 1)->pv = pv;
-        stack->pv[0] = MOVE_NONE;
-    }
-    (stack + 1)->ply = stack->ply + 1;
 
     // TT Lookup
     bool ttHit = false;
@@ -272,7 +269,7 @@ movesLoopQsearch:
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
-        if (   bestValue >= -EVAL_MATE_IN_MAX_PLY
+        if (bestValue >= -EVAL_MATE_IN_MAX_PLY
             && futilityValue > -EVAL_INFINITE
             && futilityValue <= alpha
             && !SEE(board, move, 1)
@@ -305,7 +302,7 @@ movesLoopQsearch:
                 alpha = value;
 
                 if (pvNode)
-                    updatePv(stack->pv, move, (stack + 1)->pv);
+                    updatePv(stack, pvTable, move);
 
                 if (bestValue >= beta)
                     break;
@@ -335,7 +332,11 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     assert(!(pvNode && cutNode));
     assert(pvNode || alpha == beta - 1);
 
+    PvTable* pvTable = &thread->pvTable;
+    if (pvNode)
+        pvTable->pvLength[stack->ply] = stack->ply;
     thread->searchData.selDepth = std::max(stack->ply, thread->searchData.selDepth);
+    (stack + 1)->ply = stack->ply + 1;
 
     if (!rootNode && alpha < 0 && hasUpcomingRepetition(board, stack->ply)) {
         alpha = drawEval(thread);
@@ -346,19 +347,12 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (depth <= 0) return qsearch<nodeType>(board, thread, stack, alpha, beta);
 
     BoardStack boardStack;
-    Move pv[MAX_PLY + 1] = { MOVE_NONE };
     Move bestMove = MOVE_NONE;
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
-    Move quietMoves[MAX_MOVES] = { MOVE_NONE };
-    Move captureMoves[MAX_MOVES] = { MOVE_NONE };
-    int quietMoveCount = 0;
-    int captureMoveCount = 0;
-
-    (stack + 1)->ply = stack->ply + 1;
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
     (stack + 1)->doubleExtensions = stack->doubleExtensions;
@@ -490,6 +484,12 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     assert(board->stack);
 
 movesLoop:
+
+    Move quietMoves[64] = { MOVE_NONE };
+    Move captureMoves[64] = { MOVE_NONE };
+    int quietMoveCount = 0;
+    int captureMoveCount = 0;
+
     // Moves loop
     MoveGen movegen(board, &thread->history, stack, ttMove, stack->killers, depth);
     Move move;
@@ -576,15 +576,16 @@ movesLoop:
         uint64_t newHash = hashAfter(board, move);
         TT.prefetch(newHash);
 
+        if (!capture) {
+            if (quietMoveCount < 64)
+                quietMoves[quietMoveCount++] = move;
+        }
+        else {
+            if (captureMoveCount < 64)
+                captureMoves[captureMoveCount++] = move;
+        }
+
         // Some setup stuff
-        if (pvNode)
-            (stack + 1)->pv = nullptr;
-
-        if (!capture)
-            quietMoves[quietMoveCount++] = move;
-        else
-            captureMoves[captureMoveCount++] = move;
-
         moveCount++;
         thread->searchData.nodesSearched++;
         stack->move = move;
@@ -631,9 +632,6 @@ movesLoop:
 
         // PV moves will be researched at full depth if good enough
         if (pvNode && (moveCount == 1 || value > alpha)) {
-            // Set up pv for the next search
-            (stack + 1)->pv = pv;
-            (stack + 1)->pv[0] = MOVE_NONE;
             value = -search<PV_NODE>(board, stack + 1, thread, newDepth, -beta, -alpha, false);
         }
 
@@ -651,7 +649,7 @@ movesLoop:
                 alpha = value;
 
                 if (pvNode)
-                    updatePv(stack->pv, move, (stack + 1)->pv);
+                    updatePv(stack, pvTable, move);
 
                 if (bestValue >= beta) {
                     if (!capture) {
@@ -720,17 +718,15 @@ void Thread::tsearch() {
     // Necessary for aspiration windows
     Eval previousValue = EVAL_NONE;
 
-    std::vector<Move> pvVec;
     bool finishedDepth = false;
+
+    memset(&pvTable, 0, sizeof(pvTable));
 
     for (int depth = 1; depth <= maxDepth; depth++) {
         finishedDepth = false;
 
         SearchStack stackList[MAX_PLY + 4];
         SearchStack* stack = &stackList[4];
-        Move pv[MAX_PLY + 1];
-        pv[0] = MOVE_NONE;
-        stack->pv = pv;
         stack->ply = 0;
         stack->move = MOVE_NONE;
         stack->movedPiece = NO_PIECE;
@@ -788,7 +784,7 @@ void Thread::tsearch() {
 
         if (!searching || exiting) {
             if (result.move == MOVE_NONE) {
-                result.move = stack->pv[0];
+                result.move = pvTable.pvTable[0][0];
                 result.value = value;
                 result.depth = depth;
                 result.selDepth = searchData.selDepth;
@@ -796,7 +792,7 @@ void Thread::tsearch() {
             break;
         }
 
-        result.move = stack->pv[0];
+        result.move = pvTable.pvTable[0][0];
         result.value = value;
         result.depth = depth;
         result.selDepth = searchData.selDepth;
@@ -810,12 +806,9 @@ void Thread::tsearch() {
             std::cout << "info depth " << depth << " seldepth " << searchData.selDepth << " score " << formatEval(value) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
 
             // Send PV
-            Move move;
-            pvVec.clear();
-            while ((move = *stack->pv++) != MOVE_NONE) {
-                std::cout << moveToString(move) << " ";
-                pvVec.push_back(move);
-            }
+            // std::cout << pvTable.pvLength[0] << std::endl;
+            for (int i = 0; i < pvTable.pvLength[0]; i++)
+                std::cout << moveToString(pvTable.pvTable[0][i]) << " ";
             std::cout << std::endl;
 
             // Every thread can request a time stop when a depth is cleared
@@ -835,8 +828,8 @@ void Thread::tsearch() {
             int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
             std::cout << "info depth " << result.depth << " seldepth " << result.selDepth << " score " << formatEval(result.value) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
 
-            for (Move move : pvVec)
-                std::cout << moveToString(move) << " ";
+            for (int i = 0; i < pvTable.pvLength[0]; i++)
+                std::cout << moveToString(pvTable.pvTable[0][i]) << " ";
             std::cout << std::endl;
         }
 

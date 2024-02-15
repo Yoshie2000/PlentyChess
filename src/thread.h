@@ -20,6 +20,11 @@ struct ThreadResult {
     bool finished;
 };
 
+struct PvTable {
+    int pvLength[MAX_MOVES + 1];
+    Move pvTable[MAX_MOVES + 1][MAX_MOVES + 1];
+};
+
 class ThreadPool;
 
 class Thread {
@@ -47,6 +52,8 @@ public:
 
     int threadId;
     bool mainThread;
+
+    PvTable pvTable;
 
     ThreadResult result;
 
