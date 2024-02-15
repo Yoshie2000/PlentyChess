@@ -83,7 +83,7 @@ public:
         exit();
     }
 
-    void resize(int numThreads) {
+    __attribute_noinline__ void resize(int numThreads) {
         exit();
         threads.clear();
         for (int i = 0; i < numThreads; i++) {
@@ -91,7 +91,7 @@ public:
         }
     }
 
-    void startSearching(Board board, std::deque<BoardStack> stackQueue, SearchParameters parameters) {
+    __attribute_noinline__ void startSearching(Board board, std::deque<BoardStack> stackQueue, SearchParameters parameters) {
         waitForSearchFinished();
 
         rootBoard = std::move(board);
@@ -108,32 +108,32 @@ public:
         }
     }
 
-    void stopSearching() {
+    __attribute_noinline__ void stopSearching() {
         for (auto& thread : threads) {
             thread.get()->searching = false;
         }
     }
 
-    void waitForSearchFinished() {
+    __attribute_noinline__ void waitForSearchFinished() {
         for (auto& thread : threads) {
             thread.get()->waitForSearchFinished();
         }
     }
 
-    void exit() {
+    __attribute_noinline__ void exit() {
         for (auto& thread : threads) {
             thread.get()->exit();
         }
     }
 
-    void ucinewgame() {
+    __attribute_noinline__ void ucinewgame() {
         TT.clear();
         for (auto& thread : threads) {
             thread.get()->ucinewgame();
         }
     }
 
-    uint64_t nodesSearched() {
+    __attribute_noinline__ uint64_t nodesSearched() {
         uint64_t sum = 0;
         for (auto& thread : threads) {
             sum += thread.get()->searchData.nodesSearched;
