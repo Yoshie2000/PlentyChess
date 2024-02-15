@@ -175,12 +175,12 @@ bool nextToken(std::string* line, std::string* token) {
 
 void bench(std::deque<BoardStack>* stackQueue, Board* board) {
     uint64_t nodes = 0;
+    int64_t elapsed = 0;
     int position = 1;
     int totalPositions = benchPositions.size();
 
     threads.waitForSearchFinished();
 
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     for (const std::string& fen : benchPositions) {
         threads.ucinewgame();
         parseFen(board, fen);
@@ -189,13 +189,16 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
 
         std::cerr << "\nPosition: " << position++ << '/' << totalPositions << " (" << fen << ")" << std::endl;
 
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
         threads.startSearching(*board, *stackQueue, parameters);
         threads.waitForSearchFinished();
         nodes += threads.nodesSearched();
-    }
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-    int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        elapsed += std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+    }
+
     std::cerr << "\n==========================="
         << "\nTotal time (ms) : " << elapsed
         << "\nNodes searched  : " << nodes
@@ -374,7 +377,8 @@ void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
     if (line.size() == 2) {
         line = "";
         parameters.infinite = true;
-    } else {
+    }
+    else {
         line = line.substr(3);
     }
 
