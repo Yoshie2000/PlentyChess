@@ -83,10 +83,26 @@ constexpr bool hasNonPawns(Board* board) {
 
 Bitboard attackersTo(Board* board, Square square, Bitboard occupied);
 
-Bitboard pawnAttacksLeft(Bitboard pawns, Color side);
-Bitboard pawnAttacksRight(Bitboard pawns, Color side);
-Bitboard pawnAttacks(Bitboard pawns, Color side);
-Bitboard pawnAttacks(Board* board, Color side);
+constexpr Bitboard pawnAttacksLeft(Bitboard pawns, Color side) {
+    return side == COLOR_WHITE ?
+        ((pawns & (~FILE_A)) << 7) :
+        ((pawns & (~FILE_A)) >> 9);
+}
+
+constexpr Bitboard pawnAttacksRight(Bitboard pawns, Color side) {
+    return side == COLOR_WHITE ?
+        ((pawns & (~FILE_H)) << 9) :
+        ((pawns & (~FILE_H)) >> 7);
+}
+
+constexpr Bitboard pawnAttacks(Bitboard pawns, Color side) {
+    return pawnAttacksLeft(pawns, side) | pawnAttacksRight(pawns, side);
+}
+
+constexpr Bitboard pawnAttacks(Board* board, Color side) {
+    Bitboard pawns = board->byPiece[PIECE_PAWN] & board->byColor[side];
+    return pawnAttacks(pawns, side);
+}
 
 constexpr Bitboard knightAttacks(Bitboard knightBB) {
     Bitboard l1 = (knightBB >> 1) & C64(0x7f7f7f7f7f7f7f7f);

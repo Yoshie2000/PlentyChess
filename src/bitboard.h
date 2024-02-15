@@ -5,5 +5,6 @@
 extern Bitboard BETWEEN[64][64];
 extern Bitboard LINE[64][64];
 extern Bitboard KING_ATTACKS[64];
+extern Bitboard KNIGHT_ATTACKS[64];
 
 void initBitboard();

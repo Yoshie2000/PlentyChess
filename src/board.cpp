@@ -771,33 +771,12 @@ bool isDraw(Board* board) {
 Bitboard attackersTo(Board* board, Square s, Bitboard occupied) {
     Bitboard sBB = C64(1) << s;
 
-    Bitboard pawnAtks = ((pawnAttacks(sBB, COLOR_WHITE) & board->byColor[COLOR_BLACK]) | (pawnAttacks(sBB, COLOR_BLACK) & board->byColor[COLOR_WHITE])) & board->byPiece[PIECE_PAWN];
-    Bitboard knightAtks = knightAttacks(sBB) & board->byPiece[PIECE_KNIGHT];
-    Bitboard bishopAtks = getBishopMoves(s, occupied) & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]);
-    Bitboard rookAtks = getRookMoves(s, occupied) & (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]);
-    Bitboard kingAtks = KING_ATTACKS[s] & board->byPiece[PIECE_KING];
+    Bitboard pawnAtks = board->byPiece[PIECE_PAWN] & ((board->byColor[COLOR_BLACK] & pawnAttacks(sBB, COLOR_WHITE)) | (board->byColor[COLOR_WHITE] & pawnAttacks(sBB, COLOR_BLACK)));
+    Bitboard knightAtks = board->byPiece[PIECE_KNIGHT] & KNIGHT_ATTACKS[s];
+    Bitboard bishopAtks = (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]) & getBishopMoves(s, occupied);
+    Bitboard rookAtks = (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]) & getRookMoves(s, occupied);
+    Bitboard kingAtks = board->byPiece[PIECE_KING] & KING_ATTACKS[s];
     return pawnAtks | knightAtks | bishopAtks | rookAtks | kingAtks;
-}
-
-Bitboard pawnAttacksLeft(Bitboard pawns, Color side) {
-    return side == COLOR_WHITE ?
-        ((pawns & (~FILE_A)) << 7) :
-        ((pawns & (~FILE_A)) >> 9);
-}
-
-Bitboard pawnAttacksRight(Bitboard pawns, Color side) {
-    return side == COLOR_WHITE ?
-        ((pawns & (~FILE_H)) << 9) :
-        ((pawns & (~FILE_H)) >> 7);
-}
-
-Bitboard pawnAttacks(Bitboard pawns, Color side) {
-    return pawnAttacksLeft(pawns, side) | pawnAttacksRight(pawns, side);
-}
-
-Bitboard pawnAttacks(Board* board, Color side) {
-    Bitboard pawns = board->byPiece[PIECE_PAWN] & board->byColor[side];
-    return pawnAttacks(pawns, side);
 }
 
 Bitboard knightAttacksAll(Board* board, Color side) {
@@ -858,7 +837,7 @@ Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupie
     case PIECE_PAWN:
         return pawnAttacks(C64(1) << square, stm);
     case PIECE_KNIGHT:
-        return knightAttacks(C64(1) << square);
+        return KNIGHT_ATTACKS[square];
     case PIECE_KING:
         return KING_ATTACKS[square];
     case PIECE_BISHOP:

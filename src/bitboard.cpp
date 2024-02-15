@@ -8,6 +8,7 @@
 Bitboard BETWEEN[64][64];
 Bitboard LINE[64][64];
 Bitboard KING_ATTACKS[64];
+Bitboard KNIGHT_ATTACKS[64];
 
 Bitboard kingAttacks(Square origin) {
     Bitboard attacksBB = C64(0);
@@ -46,5 +47,6 @@ void initBitboard() {
         }
 
         KING_ATTACKS[a] = kingAttacks(a);
+        KNIGHT_ATTACKS[a] = knightAttacks(C64(1) << a);
     }
 }
