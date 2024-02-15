@@ -272,7 +272,7 @@ movesLoopQsearch:
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
-        if (   bestValue >= -EVAL_MATE_IN_MAX_PLY
+        if (bestValue >= -EVAL_MATE_IN_MAX_PLY
             && futilityValue > -EVAL_INFINITE
             && futilityValue <= alpha
             && !SEE(board, move, 1)
@@ -754,8 +754,9 @@ void Thread::tsearch() {
         }
 
         int failHighs = 0;
+        int totalSearches = 0;
         while (true) {
-            int searchDepth = std::max(1, depth - failHighs);
+            int searchDepth = std::max(1, depth - failHighs + (totalSearches++) / 5);
             value = search<ROOT_NODE>(&rootBoard, stack, this, searchDepth, alpha, beta, false);
 
             // Stop if we need to
