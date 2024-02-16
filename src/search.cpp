@@ -396,12 +396,17 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE;
     if (board->stack->checkers || excluded) {
+        if (excluded)
+            thread->nnue.calculateAccumulators();
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
     }
     if (ttHit) {
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &thread->nnue);
         eval = stack->staticEval = thread->history.correctStaticEval(unadjustedEval, board);
+
+        if (ttEval != EVAL_NONE && pvNode)
+            thread->nnue.calculateAccumulators();
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;

@@ -93,11 +93,10 @@ __attribute_noinline__ void NNUE::movePiece(Square origin, Square target, Piece 
     acc->dirtyPieces[acc->numDirtyPieces++] = { origin, target, piece, pieceColor };
 }
 
-__attribute_noinline__ void NNUE::calculateAccumulators(int limit) {
+__attribute_noinline__ void NNUE::calculateAccumulators() {
     // Starting from the last calculated accumulator, calculate all incremental updates
 
-    int i = 0;
-    while (lastCalculatedAccumulator < currentAccumulator && i < limit) {
+    while (lastCalculatedAccumulator < currentAccumulator) {
 
         Accumulator* inputAcc = &accumulatorStack[lastCalculatedAccumulator];
         Accumulator* outputAcc = &accumulatorStack[lastCalculatedAccumulator + 1];
@@ -121,7 +120,6 @@ __attribute_noinline__ void NNUE::calculateAccumulators(int limit) {
         }
 
         lastCalculatedAccumulator++;
-        i++;
     }
 }
 
