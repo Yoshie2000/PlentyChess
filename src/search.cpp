@@ -379,6 +379,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     bool ttPv = pvNode;
 
     if (!excluded) {
+        thread->nnue.calculateAccumulators(2);
         ttEntry = TT.probe(board->stack->hash, &ttHit);
         if (ttHit) {
             ttMove = ttEntry->bestMove;
