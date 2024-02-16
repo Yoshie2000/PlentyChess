@@ -205,7 +205,6 @@ struct NetworkData {
 };
 
 extern NetworkData networkData;
-alignas(ALIGNMENT) extern int cachedFeatureOffsets[2][PIECE_TYPES * 2 + 1][64];
 
 void initNetworkData();
 
