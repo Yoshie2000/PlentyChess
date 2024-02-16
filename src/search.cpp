@@ -784,7 +784,6 @@ void Thread::tsearch() {
 
             delta *= aspirationWindowDeltaFactor;
         }
-        previousValue = value;
 
         if (!searching || exiting) {
             if (result.move == MOVE_NONE) {
@@ -824,6 +823,9 @@ void Thread::tsearch() {
                 bestMoveStability = 0;
             tmAdjustment *= 1.45 - bestMoveStability * 0.0475;
 
+            // Based on score difference to last iteration
+            tmAdjustment *= 0.95 + std::clamp(previousValue - value, -10, 50) * 0.01;
+
             if (timeOverDepthCleared(searchParameters, &searchData, tmAdjustment)) {
                 threadPool->stopSearching();
                 break;
@@ -831,6 +833,7 @@ void Thread::tsearch() {
         }
 
         previousMove = result.move;
+        previousValue = value;
     }
 
     result.finished = true;
