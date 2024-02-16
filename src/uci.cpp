@@ -185,7 +185,7 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
         threads.ucinewgame();
         parseFen(board, fen);
         SearchParameters parameters;
-        parameters.depth = 12;
+        parameters.depth = 13;
 
         std::cerr << "\nPosition: " << position++ << '/' << totalPositions << " (" << fen << ")" << std::endl;
 
