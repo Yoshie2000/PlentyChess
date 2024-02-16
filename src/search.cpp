@@ -704,13 +704,16 @@ void Thread::tsearch() {
 
     resetAccumulators(&rootBoard, &nnue);
 
-    int maxDepth = searchParameters->depth == 0 ? MAX_PLY - 1 : searchParameters->depth;
-
     searchData.nodesSearched = 0;
     if (mainThread)
         initTimeManagement(&rootBoard, searchParameters, &searchData);
 
+    int maxDepth = searchParameters->depth == 0 ? MAX_PLY - 1 : searchParameters->depth;
+
     Eval previousValue = EVAL_NONE;
+    Move previousMove = MOVE_NONE;
+
+    int bestMoveStability = 0;
     bool finishedDepth = false;
 
     constexpr int STACK_OVERHEAD = 4;
@@ -811,12 +814,23 @@ void Thread::tsearch() {
                 std::cout << moveToString(stack->pv[i]) << " ";
             std::cout << std::endl;
 
-            // Every thread can request a time stop when a depth is cleared
-            if (timeOverDepthCleared(searchParameters, &searchData)) {
+            // Adjust time management
+            double tmAdjustment = 1.0;
+
+            // Based on best move stability
+            if (result.move == previousMove)
+                bestMoveStability = std::min(bestMoveStability + 1, 10);
+            else
+                bestMoveStability = 0;
+            tmAdjustment *= 1.45 - bestMoveStability * 0.0475;
+
+            if (timeOverDepthCleared(searchParameters, &searchData, tmAdjustment)) {
                 threadPool->stopSearching();
                 break;
             }
         }
+
+        previousMove = result.move;
     }
 
     result.finished = true;
