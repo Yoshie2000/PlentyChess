@@ -5,6 +5,7 @@
 #include <condition_variable>
 #include <deque>
 #include <functional>
+#include <map>
 
 #include "board.h"
 #include "search.h"
@@ -49,6 +50,7 @@ public:
     bool mainThread;
 
     ThreadResult result;
+    std::map<Move, uint64_t> rootMoveNodes;
 
     Thread(ThreadPool* threadPool, int threadId);
 
