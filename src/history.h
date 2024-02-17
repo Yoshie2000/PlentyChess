@@ -26,6 +26,7 @@ public:
     void updateQuietHistory(Board* board, Move move, int bonus);
 
     int getContinuationHistory(Board* board, SearchStack* stack, Move move);
+    int getContinuationHistoryForMovegen(Board* board, SearchStack* stack, Move move);
     void updateContinuationHistory(Board* board, SearchStack* stack, Move move, int bonus);
 
     int* getCaptureHistory(Board* board, Move move);

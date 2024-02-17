@@ -620,7 +620,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
             i--;
             continue;
         }
-        moveListScores[i] = history->getHistory(board, searchStack, move, false);
+        moveListScores[i] = history->getQuietHistory(board, move) + 2 * history->getContinuationHistoryForMovegen(board, searchStack, move);
     }
     return endIndex;
 }

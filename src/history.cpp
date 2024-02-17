@@ -70,6 +70,28 @@ int History::getContinuationHistory(Board* board, SearchStack* stack, Move move)
     return score;
 }
 
+int History::getContinuationHistoryForMovegen(Board* board, SearchStack* stack, Move move) {
+    Piece piece = board->pieces[moveOrigin(move)];
+    if (piece == NO_PIECE)
+        piece = board->pieces[moveTarget(move)];
+    Square target = moveTarget(move);
+
+    assert(piece != NO_PIECE);
+
+    int score = 0;
+
+    if ((stack - 1)->movedPiece != NO_PIECE)
+        score += 2 * continuationHistory[board->stm][(stack - 1)->movedPiece][moveTarget((stack - 1)->move)][piece][target];
+
+    if ((stack - 2)->movedPiece != NO_PIECE)
+        score += continuationHistory[board->stm][(stack - 2)->movedPiece][moveTarget((stack - 2)->move)][piece][target];
+
+    if ((stack - 4)->movedPiece != NO_PIECE)
+        score += continuationHistory[board->stm][(stack - 4)->movedPiece][moveTarget((stack - 4)->move)][piece][target];
+
+    return score;
+}
+
 void History::updateContinuationHistory(Board* board, SearchStack* stack, Move move, int bonus) {
     // Update continuationHistory
     Piece piece = board->pieces[moveOrigin(move)];
@@ -90,7 +112,6 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
 
     if ((stack - 4)->movedPiece != NO_PIECE)
         continuationHistory[board->stm][(stack - 4)->movedPiece][moveTarget((stack - 4)->move)][piece][target] += scaledBonus;
-
 }
 
 int* History::getCaptureHistory(Board* board, Move move) {
