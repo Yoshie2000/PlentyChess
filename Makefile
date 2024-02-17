@@ -1,5 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -fext-numeric-literals -pthread -O3 -funroll-all-loops
+CXXFLAGS_EXTRA = 
 
 SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp
 OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
@@ -37,10 +38,21 @@ ifeq ($(OS), Windows_NT)
 	CXXFLAGS := $(CXXFLAGS) -lstdc++ -static -Wl,--no-as-needed
 endif
 
-all:	engine
+%.o:	%.cpp
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
 
-engine:	$(OBJS)
-		$(CXX) $(CXXFLAGS) $^ -o $(PROGRAM)
+all:	pgo
+
+pgo:	CXXFLAGS_EXTRA := -fprofile-generate="pgo"
+pgo:	$(OBJS)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $^ -o $(PROGRAM)
+		./$(PROGRAM) bench
+		$(MAKE) clean
+		$(MAKE) CXXFLAGS_EXTRA="-fprofile-use="pgo"" nopgo
+		rm -rf pgo
+
+nopgo:	$(OBJS)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $^ -o $(PROGRAM)
 
 clean:	
 		$(RM) src/*.o *~ engine
