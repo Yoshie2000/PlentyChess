@@ -18,67 +18,79 @@
 #include "nnue.h"
 #include "spsa.h"
 
+// Time management
+TUNE_FLOAT(tmInitialAdjustment, 1.0f, 0.5f, 1.5f);
+TUNE_INT(tmBestMoveStabilityMax, 10, 1, 100);
+TUNE_FLOAT(tmBestMoveStabilityBase, 1.45f, 0.75f, 2.5f);
+TUNE_FLOAT(tmBestMoveStabilityFactor, 0.0475f, 0.001f, 0.1f);
+TUNE_FLOAT(tmEvalDiffBase, 0.95f, 0.5f, 1.5f);
+TUNE_FLOAT(tmEvalDiffFactor, 0.01f, 0.001f, 0.1f);
+TUNE_INT(tmEvalDiffMin, -10, -250, 50);
+TUNE_INT(tmEvalDiffMax, 50, -50, 250);
+TUNE_FLOAT(tmNodesBase, 1.5f, 0.5f, 5.0f);
+TUNE_FLOAT(tmNodesFactor, 1.0f, 0.1f, 10.0f);
+
 // Aspiration windows
-TUNE_INT(aspirationWindowMinDepth, 4, 2, 20);
-TUNE_INT(aspirationWindowDelta, 17, 1, 200);
-TUNE_INT(aspirationWindowMaxFailHighs, 3, 0, 20);
-TUNE_FLOAT(aspirationWindowDeltaFactor, 1.789268600882079, 1.0f, 10.0f);
+TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 20);
+TUNE_INT_DISABLED(aspirationWindowDelta, 17, 1, 200);
+TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 0, 20);
+TUNE_FLOAT_DISABLED(aspirationWindowDeltaFactor, 1.789268600882079, 1.0f, 10.0f);
 
 // Reduction / Margin tables
-TUNE_FLOAT(lmrReductionNoisyBase, -0.5507368054141233, -5.00f, 5.00f);
-TUNE_FLOAT(lmrReductionNoisyFactor, 2.9945957027805936, 1.00f, 10.00f);
-TUNE_FLOAT(lmrReductionQuietBase, 0.7842110713340991, -5.00f, 5.00f);
-TUNE_FLOAT(lmrReductionQuietFactor, 2.8063316175892044, 1.00f, 10.00f);
+TUNE_FLOAT_DISABLED(lmrReductionNoisyBase, -0.5507368054141233, -5.00f, 5.00f);
+TUNE_FLOAT_DISABLED(lmrReductionNoisyFactor, 2.9945957027805936, 1.00f, 10.00f);
+TUNE_FLOAT_DISABLED(lmrReductionQuietBase, 0.7842110713340991, -5.00f, 5.00f);
+TUNE_FLOAT_DISABLED(lmrReductionQuietFactor, 2.8063316175892044, 1.00f, 10.00f);
 
-TUNE_FLOAT(seeMarginNoisy, -26.14630196595127, -100.0f, -1.0f);
-TUNE_FLOAT(seeMarginQuiet, -75.36717662656213, -200.0f, -1.0f);
-TUNE_FLOAT(lmpMarginWorseningBase, 1.4194200452372927, -2.5f, 10.0f);
-TUNE_FLOAT(lmpMarginWorseningFactor, 0.4609450270167632, 0.05f, 2.5f);
-TUNE_FLOAT(lmpMarginWorseningPower, 1.785778252619638, 0.5f, 5.0f);
-TUNE_FLOAT(lmpMarginImprovingBase, 3.096315467954453, -2.5f, 10.0f);
-TUNE_FLOAT(lmpMarginImprovingFactor, 1.0584246020918444, 0.05f, 2.5f);
-TUNE_FLOAT(lmpMarginImprovingPower, 1.8914578112950748, 0.5f, 5.0f);
+TUNE_FLOAT_DISABLED(seeMarginNoisy, -26.14630196595127, -100.0f, -1.0f);
+TUNE_FLOAT_DISABLED(seeMarginQuiet, -75.36717662656213, -200.0f, -1.0f);
+TUNE_FLOAT_DISABLED(lmpMarginWorseningBase, 1.4194200452372927, -2.5f, 10.0f);
+TUNE_FLOAT_DISABLED(lmpMarginWorseningFactor, 0.4609450270167632, 0.05f, 2.5f);
+TUNE_FLOAT_DISABLED(lmpMarginWorseningPower, 1.785778252619638, 0.5f, 5.0f);
+TUNE_FLOAT_DISABLED(lmpMarginImprovingBase, 3.096315467954453, -2.5f, 10.0f);
+TUNE_FLOAT_DISABLED(lmpMarginImprovingFactor, 1.0584246020918444, 0.05f, 2.5f);
+TUNE_FLOAT_DISABLED(lmpMarginImprovingPower, 1.8914578112950748, 0.5f, 5.0f);
 
 // Search values
-TUNE_INT(qsFutilityOffset, 49, 0, 250);
+TUNE_INT_DISABLED(qsFutilityOffset, 49, 0, 250);
 
 // Pre-search pruning
-TUNE_INT(iirMinDepth, 4, 1, 20);
+TUNE_INT_DISABLED(iirMinDepth, 4, 1, 20);
 
-TUNE_INT(rfpDepth, 8, 2, 20);
-TUNE_INT(rfpFactor, 84, 1, 250);
+TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
+TUNE_INT_DISABLED(rfpFactor, 84, 1, 250);
 
-TUNE_INT(razoringDepth, 5, 2, 20);
-TUNE_INT(razoringFactor, 310, 1, 1000);
+TUNE_INT_DISABLED(razoringDepth, 5, 2, 20);
+TUNE_INT_DISABLED(razoringFactor, 310, 1, 1000);
 
-TUNE_INT(nmpRedBase, 3, 1, 5);
-TUNE_INT(nmpDepthDiv, 3, 1, 6);
-TUNE_INT(nmpMin, 3, 1, 10);
-TUNE_INT(nmpDivisor, 183, 10, 1000);
+TUNE_INT_DISABLED(nmpRedBase, 3, 1, 5);
+TUNE_INT_DISABLED(nmpDepthDiv, 3, 1, 6);
+TUNE_INT_DISABLED(nmpMin, 3, 1, 10);
+TUNE_INT_DISABLED(nmpDivisor, 183, 10, 1000);
 
 // In-search pruning
-TUNE_INT(fpDepth, 11, 1, 20);
-TUNE_INT(fpBase, 240, 0, 1000);
-TUNE_INT(fpFactor, 132, 1, 500);
+TUNE_INT_DISABLED(fpDepth, 11, 1, 20);
+TUNE_INT_DISABLED(fpBase, 240, 0, 1000);
+TUNE_INT_DISABLED(fpFactor, 132, 1, 500);
 
-TUNE_INT(historyPruningDepth, 4, 1, 15);
-TUNE_INT(historyPruningFactor, -2096, -8192, -128);
+TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
+TUNE_INT_DISABLED(historyPruningFactor, -2096, -8192, -128);
 
-TUNE_INT(seeDepth, 9, 2, 20);
+TUNE_INT_DISABLED(seeDepth, 9, 2, 20);
 
-TUNE_INT(lmrMcBase, 2, 1, 10);
-TUNE_INT(lmrMcPv, 2, 1, 10);
-TUNE_INT(lmrMinDepth, 3, 1, 10);
+TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
+TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
+TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 
-TUNE_INT(lmrHistoryFactor, 13199, 128, 32768);
-TUNE_INT(lmrDeeperBase, 43, 1, 200);
-TUNE_INT(lmrDeeperFactor, 2, 0, 10);
+TUNE_INT_DISABLED(lmrHistoryFactor, 13199, 128, 32768);
+TUNE_INT_DISABLED(lmrDeeperBase, 43, 1, 200);
+TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
 
-TUNE_INT(lmrPassBonusFactor, 11, 1, 32);
-TUNE_INT(lmrPassBonusMax, 1140, 32, 8192);
+TUNE_INT_DISABLED(lmrPassBonusFactor, 11, 1, 32);
+TUNE_INT_DISABLED(lmrPassBonusMax, 1140, 32, 8192);
 
-TUNE_INT(historyBonusFactor, 16, 1, 32);
-TUNE_INT(historyBonusMax, 1757, 32, 8192);
+TUNE_INT_DISABLED(historyBonusFactor, 16, 1, 32);
+TUNE_INT_DISABLED(historyBonusMax, 1757, 32, 8192);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
@@ -824,21 +836,20 @@ void Thread::tsearch() {
             std::cout << std::endl;
 
             // Adjust time management
-            double tmAdjustment = 1.0;
+            double tmAdjustment = tmInitialAdjustment;
 
             // Based on best move stability
             if (result.move == previousMove)
-                bestMoveStability = std::min(bestMoveStability + 1, 10);
+                bestMoveStability = std::min(bestMoveStability + 1, tmBestMoveStabilityMax);
             else
                 bestMoveStability = 0;
-            tmAdjustment *= 1.45 - bestMoveStability * 0.0475;
+            tmAdjustment *= tmBestMoveStabilityBase - bestMoveStability * tmBestMoveStabilityFactor;
 
             // Based on score difference to last iteration
-            tmAdjustment *= 0.95 + std::clamp(previousValue - value, -10, 50) * 0.01;
+            tmAdjustment *= tmEvalDiffBase + std::clamp(previousValue - value, tmEvalDiffMin, tmEvalDiffMax) * tmEvalDiffFactor;
 
             // Based on fraction of nodes that went into the best move
-            tmAdjustment *= 1.5 - 1.0 * ((double)rootMoveNodes[result.move] / (double)searchData.nodesSearched);
-            // std::cout << ((double)rootMoveNodes[result.move] / (double)searchData.nodesSearched) << " " << (1.5 - 1.0 * ((double)rootMoveNodes[result.move] / (double)searchData.nodesSearched)) << std::endl;
+            tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[result.move] / (double)searchData.nodesSearched);
 
             if (timeOverDepthCleared(searchParameters, &searchData, tmAdjustment)) {
                 threadPool->stopSearching();
