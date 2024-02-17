@@ -602,7 +602,7 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
             score = PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
         else
             score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
-        moveListScores[i] = score + *history->getCaptureHistory(board, move);
+        moveListScores[i] = 2 * score + *history->getCaptureHistory(board, move);
     }
     return endIndex;
 }
@@ -629,7 +629,7 @@ void MoveGen::scoreBadCaptures() {
     for (int i = 0; i < generatedBadCaptures; i++) {
         Move move = badCaptureList[i];
         // En passent and promotion will always pass SEE, no ttMove will appear here
-        badCaptureScores[i] = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
+        badCaptureScores[i] = 2 * (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) + *history->getCaptureHistory(board, move);;
     }
 }
 
