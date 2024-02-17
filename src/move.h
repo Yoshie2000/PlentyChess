@@ -205,6 +205,10 @@ public:
 
     Move nextMove();
 
+    int stage() {
+        return generationStage;
+    }
+
 private:
 
     int scoreGoodCaptures(int beginIndex, int endIndex);

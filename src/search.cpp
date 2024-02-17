@@ -603,6 +603,9 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth--;
+            
+            if (movegen.stage() == GEN_STAGE_BAD_CAPTURES)
+                reducedDepth--;
 
             reducedDepth += moveHistory / lmrHistoryFactor;
 
