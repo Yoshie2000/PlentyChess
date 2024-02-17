@@ -501,6 +501,7 @@ movesLoop:
         if (!isLegal(board, move))
             continue;
 
+        uint64_t nodesBeforeMove = thread->searchData.nodesSearched;
         int moveHistory = thread->history.getHistory(board, stack, move, capture);
 
         if (!rootNode
@@ -669,6 +670,13 @@ movesLoop:
             }
         }
 
+        if (rootNode) {
+            if (thread->rootMoveNodes.count(move) == 0)
+                thread->rootMoveNodes[move] = thread->searchData.nodesSearched - nodesBeforeMove;
+            else
+                thread->rootMoveNodes[move] = thread->searchData.nodesSearched - nodesBeforeMove + thread->rootMoveNodes[move];
+        }
+
     }
 
     if (moveCount == 0) {
@@ -719,6 +727,8 @@ void Thread::tsearch() {
     constexpr int STACK_OVERHEAD = 4;
     SearchStack stackList[MAX_PLY + STACK_OVERHEAD];
     SearchStack* stack = &stackList[STACK_OVERHEAD];
+
+    rootMoveNodes.clear();
 
     for (int depth = 1; depth <= maxDepth; depth++) {
         finishedDepth = false;
@@ -825,6 +835,10 @@ void Thread::tsearch() {
 
             // Based on score difference to last iteration
             tmAdjustment *= 0.95 + std::clamp(previousValue - value, -10, 50) * 0.01;
+
+            // Based on fraction of nodes that went into the best move
+            tmAdjustment *= 1.5 - 1.0 * ((double)rootMoveNodes[result.move] / (double)searchData.nodesSearched);
+            // std::cout << ((double)rootMoveNodes[result.move] / (double)searchData.nodesSearched) << " " << (1.5 - 1.0 * ((double)rootMoveNodes[result.move] / (double)searchData.nodesSearched)) << std::endl;
 
             if (timeOverDepthCleared(searchParameters, &searchData, tmAdjustment)) {
                 threadPool->stopSearching();
