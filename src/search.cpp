@@ -616,10 +616,8 @@ movesLoop:
             if (value > alpha && reducedDepth < newDepth) {
                 value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
 
-                if (!capture) {
+                if (!capture && value > alpha) {
                     int bonus = std::min(lmrPassBonusFactor * (depth + 1) * (depth + 1), lmrPassBonusMax);
-                    if (value <= alpha)
-                        bonus *= -1;
                     thread->history.updateContinuationHistory(board, stack, move, bonus);
                 }
             }
