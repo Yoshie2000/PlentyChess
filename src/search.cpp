@@ -395,11 +395,13 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         return ttValue;
 
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE;
-    if (board->stack->checkers || excluded) {
+    if (board->stack->checkers) {
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
+    } else if (excluded) {
+        unadjustedEval = eval = stack->staticEval;
     }
-    if (ttHit) {
+    else if (ttHit) {
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &thread->nnue);
         eval = stack->staticEval = thread->history.correctStaticEval(unadjustedEval, board);
 
@@ -443,6 +445,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (!pvNode
         && eval >= stack->staticEval
         && eval >= beta
+        && !excluded
         && (stack - 1)->movedPiece != NO_PIECE
         && depth >= 3
         && !board->stack->checkers
