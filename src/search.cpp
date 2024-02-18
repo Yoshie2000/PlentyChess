@@ -242,8 +242,13 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
         stack->staticEval = bestValue = thread->history.correctStaticEval(unadjustedEval, board);
     }
     else {
-        unadjustedEval = evaluate(board, &thread->nnue);
-        stack->staticEval = bestValue = thread->history.correctStaticEval(unadjustedEval, board);
+        if (stack->ply > 0 && (stack - 1)->move == MOVE_NULL) {
+            unadjustedEval = stack->staticEval = bestValue = -(stack - 1)->staticEval;
+        }
+        else {
+            unadjustedEval = evaluate(board, &thread->nnue);
+            stack->staticEval = bestValue = thread->history.correctStaticEval(unadjustedEval, board);
+        }
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
     futilityValue = stack->staticEval + qsFutilityOffset;
