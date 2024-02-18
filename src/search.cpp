@@ -495,8 +495,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
 movesLoop:
 
-    Move quietMoves[64] = { MOVE_NONE };
-    Move captureMoves[64] = { MOVE_NONE };
+    MoveSearchData quietMoves[64];
+    MoveSearchData captureMoves[64];
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
@@ -587,15 +587,6 @@ movesLoop:
         uint64_t newHash = hashAfter(board, move);
         TT.prefetch(newHash);
 
-        if (!capture) {
-            if (quietMoveCount < 64)
-                quietMoves[quietMoveCount++] = move;
-        }
-        else {
-            if (captureMoveCount < 64)
-                captureMoves[captureMoveCount++] = move;
-        }
-
         // Some setup stuff
         moveCount++;
         thread->searchData.nodesSearched++;
@@ -651,6 +642,15 @@ movesLoop:
 
         if (!thread->searching || thread->exiting)
             return 0;
+
+        if (!capture) {
+            if (quietMoveCount < 64)
+                quietMoves[quietMoveCount++] = { move, value > alpha };
+        }
+        else {
+            if (captureMoveCount < 64)
+                captureMoves[captureMoveCount++] = { move, value > alpha };
+        }
 
         if (value > bestValue) {
             bestValue = value;

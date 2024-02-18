@@ -113,29 +113,29 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int bonus) {
     *captHistScore += scaledBonus;
 }
 
-void History::updateCaptureHistory(Board* board, Move move, int bonus, Move* captureMoves, int captureMoveCount) {
+void History::updateCaptureHistory(Board* board, Move move, int bonus, MoveSearchData* captureMoves, int captureMoveCount) {
     if (isCapture(board, move)) {
         updateSingleCaptureHistory(board, move, bonus);
     }
 
     for (int i = 0; i < captureMoveCount; i++) {
-        Move cMove = captureMoves[i];
-        if (move == cMove) continue;
-        updateSingleCaptureHistory(board, cMove, -bonus);
+        MoveSearchData cMove = captureMoves[i];
+        if (move == cMove.move || cMove.beatAlpha) continue;
+        updateSingleCaptureHistory(board, cMove.move, -bonus);
     }
 }
 
-void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount) {
+void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int bonus, MoveSearchData* quietMoves, int quietMoveCount) {
     // Increase stats for this move
     updateQuietHistory(board, move, bonus);
     updateContinuationHistory(board, stack, move, bonus);
 
     // Decrease stats for all other quiets
     for (int i = 0; i < quietMoveCount; i++) {
-        Move qMove = quietMoves[i];
-        if (move == qMove) continue;
-        updateQuietHistory(board, qMove, -bonus);
-        updateContinuationHistory(board, stack, qMove, -bonus);
+         MoveSearchData qMove = quietMoves[i];
+        if (move == qMove.move || qMove.beatAlpha) continue;
+        updateQuietHistory(board, qMove.move, -bonus);
+        updateContinuationHistory(board, stack, qMove.move, -bonus);
     }
 }
 

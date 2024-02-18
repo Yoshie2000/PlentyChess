@@ -59,3 +59,8 @@ struct SearchStack {
 
     int doubleExtensions;
 };
+
+struct MoveSearchData {
+    Move move;
+    bool beatAlpha;
+};
