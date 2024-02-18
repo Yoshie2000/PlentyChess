@@ -618,6 +618,8 @@ movesLoop:
 
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusFactor * (depth + 1) * (depth + 1), lmrPassBonusMax);
+                    if (value <= alpha)
+                        bonus *= -1;
                     thread->history.updateContinuationHistory(board, stack, move, bonus);
                 }
             }
