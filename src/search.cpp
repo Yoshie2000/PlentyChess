@@ -361,7 +361,6 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     Eval oldAlpha = alpha;
     bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
-    (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
     (stack + 1)->doubleExtensions = stack->doubleExtensions;
 

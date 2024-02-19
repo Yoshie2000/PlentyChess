@@ -485,10 +485,6 @@ Move MoveGen::nextMove() { // 2973208
         if (returnedMoves < generatedMoves)
             return moveList[returnedMoves++];
 
-        if (onlyCaptures) {
-            generationStage = GEN_STAGE_GEN_BAD_CAPTURES;
-            goto stage_gen_bad_captures;
-        }
         generationStage++;
         [[fallthrough]];
 
@@ -499,6 +495,11 @@ Move MoveGen::nextMove() { // 2973208
 
             if (killer != MOVE_NONE && killer != ttMove && isPseudoLegal(board, killer))
                 return killer;
+        }
+
+        if (onlyCaptures) {
+            generationStage = GEN_STAGE_GEN_BAD_CAPTURES;
+            goto stage_gen_bad_captures;
         }
 
         generationStage++;
