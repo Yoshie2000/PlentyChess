@@ -218,6 +218,8 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     if (!thread->searching || thread->exiting || stack->ply >= MAX_PLY || isDraw(board))
         return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &thread->nnue) : drawEval(thread);
 
+    (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
+
     BoardStack boardStack;
     Move bestMove = MOVE_NONE;
     Eval bestValue, futilityValue, unadjustedEval;
