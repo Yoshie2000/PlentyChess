@@ -620,6 +620,9 @@ movesLoop:
             if (cutNode)
                 reducedDepth--;
 
+            if (stack->ply >= 4 && move == (stack - 4)->move)
+                reducedDepth -= 4;
+
             reducedDepth += moveHistory / lmrHistoryFactor;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
