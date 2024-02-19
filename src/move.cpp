@@ -497,7 +497,7 @@ Move MoveGen::nextMove() { // 2973208
         while (killerCount < 2) {
             Move killer = killers[killerCount++];
 
-            if (killer != MOVE_NONE && isPseudoLegal(board, killer))
+            if (killer != MOVE_NONE && killer != ttMove && isPseudoLegal(board, killer))
                 return killer;
         }
 
@@ -507,7 +507,7 @@ Move MoveGen::nextMove() { // 2973208
     case GEN_STAGE_COUNTERMOVES:
 
         generationStage++;
-        if (counterMove != MOVE_NONE && !isCapture(board, counterMove) && isPseudoLegal(board, counterMove))
+        if (counterMove != MOVE_NONE && counterMove != ttMove && counterMove != killers[0] && counterMove != killers[1] && !isCapture(board, counterMove) && isPseudoLegal(board, counterMove))
             return counterMove;
 
         [[fallthrough]];
