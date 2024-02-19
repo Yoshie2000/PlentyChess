@@ -486,7 +486,7 @@ movesLoop:
     int captureMoveCount = 0;
 
     // Moves loop
-    MoveGen movegen(board, &thread->history, stack, ttMove, stack->killers, depth);
+    MoveGen movegen(board, &thread->history, stack, ttMove, depth);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {

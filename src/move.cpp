@@ -495,7 +495,8 @@ Move MoveGen::nextMove() { // 2973208
     case GEN_STAGE_KILLERS:
 
         while (killerCount < 2) {
-            Move killer = killers[killerCount++];
+            Move killer = searchStack->killers[killerCount];
+            playedKillers[killerCount++] = killer;
 
             if (killer != MOVE_NONE && killer != ttMove && isPseudoLegal(board, killer))
                 return killer;
@@ -507,7 +508,7 @@ Move MoveGen::nextMove() { // 2973208
     case GEN_STAGE_COUNTERMOVES:
 
         generationStage++;
-        if (counterMove != MOVE_NONE && counterMove != ttMove && counterMove != killers[0] && counterMove != killers[1] && !isCapture(board, counterMove) && isPseudoLegal(board, counterMove))
+        if (counterMove != MOVE_NONE && counterMove != ttMove && counterMove != playedKillers[0] && counterMove != playedKillers[1] && !isCapture(board, counterMove) && isPseudoLegal(board, counterMove))
             return counterMove;
 
         [[fallthrough]];
@@ -612,7 +613,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
         Move move = moveList[i];
 
         // Skip all previously searched moves
-        if (move == ttMove || move == killers[0] || move == killers[1] || move == counterMove) {
+        if (move == ttMove || move == playedKillers[0] || move == playedKillers[1] || move == counterMove) {
             moveList[i] = moveList[endIndex - 1];
             moveList[endIndex - 1] = MOVE_NONE;
             endIndex--;
