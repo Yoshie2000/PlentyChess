@@ -722,7 +722,6 @@ void Thread::tsearch() {
     Move previousMove = MOVE_NONE;
 
     int bestMoveStability = 0;
-    bool finishedDepth = false;
 
     constexpr int STACK_OVERHEAD = 4;
     SearchStack stackList[MAX_PLY + STACK_OVERHEAD];
@@ -731,7 +730,6 @@ void Thread::tsearch() {
     rootMoveNodes.clear();
 
     for (int depth = 1; depth <= maxDepth; depth++) {
-        finishedDepth = false;
 
         for (int i = 0; i < MAX_PLY + STACK_OVERHEAD; i++) {
             stackList[i].pvLength = 0;
@@ -809,7 +807,6 @@ void Thread::tsearch() {
         result.value = value;
         result.depth = depth;
         result.selDepth = searchData.selDepth;
-        finishedDepth = true;
 
         if (mainThread) {
             // Send UCI info
@@ -853,17 +850,6 @@ void Thread::tsearch() {
     result.finished = true;
 
     if (mainThread) {
-        if (!finishedDepth) {
-            int64_t ms = getTime() - searchData.startTime;
-            int64_t nodes = threadPool->nodesSearched();
-            int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
-            std::cout << "info depth " << result.depth << " seldepth " << result.selDepth << " score " << formatEval(result.value) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
-
-            for (int i = 0; i < stack->pvLength; i++)
-                std::cout << moveToString(stack->pv[i]) << " ";
-            std::cout << std::endl;
-        }
-
         std::cout << "bestmove " << moveToString(result.move) << std::endl;
     }
 }
