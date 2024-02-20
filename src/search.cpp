@@ -739,10 +739,8 @@ void Thread::tsearch() {
             stackList[i].killers[0] = MOVE_NONE;
             stackList[i].killers[1] = MOVE_NONE;
             stackList[i].doubleExtensions = 0;
-            if (i <= STACK_OVERHEAD) {
-                stackList[i].movedPiece = NO_PIECE;
-                stackList[i].move = MOVE_NONE;
-            }
+            stackList[i].movedPiece = NO_PIECE;
+            stackList[i].move = MOVE_NONE;
         }
 
         searchData.rootDepth = depth;
