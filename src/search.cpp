@@ -19,16 +19,16 @@
 #include "spsa.h"
 
 // Time management
-TUNE_FLOAT(tmInitialAdjustment, 1.0f, 0.5f, 1.5f);
-TUNE_INT(tmBestMoveStabilityMax, 10, 1, 100);
-TUNE_FLOAT(tmBestMoveStabilityBase, 1.45f, 0.75f, 2.5f);
-TUNE_FLOAT(tmBestMoveStabilityFactor, 0.0475f, 0.001f, 0.1f);
-TUNE_FLOAT(tmEvalDiffBase, 0.95f, 0.5f, 1.5f);
-TUNE_FLOAT(tmEvalDiffFactor, 0.01f, 0.001f, 0.1f);
-TUNE_INT(tmEvalDiffMin, -10, -250, 50);
-TUNE_INT(tmEvalDiffMax, 50, -50, 250);
-TUNE_FLOAT(tmNodesBase, 1.5f, 0.5f, 5.0f);
-TUNE_FLOAT(tmNodesFactor, 1.0f, 0.1f, 10.0f);
+TUNE_FLOAT(tmInitialAdjustment, 1.0220908793624697f, 0.5f, 1.5f);
+TUNE_INT(tmBestMoveStabilityMax, 19, 1, 100);
+TUNE_FLOAT(tmBestMoveStabilityBase, 1.4047754279849718f, 0.75f, 2.5f);
+TUNE_FLOAT(tmBestMoveStabilityFactor, 0.047295164490775615f, 0.001f, 0.1f);
+TUNE_FLOAT(tmEvalDiffBase, 0.8836158199681101f, 0.5f, 1.5f);
+TUNE_FLOAT(tmEvalDiffFactor, 0.007450041915515193f, 0.001f, 0.1f);
+TUNE_INT(tmEvalDiffMin, -17, -250, 50);
+TUNE_INT(tmEvalDiffMax, 56, -50, 250);
+TUNE_FLOAT(tmNodesBase, 1.715797943468461f, 0.5f, 5.0f);
+TUNE_FLOAT(tmNodesFactor, 0.8436870209784877f, 0.1f, 10.0f);
 
 // Aspiration windows
 TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 20);
