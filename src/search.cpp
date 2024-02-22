@@ -410,7 +410,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (board->stack->checkers) {
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
-    } else if (excluded) {
+    }
+    else if (excluded) {
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
@@ -426,6 +427,12 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
+
+    if (pvNode && ttMove == MOVE_NONE)
+        depth -= 2 + 2 * (ttHit && ttDepth >= depth);
+
+    if (depth <= 0)
+        return qsearch<PV_NODE>(board, thread, stack, alpha, beta);
 
     // IIR
     if (ttMove == MOVE_NONE && depth >= iirMinDepth)
