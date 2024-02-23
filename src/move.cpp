@@ -11,6 +11,10 @@
 #include "evaluation.h"
 #include "tt.h"
 
+const int PROMOTION_VALUES[PIECE_TYPES + 1] = {
+    0, 750, -900, -750, 900, 0, 0
+};
+
 bool isPseudoLegal(Board* board, Move move) {
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
@@ -599,7 +603,7 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
         if ((move & 0x3000) == MOVE_ENPASSANT)
             score = 0;
         else if ((move & 0x3000) == MOVE_PROMOTION)
-            score = PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
+            score = PROMOTION_VALUES[PROMOTION_PIECE[move >> 14]];
         else
             score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
         moveListScores[i] = score + *history->getCaptureHistory(board, move);
@@ -620,7 +624,10 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
             i--;
             continue;
         }
-        moveListScores[i] = history->getHistory(board, searchStack, move, false);
+        int score = 0;
+        if ((move & 0x3000) == MOVE_PROMOTION)
+            score = PROMOTION_VALUES[PROMOTION_PIECE[move >> 14]];
+        moveListScores[i] = score + history->getHistory(board, searchStack, move, false);
     }
     return endIndex;
 }
