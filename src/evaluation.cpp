@@ -18,7 +18,13 @@ Eval evaluate(Board* board, NNUE* nnue) {
 
     eval = eval * (220 - board->stack->rule50_ply) / 220;
 
+    Bitboard whitePawns = board->byPiece[PIECE_PAWN] & board->byColor[COLOR_WHITE];
+    Bitboard blackPawns = board->byPiece[PIECE_PAWN] & board->byColor[COLOR_BLACK];
+    int blockedPawns = __builtin_popcount((whitePawns << 8) & blackPawns);
+    eval = eval * 64 / (60 + blockedPawns * blockedPawns);
+
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
+
     return eval;
 }
 
