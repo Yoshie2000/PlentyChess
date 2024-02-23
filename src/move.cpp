@@ -620,7 +620,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
             i--;
             continue;
         }
-        moveListScores[i] = history->getHistory(board, searchStack, move, false);
+        moveListScores[i] = history->getHistory(board, searchStack, move, false) + 5000 * givesCheck(board, move);
     }
     return endIndex;
 }
