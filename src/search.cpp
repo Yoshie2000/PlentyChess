@@ -619,6 +619,9 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth--;
+            
+            if (ttMove != MOVE_NONE && isCapture(board, ttMove))
+                reducedDepth--;
 
             reducedDepth += moveHistory / lmrHistoryFactor;
 
