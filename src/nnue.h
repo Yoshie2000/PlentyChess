@@ -171,7 +171,7 @@ inline int vecHaddEpi32(Vec vec) {
 #endif
 
 constexpr int INPUT_WIDTH = 768;
-constexpr int HIDDEN_WIDTH = 1024;
+constexpr int HIDDEN_WIDTH = 1536;
 
 constexpr int NETWORK_SCALE = 400;
 constexpr int NETWORK_QA = 181;
