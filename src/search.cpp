@@ -457,10 +457,10 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (!pvNode
         && eval >= stack->staticEval
         && eval >= beta
+        && beta > -EVAL_MATE_IN_MAX_PLY
         && !excluded
         && (stack - 1)->movedPiece != NO_PIECE
         && depth >= 3
-        && !board->stack->checkers
         && stack->ply >= thread->searchData.nmpPlies
         && hasNonPawns(board)
         ) {
