@@ -18,6 +18,10 @@ Eval evaluate(Board* board, NNUE* nnue) {
 
     eval = eval * (220 - board->stack->rule50_ply) / 220;
 
+    // Blocked position evaluation
+    Bitboard blockedPawns = ((board->byPiece[PIECE_PAWN] & board->byColor[COLOR_WHITE]) << 8) & (board->byPiece[PIECE_PAWN] & board->byColor[COLOR_BLACK])
+    Bitboard blockedForWhite = board->byPiece[COLOR_BLACK] & attackedSquares(board, COLOR_BLACK);
+
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
     return eval;
 }
