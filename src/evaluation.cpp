@@ -39,9 +39,9 @@ std::string formatEval(Eval value) {
 bool SEE(Board* board, Move move, Eval threshold) {
     assert(isPseudoLegal(board, move));
 
-    // "Special" moves pass SEE
+    // "Special" moves pass SEE, except for rook / bishop promotions
     if (move >> 12)
-        return true;
+        return ((move & 0x3000) != MOVE_PROMOTION) || PROMOTION_PIECE[move >> 14] == PIECE_QUEEN || PROMOTION_PIECE[move >> 14] == PIECE_KNIGHT;
     
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
