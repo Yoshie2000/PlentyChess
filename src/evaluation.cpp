@@ -19,10 +19,23 @@ Eval evaluate(Board* board, NNUE* nnue) {
     eval = eval * (220 - board->stack->rule50_ply) / 220;
 
     // Blocked position evaluation
-    Bitboard blockedPawns = ((board->byPiece[PIECE_PAWN] & board->byColor[COLOR_WHITE]) << 8) & (board->byPiece[PIECE_PAWN] & board->byColor[COLOR_BLACK])
-    Bitboard blockedForWhite = board->byPiece[COLOR_BLACK] & attackedSquares(board, COLOR_BLACK);
+    if (board->stack->pieceCount[COLOR_WHITE][PIECE_QUEEN] == 0 && board->stack->pieceCount[COLOR_BLACK][PIECE_QUEEN] == 0 && board->stack->pieceCount[COLOR_WHITE][PIECE_ROOK] == 0 && board->stack->pieceCount[COLOR_BLACK][PIECE_ROOK] == 0) {
+        Bitboard blockedPawns = ((board->byPiece[PIECE_PAWN] & board->byColor[COLOR_WHITE]) << 8) & (board->byPiece[PIECE_PAWN] & board->byColor[COLOR_BLACK]);
 
-    eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
+        Bitboard blockedForWhite = board->byPiece[COLOR_BLACK] | attackedSquares(board, COLOR_BLACK) | blockedPawns;
+        Bitboard blockedForBlack = board->byPiece[COLOR_WHITE] | attackedSquares(board, COLOR_WHITE) | blockedPawns;
+
+        Bitboard blockedRanksForWhite = (blockedForWhite | (blockedForWhite << 8));
+        Bitboard blockedRanksForBlack = (blockedForBlack | (blockedForBlack << 8));
+
+        int blockedWhiteRanks = ((blockedRanksForWhite & RANK_1) == RANK_1) + ((blockedRanksForWhite & RANK_2) == RANK_2) + ((blockedRanksForWhite & RANK_3) == RANK_3) + ((blockedRanksForWhite & RANK_4) == RANK_4) + ((blockedRanksForWhite & RANK_5) == RANK_5) + ((blockedRanksForWhite & RANK_6) == RANK_6) + ((blockedRanksForWhite & RANK_7) == RANK_7) + ((blockedRanksForWhite & RANK_8) == RANK_8);
+        int blockedBlackRanks = ((blockedRanksForBlack & RANK_1) == RANK_1) + ((blockedRanksForBlack & RANK_2) == RANK_2) + ((blockedRanksForBlack & RANK_3) == RANK_3) + ((blockedRanksForBlack & RANK_4) == RANK_4) + ((blockedRanksForBlack & RANK_5) == RANK_5) + ((blockedRanksForBlack & RANK_6) == RANK_6) + ((blockedRanksForBlack & RANK_7) == RANK_7) + ((blockedRanksForBlack & RANK_8) == RANK_8);
+
+        if (blockedWhiteRanks > 0 && blockedWhiteRanks == blockedBlackRanks)
+            eval = 0;
+    }
+
+    eval = std::clamp((int)eval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
     return eval;
 }
 
@@ -46,7 +59,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
     // "Special" moves pass SEE
     if (move >> 12)
         return true;
-    
+
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
 
@@ -86,7 +99,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
 
         side = 1 - side;
         value = -value - 1 - PIECE_VALUES[piece];
-        
+
         // Value beats (or can't beat) threshold (negamax)
         if (value >= 0) {
             if (piece == PIECE_KING && (attackersToTarget & board->byColor[side]))
