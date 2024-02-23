@@ -701,6 +701,10 @@ movesLoop:
         return 0; // Stalemate
     }
 
+    if (ttValue == bestValue && std::abs(bestValue) < EVAL_MATE_IN_MAX_PLY) {
+        bestValue = bestValue * 95 / 100;
+    }
+
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
