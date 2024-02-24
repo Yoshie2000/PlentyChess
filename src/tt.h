@@ -19,6 +19,8 @@
 #define TT_EXACTBOUND 3
 
 #define TT_DEPTH_OFFSET -7
+#define DEPTH_QS_CHECKS 0
+#define DEPTH_QS_NO_CHECKS -1
 
 extern uint64_t ZOBRIST_PIECE_SQUARES[2][PIECE_TYPES][64];
 extern uint64_t ZOBRIST_STM_BLACK;

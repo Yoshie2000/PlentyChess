@@ -202,7 +202,7 @@ Eval drawEval(Thread* thread) {
 }
 
 template <NodeType nodeType>
-Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval beta) {
+Eval qsearch(Board* board, Thread* thread, SearchStack* stack, int depth, Eval alpha, Eval beta) {
     constexpr bool pvNode = nodeType == PV_NODE;
 
     if (pvNode)
@@ -229,6 +229,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     Move ttMove = MOVE_NONE;
     Eval ttValue = EVAL_NONE;
     Eval ttEval = EVAL_NONE;
+    int ttDepth = board->stack->checkers || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS : DEPTH_QS_NO_CHECKS;
     uint8_t ttFlag = TT_NOBOUND;
     bool ttPv = pvNode;
 
@@ -242,7 +243,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     }
 
     // TT cutoff
-    if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (!pvNode && ttEntry->depth >= ttDepth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
     if (board->stack->checkers) {
@@ -256,7 +257,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     else {
         unadjustedEval = evaluate(board, &thread->nnue);
         stack->staticEval = bestValue = thread->history.correctStaticEval(unadjustedEval, board);
-        ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
+        ttEntry->update(board->stack->hash, MOVE_NONE, depth, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
     futilityValue = stack->staticEval + qsFutilityOffset;
 
@@ -274,7 +275,7 @@ movesLoopQsearch:
         return alpha;
 
     // Moves loop
-    MoveGen movegen(board, &thread->history, stack, ttMove, !board->stack->checkers, 1);
+    MoveGen movegen(board, &thread->history, stack, ttMove, !board->stack->checkers, ttDepth == DEPTH_QS_CHECKS && !board->stack->checkers, 1);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -297,7 +298,7 @@ movesLoopQsearch:
         thread->searchData.nodesSearched++;
         doMove(board, &boardStack, move, newHash, &thread->nnue);
 
-        Eval value = -qsearch<nodeType>(board, thread, stack + 1, -beta, -alpha);
+        Eval value = -qsearch<nodeType>(board, thread, stack + 1, depth - 1, -beta, -alpha);
         undoMove(board, move, &thread->nnue);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
@@ -327,7 +328,7 @@ movesLoopQsearch:
 
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
-    ttEntry->update(board->stack->hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+    ttEntry->update(board->stack->hash, bestMove, ttDepth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     return bestValue;
 }
@@ -352,7 +353,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
             return alpha;
     }
 
-    if (depth <= 0) return qsearch<nodeType>(board, thread, stack, alpha, beta);
+    if (depth <= 0) return qsearch<nodeType>(board, thread, stack, depth, alpha, beta);
 
     BoardStack boardStack;
     Move bestMove = MOVE_NONE;
@@ -448,7 +449,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     // Razoring
     if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha) {
-        Eval razorValue = qsearch<NON_PV_NODE>(board, thread, stack, alpha, beta);
+        Eval razorValue = qsearch<NON_PV_NODE>(board, thread, stack, 0, alpha, beta);
         if (razorValue <= alpha)
             return razorValue;
     }

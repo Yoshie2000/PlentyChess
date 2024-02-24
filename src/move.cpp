@@ -486,8 +486,14 @@ Move MoveGen::nextMove() { // 2973208
             return moveList[returnedMoves++];
 
         if (onlyCaptures) {
-            generationStage = GEN_STAGE_GEN_BAD_CAPTURES;
-            goto stage_gen_bad_captures;
+            if (!generateChecks) {
+                generationStage = GEN_STAGE_GEN_BAD_CAPTURES;
+                goto stage_gen_bad_captures;
+            }
+            else {
+                generationStage = GEN_STAGE_GEN_QS_CHECKS;
+                goto stage_gen_qs_checks;
+            }
         }
         generationStage++;
         [[fallthrough]];
@@ -564,6 +570,36 @@ Move MoveGen::nextMove() { // 2973208
             return badCaptureList[returnedBadCaptures++];
 
         generationStage = GEN_STAGE_DONE;
+        break;
+
+    case GEN_STAGE_GEN_QS_CHECKS:
+    stage_gen_qs_checks:
+        beginIndex = generatedMoves;
+
+        assert(!board->stack->checkers);
+
+        generatePawn_quiet(board, &moves, &generatedMoves, ~C64(0));
+        generatePiece<PIECE_KNIGHT>(board, &moves, &generatedMoves, false, ~C64(0));
+        generatePiece<PIECE_BISHOP>(board, &moves, &generatedMoves, false, ~C64(0));
+        generatePiece<PIECE_ROOK>(board, &moves, &generatedMoves, false, ~C64(0));
+        generatePiece<PIECE_QUEEN>(board, &moves, &generatedMoves, false, ~C64(0));
+
+        endIndex = generatedMoves;
+
+        endIndex = scoreQsChecks(beginIndex, endIndex);
+        moves = moveList + generatedMoves;
+        sortMoves(moveList, moveListScores, beginIndex, endIndex);
+
+        generationStage++;
+        [[fallthrough]];
+
+    case GEN_STAGE_QS_CHECKS:
+
+        if (returnedMoves < generatedMoves)
+            return moveList[returnedMoves++];
+
+        generationStage = GEN_STAGE_DONE;
+        break;
     }
 
     return MOVE_NONE;
@@ -613,6 +649,24 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
 
         // Skip all previously searched moves
         if (move == ttMove || move == killers[0] || move == killers[1] || move == counterMove) {
+            moveList[i] = moveList[endIndex - 1];
+            moveList[endIndex - 1] = MOVE_NONE;
+            endIndex--;
+            generatedMoves--;
+            i--;
+            continue;
+        }
+        moveListScores[i] = history->getHistory(board, searchStack, move, false);
+    }
+    return endIndex;
+}
+
+int MoveGen::scoreQsChecks(int beginIndex, int endIndex) {
+    for (int i = beginIndex; i < endIndex; i++) {
+        Move move = moveList[i];
+
+        // Skip all previously searched moves
+        if (move == ttMove || !givesCheck(board, move)) {
             moveList[i] = moveList[endIndex - 1];
             moveList[endIndex - 1] = MOVE_NONE;
             endIndex--;
