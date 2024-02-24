@@ -569,6 +569,11 @@ movesLoop:
                     extension = 2;
                     stack->doubleExtensions = (stack - 1)->doubleExtensions + 1;
                 }
+                int bonus = std::min(20 * depth, 1024);
+                if (capture)
+                    thread->history.updateCaptureHistory(board, move, bonus, nullptr, 0);
+                else
+                    thread->history.updateQuietHistories(board, stack, move, bonus, nullptr, 0);
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta)
