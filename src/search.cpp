@@ -438,9 +438,6 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
     }
-    else {
-        improving = true;
-    }
 
     // Reverse futility pruning
     if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving) >= beta)
