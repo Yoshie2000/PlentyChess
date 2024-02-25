@@ -48,6 +48,7 @@ struct SearchStack {
     Move pv[MAX_PLY + 1];
 
     int ply;
+    bool extension;
 
     Eval staticEval;
 
