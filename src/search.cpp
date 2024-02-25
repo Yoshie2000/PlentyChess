@@ -364,6 +364,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
     (stack + 1)->doubleExtensions = stack->doubleExtensions;
+    stack->extension = false;
 
     if (!rootNode) {
 
@@ -410,7 +411,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (board->stack->checkers) {
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
-    } else if (excluded) {
+    }
+    else if (excluded) {
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
@@ -569,6 +571,7 @@ movesLoop:
                     extension = 2;
                     stack->doubleExtensions = (stack - 1)->doubleExtensions + 1;
                 }
+                stack->extension = true;
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta)
@@ -615,6 +618,9 @@ movesLoop:
                 reducedDepth--;
 
             if (cutNode)
+                reducedDepth--;
+
+            if ((stack - 1)->extension && ttMove != MOVE_NONE && move != ttMove)
                 reducedDepth--;
 
             reducedDepth += moveHistory / lmrHistoryFactor;
@@ -751,6 +757,7 @@ void Thread::tsearch() {
             stackList[i].killers[0] = MOVE_NONE;
             stackList[i].killers[1] = MOVE_NONE;
             stackList[i].doubleExtensions = 0;
+            stackList[i].extension = false;
             if (i <= STACK_OVERHEAD) {
                 stackList[i].movedPiece = NO_PIECE;
                 stackList[i].move = MOVE_NONE;
