@@ -19,7 +19,7 @@ Eval evaluate(Board* board, NNUE* nnue) {
     eval = eval * (220 - board->stack->rule50_ply) / 220;
 
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
-    return eval;
+    return 10 + eval;
 }
 
 std::string formatEval(Eval value) {
