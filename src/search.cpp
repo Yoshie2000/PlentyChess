@@ -629,7 +629,7 @@ movesLoop:
                 value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
 
                 if (!capture) {
-                    int bonus = std::min(lmrPassBonusFactor * (depth + 1) * (depth + 1), lmrPassBonusMax);
+                    int bonus = std::min(110 * depth, lmrPassBonusMax);
                     thread->history.updateContinuationHistory(board, stack, move, bonus);
                 }
             }
@@ -672,10 +672,10 @@ movesLoop:
                         if (stack->ply > 0)
                             thread->history.setCounterMove((stack - 1)->move, move);
 
-                        int bonus = std::min(historyBonusFactor * (depth + 1) * (depth + 1), historyBonusMax);
+                        int bonus = std::min(160 * depth, historyBonusMax);
                         thread->history.updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }
-                    int bonus = std::min(historyBonusFactor * (depth + 1) * (depth + 1), historyBonusMax);
+                    int bonus = std::min(160 * depth, historyBonusMax);
                     thread->history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
                 }
