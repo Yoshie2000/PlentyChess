@@ -600,8 +600,12 @@ movesLoop:
         stack->movedPiece = board->pieces[moveOrigin(move)];
         doMove(board, &boardStack, move, newHash, &thread->nnue);
 
-        if (doExtensions && extension == 0 && board->stack->checkers)
-            extension = 1;
+        if (doExtensions && extension == 0) {
+            if (board->stack->checkers)
+                extension = 1;
+            else if (depth == 1 && !capture)
+                extension = 1;
+        }
 
         Eval value;
         int newDepth = depth - 1 + extension;
