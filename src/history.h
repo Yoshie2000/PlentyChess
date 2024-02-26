@@ -3,6 +3,8 @@
 #include "types.h"
 #include "board.h"
 
+#define PAWN_HISTORY_SIZE 512
+
 #define CORRECTION_HISTORY_SIZE 16384
 #define CORRECTION_HISTORY_LIMIT 1024
 
@@ -13,9 +15,13 @@ class History {
     int16_t continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES][64];
     int16_t captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
     int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
+    int16_t pawnHistory[PAWN_HISTORY_SIZE][2][PIECE_TYPES][64];
 
 public:
     void initHistory();
+
+    int16_t getPawnHistory(Board* board, Move move);
+    void updatePawnHistory(Board* board, Move move, int16_t bonus);
 
     Eval correctStaticEval(Eval eval, Board* board);
     void updateCorrectionHistory(Board* board, int16_t bonus);

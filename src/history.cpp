@@ -15,7 +15,17 @@ void History::initHistory() {
     }
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
+    memset(pawnHistory, 0, sizeof(pawnHistory));
     memset(correctionHistory, 0, sizeof(correctionHistory));
+}
+
+int16_t History::getPawnHistory(Board* board, Move move) {
+    return pawnHistory[board->stack->pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)];
+}
+
+void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
+    int16_t scaledBonus = bonus - getPawnHistory(board, move) * std::abs(bonus) / 8192;
+    pawnHistory[board->stack->pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
 }
 
 Eval History::correctStaticEval(Eval eval, Board* board) {
@@ -35,7 +45,7 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(board, move) + 2 * getContinuationHistory(board, searchStack, move);
+        return getQuietHistory(board, move) + getPawnHistory(board, move) / 2 + 2 * getContinuationHistory(board, searchStack, move);
     }
 }
 
@@ -132,6 +142,8 @@ void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move*
 
 void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
+    if (board->pieces[moveOrigin(move)] == PIECE_PAWN)
+        updatePawnHistory(board, move, bonus);
     updateQuietHistory(board, move, bonus);
     updateContinuationHistory(board, stack, move, bonus);
 
@@ -139,6 +151,8 @@ void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, 
     for (int i = 0; i < quietMoveCount; i++) {
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
+        if (board->pieces[moveOrigin(qMove)] == PIECE_PAWN)
+            updatePawnHistory(board, qMove, -bonus);
         updateQuietHistory(board, qMove, -bonus);
         updateContinuationHistory(board, stack, qMove, -bonus);
     }
