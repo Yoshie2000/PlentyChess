@@ -8,7 +8,7 @@
 #include "nnue.h"
 
 const Eval PIECE_VALUES[PIECE_TYPES + 1] = {
-    100, 300, 300, 500, 900, 0, 0
+    100, 300, 305, 500, 900, 0, 0
 };
 
 Eval evaluate(Board* board, NNUE* nnue) {
