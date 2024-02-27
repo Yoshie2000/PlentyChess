@@ -25,8 +25,8 @@ Eval History::correctStaticEval(Eval eval, Board* board) {
     return adjustedEval;
 }
 
-void History::updateCorrectionHistory(Board* board, int bonus) {
-    int scaledBonus = bonus - getCorrectionHistory(board) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+void History::updateCorrectionHistory(Board* board, int16_t bonus) {
+    Eval scaledBonus = (Eval) bonus - getCorrectionHistory(board) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
     correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 }
 
@@ -39,12 +39,12 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
     }
 }
 
-int History::getQuietHistory(Board* board, Move move) {
+int16_t History::getQuietHistory(Board* board, Move move) {
     return quietHistory[board->stm][moveOrigin(move)][moveTarget(move)];
 }
 
-void History::updateQuietHistory(Board* board, Move move, int bonus) {
-    int scaledBonus = bonus - getQuietHistory(board, move) * std::abs(bonus) / 32768;
+void History::updateQuietHistory(Board* board, Move move, int16_t bonus) {
+    int16_t scaledBonus = bonus - getQuietHistory(board, move) * std::abs(bonus) / 32000;
     quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += scaledBonus;
 }
 
@@ -70,7 +70,7 @@ int History::getContinuationHistory(Board* board, SearchStack* stack, Move move)
     return score;
 }
 
-void History::updateContinuationHistory(Board* board, SearchStack* stack, Move move, int bonus) {
+void History::updateContinuationHistory(Board* board, SearchStack* stack, Move move, int16_t bonus) {
     // Update continuationHistory
     Piece piece = board->pieces[moveOrigin(move)];
     if (piece == NO_PIECE)
@@ -80,7 +80,7 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
 
     assert(piece != NO_PIECE);
 
-    int scaledBonus = bonus - getContinuationHistory(board, stack, move) * std::abs(bonus) / 32768;
+    int16_t scaledBonus = bonus - getContinuationHistory(board, stack, move) * std::abs(bonus) / 32000;
 
     if ((stack - 1)->movedPiece != NO_PIECE)
         continuationHistory[board->stm][(stack - 1)->movedPiece][moveTarget((stack - 1)->move)][piece][target] += scaledBonus;
@@ -93,7 +93,7 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
 
 }
 
-int* History::getCaptureHistory(Board* board, Move move) {
+int16_t* History::getCaptureHistory(Board* board, Move move) {
     Piece movedPiece = board->pieces[moveOrigin(move)];
     Piece capturedPiece = board->pieces[moveTarget(move)];
     Square target = moveTarget(move);
@@ -106,14 +106,14 @@ int* History::getCaptureHistory(Board* board, Move move) {
     return &captureHistory[board->stm][movedPiece][target][capturedPiece];
 }
 
-void History::updateSingleCaptureHistory(Board* board, Move move, int bonus) {
-    int* captHistScore = getCaptureHistory(board, move);
+void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus) {
+    int16_t* captHistScore = getCaptureHistory(board, move);
 
-    int scaledBonus = bonus - *captHistScore * std::abs(bonus) / 32768;
+    int16_t scaledBonus = bonus - *captHistScore * std::abs(bonus) / 32000;
     *captHistScore += scaledBonus;
 }
 
-void History::updateCaptureHistory(Board* board, Move move, int bonus, Move* captureMoves, int captureMoveCount) {
+void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
     if (isCapture(board, move)) {
         updateSingleCaptureHistory(board, move, bonus);
     }
@@ -125,7 +125,7 @@ void History::updateCaptureHistory(Board* board, Move move, int bonus, Move* cap
     }
 }
 
-void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int bonus, Move* quietMoves, int quietMoveCount) {
+void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
     updateQuietHistory(board, move, bonus);
     updateContinuationHistory(board, stack, move, bonus);
