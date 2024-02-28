@@ -620,7 +620,8 @@ movesLoop:
                 continue;
 
             // SEE Pruning
-            if (!pvNode && depth < seeDepth && !SEE(board, move, SEE_MARGIN[!capture ? lmrDepth : depth][!capture]))
+            int seeRelevantDepth = !capture ? lmrDepth + moveHistory / 5000 : depth;
+            if (!pvNode && seeRelevantDepth < seeDepth && !SEE(board, move, SEE_MARGIN[seeRelevantDepth][!capture]))
                 continue;
 
         }
