@@ -660,8 +660,9 @@ movesLoop:
                     updatePv(stack, move);
 
                 if (bestValue >= beta) {
+                    
+                    int bonus = std::min(160 * (depth + (eval <= alpha)), historyBonusMax);
                     if (!capture) {
-
                         // Update quiet killers
                         if (move != stack->killers[0]) {
                             stack->killers[1] = stack->killers[0];
@@ -672,10 +673,8 @@ movesLoop:
                         if (stack->ply > 0)
                             thread->history.setCounterMove((stack - 1)->move, move);
 
-                        int bonus = std::min(160 * depth, historyBonusMax);
                         thread->history.updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }
-                    int bonus = std::min(160 * depth, historyBonusMax);
                     thread->history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
                 }
