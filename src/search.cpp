@@ -427,10 +427,6 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
-    // IIR
-    if (ttMove == MOVE_NONE && depth >= iirMinDepth)
-        depth--;
-
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
@@ -449,6 +445,10 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         if (razorValue <= alpha)
             return razorValue;
     }
+
+    // IIR
+    if (ttMove == MOVE_NONE && depth >= iirMinDepth)
+        depth--;
 
     // Null move pruning
     if (!pvNode
