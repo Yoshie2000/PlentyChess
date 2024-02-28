@@ -199,7 +199,7 @@ bool givesCheck(Board* board, Move move) {
     }
 }
 
-void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targetMask) {
+void generatePawn_quiet(Board* board, ScoredMove** moves, int* counter, Bitboard targetMask) {
     Bitboard pawns = board->byPiece[PIECE_PAWN] & board->byColor[board->stm];
     Bitboard free = ~(board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]);
 
@@ -219,18 +219,17 @@ void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targe
 
     while (pushedPawns) {
         Square target = popLSB(&pushedPawns);
-        Move move = createMove(target - UP[board->stm], target);
 
         if ((C64(1) << target) & enemyBackrank) {
             // Promotion: Queen promotions are considered captures
             for (uint8_t promotion = 1; promotion <= 3; promotion++) {
-                *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
+                *(*moves)++ = createMove(target - UP[board->stm], target, (promotion << 14) | MOVE_PROMOTION);
                 (*counter)++;
             }
             continue;
         }
 
-        *(*moves)++ = move;
+        *(*moves)++ = createMove(target - UP[board->stm], target);
         (*counter)++;
     }
 
@@ -242,7 +241,7 @@ void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targe
     }
 }
 
-void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard targetMask) {
+void generatePawn_capture(Board* board, ScoredMove** moves, int* counter, Bitboard targetMask) {
     // Captures
     Bitboard pawns = board->byPiece[PIECE_PAWN] & board->byColor[board->stm];
     Bitboard pAttacksLeft = pawnAttacksLeft(pawns, board->stm);
@@ -261,7 +260,7 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
     }
     while (pushedPawns) {
         Square target = popLSB(&pushedPawns);
-        *(*moves)++ = createMove(target - UP[board->stm], target) | PROMOTION_QUEEN | MOVE_PROMOTION;
+        *(*moves)++ = createMove(target - UP[board->stm], target, PROMOTION_QUEEN | MOVE_PROMOTION);
         (*counter)++;
     }
 
@@ -269,35 +268,33 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
     Bitboard leftCaptures = pAttacksLeft & blockedEnemy & targetMask;
     while (leftCaptures) {
         Square target = popLSB(&leftCaptures);
-        Move move = createMove(target - UP_LEFT[board->stm], target);
 
         if ((C64(1) << target) & enemyBackrank) {
             // Promotion
             for (uint8_t promotion = 0; promotion <= 3; promotion++) {
-                *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
+                *(*moves)++ = createMove(target - UP_LEFT[board->stm], target, (promotion << 14) | MOVE_PROMOTION);
                 (*counter)++;
             }
             continue;
         }
 
-        *(*moves)++ = move;
+        *(*moves)++ = createMove(target - UP_LEFT[board->stm], target);
         (*counter)++;
     }
     Bitboard rightCaptures = pAttacksRight & blockedEnemy & targetMask;
     while (rightCaptures) {
         Square target = popLSB(&rightCaptures);
-        Move move = createMove(target - UP_RIGHT[board->stm], target);
 
         if ((C64(1) << target) & enemyBackrank) {
             // Promotion
             for (uint8_t promotion = 0; promotion <= 3; promotion++) {
-                *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
+                *(*moves)++ = createMove(target - UP_RIGHT[board->stm], target, (promotion << 14) | MOVE_PROMOTION);
                 (*counter)++;
             }
             continue;
         }
 
-        *(*moves)++ = move;
+        *(*moves)++ = createMove(target - UP_RIGHT[board->stm], target);
         (*counter)++;
     }
 
@@ -316,7 +313,7 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
 
             // Don't make ep move if the pawn is blocking a check
             if (!(board->stack->blockers[board->stm] & (C64(1) << origin))) {
-                *(*moves)++ = createMove(origin, target) | MOVE_ENPASSANT;
+                *(*moves)++ = createMove(origin, target, MOVE_ENPASSANT);
                 (*counter)++;
             }
         }
@@ -327,7 +324,7 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
 
             // Don't make ep move if the pawn is blocking a check
             if (!(board->stack->blockers[board->stm] & (C64(1) << origin))) {
-                *(*moves)++ = createMove(origin, target) | MOVE_ENPASSANT;
+                *(*moves)++ = createMove(origin, target, MOVE_ENPASSANT);
                 (*counter)++;
             }
         }
@@ -336,7 +333,7 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
 
 // For all pieces other than pawns
 template <Piece pieceType>
-void generatePiece(Board* board, Move** moves, int* counter, bool captures, Bitboard targetMask) {
+void generatePiece(Board* board, ScoredMove** moves, int* counter, bool captures, Bitboard targetMask) {
     Bitboard blockedUs = board->byColor[board->stm];
     Bitboard blockedEnemy = board->byColor[1 - board->stm];
     Bitboard occupied = blockedUs | blockedEnemy;
@@ -362,7 +359,7 @@ void generatePiece(Board* board, Move** moves, int* counter, bool captures, Bitb
     }
 }
 
-void generateCastling(Board* board, Move** moves, int* counter) {
+void generateCastling(Board* board, ScoredMove** moves, int* counter) {
     assert((board->byPiece[PIECE_KING] & board->byColor[board->stm]) > 0);
 
     Square king = lsb(board->byPiece[PIECE_KING] & board->byColor[board->stm]);
@@ -374,31 +371,31 @@ void generateCastling(Board* board, Move** moves, int* counter) {
     case COLOR_WHITE:
         // Kingside
         if ((board->stack->castling & 0x1) && !(occupied & 0x60)/* && !(board->stack->attackedByColor[COLOR_BLACK] & 0x60)*/) {
-            *(*moves)++ = createMove(king, king + 2) | MOVE_CASTLING;
+            *(*moves)++ = createMove(king, king + 2, MOVE_CASTLING);
             (*counter)++;
         }
         // Queenside
         if ((board->stack->castling & 0x2) && !(occupied & 0x0E)/* && !(board->stack->attackedByColor[COLOR_BLACK] & 0x0C)*/) {
-            *(*moves)++ = createMove(king, king - 2) | MOVE_CASTLING;
+            *(*moves)++ = createMove(king, king - 2, MOVE_CASTLING);
             (*counter)++;
         }
         break;
     case COLOR_BLACK:
         // Kingside
         if ((board->stack->castling & 0x4) && !(occupied & C64(0x6000000000000000))/* && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x6000000000000000))*/) {
-            *(*moves)++ = createMove(king, king + 2) | MOVE_CASTLING;
+            *(*moves)++ = createMove(king, king + 2, MOVE_CASTLING);
             (*counter)++;
         }
         // Queenside
         if ((board->stack->castling & 0x8) && !(occupied & C64(0x0E00000000000000))/* && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x0C00000000000000))*/) {
-            *(*moves)++ = createMove(king, king - 2) | MOVE_CASTLING;
+            *(*moves)++ = createMove(king, king - 2, MOVE_CASTLING);
             (*counter)++;
         }
         break;
     }
 }
 
-void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
+void generateMoves(Board* board, ScoredMove* moves, int* counter, bool onlyCaptures) {
     assert((board->byColor[board->stm] & board->byPiece[PIECE_KING]) > 0);
 
     // If in double check, only generate king moves
@@ -439,7 +436,7 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
 Move MoveGen::nextMove() { // 2973208
     assert((board->byColor[board->stm] & board->byPiece[PIECE_KING]) > 0);
 
-    Move* moves = moveList + generatedMoves;
+    ScoredMove* moves = moveList + generatedMoves;
     int beginIndex, endIndex;
 
     // Generate moves for the current stage
@@ -475,15 +472,15 @@ Move MoveGen::nextMove() { // 2973208
 
         endIndex = scoreGoodCaptures(beginIndex, endIndex);
         moves = moveList + generatedMoves;
-        sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
         generationStage++;
+        calculateNextMoveIndex();
         [[fallthrough]];
 
     case GEN_STAGE_CAPTURES:
 
         if (returnedMoves < generatedMoves)
-            return moveList[returnedMoves++];
+            return moveList[returnedMoves++].move;
 
         if (onlyCaptures) {
             generationStage = GEN_STAGE_GEN_BAD_CAPTURES;
@@ -535,15 +532,15 @@ Move MoveGen::nextMove() { // 2973208
 
         endIndex = scoreQuiets(beginIndex, endIndex);
         moves = moveList + generatedMoves;
-        sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
         generationStage++;
+        calculateNextMoveIndex();
         [[fallthrough]];
 
     case GEN_STAGE_REMAINING:
 
         if (returnedMoves < generatedMoves)
-            return moveList[returnedMoves++];
+            return moveList[returnedMoves++].move;
 
         generationStage++;
         [[fallthrough]];
@@ -553,15 +550,15 @@ Move MoveGen::nextMove() { // 2973208
         generatedBadCaptures = flaggedBadCaptures;
 
         scoreBadCaptures();
-        sortMoves(badCaptureList, badCaptureScores, 0, generatedBadCaptures);
 
         generationStage++;
+        calculateNextMoveIndex();
         [[fallthrough]];
 
     case GEN_STAGE_BAD_CAPTURES:
 
         if (returnedBadCaptures < generatedBadCaptures)
-            return badCaptureList[returnedBadCaptures++];
+            return badCaptureList[returnedBadCaptures++].move;
 
         generationStage = GEN_STAGE_DONE;
     }
@@ -571,12 +568,12 @@ Move MoveGen::nextMove() { // 2973208
 
 int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
     for (int i = beginIndex; i < endIndex; i++) {
-        Move move = moveList[i];
+        ScoredMove* move = &moveList[i];
 
         // Skip all previously searched moves
-        if (move == ttMove) {
+        if (move->move == ttMove) {
             moveList[i] = moveList[endIndex - 1];
-            moveList[endIndex - 1] = MOVE_NONE;
+            moveList[endIndex - 1] = { MOVE_NONE, 0 };
             endIndex--;
             generatedMoves--;
             i--;
@@ -584,11 +581,11 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
         }
 
         // Store bad captures in a separate list
-        bool goodCapture = SEE(board, move, -107);
+        bool goodCapture = SEE(board, move->move, -107);
         if (!goodCapture) {
+            badCaptureList[flaggedBadCaptures++] = *move;
             moveList[i] = moveList[endIndex - 1];
-            moveList[endIndex - 1] = MOVE_NONE;
-            badCaptureList[flaggedBadCaptures++] = move;
+            moveList[endIndex - 1] = { MOVE_NONE, 0 };
             endIndex--;
             generatedMoves--;
             i--;
@@ -596,60 +593,66 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
         }
 
         int score;
-        if ((move & 0x3000) == MOVE_ENPASSANT)
+        if ((move->move & 0x3000) == MOVE_ENPASSANT)
             score = 0;
-        else if ((move & 0x3000) == MOVE_PROMOTION)
-            score = PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
+        else if ((move->move & 0x3000) == MOVE_PROMOTION)
+            score = PIECE_VALUES[PROMOTION_PIECE[move->move >> 14]];
         else
-            score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
-        moveListScores[i] = score + *history->getCaptureHistory(board, move);
+            score = PIECE_VALUES[board->pieces[moveTarget(move->move)]] - PIECE_VALUES[board->pieces[moveOrigin(move->move)]];
+        move->score = score + *history->getCaptureHistory(board, move->move);
     }
     return endIndex;
 }
 
 int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
     for (int i = beginIndex; i < endIndex; i++) {
-        Move move = moveList[i];
+        ScoredMove* move = &moveList[i];
 
         // Skip all previously searched moves
-        if (move == ttMove || move == killers[0] || move == killers[1] || move == counterMove) {
+        if (move->move == ttMove || move->move == killers[0] || move->move == killers[1] || move->move == counterMove) {
             moveList[i] = moveList[endIndex - 1];
-            moveList[endIndex - 1] = MOVE_NONE;
+            moveList[endIndex - 1] = { MOVE_NONE, 0 };
             endIndex--;
             generatedMoves--;
             i--;
             continue;
         }
-        moveListScores[i] = history->getHistory(board, searchStack, move, false);
+        move->score = history->getHistory(board, searchStack, move->move, false);
     }
     return endIndex;
 }
 
 void MoveGen::scoreBadCaptures() {
     for (int i = 0; i < generatedBadCaptures; i++) {
-        Move move = badCaptureList[i];
+        ScoredMove* move = &badCaptureList[i];
         // En passent and promotion will always pass SEE, no ttMove will appear here
-        badCaptureScores[i] = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
+        move->score = PIECE_VALUES[board->pieces[moveTarget(move->move)]] - PIECE_VALUES[board->pieces[moveOrigin(move->move)]];
     }
 }
 
-void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) {
-    int limit = -3500 * depth;
-    for (int i = beginIndex + 1; i < endIndex; i++) {
-        if (scores[i] < limit)
-            continue;
-        Move move = moves[i];
-        int score = scores[i];
-        int j = i - 1;
+void MoveGen::calculateNextMoveIndex() {
+    if (!(generationStage == GEN_STAGE_CAPTURES || generationStage == GEN_STAGE_REMAINING || generationStage == GEN_STAGE_BAD_CAPTURES))
+        return;
 
-        while (j >= beginIndex && scores[j] < score) {
-            moves[j + 1] = moves[j];
-            scores[j + 1] = scores[j];
-            j--;
-        }
+    int nextMoveIndex;
 
-        moves[j + 1] = move;
-        scores[j + 1] = score;
+    switch (generationStage) {
+    case GEN_STAGE_CAPTURES:
+    [[fallthrough]];
+    case GEN_STAGE_REMAINING:
+        nextMoveIndex = returnedMoves;
+        for (int i = returnedMoves + 1; i < generatedMoves; i++)
+            if (moveList[i].score > moveList[nextMoveIndex].score)
+                nextMoveIndex = i;
+        std::swap(moveList[returnedMoves], moveList[nextMoveIndex]);
+        break;
+    case GEN_STAGE_BAD_CAPTURES:
+        nextMoveIndex = returnedBadCaptures;
+        for (int i = returnedBadCaptures + 1; i < generatedBadCaptures; i++)
+            if (badCaptureList[i].score > badCaptureList[nextMoveIndex].score)
+                nextMoveIndex = i;
+        std::swap(badCaptureList[returnedBadCaptures], badCaptureList[nextMoveIndex]);
+        break;
     }
 }
 
@@ -769,7 +772,7 @@ Square stringToSquare(char* string) {
 Move stringToMove(char* string, Board* board) {
     Square origin = stringToSquare(&string[0]);
     Square target = stringToSquare(&string[2]);
-    Move move = createMove(origin, target);
+    Move move = createMove(origin, target).move;
 
     switch (string[4]) {
     case 'q':

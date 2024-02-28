@@ -45,7 +45,7 @@ void initZobrist() {
                 for (Square squareB = squareA + 1; squareB < 64; squareB++) {
                     // Check if there is a reversible move between squareA and squareB
                     if (piece != PIECE_PAWN && (attackedSquaresByPiece(piece, squareA, C64(0), side) & (C64(1) << squareB))) {
-                        Move move = createMove(squareA, squareB);
+                        Move move = createMove(squareA, squareB).move;
                         uint64_t hash = ZOBRIST_PIECE_SQUARES[side][piece][squareA] ^ ZOBRIST_PIECE_SQUARES[side][piece][squareB] ^ ZOBRIST_STM_BLACK;
                         int i = H1(hash);
                         // Find an empty slot in the cuckoo table for this move/hash combination

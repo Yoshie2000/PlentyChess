@@ -121,13 +121,13 @@ uint64_t perftInternal(Board* board, NNUE* nnue, int depth) {
 
     BoardStack stack;
 
-    Move moves[MAX_MOVES] = { MOVE_NONE };
+    ScoredMove moves[MAX_MOVES];
     int moveCount = 0;
     generateMoves(board, moves, &moveCount);
 
     uint64_t nodes = 0;
     for (int i = 0; i < moveCount; i++) {
-        Move move = moves[i];
+        Move move = moves[i].move;
 
         if (!isLegal(board, move))
             continue;
@@ -147,13 +147,13 @@ uint64_t perft(Board* board, int depth) {
     NNUE nnue;
     resetAccumulators(board, &nnue);
 
-    Move moves[MAX_MOVES] = { MOVE_NONE };
+    ScoredMove moves[MAX_MOVES];
     int moveCount = 0;
     generateMoves(board, moves, &moveCount);
 
     uint64_t nodes = 0;
     for (int i = 0; i < moveCount; i++) {
-        Move move = moves[i];
+        Move move = moves[i].move;
 
         if (!isLegal(board, move))
             continue;
@@ -274,7 +274,7 @@ movesLoopQsearch:
         return alpha;
 
     // Moves loop
-    MoveGen movegen(board, &thread->history, stack, ttMove, !board->stack->checkers, 1);
+    MoveGen movegen(board, &thread->history, stack, ttMove, !board->stack->checkers);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -293,6 +293,8 @@ movesLoopQsearch:
 
         uint64_t newHash = hashAfter(board, move);
         TT.prefetch(newHash);
+        movegen.calculateNextMoveIndex();
+
         moveCount++;
         thread->searchData.nodesSearched++;
         doMove(board, &boardStack, move, newHash, &thread->nnue);
@@ -498,7 +500,7 @@ movesLoop:
     int captureMoveCount = 0;
 
     // Moves loop
-    MoveGen movegen(board, &thread->history, stack, ttMove, stack->killers, depth);
+    MoveGen movegen(board, &thread->history, stack, ttMove, stack->killers);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -583,6 +585,7 @@ movesLoop:
 
         uint64_t newHash = hashAfter(board, move);
         TT.prefetch(newHash);
+        movegen.calculateNextMoveIndex();
 
         if (!capture) {
             if (quietMoveCount < 64)
