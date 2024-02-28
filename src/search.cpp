@@ -410,7 +410,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (board->stack->checkers) {
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
-    } else if (excluded) {
+    }
+    else if (excluded) {
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
@@ -426,10 +427,6 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
-
-    // IIR
-    if (ttMove == MOVE_NONE && depth >= iirMinDepth)
-        depth--;
 
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
@@ -487,6 +484,10 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
                 return nullValue;
         }
     }
+
+    // IIR
+    if (ttMove == MOVE_NONE && depth >= iirMinDepth)
+        depth--;
 
     assert(board->stack);
 
@@ -660,7 +661,7 @@ movesLoop:
                     updatePv(stack, move);
 
                 if (bestValue >= beta) {
-                    
+
                     int bonus = std::min(160 * (depth + (eval <= alpha)), historyBonusMax);
                     if (!capture) {
                         // Update quiet killers
