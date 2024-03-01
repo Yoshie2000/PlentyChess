@@ -10,6 +10,7 @@
 #include "bitboard.h"
 #include "evaluation.h"
 #include "tt.h"
+#include "spsa.h"
 
 bool isPseudoLegal(Board* board, Move move) {
     Square origin = moveOrigin(move);
@@ -569,6 +570,30 @@ Move MoveGen::nextMove() { // 2973208
     return MOVE_NONE;
 }
 
+TUNE_INT(quietCheckBonus, 0, -10000, 10000);
+TUNE_INT(goodCaptureSee, -107, -500, 500);
+TUNE_INT(enpassentBase, 0, -5000, 5000);
+TUNE_INT(promotionValueKnight, 300, 0, 10000);
+TUNE_INT(promotionValueBishop, 300, 0, 10000);
+TUNE_INT(promotionValueRook, 500, 0, 10000);
+TUNE_INT(promotionValueQueen, 900, 0, 10000);
+
+int promotionBonus(Piece promotionPiece) {
+    switch (promotionPiece)
+    {
+    case PIECE_KNIGHT:
+        return promotionValueKnight;
+    case PIECE_BISHOP:
+        return promotionValueBishop;
+    case PIECE_ROOK:
+        return promotionValueRook;
+    case PIECE_QUEEN:
+        return promotionValueQueen;
+    default:
+        return 0;
+    }
+}
+
 int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
@@ -584,7 +609,7 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
         }
 
         // Store bad captures in a separate list
-        bool goodCapture = SEE(board, move, -107);
+        bool goodCapture = SEE(board, move, goodCaptureSee);
         if (!goodCapture) {
             moveList[i] = moveList[endIndex - 1];
             moveList[endIndex - 1] = MOVE_NONE;
@@ -597,9 +622,9 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
 
         int score;
         if ((move & 0x3000) == MOVE_ENPASSANT)
-            score = 0;
+            score = enpassentBase;
         else if ((move & 0x3000) == MOVE_PROMOTION)
-            score = PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
+            score = promotionBonus(PROMOTION_PIECE[move >> 14]);
         else
             score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
         moveListScores[i] = score + *history->getCaptureHistory(board, move);
@@ -620,7 +645,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
             i--;
             continue;
         }
-        moveListScores[i] = history->getHistory(board, searchStack, move, false);
+        moveListScores[i] = history->getHistory(board, searchStack, move, false) + quietCheckBonus * givesCheck(board, move);
     }
     return endIndex;
 }
