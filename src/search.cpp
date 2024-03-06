@@ -37,19 +37,19 @@ TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 0, 20);
 TUNE_FLOAT_DISABLED(aspirationWindowDeltaFactor, 1.789268600882079, 1.0f, 10.0f); // 1.8452
 
 // Reduction / Margin tables
-TUNE_FLOAT_DISABLED(lmrReductionNoisyBase, -0.5507368054141233, -5.00f, 5.00f); // -0.1782
-TUNE_FLOAT_DISABLED(lmrReductionNoisyFactor, 2.9945957027805936, 1.00f, 10.00f); // 3.2148
-TUNE_FLOAT_DISABLED(lmrReductionQuietBase, 0.7842110713340991, -5.00f, 5.00f); // 1.0577
-TUNE_FLOAT_DISABLED(lmrReductionQuietFactor, 2.8063316175892044, 1.00f, 10.00f); // 2.6368
+TUNE_FLOAT_DISABLED(lmrReductionNoisyBase, -0.1782, -5.00f, 5.00f); // 
+TUNE_FLOAT_DISABLED(lmrReductionNoisyFactor, 3.2148, 1.00f, 10.00f); // 
+TUNE_FLOAT_DISABLED(lmrReductionQuietBase, 1.0577, -5.00f, 5.00f); // 
+TUNE_FLOAT_DISABLED(lmrReductionQuietFactor, 2.6368, 1.00f, 10.00f); // 
 
-TUNE_FLOAT_DISABLED(seeMarginNoisy, -26.14630196595127, -100.0f, -1.0f); // -24.2315
-TUNE_FLOAT_DISABLED(seeMarginQuiet, -75.36717662656213, -200.0f, -1.0f); // -71.7102
-TUNE_FLOAT_DISABLED(lmpMarginWorseningBase, 1.4194200452372927, -2.5f, 10.0f); // 2.1576
-TUNE_FLOAT_DISABLED(lmpMarginWorseningFactor, 0.4609450270167632, 0.05f, 2.5f); // 0.5731
-TUNE_FLOAT_DISABLED(lmpMarginWorseningPower, 1.785778252619638, 0.5f, 5.0f); // 1.7130
-TUNE_FLOAT_DISABLED(lmpMarginImprovingBase, 3.096315467954453, -2.5f, 10.0f); // 2.9163
-TUNE_FLOAT_DISABLED(lmpMarginImprovingFactor, 1.0584246020918444, 0.05f, 2.5f); // 1.1387
-TUNE_FLOAT_DISABLED(lmpMarginImprovingPower, 1.8914578112950748, 0.5f, 5.0f); // 1.8248
+TUNE_FLOAT_DISABLED(seeMarginNoisy, -24.2315, -100.0f, -1.0f); // 
+TUNE_FLOAT_DISABLED(seeMarginQuiet, -71.7102, -200.0f, -1.0f); // 
+TUNE_FLOAT_DISABLED(lmpMarginWorseningBase, 2.1576, -2.5f, 10.0f); // 
+TUNE_FLOAT_DISABLED(lmpMarginWorseningFactor, 0.5731, 0.05f, 2.5f); // 
+TUNE_FLOAT_DISABLED(lmpMarginWorseningPower, 1.7130, 0.5f, 5.0f); // 
+TUNE_FLOAT_DISABLED(lmpMarginImprovingBase, 2.9163, -2.5f, 10.0f); // 
+TUNE_FLOAT_DISABLED(lmpMarginImprovingFactor, 1.1387, 0.05f, 2.5f); // 
+TUNE_FLOAT_DISABLED(lmpMarginImprovingPower, 1.8248, 0.5f, 5.0f); // 
 
 // Search values
 TUNE_INT_DISABLED(qsFutilityOffset, 49, 0, 250); // 49
