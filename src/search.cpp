@@ -85,8 +85,8 @@ TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 
-TUNE_INT_DISABLED(lmrHistoryFactorQuiet, 13199, 128, 32768); // 14654
-TUNE_INT_DISABLED(lmrHistoryFactorCapture, 13199, 128, 32768); // 12679
+TUNE_INT_DISABLED(lmrHistoryFactorQuiet, 14654, 128, 32768); // 
+TUNE_INT_DISABLED(lmrHistoryFactorCapture, 12679, 128, 32768); // 
 TUNE_INT_DISABLED(lmrDeeperBase, 43, 1, 200);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
 
