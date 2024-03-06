@@ -76,7 +76,7 @@ TUNE_INT_DISABLED(fpFactor, 132, 1, 500); // 148
 TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
 TUNE_INT_DISABLED(historyPruningFactor, -2096, -8192, -128); // -2353
 
-TUNE_INT_DISABLED(doubleExtensionMargin, 25, 1, 100); // 16
+TUNE_INT_DISABLED(doubleExtensionMargin, 15, 1, 100); // 16
 TUNE_INT_DISABLED(doubleExtensionLimit, 12, 1, 100); // 11
 
 TUNE_INT_DISABLED(seeDepth, 9, 2, 20);
