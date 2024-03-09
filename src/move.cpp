@@ -486,8 +486,8 @@ Move MoveGen::nextMove() { // 2973208
             return moveList[returnedMoves++];
 
         if (onlyCaptures) {
-            generationStage = GEN_STAGE_GEN_BAD_CAPTURES;
-            goto stage_gen_bad_captures;
+            generationStage = GEN_STAGE_DONE;
+            return MOVE_NONE;
         }
         generationStage++;
         [[fallthrough]];
@@ -549,7 +549,6 @@ Move MoveGen::nextMove() { // 2973208
         [[fallthrough]];
 
     case GEN_STAGE_GEN_BAD_CAPTURES:
-    stage_gen_bad_captures:
         generatedBadCaptures = flaggedBadCaptures;
 
         scoreBadCaptures();
@@ -584,7 +583,8 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
         }
 
         // Store bad captures in a separate list
-        bool goodCapture = SEE(board, move, -107);
+        // In qsearch, the SEE check is done later
+        bool goodCapture = onlyCaptures || SEE(board, move, -107);
         if (!goodCapture) {
             moveList[i] = moveList[endIndex - 1];
             moveList[endIndex - 1] = MOVE_NONE;
