@@ -327,7 +327,8 @@ movesLoopQsearch:
 
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
-    ttEntry->update(board->stack->hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+    int qsDepth = board->stack->checkers ? 1 : 0;
+    ttEntry->update(board->stack->hash, bestMove, qsDepth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     return bestValue;
 }
@@ -410,7 +411,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (board->stack->checkers) {
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
-    } else if (excluded) {
+    }
+    else if (excluded) {
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
@@ -621,7 +623,7 @@ movesLoop:
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
-            
+
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth);
             newDepth += doDeeperSearch - doShallowerSearch;
@@ -661,7 +663,7 @@ movesLoop:
                     updatePv(stack, move);
 
                 if (bestValue >= beta) {
-                    
+
                     int bonus = std::min(160 * (depth + (eval <= alpha)), historyBonusMax);
                     if (!capture) {
                         // Update quiet killers
