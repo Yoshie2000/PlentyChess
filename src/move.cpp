@@ -584,7 +584,7 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
 
         // Store bad captures in a separate list
         // In qsearch, the SEE check is done later
-        bool goodCapture = onlyCaptures || SEE(board, move, -107);
+        bool goodCapture = SEE(board, move, -107);
         if (!goodCapture) {
             moveList[i] = moveList[endIndex - 1];
             moveList[endIndex - 1] = MOVE_NONE;
