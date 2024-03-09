@@ -9,6 +9,10 @@
 #include <vector>
 #include <string.h>
 
+#if defined(__linux__)
+#include <sys/mman.h>
+#endif
+
 #include "types.h"
 #include "move.h"
 #include "evaluation.h"
@@ -61,16 +65,22 @@ struct TTEntry {
 };
 
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
+    void* ptr;
 #if defined(__MINGW32__)
     int offset = alignment - 1;
     void* p = (void*)malloc(requiredBytes + offset);
-    void* q = (void*)(((size_t)(p)+offset) & ~(alignment - 1));
-    return q;
+    ptr = (void*)(((size_t)(p)+offset) & ~(alignment - 1));
 #elif defined (__GNUC__)
-    return std::aligned_alloc(alignment, requiredBytes);
+    ptr = std::aligned_alloc(alignment, requiredBytes);
 #else
 #error "Compiler not supported"
 #endif
+
+#if defined(__linux__)
+    madvise(ptr, requiredBytes, MADV_HUGEPAGE);
+#endif 
+
+    return ptr;
 }
 
 #define CLUSTER_SIZE 3 // Bits reserved for bound & ttPv 
