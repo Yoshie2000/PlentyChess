@@ -231,6 +231,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     Eval ttEval = EVAL_NONE;
     uint8_t ttFlag = TT_NOBOUND;
     bool ttPv = pvNode;
+    int ttDepth = 0;
 
     ttEntry = TT.probe(board->stack->hash, &ttHit);
     if (ttHit) {
@@ -239,10 +240,12 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
         ttEval = ttEntry->eval;
         ttFlag = ttEntry->flags & 0x3;
         ttPv = ttPv || ttEntry->flags & 0x4;
+        ttDepth = ttEntry->depth;
     }
 
+    int qsDepth = board->stack->checkers ? 1 : 0;
     // TT cutoff
-    if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (!pvNode && qsDepth >= ttDepth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
     if (board->stack->checkers) {
