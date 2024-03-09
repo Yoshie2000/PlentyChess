@@ -288,6 +288,9 @@ movesLoopQsearch:
             continue;
         }
 
+        if (!SEE(board, move, -107))
+            break;
+
         if (!isLegal(board, move))
             continue;
 
