@@ -450,7 +450,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     // Reverse futility pruning
     if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving) >= beta)
-        return eval;
+        return (eval + beta) / 2;
 
     // Razoring
     if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha) {
@@ -713,7 +713,7 @@ movesLoop:
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(board->stack->hash, bestMove, depth, thread->threadPool->threads.size() == 1 ? eval : unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+        ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
     if (!board->stack->checkers
