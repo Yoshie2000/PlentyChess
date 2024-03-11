@@ -15,6 +15,7 @@ void History::initHistory() {
     }
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
+    memset(qsearchHistory, 0, sizeof(qsearchHistory));
     memset(correctionHistory, 0, sizeof(correctionHistory));
 }
 
@@ -122,6 +123,38 @@ void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move*
         Move cMove = captureMoves[i];
         if (move == cMove) continue;
         updateSingleCaptureHistory(board, cMove, -bonus);
+    }
+}
+
+int16_t* History::getQsearchHistory(Board* board, Move move) {
+    Piece movedPiece = board->pieces[moveOrigin(move)];
+    Piece capturedPiece = board->pieces[moveTarget(move)];
+    Square target = moveTarget(move);
+
+    if (capturedPiece == NO_PIECE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
+        capturedPiece = PIECE_PAWN;
+
+    assert(movedPiece != NO_PIECE && capturedPiece != NO_PIECE);
+
+    return &qsearchHistory[board->stm][movedPiece][target][capturedPiece];
+}
+
+void History::updateSingleQsearchHistory(Board* board, Move move, int16_t bonus) {
+    int16_t* captHistScore = getQsearchHistory(board, move);
+
+    int16_t scaledBonus = bonus - *captHistScore * std::abs(bonus) / 32000;
+    *captHistScore += scaledBonus;
+}
+
+void History::updateQsearchHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
+    if (isCapture(board, move)) {
+        updateSingleQsearchHistory(board, move, bonus);
+    }
+
+    for (int i = 0; i < captureMoveCount; i++) {
+        Move cMove = captureMoves[i];
+        if (move == cMove) continue;
+        updateSingleQsearchHistory(board, cMove, -bonus);
     }
 }
 
