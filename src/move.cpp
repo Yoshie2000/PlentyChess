@@ -602,7 +602,10 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
             score = PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
         else
             score = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
-        moveListScores[i] = score + *history->getCaptureHistory(board, move);
+        if (onlyCaptures)
+            moveListScores[i] = score + *history->getQsearchHistory(board, move);
+        else
+            moveListScores[i] = score + *history->getCaptureHistory(board, move);
     }
     return endIndex;
 }
