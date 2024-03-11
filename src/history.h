@@ -12,6 +12,7 @@ class History {
     Move counterMoves[64][64];
     int16_t continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES][64];
     int16_t captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
+    int16_t qsearchHistory[2][PIECE_TYPES][64][PIECE_TYPES];
     int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
 
 public:
@@ -31,6 +32,9 @@ public:
     int16_t* getCaptureHistory(Board* board, Move move);
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
     void updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount);
+    int16_t* getQsearchHistory(Board* board, Move move);
+    void updateSingleQsearchHistory(Board* board, Move move, int16_t bonus);
+    void updateQsearchHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount);
 
     void updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount);
 

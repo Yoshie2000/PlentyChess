@@ -273,6 +273,9 @@ movesLoopQsearch:
     if (alpha >= beta)
         return alpha;
 
+    Move captureMoves[64] = { MOVE_NONE };
+    int captureMoveCount = 0;
+
     // Moves loop
     MoveGen movegen(board, &thread->history, stack, ttMove, !board->stack->checkers, 1);
     Move move;
@@ -317,8 +320,12 @@ movesLoopQsearch:
                 if (pvNode)
                     updatePv(stack, move);
 
-                if (bestValue >= beta)
+                if (bestValue >= beta) {
+                    int bonus = std::min(160 * (thread->searchData.selDepth - stack->ply + 1), historyBonusMax);
+                    thread->history.updateQsearchHistory(board, move, bonus, captureMoves, captureMoveCount);
+                    thread->history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
+                }
             }
         }
     }
