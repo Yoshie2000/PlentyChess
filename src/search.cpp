@@ -332,7 +332,8 @@ movesLoopQsearch:
 
     if (bestValue == -EVAL_INFINITE) {
         assert(board->stack->checkers && moveCount == 0);
-        bestValue = matedIn(stack->ply); // Checkmate
+        // std::cout << "qs mate in " << stack->ply << std::endl;
+        return matedIn(stack->ply); // Checkmate
     }
 
     // Insert into TT
@@ -707,6 +708,7 @@ movesLoop:
 
     if (moveCount == 0) {
         if (board->stack->checkers) {
+            // std::cout << "mate in " << stack->ply << std::endl;
             return excluded ? -EVAL_INFINITE : matedIn(stack->ply); // Checkmate
         }
         return 0; // Stalemate
