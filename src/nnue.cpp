@@ -202,22 +202,22 @@ __attribute_noinline__ Eval NNUE::evaluate(Color sideToMove) {
     const Vec reluClipMax = vecSet1Epi16(NETWORK_QA);
 
     Vec sum = vecSetZero();
-    Vec reg;
+    Vec vec0, vec1;
 
     for (int i = 0; i < HIDDEN_ITERATIONS; ++i) {
         // Side to move
-        reg = maxEpi16(stmAcc[i], reluClipMin); // clip (screlu min)
-        reg = minEpi16(reg, reluClipMax); // clip (screlu max)
-        reg = mulloEpi16(reg, reg); // square (screlu square)
-        reg = maddEpi16(reg, stmWeights[i]); // multiply with output layer
-        sum = addEpi32(sum, reg); // collect the result
+        vec0 = maxEpi16(stmAcc[i], reluClipMin); // clip (screlu min)
+        vec0 = minEpi16(vec0, reluClipMax); // clip (screlu max)
+        vec1 = mulloEpi16(vec0, stmWeights[i]); // square (screlu square)
+        vec1 = maddEpi16(vec0, vec1); // multiply with output layer
+        sum = addEpi32(sum, vec1); // collect the result
 
         // Non side to move
-        reg = maxEpi16(oppAcc[i], reluClipMin);
-        reg = minEpi16(reg, reluClipMax);
-        reg = mulloEpi16(reg, reg);
-        reg = maddEpi16(reg, oppWeights[i]);
-        sum = addEpi32(sum, reg);
+        vec0 = maxEpi16(oppAcc[i], reluClipMin);
+        vec0 = minEpi16(vec0, reluClipMax);
+        vec1 = mulloEpi16(vec0, oppWeights[i]);
+        vec1 = maddEpi16(vec0, vec1);
+        sum = addEpi32(sum, vec1);
     }
 
     int unsquared = vecHaddEpi32(sum) / NETWORK_QA + networkData.outputBias;
