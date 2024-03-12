@@ -674,7 +674,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
                     
-                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha)), historyBonusMax);
+                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - 250 > beta)), historyBonusMax);
                     if (!capture) {
                         // Update quiet killers
                         if (move != stack->killers[0]) {
