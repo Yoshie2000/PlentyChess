@@ -41,7 +41,7 @@ endif
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
 
-all:	pgo
+all:	nopgo
 
 pgo:	CXXFLAGS_EXTRA := -fprofile-generate="pgo"
 pgo:	$(OBJS)
