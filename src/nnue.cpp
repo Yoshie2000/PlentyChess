@@ -28,8 +28,8 @@ void initNetworkData() {
 
         read += fread(networkData.featureWeights, sizeof(int16_t), INPUT_WIDTH * HIDDEN_WIDTH, nn);
         read += fread(networkData.featureBiases, sizeof(int16_t), HIDDEN_WIDTH, nn);
-        read += fread(networkData.outputWeights, sizeof(int16_t), HIDDEN_WIDTH * 2, nn);
-        read += fread(&networkData.outputBias, sizeof(int16_t), 1, nn);
+        read += fread(networkData.outputWeights, sizeof(int16_t), OUTPUT_BUCKETS * 2 * HIDDEN_WIDTH, nn);
+        read += fread(&networkData.outputBiases, sizeof(int16_t), OUTPUT_BUCKETS, nn);
 
         if (std::abs((int64_t)read - (int64_t)objectsExpected) >= ALIGNMENT) {
             std::cout << "Error loading the net, aborting ";
@@ -42,6 +42,14 @@ void initNetworkData() {
     else {
         memcpy(&networkData, gNETWORKData, sizeof(networkData));
     }
+
+    // Transpose output weights
+    int16_t transposed[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
+    for (int n = 0; n < OUTPUT_BUCKETS * 2 * HIDDEN_WIDTH; n++) {
+        transposed[n % OUTPUT_BUCKETS][n / OUTPUT_BUCKETS] = networkData.outputWeights[n / (2 * HIDDEN_WIDTH)][n % (2 * HIDDEN_WIDTH)];
+    }
+    memcpy(networkData.outputWeights, transposed, sizeof(transposed));
+
 }
 
 inline int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square square) {
@@ -182,24 +190,28 @@ __attribute_noinline__ void NNUE::decrementAccumulator() {
     lastCalculatedAccumulator = std::min(currentAccumulator, lastCalculatedAccumulator);
 }
 
-__attribute_noinline__ Eval NNUE::evaluate(Color sideToMove) {
+__attribute_noinline__ Eval NNUE::evaluate(Board* board) {
     assert(currentAccumulator >= lastCalculatedAccumulator);
 
     // Make sure the current accumulator is up to date
     calculateAccumulators();
-
     assert(currentAccumulator == lastCalculatedAccumulator);
+
+    int pieceCount = __builtin_popcountll(board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]);
+    constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
+    int bucket = (pieceCount - 2) / divisor;
+    assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
 
     Accumulator& accumulator = accumulatorStack[currentAccumulator];
 
-    Vec* stmAcc = (Vec*)accumulator.colors[sideToMove];
-    Vec* oppAcc = (Vec*)accumulator.colors[1 - sideToMove];
+    Vec* stmAcc = (Vec*)accumulator.colors[board->stm];
+    Vec* oppAcc = (Vec*)accumulator.colors[1 - board->stm];
 
-    Vec* stmWeights = (Vec*)&networkData.outputWeights[0];
-    Vec* oppWeights = (Vec*)&networkData.outputWeights[HIDDEN_WIDTH];
+    Vec* stmWeights = (Vec*)&networkData.outputWeights[bucket][0];
+    Vec* oppWeights = (Vec*)&networkData.outputWeights[bucket][HIDDEN_WIDTH];
 
-    const Vec reluClipMin = vecSetZero();
-    const Vec reluClipMax = vecSet1Epi16(NETWORK_QA);
+    Vec reluClipMin = vecSetZero();
+    Vec reluClipMax = vecSet1Epi16(NETWORK_QA);
 
     Vec sum = vecSetZero();
     Vec vec0, vec1;
@@ -220,7 +232,7 @@ __attribute_noinline__ Eval NNUE::evaluate(Color sideToMove) {
         sum = addEpi32(sum, vec1);
     }
 
-    int unsquared = vecHaddEpi32(sum) / NETWORK_QA + networkData.outputBias;
+    int unsquared = vecHaddEpi32(sum) / NETWORK_QA + networkData.outputBiases[bucket];
 
     return (Eval)((unsquared * NETWORK_SCALE) / NETWORK_QAB);
 }
