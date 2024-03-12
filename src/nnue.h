@@ -172,6 +172,7 @@ inline int vecHaddEpi32(Vec vec) {
 
 constexpr int INPUT_WIDTH = 768;
 constexpr int HIDDEN_WIDTH = 1024;
+constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
 constexpr int NETWORK_QA = 255;
@@ -200,13 +201,15 @@ struct Accumulator {
 struct NetworkData {
   alignas(ALIGNMENT) int16_t featureWeights[INPUT_WIDTH * HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t featureBiases[HIDDEN_WIDTH];
-  alignas(ALIGNMENT) int16_t outputWeights[2 * HIDDEN_WIDTH];
-  int16_t outputBias;
+  alignas(ALIGNMENT) int16_t outputWeights[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
+  alignas(ALIGNMENT) int16_t outputBiases[OUTPUT_BUCKETS];
 };
 
 extern NetworkData networkData;
 
 void initNetworkData();
+
+class Board;
 
 class NNUE {
 public:
@@ -222,7 +225,7 @@ public:
   void incrementAccumulator();
   void decrementAccumulator();
 
-  Eval evaluate(Color side);
+  Eval evaluate(Board* board);
 
   void calculateAccumulators(int limit = 10000000);
   void addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
