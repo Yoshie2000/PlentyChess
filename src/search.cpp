@@ -285,17 +285,18 @@ movesLoopQsearch:
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
-        if (bestValue >= -EVAL_MATE_IN_MAX_PLY
-            && futilityValue > -EVAL_INFINITE
-            && futilityValue <= alpha
-            && !SEE(board, move, 1)
-            ) {
-            bestValue = std::max(bestValue, futilityValue);
-            continue;
-        }
+        if (futilityValue > -EVAL_INFINITE) { // Only prune when not in check
+            if (bestValue >= -EVAL_MATE_IN_MAX_PLY
+                && futilityValue <= alpha
+                && !SEE(board, move, 1)
+                ) {
+                bestValue = std::max(bestValue, futilityValue);
+                continue;
+            }
 
-        if (!SEE(board, move, -107))
-            break;
+            if (!SEE(board, move, -107))
+                break;
+        }
 
         if (!isLegal(board, move))
             continue;
@@ -419,7 +420,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (board->stack->checkers) {
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
-    } else if (excluded) {
+    }
+    else if (excluded) {
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
@@ -625,7 +627,7 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth--;
-            
+
             if (capture)
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
             else
@@ -633,7 +635,7 @@ movesLoop:
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
-            
+
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth);
             newDepth += doDeeperSearch - doShallowerSearch;
@@ -673,7 +675,7 @@ movesLoop:
                     updatePv(stack, move);
 
                 if (bestValue >= beta) {
-                    
+
                     int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - 250 > beta)), historyBonusMax);
                     if (!capture) {
                         // Update quiet killers
