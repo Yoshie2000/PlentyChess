@@ -285,18 +285,17 @@ movesLoopQsearch:
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
-        if (futilityValue > -EVAL_INFINITE) { // Only prune when not in check
-            if (bestValue >= -EVAL_MATE_IN_MAX_PLY
-                && futilityValue <= alpha
-                && !SEE(board, move, 1)
-                ) {
-                bestValue = std::max(bestValue, futilityValue);
-                continue;
-            }
-
-            if (!SEE(board, move, -107))
-                break;
+        if (bestValue >= -EVAL_MATE_IN_MAX_PLY
+            && futilityValue > -EVAL_INFINITE
+            && futilityValue <= alpha
+            && !SEE(board, move, 1)
+            ) {
+            bestValue = std::max(bestValue, futilityValue);
+            continue;
         }
+
+        if ((moveCount > 0 || futilityValue > -EVAL_INFINITE) && !SEE(board, move, -107))
+            break;
 
         if (!isLegal(board, move))
             continue;
