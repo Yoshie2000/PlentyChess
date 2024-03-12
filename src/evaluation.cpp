@@ -14,7 +14,7 @@ const Eval PIECE_VALUES[PIECE_TYPES + 1] = {
 Eval evaluate(Board* board, NNUE* nnue) {
     assert(!board->stack->checkers);
 
-    Eval eval = nnue->evaluate(board->stm);
+    Eval eval = nnue->evaluate(board);
 
     eval = eval * (220 - board->stack->rule50_ply) / 220;
 
