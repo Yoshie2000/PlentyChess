@@ -172,7 +172,7 @@ inline int vecHaddEpi32(Vec vec) {
 
 constexpr int INPUT_WIDTH = 768;
 constexpr int HIDDEN_WIDTH = 1024;
-constexpr int OUTPUT_BUCKETS = 8;
+constexpr int OUTPUT_BUCKETS = 1;
 
 constexpr int NETWORK_SCALE = 400;
 constexpr int NETWORK_QA = 255;

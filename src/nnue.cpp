@@ -232,7 +232,7 @@ __attribute_noinline__ Eval NNUE::evaluate(Board* board) {
         sum = addEpi32(sum, vec1);
     }
 
-    int unsquared = vecHaddEpi32(sum) / NETWORK_QA + networkData.outputBiases[OUTPUT_BUCKETS - bucket - 1];
+    int unsquared = vecHaddEpi32(sum) / NETWORK_QA + networkData.outputBiases[bucket];
 
     return (Eval)((unsquared * NETWORK_SCALE) / NETWORK_QAB);
 }
