@@ -580,6 +580,8 @@ movesLoop:
                     extension = 2;
                     stack->doubleExtensions = (stack - 1)->doubleExtensions + 1;
                 }
+                if (pvNode && !capture && stack->doubleExtensions <= 4 && singularValue < singularBeta - 75)
+	                extension = 2;
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta)
