@@ -174,7 +174,7 @@ constexpr int INPUT_WIDTH = 768;
 constexpr int HIDDEN_WIDTH = 1024;
 
 constexpr int NETWORK_SCALE = 400;
-constexpr int NETWORK_QA = 181;
+constexpr int NETWORK_QA = 255;
 constexpr int NETWORK_QB = 64;
 constexpr int NETWORK_QAB = NETWORK_QA * NETWORK_QB;
 
