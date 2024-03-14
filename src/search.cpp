@@ -579,6 +579,7 @@ movesLoop:
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta && stack->doubleExtensions <= doubleExtensionLimit) {
                     extension = 2;
                     stack->doubleExtensions = (stack - 1)->doubleExtensions + 1;
+                    depth += depth < 10;
                 }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
