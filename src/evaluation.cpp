@@ -11,11 +11,21 @@ const Eval PIECE_VALUES[PIECE_TYPES + 1] = {
     100, 300, 300, 500, 900, 0, 0
 };
 
+int getMaterialScale(Board* board) {
+    int knightCount = board->stack->pieceCount[COLOR_WHITE][PIECE_KNIGHT] + board->stack->pieceCount[COLOR_BLACK][PIECE_KNIGHT];
+    int bishopCount = board->stack->pieceCount[COLOR_WHITE][PIECE_BISHOP] + board->stack->pieceCount[COLOR_BLACK][PIECE_BISHOP];
+    int rookCount = board->stack->pieceCount[COLOR_WHITE][PIECE_ROOK] + board->stack->pieceCount[COLOR_BLACK][PIECE_ROOK];
+    int queenCount = board->stack->pieceCount[COLOR_WHITE][PIECE_QUEEN] + board->stack->pieceCount[COLOR_BLACK][PIECE_QUEEN];
+
+    int materialValue = PIECE_VALUES[PIECE_KNIGHT] * knightCount + PIECE_VALUES[PIECE_BISHOP] * bishopCount + PIECE_VALUES[PIECE_ROOK] * rookCount + PIECE_VALUES[PIECE_QUEEN] * queenCount;
+    return 980 + materialValue / 48;
+}
+
 Eval evaluate(Board* board, NNUE* nnue) {
     assert(!board->stack->checkers);
 
     Eval eval = nnue->evaluate(board);
-
+    eval = (eval * getMaterialScale(board)) / 1024;
     eval = eval * (220 - board->stack->rule50_ply) / 220;
 
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
