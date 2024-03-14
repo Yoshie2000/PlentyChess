@@ -286,6 +286,10 @@ movesLoopQsearch:
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
         if (futilityValue > -EVAL_INFINITE) { // Only prune when not in check
+
+            if (bestValue >= -EVAL_MATE_IN_MAX_PLY && stack->staticEval + 200 >= beta && SEE(board, move, beta - stack->staticEval + 11))
+                return beta;
+
             if (bestValue >= -EVAL_MATE_IN_MAX_PLY
                 && futilityValue <= alpha
                 && !SEE(board, move, 1)
