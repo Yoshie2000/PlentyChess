@@ -634,7 +634,7 @@ void MoveGen::scoreBadCaptures() {
 }
 
 void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) {
-    int limit = -3500 * depth;
+    int limit = 2048 - 1024 * depth;
     for (int i = beginIndex + 1; i < endIndex; i++) {
         if (scores[i] < limit)
             continue;
