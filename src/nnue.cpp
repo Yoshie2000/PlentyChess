@@ -197,9 +197,8 @@ __attribute_noinline__ Eval NNUE::evaluate(Board* board) {
     calculateAccumulators();
     assert(currentAccumulator == lastCalculatedAccumulator);
 
-    int pieceCount = __builtin_popcountll(board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]);
-    constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-    int bucket = (pieceCount - 2) / divisor;
+    int pawnCount = __builtin_popcountll(board->byPiece[PIECE_PAWN]);
+    int bucket = (pawnCount + 1) / 2;
     assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
 
     Accumulator& accumulator = accumulatorStack[currentAccumulator];
