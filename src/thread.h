@@ -13,11 +13,15 @@
 #include "nnue.h"
 #include "tt.h"
 
-struct ThreadResult {
-    Move move;
+struct RootMove {
     Eval value;
     int depth;
     int selDepth;
+    std::vector<Move> pv;
+};
+
+struct ThreadResult {
+    std::vector<RootMove> rootMoves;
     bool finished;
 };
 
@@ -51,6 +55,7 @@ public:
 
     ThreadResult result;
     std::map<Move, uint64_t> rootMoveNodes;
+    std::vector<Move> excludedRootMoves;
 
     Thread(ThreadPool* threadPool, int threadId);
 
@@ -101,9 +106,10 @@ public:
         searchParameters = std::move(parameters);
 
         for (auto& thread : threads) {
-            thread.get()->result = { MOVE_NONE, EVAL_NONE, 0, 0, false };
+            thread.get()->result.rootMoves.clear();
+            thread.get()->result.finished = false;
         }
-        
+
         for (auto& thread : threads) {
             thread.get()->searching = true;
             thread.get()->cv.notify_all();

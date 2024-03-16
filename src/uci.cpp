@@ -6,6 +6,7 @@
 #include <deque>
 #include <sstream>
 #include <algorithm>
+#include <tuple>
 
 #include "board.h"
 #include "uci.h"
@@ -17,6 +18,10 @@
 #include "nnue.h"
 #include "spsa.h"
 #include "history.h"
+
+namespace UCI {
+    UCIOptions Options;
+}
 
 ThreadPool threads;
 
@@ -344,6 +349,31 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
     }
 }
 
+struct setUciOption
+{
+    std::string name;
+    std::string value;
+
+    setUciOption(std::string n, std::string v) {
+        name = n;
+        value = v;
+    }
+
+    template<UCI::UCIOptionType OptionType>
+    void operator () (UCI::UCIOption<OptionType>* option) {
+        if (option->name != name) return;
+        if constexpr (OptionType == UCI::UCI_SPIN) {
+            option->value = std::stoi(value);
+        }
+        else if constexpr (OptionType == UCI::UCI_STRING) {
+            option->value = value;
+        }
+        else if constexpr (OptionType == UCI::UCI_CHECK) {
+            option->value = value == "true";
+        }
+    }
+};
+
 void setoption(std::string line) {
     std::string name, value;
 
@@ -367,7 +397,8 @@ void setoption(std::string line) {
         threads.resize(numThreads);
     }
     else {
-        // No option found, maybe it's actually an SPSA parameter?
+        // No option found, maybe it's actually an SPSA parameter or one of the other UCI Options?
+        UCI::Options.forEach(setUciOption(name, value));
         SPSA::trySetParam(name, value);
     }
 }
@@ -432,6 +463,22 @@ void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
     threads.startSearching(*board, *stackQueue, parameters);
 }
 
+struct printOptions
+{
+    template<UCI::UCIOptionType OptionType>
+    void operator () (UCI::UCIOption<OptionType>* option) {
+        if constexpr (OptionType == UCI::UCI_SPIN) {
+            std::cout << "option name " << option->name << " type spin default " << option->defaultValue << " min " << option->minValue << " max " << option->maxValue << std::endl;
+        }
+        else if constexpr (OptionType == UCI::UCI_STRING) {
+            std::cout << "option name " << option->name << " type string default " << option->defaultValue << std::endl;
+        }
+        else if constexpr (OptionType == UCI::UCI_CHECK) {
+            std::cout << "option name " << option->name << " type check default " << option->defaultValue << std::endl;
+        }
+    }
+};
+
 void uciLoop(int argc, char* argv[]) {
     Board board;
     std::deque<BoardStack> stackQueue = std::deque<BoardStack>(1);
@@ -456,6 +503,7 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "ucinewgame")) threads.ucinewgame();
         else if (matchesToken(line, "uci")) {
             printf("id name PlentyChess\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 4096\noption name Threads type spin default 1 min 1 max 512\n");
+            UCI::Options.forEach(printOptions());
             SPSA::printUCI();
             printf("\nuciok\n");
         }
