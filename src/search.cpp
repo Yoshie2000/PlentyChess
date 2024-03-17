@@ -20,16 +20,16 @@
 #include "uci.h"
 
 // Time management
-TUNE_FLOAT(tmInitialAdjustment, 1.0151265117716062f, 0.5f, 1.5f);
-TUNE_INT(tmBestMoveStabilityMax, 18, 1, 100);
-TUNE_FLOAT(tmBestMoveStabilityBase, 1.411706462717875f, 0.75f, 2.5f);
-TUNE_FLOAT(tmBestMoveStabilityFactor, 0.04707638950749792f, 0.001f, 0.1f);
-TUNE_FLOAT(tmEvalDiffBase, 0.9010618659177686f, 0.5f, 1.5f);
-TUNE_FLOAT(tmEvalDiffFactor, 0.008242014020091608f, 0.001f, 0.1f);
-TUNE_INT(tmEvalDiffMin, -16, -250, 50);
-TUNE_INT(tmEvalDiffMax, 58, -50, 250);
-TUNE_FLOAT(tmNodesBase, 1.7139889483273534f, 0.5f, 5.0f);
-TUNE_FLOAT(tmNodesFactor, 0.8519440543202387f, 0.1f, 10.0f);
+TUNE_FLOAT_DISABLED(tmInitialAdjustment, 1.0151265117716062f, 0.5f, 1.5f);
+TUNE_INT_DISABLED(tmBestMoveStabilityMax, 18, 1, 100);
+TUNE_FLOAT_DISABLED(tmBestMoveStabilityBase, 1.411706462717875f, 0.75f, 2.5f);
+TUNE_FLOAT_DISABLED(tmBestMoveStabilityFactor, 0.04707638950749792f, 0.001f, 0.1f);
+TUNE_FLOAT_DISABLED(tmEvalDiffBase, 0.9010618659177686f, 0.5f, 1.5f);
+TUNE_FLOAT_DISABLED(tmEvalDiffFactor, 0.008242014020091608f, 0.001f, 0.1f);
+TUNE_INT_DISABLED(tmEvalDiffMin, -16, -250, 50);
+TUNE_INT_DISABLED(tmEvalDiffMax, 58, -50, 250);
+TUNE_FLOAT_DISABLED(tmNodesBase, 1.7139889483273534f, 0.5f, 5.0f);
+TUNE_FLOAT_DISABLED(tmNodesFactor, 0.8519440543202387f, 0.1f, 10.0f);
 
 // Aspiration windows
 TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 20);
@@ -91,14 +91,14 @@ TUNE_INT_DISABLED(lmrHistoryFactorCapture, 13199, 128, 32768); // 12679
 TUNE_INT_DISABLED(lmrDeeperBase, 43, 1, 200);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
 
-TUNE_INT(lmrPassBonusBase, 0, -1000, 1000); // 25
-TUNE_INT(lmrPassBonusFactor, 110, 1, 1000); // 134
-TUNE_INT(lmrPassBonusMax, 1140, 32, 8192); // 1033
+TUNE_INT(lmrPassBonusBase, 71, -1000, 1000); // 25
+TUNE_INT(lmrPassBonusFactor, 98, 1, 1000); // 134
+TUNE_INT(lmrPassBonusMax, 997, 32, 8192); // 1033
 
-TUNE_INT(historyBonusBase, 0, -1000, 1000); // -53
-TUNE_INT(historyBonusFactor, 160, 1, 1000); // 187
-TUNE_INT(historyBonusMax, 1757, 32, 8192); // 1721
-TUNE_INT(lmrPassBonusBetaOffset, 250, 1, 1000);
+TUNE_INT(historyBonusBase, 33, -1000, 1000); // -53
+TUNE_INT(historyBonusFactor, 181, 1, 1000); // 187
+TUNE_INT(historyBonusMax, 2041, 32, 8192); // 1721
+TUNE_INT(historyBonusBetaOffset, 241, 1, 1000);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
@@ -681,7 +681,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - lmrPassBonusBetaOffset > beta)), historyBonusMax);
+                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
                     if (!capture) {
                         // Update quiet killers
                         if (move != stack->killers[0]) {
