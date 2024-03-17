@@ -91,13 +91,14 @@ TUNE_INT_DISABLED(lmrHistoryFactorCapture, 13199, 128, 32768); // 12679
 TUNE_INT_DISABLED(lmrDeeperBase, 43, 1, 200);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
 
-TUNE_INT_DISABLED(lmrPassBonusBase, 0, -1000, 1000); // 25
-TUNE_INT_DISABLED(lmrPassBonusFactor, 110, 1, 1000); // 134
-TUNE_INT_DISABLED(lmrPassBonusMax, 1140, 32, 8192); // 1033
+TUNE_INT(lmrPassBonusBase, 0, -1000, 1000); // 25
+TUNE_INT(lmrPassBonusFactor, 110, 1, 1000); // 134
+TUNE_INT(lmrPassBonusMax, 1140, 32, 8192); // 1033
 
-TUNE_INT_DISABLED(historyBonusBase, 0, -1000, 1000); // -53
-TUNE_INT_DISABLED(historyBonusFactor, 160, 1, 32); // 187
-TUNE_INT_DISABLED(historyBonusMax, 1757, 32, 8192); // 1721
+TUNE_INT(historyBonusBase, 0, -1000, 1000); // -53
+TUNE_INT(historyBonusFactor, 160, 1, 1000); // 187
+TUNE_INT(historyBonusMax, 1757, 32, 8192); // 1721
+TUNE_INT(lmrPassBonusBetaOffset, 250, 1, 1000);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
@@ -680,7 +681,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - 250 > beta)), historyBonusMax);
+                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - lmrPassBonusBetaOffset > beta)), historyBonusMax);
                     if (!capture) {
                         // Update quiet killers
                         if (move != stack->killers[0]) {
