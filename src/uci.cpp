@@ -81,10 +81,8 @@ const std::vector<std::string> benchPositions = {
       "r2r1n2/pp2bk2/2p1p2p/3q4/3PN1QP/2P3R1/P4PP1/5RK1 w - - 0 1",
 
       // Chess 960
-    //   "setoption name UCI_Chess960 value true",
-    //   "bbqnnrkr/pppppppp/8/8/8/8/PPPPPPPP/BBQNNRKR w HFhf - 0 1 moves g2g3 d7d5 d2d4 c8h3 c1g5 e8d6 g5e7 f7f6",
-    //   "nqbnrkrb/pppppppp/8/8/8/8/PPPPPPPP/NQBNRKRB w KQkq - 0 1",
-    //   "setoption name UCI_Chess960 value false"
+      "bb1n1rkr/ppp1Q1pp/3n1p2/3p4/3P4/6Pq/PPP1PP1P/BB1NNRKR w HFhf - 0 5",
+      "nqbnrkrb/pppppppp/8/8/8/8/PPPPPPPP/NQBNRKRB w EGeg - 0 1",
 };
 
 const std::vector<std::string> seeTest = {
@@ -186,9 +184,10 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
 
     threads.waitForSearchFinished();
 
+    int i = 0;
     for (const std::string& fen : benchPositions) {
         threads.ucinewgame();
-        parseFen(board, fen);
+        parseFen(board, fen, i++ >= 44);
         SearchParameters parameters;
         parameters.depth = 13;
 
@@ -222,32 +221,47 @@ void perfttest(std::deque<BoardStack>* stackQueue, Board* board) {
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 4865609) std::cout << "Failed perft for startpos" << std::endl;
 
-    parseFen(board, "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+    parseFen(board, "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", false);
     threads.startSearching(*board, *stackQueue, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 193690690) std::cout << "Failed perft for r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1" << std::endl;
 
-    parseFen(board, "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
+    parseFen(board, "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", false);
     parameters.depth = 6;
     threads.startSearching(*board, *stackQueue, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 11030083) std::cout << "Failed perft for 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1" << std::endl;
 
-    parseFen(board, "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1");
+    parseFen(board, "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1", false);
     parameters.depth = 5;
     threads.startSearching(*board, *stackQueue, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 15833292) std::cout << "Failed perft for r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1" << std::endl;
 
-    parseFen(board, "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+    parseFen(board, "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", false);
     threads.startSearching(*board, *stackQueue, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 89941194) std::cout << "Failed perft for rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8" << std::endl;
 
-    parseFen(board, "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
+    parseFen(board, "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10", false);
     threads.startSearching(*board, *stackQueue, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 164075551) std::cout << "Failed perft for r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10" << std::endl;
+
+    parseFen(board, "1rqbkrbn/1ppppp1p/1n6/p1N3p1/8/2P4P/PP1PPPP1/1RQBKRBN w FBfb - 0 9", true);
+    threads.startSearching(*board, *stackQueue, parameters);
+    threads.waitForSearchFinished();
+    if (threads.nodesSearched() != 8652810) std::cout << "Failed perft for 1rqbkrbn/1ppppp1p/1n6/p1N3p1/8/2P4P/PP1PPPP1/1RQBKRBN w FBfb - 0 9" << std::endl;
+
+    parseFen(board, "rbbqn1kr/pp2p1pp/6n1/2pp1p2/2P4P/P7/BP1PPPP1/R1BQNNKR w HAha - 0 9", true);
+    threads.startSearching(*board, *stackQueue, parameters);
+    threads.waitForSearchFinished();
+    if (threads.nodesSearched() != 26302461) std::cout << "Failed perft for rbbqn1kr/pp2p1pp/6n1/2pp1p2/2P4P/P7/BP1PPPP1/R1BQNNKR w HAha - 0 9" << std::endl;
+
+    parseFen(board, "rqbbknr1/1ppp2pp/p5n1/4pp2/P7/1PP5/1Q1PPPPP/R1BBKNRN w GAga - 0 9", true);
+    threads.startSearching(*board, *stackQueue, parameters);
+    threads.waitForSearchFinished();
+    if (threads.nodesSearched() != 11029596) std::cout << "Failed perft for rqbbknr1/1ppp2pp/p5n1/4pp2/P7/1PP5/1Q1PPPPP/R1BBKNRN w GAga - 0 9" << std::endl;
 
     std::cout << "Perfttest done" << std::endl;
 }
@@ -276,7 +290,7 @@ void seetest(Board* board) {
         int gain = stoi(tokens[2]);
         bool expected = gain >= 0;
 
-        parseFen(board, fen);
+        parseFen(board, fen, false);
         char charMove[6] = { '\0' };
         uciMove.copy(charMove, uciMove.length() - 2, 1);
         Move move = stringToMove(charMove, board);
@@ -285,7 +299,7 @@ void seetest(Board* board) {
         if (result == expected)
             passed++;
         else {
-            std::cout << "FAILED " << fen << "|" << uciMove << "(" << moveToString(move) << ")" << " | Expected: " << expected << std::endl;
+            std::cout << "FAILED " << fen << "|" << uciMove << "(" << moveToString(move, UCI::Options.chess960.value) << ")" << " | Expected: " << expected << std::endl;
             failed++;
         }
 
@@ -306,7 +320,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
     }
     else if (matchesToken(line, "fen")) {
         line = line.substr(4);
-        size_t fenLength = parseFen(board, line) + 1;
+        size_t fenLength = parseFen(board, line, UCI::Options.chess960.value) + 1;
         if (line.length() > fenLength)
             line = line.substr(fenLength);
     }

@@ -17,21 +17,26 @@ bool isPseudoLegal(Board* board, Move move) {
     Bitboard originBB = C64(1) << origin;
     Bitboard targetBB = C64(1) << target;
     Piece piece = board->pieces[origin];
+    Move specialMove = move & 0x3000;
 
     // A valid piece needs to be on the origin square
     if (board->pieces[origin] == NO_PIECE) return false;
-    // We can't capture our own piece
-    if (board->byColor[board->stm] & targetBB) return false;
+    // We can't capture our own piece, except in castling
+    if (specialMove != MOVE_CASTLING && (board->byColor[board->stm] & targetBB)) return false;
     // We can't move the enemies piece
     if (board->byColor[1 - board->stm] & originBB) return false;
 
     // Non-standard movetypes
-    Move specialMove = move & 0x3000;
     switch (specialMove) {
     case MOVE_CASTLING: {
         if (piece != PIECE_KING || board->stack->checkers) return false;
         // Check for pieces between king and rook
-        Bitboard importantSquares = board->stm == COLOR_WHITE ? (target > origin ? 0x60 : 0x0E) : (target > origin ? 0x6000000000000000 : 0x0E00000000000000);
+        Square kingSquare = lsb(board->byColor[board->stm] & board->byPiece[PIECE_KING]);
+        Square rookSquare = board->stm == COLOR_WHITE ? (target > origin ? board->castlingSquares[0] : board->castlingSquares[1]) : (target > origin ? board->castlingSquares[2] : board->castlingSquares[3]);
+        Square kingTarget = board->stm == COLOR_WHITE ? (target > origin ? 6 : 2) : (target > origin ? 62 : 58);
+        Square rookTarget = board->stm == COLOR_WHITE ? (target > origin ? 5 : 3) : (target > origin ? 61 : 59);
+        Bitboard importantSquares = BETWEEN[rookSquare][rookTarget] | BETWEEN[kingSquare][kingTarget];
+        importantSquares &= ~(C64(1) << rookSquare) & ~(C64(1) << kingSquare);
         if ((board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) & importantSquares) return false;
         // Check for castling flags (Attackers are done in isLegal())
         return board->stack->castling & (board->stm == COLOR_WHITE ? (target > origin ? 0b0001 : 0b0010) : (target > origin ? 0b0100 : 0b1000));
@@ -39,7 +44,7 @@ bool isPseudoLegal(Board* board, Move move) {
     case MOVE_ENPASSANT:
         if (piece != PIECE_PAWN) return false;
         if (board->stack->checkerCount > 1) return false;
-        if (board->stack->checkers && (!(lsb(board->stack->checkers) == target - UP[board->stm]) || (board->stack->blockers[board->stm] & originBB))) return false;
+        if (board->stack->checkers && (!(lsb(board->stack->checkers) == target - UP[board->stm]))) return false;
         // Check for EP flag on the right file
         return ((C64(1) << target) & board->stack->enpassantTarget) && board->pieces[target - UP[board->stm]] == PIECE_PAWN;
     case MOVE_PROMOTION:
@@ -128,7 +133,7 @@ bool isLegal(Board* board, Move move) {
 
         // Check if any rooks/queens/bishops attack the king square, given the occupied pieces after this EP move
         Bitboard rookAttacks = getRookMoves(king, occupied) & (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]) & board->byColor[1 - board->stm];
-        Bitboard bishopAttacks = getBishopMoves(king, occupied) & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_BISHOP]) & board->byColor[1 - board->stm];
+        Bitboard bishopAttacks = getBishopMoves(king, occupied) & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]) & board->byColor[1 - board->stm];
         return !rookAttacks && !bishopAttacks;
     }
 
@@ -137,13 +142,13 @@ bool isLegal(Board* board, Move move) {
     if (specialMove == MOVE_CASTLING) {
         // Check that none of the important squares (including the current king position!) are being attacked
         if (target < origin) {
-            for (Square s = target; s <= origin; s++) {
+            for (Square s = board->stm == COLOR_WHITE ? 2 : 58; s <= origin; s++) {
                 if (board->byColor[1 - board->stm] & attackersTo(board, s, occupied))
                     return false;
             }
         }
         else {
-            for (Square s = target; s >= origin; s--) {
+            for (Square s = board->stm == COLOR_WHITE ? 6 : 62; s >= origin; s--) {
                 if (board->byColor[1 - board->stm] & attackersTo(board, s, occupied))
                     return false;
             }
@@ -313,23 +318,15 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
         if (leftEp) {
             Square target = popLSB(&leftEp);
             Square origin = target - UP_LEFT[board->stm];
-
-            // Don't make ep move if the pawn is blocking a check
-            if (!(board->stack->blockers[board->stm] & (C64(1) << origin))) {
-                *(*moves)++ = createMove(origin, target) | MOVE_ENPASSANT;
-                (*counter)++;
-            }
+            *(*moves)++ = createMove(origin, target) | MOVE_ENPASSANT;
+            (*counter)++;
         }
         Bitboard rightEp = pAttacksRight & epBB;
         if (rightEp) {
             Square target = popLSB(&rightEp);
             Square origin = target - UP_RIGHT[board->stm];
-
-            // Don't make ep move if the pawn is blocking a check
-            if (!(board->stack->blockers[board->stm] & (C64(1) << origin))) {
-                *(*moves)++ = createMove(origin, target) | MOVE_ENPASSANT;
-                (*counter)++;
-            }
+            *(*moves)++ = createMove(origin, target) | MOVE_ENPASSANT;
+            (*counter)++;
         }
     }
 }
@@ -373,26 +370,46 @@ void generateCastling(Board* board, Move** moves, int* counter) {
     switch (board->stm) {
     case COLOR_WHITE:
         // Kingside
-        if ((board->stack->castling & 0x1) && !(occupied & 0x60)/* && !(board->stack->attackedByColor[COLOR_BLACK] & 0x60)*/) {
-            *(*moves)++ = createMove(king, king + 2) | MOVE_CASTLING;
-            (*counter)++;
+        if ((board->stack->castling & 0x1)) {
+            Square kingsideRook = board->castlingSquares[0];
+            Bitboard between = BETWEEN[kingsideRook][5] | BETWEEN[king][6];
+            between &= ~(C64(1) << kingsideRook) & ~(C64(1) << king);
+            if (!(occupied & between)) {
+                *(*moves)++ = createMove(king, kingsideRook) | MOVE_CASTLING;
+                (*counter)++;
+            }
         }
         // Queenside
-        if ((board->stack->castling & 0x2) && !(occupied & 0x0E)/* && !(board->stack->attackedByColor[COLOR_BLACK] & 0x0C)*/) {
-            *(*moves)++ = createMove(king, king - 2) | MOVE_CASTLING;
-            (*counter)++;
+        if ((board->stack->castling & 0x2)) {
+            Square queensideRook = board->castlingSquares[1];
+            Bitboard between = BETWEEN[queensideRook][3] | BETWEEN[king][2];
+            between &= ~(C64(1) << queensideRook) & ~(C64(1) << king);
+            if (!(occupied & between)) {
+                *(*moves)++ = createMove(king, queensideRook) | MOVE_CASTLING;
+                (*counter)++;
+            }
         }
         break;
     case COLOR_BLACK:
         // Kingside
-        if ((board->stack->castling & 0x4) && !(occupied & C64(0x6000000000000000))/* && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x6000000000000000))*/) {
-            *(*moves)++ = createMove(king, king + 2) | MOVE_CASTLING;
-            (*counter)++;
+        if ((board->stack->castling & 0x4)) {
+            Square kingsideRook = board->castlingSquares[2];
+            Bitboard between = BETWEEN[kingsideRook][61] | BETWEEN[king][62];
+            between &= ~(C64(1) << kingsideRook) & ~(C64(1) << king);
+            if (!(occupied & between)) {
+                *(*moves)++ = createMove(king, kingsideRook) | MOVE_CASTLING;
+                (*counter)++;
+            }
         }
         // Queenside
-        if ((board->stack->castling & 0x8) && !(occupied & C64(0x0E00000000000000))/* && !(board->stack->attackedByColor[COLOR_WHITE] & C64(0x0C00000000000000))*/) {
-            *(*moves)++ = createMove(king, king - 2) | MOVE_CASTLING;
-            (*counter)++;
+        if ((board->stack->castling & 0x8)) {
+            Square queensideRook = board->castlingSquares[3];
+            Bitboard between = BETWEEN[queensideRook][59] | BETWEEN[king][58];
+            between &= ~(C64(1) << queensideRook) & ~(C64(1) << king);
+            if (!(occupied & between)) {
+                *(*moves)++ = createMove(king, queensideRook) | MOVE_CASTLING;
+                (*counter)++;
+            }
         }
         break;
     }
@@ -697,13 +714,18 @@ std::string squareToString(Square square) {
     return std::string(1, fileFromSquare(square)) + std::string(1, rankFromSquare(square));
 }
 
-std::string moveToString(Move move) {
+std::string moveToString(Move move, bool chess960) {
     if (move == MOVE_NONE) return "move_none";
     if (move == MOVE_NULL) return "move_null";
     std::string result = "";
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
+    if ((move & (0x3 << 12)) == MOVE_CASTLING && !chess960) {
+        int rank = origin / 8;
+        int file = origin > target ? 2 : 6;
+        target = rank * 8 + file;
+    }
 
     result += squareToString(origin);
     result += squareToString(target);

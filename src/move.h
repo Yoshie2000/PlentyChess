@@ -144,7 +144,7 @@ void generateLastSqTable();
 
 void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures = false);
 
-std::string moveToString(Move move);
+std::string moveToString(Move move, bool chess960);
 
 Square stringToSquare(char* string);
 Move stringToMove(char* string, Board* board = nullptr);

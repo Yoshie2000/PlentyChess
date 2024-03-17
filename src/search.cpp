@@ -169,7 +169,7 @@ uint64_t perft(Board* board, int depth) {
         uint64_t subNodes = perftInternal(board, &nnue, depth - 1);
         undoMove(board, move, &nnue);
 
-        std::cout << moveToString(move) << ": " << subNodes << std::endl;
+        std::cout << moveToString(move, UCI::Options.chess960.value) << ": " << subNodes << std::endl;
 
         nodes += subNodes;
     }
@@ -874,7 +874,7 @@ void Thread::tsearch() {
 
                 // Send PV
                 for (Move move : rootMove.pv)
-                    std::cout << moveToString(move) << " ";
+                    std::cout << moveToString(move, UCI::Options.chess960.value) << " ";
                 std::cout << std::endl;
             }
 
@@ -908,6 +908,6 @@ bestMoveOutput:
     result.finished = true;
 
     if (mainThread) {
-        std::cout << "bestmove " << moveToString(result.rootMoves[0].pv[0]) << std::endl;
+        std::cout << "bestmove " << moveToString(result.rootMoves[0].pv[0], UCI::Options.chess960.value) << std::endl;
     }
 }

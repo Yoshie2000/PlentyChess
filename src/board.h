@@ -31,6 +31,8 @@ struct Board {
 
     Color stm;
     uint8_t ply;
+    bool chess960;
+    Square castlingSquares[4]; // For each castling right, stores the square of the corresponding rook
 
     struct BoardStack* stack;
 };
@@ -61,7 +63,7 @@ struct BoardStack {
 };
 
 void startpos(Board* result);
-size_t parseFen(Board* board, std::string fen);
+size_t parseFen(Board* board, std::string fen, bool chess960);
 
 #include "nnue.h"
 

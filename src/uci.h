@@ -64,9 +64,15 @@ namespace UCI {
             218
         };
 
+        UCIOption<UCI_CHECK> chess960 = {
+            "UCI_Chess960",
+            false,
+            false
+        };
+
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&multiPV);
+            auto optionsTuple = std::make_tuple(&multiPV, &chess960);
             for_each_in_tuple(optionsTuple, f);
         }
     };
