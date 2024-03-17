@@ -17,6 +17,7 @@
 #include "spsa.h"
 #include "nnue.h"
 #include "spsa.h"
+#include "uci.h"
 
 // Time management
 TUNE_FLOAT(tmInitialAdjustment, 1.0151265117716062f, 0.5f, 1.5f);
@@ -516,6 +517,8 @@ movesLoop:
 
         if (move == excludedMove)
             continue;
+        if (rootNode && std::find(thread->excludedRootMoves.begin(), thread->excludedRootMoves.end(), move) != thread->excludedRootMoves.end())
+            continue;
 
         bool capture = isCapture(board, move);
         if (!capture && skipQuiets)
@@ -743,6 +746,18 @@ void Thread::tsearch() {
     if (mainThread)
         initTimeManagement(&rootBoard, searchParameters, &searchData);
 
+    int multiPvCount = 0;
+    {
+        Move moves[MAX_MOVES] = { MOVE_NONE };
+        int m = 0;
+        generateMoves(&rootBoard, moves, &m);
+        for (int i = 0; i < m; i++) {
+            if (isLegal(&rootBoard, moves[i]))
+                multiPvCount++;
+        }
+    }
+    multiPvCount = std::min(multiPvCount, UCI::Options.multiPV.value);
+
     int maxDepth = searchParameters->depth == 0 ? MAX_PLY - 1 : searchParameters->depth;
 
     Eval previousValue = EVAL_NONE;
@@ -758,124 +773,141 @@ void Thread::tsearch() {
 
     for (int depth = 1; depth <= maxDepth; depth++) {
 
-        for (int i = 0; i < MAX_PLY + STACK_OVERHEAD; i++) {
-            stackList[i].pvLength = 0;
-            stackList[i].ply = i - STACK_OVERHEAD;
-            stackList[i].staticEval = EVAL_NONE;
-            stackList[i].excludedMove = MOVE_NONE;
-            stackList[i].killers[0] = MOVE_NONE;
-            stackList[i].killers[1] = MOVE_NONE;
-            stackList[i].doubleExtensions = 0;
-            if (i <= STACK_OVERHEAD) {
-                stackList[i].movedPiece = NO_PIECE;
-                stackList[i].move = MOVE_NONE;
+        excludedRootMoves.clear();
+        for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
+
+            for (int i = 0; i < MAX_PLY + STACK_OVERHEAD; i++) {
+                stackList[i].pvLength = 0;
+                stackList[i].ply = i - STACK_OVERHEAD;
+                stackList[i].staticEval = EVAL_NONE;
+                stackList[i].excludedMove = MOVE_NONE;
+                stackList[i].killers[0] = MOVE_NONE;
+                stackList[i].killers[1] = MOVE_NONE;
+                stackList[i].doubleExtensions = 0;
+                if (i <= STACK_OVERHEAD) {
+                    stackList[i].movedPiece = NO_PIECE;
+                    stackList[i].move = MOVE_NONE;
+                }
             }
-        }
 
-        searchData.rootDepth = depth;
-        searchData.selDepth = 0;
+            searchData.rootDepth = depth;
+            searchData.selDepth = 0;
 
-        // Aspiration Windows
-        Eval delta = 2 * EVAL_INFINITE;
-        Eval alpha = -EVAL_INFINITE;
-        Eval beta = EVAL_INFINITE;
-        Eval value;
+            // Aspiration Windows
+            Eval delta = 2 * EVAL_INFINITE;
+            Eval alpha = -EVAL_INFINITE;
+            Eval beta = EVAL_INFINITE;
+            Eval value;
 
-        if (depth >= aspirationWindowMinDepth) {
-            // Set up interval for the start of this aspiration window
-            delta = aspirationWindowDelta;
-            alpha = std::max(previousValue - delta, -EVAL_INFINITE);
-            beta = std::min(previousValue + delta, (int)EVAL_INFINITE);
-        }
+            if (depth >= aspirationWindowMinDepth) {
+                // Set up interval for the start of this aspiration window
+                delta = aspirationWindowDelta;
+                alpha = std::max(previousValue - delta, -EVAL_INFINITE);
+                beta = std::min(previousValue + delta, (int)EVAL_INFINITE);
+            }
 
-        int failHighs = 0;
-        while (true) {
-            int searchDepth = std::max(1, depth - failHighs);
-            value = search<ROOT_NODE>(&rootBoard, stack, this, searchDepth, alpha, beta, false);
+            int failHighs = 0;
+            while (true) {
+                int searchDepth = std::max(1, depth - failHighs);
+                value = search<ROOT_NODE>(&rootBoard, stack, this, searchDepth, alpha, beta, false);
 
-            // Stop if we need to
+                // Stop if we need to
+                if (!searching || exiting)
+                    break;
+
+                // Our window was too high, lower alpha for next iteration
+                if (value <= alpha) {
+                    beta = (alpha + beta) / 2;
+                    alpha = std::max(value - delta, -EVAL_INFINITE);
+                    failHighs = 0;
+                }
+                // Our window was too low, increase beta for next iteration
+                else if (value >= beta) {
+                    beta = std::min(value + delta, (int)EVAL_INFINITE);
+                    failHighs = std::min(failHighs + 1, aspirationWindowMaxFailHighs);
+                }
+                // Our window was good, increase depth for next iteration
+                else
+                    break;
+
+                if (value >= EVAL_MATE_IN_MAX_PLY) {
+                    beta = EVAL_INFINITE;
+                    failHighs = 0;
+                }
+
+                delta *= aspirationWindowDeltaFactor;
+            }
+
             if (!searching || exiting)
-                break;
+                goto bestMoveOutput;
+            else if (rootMoveIdx == 0)
+                result.rootMoves.clear();
 
-            // Our window was too high, lower alpha for next iteration
-            if (value <= alpha) {
-                beta = (alpha + beta) / 2;
-                alpha = std::max(value - delta, -EVAL_INFINITE);
-                failHighs = 0;
-            }
-            // Our window was too low, increase beta for next iteration
-            else if (value >= beta) {
-                beta = std::min(value + delta, (int)EVAL_INFINITE);
-                failHighs = std::min(failHighs + 1, aspirationWindowMaxFailHighs);
-            }
-            // Our window was good, increase depth for next iteration
-            else
-                break;
+            excludedRootMoves.push_back(stack->pv[0]);
 
-            if (value >= EVAL_MATE_IN_MAX_PLY) {
-                beta = EVAL_INFINITE;
-                failHighs = 0;
-            }
+            std::vector<Move> pv;
+            for (int i = 0; i < stack->pvLength; i++)
+                pv.push_back(stack->pv[i]);
 
-            delta *= aspirationWindowDeltaFactor;
+            assert(pv.size() > 0);
+
+            RootMove rootMove = {
+                value,
+                depth,
+                searchData.selDepth,
+                pv
+            };
+            result.rootMoves.push_back(rootMove);
         }
-
-        if (!searching || exiting) {
-            if (result.move == MOVE_NONE) {
-                result.move = stack->pv[0];
-                result.value = value;
-                result.depth = depth;
-                result.selDepth = searchData.selDepth;
-            }
-            break;
-        }
-
-        result.move = stack->pv[0];
-        result.value = value;
-        result.depth = depth;
-        result.selDepth = searchData.selDepth;
 
         if (mainThread) {
             // Send UCI info
             int64_t ms = getTime() - searchData.startTime;
             int64_t nodes = threadPool->nodesSearched();
             int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
-            std::cout << "info depth " << depth << " seldepth " << searchData.selDepth << " score " << formatEval(value) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
 
-            // Send PV
-            for (int i = 0; i < stack->pvLength; i++)
-                std::cout << moveToString(stack->pv[i]) << " ";
-            std::cout << std::endl;
+            std::sort(result.rootMoves.begin(), result.rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
+
+            for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
+                RootMove rootMove = result.rootMoves[rootMoveIdx];
+                std::cout << "info depth " << rootMove.depth << " seldepth " << rootMove.selDepth << " score " << formatEval(rootMove.value) << " multipv " << (rootMoveIdx + 1) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
+
+                // Send PV
+                for (Move move : rootMove.pv)
+                    std::cout << moveToString(move) << " ";
+                std::cout << std::endl;
+            }
 
             // Adjust time management
             double tmAdjustment = tmInitialAdjustment;
 
             // Based on best move stability
-            if (result.move == previousMove)
+            if (result.rootMoves[0].pv[0] == previousMove)
                 bestMoveStability = std::min(bestMoveStability + 1, tmBestMoveStabilityMax);
             else
                 bestMoveStability = 0;
             tmAdjustment *= tmBestMoveStabilityBase - bestMoveStability * tmBestMoveStabilityFactor;
 
             // Based on score difference to last iteration
-            tmAdjustment *= tmEvalDiffBase + std::clamp(previousValue - value, tmEvalDiffMin, tmEvalDiffMax) * tmEvalDiffFactor;
+            tmAdjustment *= tmEvalDiffBase + std::clamp(previousValue - result.rootMoves[0].value, tmEvalDiffMin, tmEvalDiffMax) * tmEvalDiffFactor;
 
             // Based on fraction of nodes that went into the best move
-            tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[result.move] / (double)searchData.nodesSearched);
+            tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[result.rootMoves[0].pv[0]] / (double)searchData.nodesSearched);
 
             if (timeOverDepthCleared(searchParameters, &searchData, tmAdjustment)) {
                 threadPool->stopSearching();
-                break;
+                goto bestMoveOutput;
             }
         }
 
-        previousMove = result.move;
-        previousValue = value;
+        previousMove = result.rootMoves[0].pv[0];
+        previousValue = result.rootMoves[0].value;
     }
 
+bestMoveOutput:
     result.finished = true;
 
     if (mainThread) {
-        std::cout << "bestmove " << moveToString(result.move) << std::endl;
+        std::cout << "bestmove " << moveToString(result.rootMoves[0].pv[0]) << std::endl;
     }
 }
