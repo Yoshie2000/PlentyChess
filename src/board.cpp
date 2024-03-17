@@ -514,6 +514,9 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
             board->byColor[1 - board->stm] ^= captureTargetBB; // take away the captured piece
             board->byPiece[newStack->capturedPiece] ^= captureTargetBB;
 
+            if (newStack->capturedPiece == PIECE_PAWN)
+                newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[1 - board->stm][PIECE_PAWN][captureTarget];
+
             nnue->removePiece(captureTarget, newStack->capturedPiece, (Color)(1 - board->stm));
 
             newStack->pieceCount[1 - board->stm][newStack->capturedPiece]--;
