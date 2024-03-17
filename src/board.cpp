@@ -199,22 +199,49 @@ size_t parseFen(Board* board, std::string fen, bool chess960) {
             break;
         }
 
+        Bitboard rookBB;
+        std::vector<Square> rooks;
+
         switch (c) {
         case 'k':
             board->stack->castling |= 0x4;
-            board->castlingSquares[2] = lsb(RANK_8 & FILE_H);
+            // Chess960 support: Find black kingside rook
+            rookBB = board->byColor[COLOR_BLACK] & board->byPiece[PIECE_ROOK];
+            rooks.clear();
+            while (rookBB) {
+                rooks.push_back(popLSB(&rookBB));
+            }
+            board->castlingSquares[2] = *std::max_element(rooks.begin(), rooks.end());
             break;
         case 'K':
             board->stack->castling |= 0x1;
-            board->castlingSquares[0] = lsb(RANK_1 & FILE_H);
+            // Chess960 support: Find white kingside rook
+            rookBB = board->byColor[COLOR_WHITE] & board->byPiece[PIECE_ROOK];
+            rooks.clear();
+            while (rookBB) {
+                rooks.push_back(popLSB(&rookBB));
+            }
+            board->castlingSquares[0] = *std::max_element(rooks.begin(), rooks.end());
             break;
         case 'q':
             board->stack->castling |= 0x8;
-            board->castlingSquares[3] = lsb(RANK_8 & FILE_A);
+            // Chess960 support: Find black queenside rook
+            rookBB = board->byColor[COLOR_BLACK] & board->byPiece[PIECE_ROOK];
+            rooks.clear();
+            while (rookBB) {
+                rooks.push_back(popLSB(&rookBB));
+            }
+            board->castlingSquares[3] = *std::min_element(rooks.begin(), rooks.end());
             break;
         case 'Q':
             board->stack->castling |= 0x2;
-            board->castlingSquares[1] = lsb(RANK_1 & FILE_A);
+            // Chess960 support: Find white queenside rook
+            rookBB = board->byColor[COLOR_WHITE] & board->byPiece[PIECE_ROOK];
+            rooks.clear();
+            while (rookBB) {
+                rooks.push_back(popLSB(&rookBB));
+            }
+            board->castlingSquares[1] = *std::min_element(rooks.begin(), rooks.end());
             break;
         case ' ':
         default:
@@ -514,6 +541,9 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
             board->byColor[1 - board->stm] ^= captureTargetBB; // take away the captured piece
             board->byPiece[newStack->capturedPiece] ^= captureTargetBB;
 
+            if (newStack->capturedPiece == PIECE_PAWN)
+                newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[1 - board->stm][PIECE_PAWN][captureTarget];
+
             nnue->removePiece(captureTarget, newStack->capturedPiece, (Color)(1 - board->stm));
 
             newStack->pieceCount[1 - board->stm][newStack->capturedPiece]--;
@@ -544,7 +574,7 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
                 newStack->castling &= ~0x8; // Queenside castle black
             }
         }
-        break;
+        break; // nnbbrkrq/pppppppp/8/8/8/8/PPPPPPPP/BQRKNRNB w CFeg - 0 1
     }
 
     // Update king checking stuff
@@ -701,9 +731,6 @@ uint64_t hashAfter(Board* board, Move move) {
         }
     }
 
-    if (capturedPiece != NO_PIECE)
-        hash ^= ZOBRIST_PIECE_SQUARES[1 - board->stm][capturedPiece][captureTarget];
-
     if (specialMove == MOVE_CASTLING) {
         Square rookOrigin, rookTarget;
 
@@ -716,6 +743,9 @@ uint64_t hashAfter(Board* board, Move move) {
     }
     else {
         hash ^= ZOBRIST_PIECE_SQUARES[board->stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[board->stm][piece][target];
+
+        if (capturedPiece != NO_PIECE)
+            hash ^= ZOBRIST_PIECE_SQUARES[1 - board->stm][capturedPiece][captureTarget];
     }
 
     if (specialMove == MOVE_PROMOTION) {
@@ -1000,6 +1030,7 @@ void debugBoard(Board* board) {
         printf(" -");
     }
     printf("\n%" PRIu64 "\n", board->stack->hash);
+    printf("%" PRIu64 "\n", board->stack->pawnHash);
 }
 
 int validateBoard(Board* board) {

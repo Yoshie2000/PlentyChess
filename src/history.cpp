@@ -52,9 +52,12 @@ int History::getContinuationHistory(Board* board, SearchStack* stack, Move move)
     Piece piece = board->pieces[moveOrigin(move)];
     if (piece == NO_PIECE)
         piece = board->pieces[moveTarget(move)];
-    Square target = moveTarget(move);
+    if ((0x3000 & move) == MOVE_CASTLING)
+        piece = PIECE_KING;
 
     assert(piece != NO_PIECE);
+
+    Square target = moveTarget(move);
 
     int score = 0;
 
@@ -75,10 +78,12 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
     Piece piece = board->pieces[moveOrigin(move)];
     if (piece == NO_PIECE)
         piece = board->pieces[moveTarget(move)];
-    assert(piece != NO_PIECE);
-    Square target = moveTarget(move);
+    if ((0x3000 & move) == MOVE_CASTLING)
+        piece = PIECE_KING;
 
     assert(piece != NO_PIECE);
+
+    Square target = moveTarget(move);
 
     int16_t scaledBonus = bonus - getContinuationHistory(board, stack, move) * std::abs(bonus) / 32000;
 

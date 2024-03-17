@@ -141,14 +141,15 @@ bool isLegal(Board* board, Move move) {
 
     if (specialMove == MOVE_CASTLING) {
         // Check that none of the important squares (including the current king position!) are being attacked
-        if (target < origin) {
-            for (Square s = board->stm == COLOR_WHITE ? 2 : 58; s <= origin; s++) {
+        Square adjustedTarget = target < origin ? (board->stm == COLOR_WHITE ? 2 : 58) : (board->stm == COLOR_WHITE ? 6 : 62);
+        if (adjustedTarget < origin) {
+            for (Square s = adjustedTarget; s <= origin; s++) {
                 if (board->byColor[1 - board->stm] & attackersTo(board, s, occupied))
                     return false;
             }
         }
         else {
-            for (Square s = board->stm == COLOR_WHITE ? 6 : 62; s >= origin; s--) {
+            for (Square s = adjustedTarget; s >= origin; s--) {
                 if (board->byColor[1 - board->stm] & attackersTo(board, s, occupied))
                     return false;
             }
@@ -810,7 +811,9 @@ Move stringToMove(char* string, Board* board) {
 
     // Figure out whether this is en passent or castling and set the flags accordingly
     if (board != nullptr) {
-        if (board->pieces[origin] == PIECE_KING && std::abs(target - origin) == 2)
+        if (board->chess960 && board->pieces[origin] == PIECE_KING && board->pieces[target] == PIECE_ROOK && !((C64(1) << target) & board->byColor[1 - board->stm]))
+            move |= MOVE_CASTLING;
+        if (!board->chess960 && board->pieces[origin] == PIECE_KING && std::abs(target - origin) == 2)
             move |= MOVE_CASTLING;
         if (board->pieces[origin] == PIECE_PAWN && board->pieces[target] == NO_PIECE && (std::abs(target - origin) == 7 || std::abs(target - origin) == 9))
             move |= MOVE_ENPASSANT;
