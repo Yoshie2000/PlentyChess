@@ -70,9 +70,17 @@ namespace UCI {
             false
         };
 
+        UCIOption<UCI_SPIN> moveOverhead = {
+            "MoveOverhead",
+            100,
+            100,
+            10,
+            10000
+        };
+
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&multiPV, &chess960);
+            auto optionsTuple = std::make_tuple(&multiPV, &moveOverhead, &chess960);
             for_each_in_tuple(optionsTuple, f);
         }
     };
