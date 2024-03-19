@@ -132,6 +132,7 @@ constexpr Square moveTarget(Move move) {
 
 constexpr bool isCapture(Board* board, Move move) {
     Move moveType = 0x3000 & move;
+    if (moveType == MOVE_CASTLING) return false;
     if (moveType == MOVE_ENPASSANT || (moveType == MOVE_PROMOTION && (move & 0xC000) == PROMOTION_QUEEN)) return true;
     return board->pieces[moveTarget(move)] != NO_PIECE;
 }
@@ -144,7 +145,7 @@ void generateLastSqTable();
 
 void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures = false);
 
-std::string moveToString(Move move);
+std::string moveToString(Move move, bool chess960);
 
 Square stringToSquare(char* string);
 Move stringToMove(char* string, Board* board = nullptr);
