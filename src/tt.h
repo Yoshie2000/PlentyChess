@@ -162,6 +162,17 @@ public:
         return replace;
     }
 
+    __attribute_noinline__ int hashfull() {
+        int count = 0;
+        for (int i = 0; i < 1000; i++) {
+            for (int j = 0; j < CLUSTER_SIZE; j++) {
+                if ((table[i].entries[j].flags & GENERATION_MASK) == TT_GENERATION_COUNTER && table[i].entries[j].eval != EVAL_NONE)
+                    count++;
+            }
+        }
+        return count / CLUSTER_SIZE;
+    }
+
     void clear() {
         for (size_t i = 0; i < clusterCount; i++) {
             table[i] = TTCluster();

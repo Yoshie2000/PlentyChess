@@ -870,7 +870,7 @@ void Thread::tsearch() {
 
             for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
                 RootMove rootMove = result.rootMoves[rootMoveIdx];
-                std::cout << "info depth " << rootMove.depth << " seldepth " << rootMove.selDepth << " score " << formatEval(rootMove.value) << " multipv " << (rootMoveIdx + 1) << " nodes " << nodes << " time " << ms << " nps " << nps << " pv ";
+                std::cout << "info depth " << rootMove.depth << " seldepth " << rootMove.selDepth << " score " << formatEval(rootMove.value) << " multipv " << (rootMoveIdx + 1) << " nodes " << nodes << " time " << ms << " nps " << nps << " hashfull " << TT.hashfull() << " pv ";
 
                 // Send PV
                 for (Move move : rootMove.pv)
