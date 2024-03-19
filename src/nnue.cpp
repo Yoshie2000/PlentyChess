@@ -43,6 +43,28 @@ void initNetworkData() {
         memcpy(&networkData, gNETWORKData, sizeof(networkData));
     }
 
+    // Transpose input weights
+    int16_t transposedInput[INPUT_WIDTH * HIDDEN_WIDTH];
+    for (Color pieceColor = 0; pieceColor <= 1; pieceColor++) {
+        for (Piece piece = 0; piece < PIECE_TYPES; piece++) {
+            for (Square square = 0; square < 64; square++) {
+                // Side that owns the piece
+                int relativeSquare = square ^ (pieceColor * 56);
+                int newRelativeSquare = relativeSquare;
+                int oldIndex = (64 * piece + relativeSquare) * HIDDEN_WIDTH;
+                int newIndex = (12 * newRelativeSquare + 2 * piece) * HIDDEN_WIDTH;
+                memcpy(&transposedInput[newIndex], &networkData.featureWeights[oldIndex], HIDDEN_WIDTH * sizeof(uint16_t));
+
+                // Side that does not own the piece
+                relativeSquare = square ^ ((1 - pieceColor) * 56);
+                oldIndex = (64 * (piece + 6) + relativeSquare) * HIDDEN_WIDTH;
+                newIndex = (12 * newRelativeSquare + 2 * piece + 1) * HIDDEN_WIDTH;
+                memcpy(&transposedInput[newIndex], &networkData.featureWeights[oldIndex], HIDDEN_WIDTH * sizeof(uint16_t));
+            }
+        }
+    }
+    memcpy(networkData.featureWeights, transposedInput, sizeof(transposedInput));
+
     // Transpose output weights
     int16_t transposed[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
     for (int n = 0; n < OUTPUT_BUCKETS * 2 * HIDDEN_WIDTH; n++) {
@@ -53,11 +75,9 @@ void initNetworkData() {
 }
 
 inline int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square square) {
-    int relativeSquare = (square ^ (side * 56));
-    if (side == pieceColor)
-        return (64 * piece + relativeSquare) * HIDDEN_WIDTH / WEIGHTS_PER_VEC;
-    else
-        return (64 * (piece + 6) + relativeSquare) * HIDDEN_WIDTH / WEIGHTS_PER_VEC;
+    Square relativeSquare = square ^ (pieceColor * 56);
+    bool differentSide = side != pieceColor;
+    return (12 * relativeSquare + 2 * piece + differentSide) * HIDDEN_WIDTH / WEIGHTS_PER_VEC;
 }
 
 void resetAccumulators(Board* board, NNUE* nnue) {
