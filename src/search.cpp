@@ -630,7 +630,7 @@ movesLoop:
                 reducedDepth--;
 
             if (cutNode)
-                reducedDepth--;
+                reducedDepth -= 2;
 
             if (capture)
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
