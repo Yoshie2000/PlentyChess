@@ -67,9 +67,6 @@ int History::getContinuationHistory(Board* board, SearchStack* stack, Move move)
     if ((stack - 2)->movedPiece != NO_PIECE)
         score += continuationHistory[board->stm][(stack - 2)->movedPiece][moveTarget((stack - 2)->move)][piece][target];
 
-    if ((stack - 4)->movedPiece != NO_PIECE)
-        score += continuationHistory[board->stm][(stack - 4)->movedPiece][moveTarget((stack - 4)->move)][piece][target];
-
     return score;
 }
 
@@ -92,10 +89,6 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
 
     if ((stack - 2)->movedPiece != NO_PIECE)
         continuationHistory[board->stm][(stack - 2)->movedPiece][moveTarget((stack - 2)->move)][piece][target] += scaledBonus;
-
-    if ((stack - 4)->movedPiece != NO_PIECE)
-        continuationHistory[board->stm][(stack - 4)->movedPiece][moveTarget((stack - 4)->move)][piece][target] += scaledBonus;
-
 }
 
 int16_t* History::getCaptureHistory(Board* board, Move move) {
