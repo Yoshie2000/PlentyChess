@@ -206,7 +206,7 @@ size_t parseFen(Board* board, std::string fen, bool chess960) {
         case 'k':
             board->stack->castling |= 0x4;
             // Chess960 support: Find black kingside rook
-            rookBB = board->byColor[COLOR_BLACK] & board->byPiece[PIECE_ROOK];
+            rookBB = board->byColor[COLOR_BLACK] & board->byPiece[PIECE_ROOK] & RANK_8;
             rooks.clear();
             while (rookBB) {
                 rooks.push_back(popLSB(&rookBB));
@@ -216,7 +216,7 @@ size_t parseFen(Board* board, std::string fen, bool chess960) {
         case 'K':
             board->stack->castling |= 0x1;
             // Chess960 support: Find white kingside rook
-            rookBB = board->byColor[COLOR_WHITE] & board->byPiece[PIECE_ROOK];
+            rookBB = board->byColor[COLOR_WHITE] & board->byPiece[PIECE_ROOK] & RANK_1;
             rooks.clear();
             while (rookBB) {
                 rooks.push_back(popLSB(&rookBB));
@@ -226,7 +226,7 @@ size_t parseFen(Board* board, std::string fen, bool chess960) {
         case 'q':
             board->stack->castling |= 0x8;
             // Chess960 support: Find black queenside rook
-            rookBB = board->byColor[COLOR_BLACK] & board->byPiece[PIECE_ROOK];
+            rookBB = board->byColor[COLOR_BLACK] & board->byPiece[PIECE_ROOK] & RANK_8;
             rooks.clear();
             while (rookBB) {
                 rooks.push_back(popLSB(&rookBB));
@@ -236,7 +236,7 @@ size_t parseFen(Board* board, std::string fen, bool chess960) {
         case 'Q':
             board->stack->castling |= 0x2;
             // Chess960 support: Find white queenside rook
-            rookBB = board->byColor[COLOR_WHITE] & board->byPiece[PIECE_ROOK];
+            rookBB = board->byColor[COLOR_WHITE] & board->byPiece[PIECE_ROOK] & RANK_1;
             rooks.clear();
             while (rookBB) {
                 rooks.push_back(popLSB(&rookBB));
