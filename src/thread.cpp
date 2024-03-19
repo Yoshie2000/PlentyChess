@@ -23,7 +23,7 @@ void Thread::startSearching() {
     rootBoard.stack = rootStack;
 
     if (searchParameters->perft)
-        searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
+        searchData.nodesSearched = perft(rootBoard, searchParameters->depth);
     else
         tsearch();
 }

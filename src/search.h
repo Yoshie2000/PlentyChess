@@ -79,4 +79,4 @@ enum NodeType {
     NON_PV_NODE
 };
 
-uint64_t perft(Board* board, int depth);
+uint64_t perft(Board& board, int depth);

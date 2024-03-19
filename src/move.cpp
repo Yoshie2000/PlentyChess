@@ -114,6 +114,10 @@ bool isPseudoLegal(Board* board, Move move) {
 }
 
 bool isLegal(Board* board, Move move) {
+    if (!isPseudoLegal(board, move)) {
+        debugBoard(board);
+        std::cout << moveToString(move, false) << std::endl;
+    }
     assert(isPseudoLegal(board, move));
 
     Square origin = moveOrigin(move);
