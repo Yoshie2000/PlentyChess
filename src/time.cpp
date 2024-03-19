@@ -1,6 +1,7 @@
 #include <chrono>
 
 #include "time.h"
+#include "uci.h"
 
 int64_t getTime() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -36,7 +37,7 @@ void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchDa
     if (time < 0)
         time = 1000;
     // Subtract some time for communication overhead
-    time -= std::min((int64_t)100, time / 2);
+    time -= std::min((int64_t) UCI::Options.moveOverhead.value, time / 2);
 
     // Figure out how we should spend this time
     if (parameters->movetime) {
