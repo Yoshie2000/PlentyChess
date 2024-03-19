@@ -69,6 +69,7 @@ void resetAccumulators(Board* board, NNUE* nnue) {
             memcpy(nnue->accumulatorStack[i].colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
         }
         nnue->accumulatorStack[i].numDirtyPieces = 0;
+        nnue->accumulatorStack[i].calculated = true;
     }
 
     for (Square square = 0; square < 64; square++) {
@@ -84,6 +85,7 @@ __attribute_noinline__ void NNUE::addPiece(Square square, Piece piece, Color pie
     assert(piece < NO_PIECE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
+    acc->calculated = false;
     acc->dirtyPieces[acc->numDirtyPieces++] = { NO_SQUARE, square, piece, pieceColor };
 }
 
@@ -91,6 +93,7 @@ __attribute_noinline__ void NNUE::removePiece(Square square, Piece piece, Color 
     assert(piece < NO_PIECE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
+    acc->calculated = false;
     acc->dirtyPieces[acc->numDirtyPieces++] = { square, NO_SQUARE, piece, pieceColor };
 }
 
@@ -98,39 +101,87 @@ __attribute_noinline__ void NNUE::movePiece(Square origin, Square target, Piece 
     assert(piece < NO_PIECE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
+    acc->calculated = false;
     acc->dirtyPieces[acc->numDirtyPieces++] = { origin, target, piece, pieceColor };
 }
 
-__attribute_noinline__ void NNUE::calculateAccumulators(int limit) {
-    // Starting from the last calculated accumulator, calculate all incremental updates
+__attribute_noinline__ void NNUE::calculateAccumulators(Board* board) {
+    // Find the closest accumulator that's up to date
+    // Also keep track of how many updates would have to be done from there
+    int closestCalculatedAccumulator = lastCalculatedAccumulator;
+    int estimatedUpdates = 0;
+    bool calculateEverything = true;
+    for (int i = currentAccumulator; i > lastCalculatedAccumulator; i--) {
+        if (accumulatorStack[i].calculated) {
+            closestCalculatedAccumulator = i;
+            calculateEverything = false;
+            break;
+        }
+        estimatedUpdates += accumulatorStack[i].numDirtyPieces;
+    }
 
-    int i = 0;
-    while (lastCalculatedAccumulator < currentAccumulator && i < limit) {
+    Bitboard piecesBB = board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK];
+    int pieces = __builtin_popcountll(piecesBB);
 
-        Accumulator* inputAcc = &accumulatorStack[lastCalculatedAccumulator];
-        Accumulator* outputAcc = &accumulatorStack[lastCalculatedAccumulator + 1];
+    if (estimatedUpdates >= pieces) {
+        // Too many estimated updates, it's easier to recalculate everything from scratch
+        calculateCurrentAccumulator(board);
+    }
+    else {
+        // It's faster to calculate all remaining accumulators instead of doing it from scratch
 
-        // Incrementally update all the dirty pieces
-        for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
-            DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
+        // Starting from the last calculated accumulator, calculate all incremental updates
+        while (closestCalculatedAccumulator < currentAccumulator) {
 
-            if (dirtyPiece.origin == NO_SQUARE) {
-                addPieceToAccumulator(inputAcc, outputAcc, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+            Accumulator* inputAcc = &accumulatorStack[closestCalculatedAccumulator];
+            Accumulator* outputAcc = &accumulatorStack[closestCalculatedAccumulator + 1];
+
+            // Incrementally update all the dirty pieces
+            for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
+                DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
+
+                if (dirtyPiece.origin == NO_SQUARE) {
+                    addPieceToAccumulator(inputAcc, outputAcc, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+                }
+                else if (dirtyPiece.target == NO_SQUARE) {
+                    removePieceFromAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.piece, dirtyPiece.pieceColor);
+                }
+                else {
+                    movePieceInAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+                }
+
+                // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
+                inputAcc = outputAcc;
             }
-            else if (dirtyPiece.target == NO_SQUARE) {
-                removePieceFromAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.piece, dirtyPiece.pieceColor);
-            }
-            else {
-                movePieceInAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
-            }
 
-            // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
-            inputAcc = outputAcc;
+            outputAcc->calculated = true;
+            closestCalculatedAccumulator++;
         }
 
-        lastCalculatedAccumulator++;
-        i++;
+        if (calculateEverything)
+            lastCalculatedAccumulator = currentAccumulator;
+
+        assert(accumulatorStack[currentAccumulator].calculated);
     }
+}
+
+__attribute_noinline__ void NNUE::calculateCurrentAccumulator(Board* board) {
+    // Copy biases
+    for (int side = COLOR_WHITE; side <= COLOR_BLACK; ++side) {
+        memcpy(accumulatorStack[currentAccumulator].colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
+    }
+
+    // Add all the peices
+    Bitboard piecesBB = board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK];
+    while (piecesBB) {
+        Square square = popLSB(&piecesBB);
+        Piece piece = board->pieces[square];
+        Color pieceColor = (board->byColor[COLOR_WHITE] & (C64(1) << square)) ? COLOR_WHITE : COLOR_BLACK;
+        addPieceToAccumulator(&accumulatorStack[currentAccumulator], &accumulatorStack[currentAccumulator], square, piece, pieceColor);
+    }
+
+    accumulatorStack[currentAccumulator].calculated = true;
+    assert(accumulatorStack[currentAccumulator].calculated);
 }
 
 __attribute_noinline__ void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
@@ -194,8 +245,8 @@ __attribute_noinline__ Eval NNUE::evaluate(Board* board) {
     assert(currentAccumulator >= lastCalculatedAccumulator);
 
     // Make sure the current accumulator is up to date
-    calculateAccumulators();
-    assert(currentAccumulator == lastCalculatedAccumulator);
+    calculateAccumulators(board);
+    assert(currentAccumulator == lastCalculatedAccumulator || accumulatorStack[currentAccumulator].calculated);
 
     int pieceCount = __builtin_popcountll(board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]);
     constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);

@@ -196,6 +196,7 @@ struct Accumulator {
 
   DirtyPiece dirtyPieces[4];
   int numDirtyPieces;
+  bool calculated;
 };
 
 struct NetworkData {
@@ -227,7 +228,8 @@ public:
 
   Eval evaluate(Board* board);
 
-  void calculateAccumulators(int limit = 10000000);
+  void calculateAccumulators(Board* board);
+  void calculateCurrentAccumulator(Board* board);
   void addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
   void removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
   void movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor);
