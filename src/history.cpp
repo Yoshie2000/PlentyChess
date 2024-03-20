@@ -26,7 +26,7 @@ Eval History::correctStaticEval(Eval eval, Board* board) {
 }
 
 void History::updateCorrectionHistory(Board* board, int16_t bonus) {
-    Eval scaledBonus = (Eval) bonus - getCorrectionHistory(board) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    Eval scaledBonus = (Eval)bonus - getCorrectionHistory(board) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
     correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 }
 
@@ -86,6 +86,7 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
     Square target = moveTarget(move);
 
     int16_t scaledBonus = bonus - getContinuationHistory(board, stack, move) * std::abs(bonus) / 32000;
+    int16_t smallScaledBonus = (bonus / 4) - getContinuationHistory(board, stack, move) * std::abs(bonus / 4) / 32000;
 
     if ((stack - 1)->movedPiece != NO_PIECE)
         continuationHistory[board->stm][(stack - 1)->movedPiece][moveTarget((stack - 1)->move)][piece][target] += scaledBonus;
@@ -94,7 +95,7 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
         continuationHistory[board->stm][(stack - 2)->movedPiece][moveTarget((stack - 2)->move)][piece][target] += scaledBonus;
 
     if ((stack - 4)->movedPiece != NO_PIECE)
-        continuationHistory[board->stm][(stack - 4)->movedPiece][moveTarget((stack - 4)->move)][piece][target] += scaledBonus;
+        continuationHistory[board->stm][(stack - 4)->movedPiece][moveTarget((stack - 4)->move)][piece][target] += smallScaledBonus;
 
 }
 
