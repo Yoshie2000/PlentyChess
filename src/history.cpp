@@ -96,7 +96,7 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
         scaledBonus = bonus - continuationHistory[board->stm][(stack - 2)->movedPiece][moveTarget((stack - 2)->move)][piece][target] * std::abs(bonus) / 32000;
         continuationHistory[board->stm][(stack - 2)->movedPiece][moveTarget((stack - 2)->move)][piece][target] += scaledBonus;
     }
-
+    bonus /= 4;
     if ((stack - 4)->movedPiece != NO_PIECE) {
         scaledBonus = bonus - continuationHistory[board->stm][(stack - 4)->movedPiece][moveTarget((stack - 4)->move)][piece][target] * std::abs(bonus) / 32000;
         continuationHistory[board->stm][(stack - 4)->movedPiece][moveTarget((stack - 4)->move)][piece][target] += scaledBonus;
