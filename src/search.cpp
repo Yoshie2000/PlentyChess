@@ -375,6 +375,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
     (stack + 1)->doubleExtensions = stack->doubleExtensions;
+    (stack + 2)->cutoffCount = 0;
 
     if (!rootNode) {
 
@@ -636,6 +637,9 @@ movesLoop:
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
+            
+            if ((stack + 1)->cutoffCount <= 4)
+                reducedDepth++;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
@@ -679,6 +683,7 @@ movesLoop:
                     updatePv(stack, move);
 
                 if (bestValue >= beta) {
+                    stack->cutoffCount++;
 
                     int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - 250 > beta)), historyBonusMax);
                     if (!capture) {
@@ -784,6 +789,7 @@ void Thread::tsearch() {
                 stackList[i].killers[0] = MOVE_NONE;
                 stackList[i].killers[1] = MOVE_NONE;
                 stackList[i].doubleExtensions = 0;
+                stackList[i].cutoffCount = 0;
                 if (i <= STACK_OVERHEAD) {
                     stackList[i].movedPiece = NO_PIECE;
                     stackList[i].move = MOVE_NONE;
