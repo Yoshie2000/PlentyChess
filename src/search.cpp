@@ -637,7 +637,7 @@ movesLoop:
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
-            reducedDepth = std::clamp(reducedDepth, 1, newDepth);
+            reducedDepth = std::clamp(reducedDepth, 1, newDepth + 1);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
 
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
