@@ -615,9 +615,6 @@ movesLoop:
         stack->movedPiece = board->pieces[moveOrigin(move)];
         doMove(board, &boardStack, move, newHash, &thread->nnue);
 
-        if (doExtensions && extension == 0 && board->stack->checkers)
-            extension = 1;
-
         Eval value;
         int newDepth = depth - 1 + extension;
 
@@ -636,8 +633,11 @@ movesLoop:
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
+            
+            if (board->stack->checkers)
+                reducedDepth++;
 
-            reducedDepth = std::clamp(reducedDepth, 1, newDepth);
+            reducedDepth = std::clamp(reducedDepth, 1, newDepth + (doExtensions && extension == 0 && board->stack->checkers));
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
 
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
