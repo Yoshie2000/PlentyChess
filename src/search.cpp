@@ -517,7 +517,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         while ((move = movegen.nextMove()) != MOVE_NONE) {
             if (move == excludedMove || !isLegal(board, move))
                 continue;
-            
+
             uint64_t newHash = hashAfter(board, move);
             TT.prefetch(newHash);
 
@@ -529,7 +529,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
             if (value >= probCutBeta)
                 value = -search<NON_PV_NODE>(board, stack + 1, thread, depth - 4, -probCutBeta, -probCutBeta + 1, !cutNode);
-            
+
             undoMove(board, move, &thread->nnue);
 
             if (value >= probCutBeta) {
@@ -680,15 +680,19 @@ movesLoop:
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
 
-            bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
-            bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth);
-            newDepth += doDeeperSearch - doShallowerSearch;
-
             if (value > alpha && reducedDepth < newDepth) {
-                value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
+
+                bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
+                bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth);
+                newDepth += doDeeperSearch - doShallowerSearch;
+
+                if (reducedDepth < newDepth)
+                    value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
 
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
+                    if (value <= alpha)
+                        bonus = -bonus;
                     thread->history.updateContinuationHistory(board, stack, move, bonus);
                 }
             }
