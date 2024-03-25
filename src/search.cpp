@@ -693,7 +693,7 @@ movesLoop:
                 }
             }
         }
-        else {
+        else if (!pvNode || moveCount > 1) {
             value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
         }
 
