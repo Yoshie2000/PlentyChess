@@ -620,7 +620,7 @@ movesLoop:
                 // This move is singular and we should investigate it further
                 extension = 1;
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta && stack->doubleExtensions <= doubleExtensionLimit) {
-                    extension = 2;
+                    extension = 2 + (singularValue < singularBeta - 200 && !capture);
                     stack->doubleExtensions = (stack - 1)->doubleExtensions + 1;
                     depth += depth < 10;
                 }
