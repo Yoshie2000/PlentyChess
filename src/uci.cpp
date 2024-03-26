@@ -471,6 +471,11 @@ void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
             parameters.binc = std::stoi(token);
         }
 
+        if (matchesToken(token, "movestogo")) {
+            nextToken(&line, &token);
+            parameters.movestogo = std::stoi(token);
+        }
+
     }
 
     TT.newSearch();

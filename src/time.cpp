@@ -12,7 +12,7 @@ bool timeOver(SearchParameters* parameters, SearchData* data) {
 }
 
 bool timeOverDepthCleared(SearchParameters* parameters, SearchData* data, double factor) {
-    int64_t adjustedOptTime = (int64_t) (data->startTime + (double) (data->optTime - data->startTime) * factor);
+    int64_t adjustedOptTime = (int64_t)(data->startTime + (double)(data->optTime - data->startTime) * factor);
     int64_t currentTime = getTime();
     return (data->maxTime && (currentTime >= adjustedOptTime || currentTime >= data->maxTime)) || (parameters->nodes && data->nodesSearched >= parameters->nodes);
 }
@@ -37,12 +37,19 @@ void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchDa
     if (time < 0)
         time = 1000;
     // Subtract some time for communication overhead
-    time -= std::min((int64_t) UCI::Options.moveOverhead.value, time / 2);
+    time -= std::min((int64_t)UCI::Options.moveOverhead.value, time / 2);
 
     // Figure out how we should spend this time
     if (parameters->movetime) {
         data->optTime = data->startTime + time;
         data->maxTime = data->startTime + time;
+    }
+    else if (parameters->movestogo) {
+        int64_t totalTime = time / parameters->movestogo;
+        int64_t maxTime = 3 * time / 4;
+
+        data->optTime = data->startTime + std::min<int64_t>(maxTime, 0.8 * totalTime);
+        data->maxTime = data->startTime + std::min<int64_t>(maxTime, 2.5 * totalTime);
     }
     else if (parameters->wtime && parameters->btime) {
         int64_t totalTime = time / 20 + increment / 2;
