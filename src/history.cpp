@@ -60,15 +60,16 @@ int History::getContinuationHistory(Board* board, SearchStack* stack, Move move)
     Square target = moveTarget(move);
 
     int score = 0;
+    int pieceTo = 64 * piece + target;
 
     if ((stack - 1)->movedPiece != NO_PIECE)
-        score += continuationHistory[board->stm][(stack - 1)->movedPiece][moveTarget((stack - 1)->move)][piece][target];
+        score += (stack - 1)->contHist[pieceTo];
 
     if ((stack - 2)->movedPiece != NO_PIECE)
-        score += continuationHistory[board->stm][(stack - 2)->movedPiece][moveTarget((stack - 2)->move)][piece][target];
+        score += (stack - 2)->contHist[pieceTo];
 
     if ((stack - 4)->movedPiece != NO_PIECE)
-        score += continuationHistory[board->stm][(stack - 4)->movedPiece][moveTarget((stack - 4)->move)][piece][target];
+        score += (stack - 4)->contHist[pieceTo];
 
     return score;
 }
@@ -86,16 +87,16 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
     Square target = moveTarget(move);
 
     int16_t scaledBonus = bonus - getContinuationHistory(board, stack, move) * std::abs(bonus) / 32000;
+    int pieceTo = 64 * piece + target;
 
     if ((stack - 1)->movedPiece != NO_PIECE)
-        continuationHistory[board->stm][(stack - 1)->movedPiece][moveTarget((stack - 1)->move)][piece][target] += scaledBonus;
+        (stack - 1)->contHist[pieceTo] += scaledBonus;
 
     if ((stack - 2)->movedPiece != NO_PIECE)
-        continuationHistory[board->stm][(stack - 2)->movedPiece][moveTarget((stack - 2)->move)][piece][target] += scaledBonus;
+        (stack - 2)->contHist[pieceTo] += scaledBonus;
 
     if ((stack - 4)->movedPiece != NO_PIECE)
-        continuationHistory[board->stm][(stack - 4)->movedPiece][moveTarget((stack - 4)->move)][piece][target] += scaledBonus;
-
+        (stack - 4)->contHist[pieceTo] += scaledBonus;
 }
 
 int16_t* History::getCaptureHistory(Board* board, Move move) {

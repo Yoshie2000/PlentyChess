@@ -10,11 +10,13 @@ class History {
 
     int16_t quietHistory[2][64][64];
     Move counterMoves[64][64];
-    int16_t continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES][64];
     int16_t captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
     int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
 
 public:
+
+    int16_t continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES * 64];
+
     void initHistory();
 
     Eval correctStaticEval(Eval eval, Board* board);

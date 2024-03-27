@@ -306,6 +306,13 @@ movesLoopQsearch:
         TT.prefetch(newHash);
         moveCount++;
         thread->searchData.nodesSearched++;
+
+        Square origin = moveOrigin(move);
+        Square target = moveTarget(move);
+        stack->move = move;
+        stack->movedPiece = board->pieces[origin];
+        stack->contHist = thread->history.continuationHistory[board->stm][stack->movedPiece][target];
+
         doMove(board, &boardStack, move, newHash, &thread->nnue);
 
         Eval value = -qsearch<nodeType>(board, thread, stack + 1, -beta, -alpha);
@@ -475,6 +482,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         ) {
         stack->move = MOVE_NULL;
         stack->movedPiece = NO_PIECE;
+        stack->contHist = thread->history.continuationHistory[board->stm][0][0];
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
         doNullMove(board, &boardStack);
@@ -517,19 +525,22 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         while ((move = movegen.nextMove()) != MOVE_NONE) {
             if (move == excludedMove || !isLegal(board, move))
                 continue;
-            
+
             uint64_t newHash = hashAfter(board, move);
             TT.prefetch(newHash);
 
+            Square origin = moveOrigin(move);
+            Square target = moveTarget(move);
             stack->move = move;
-            stack->movedPiece = board->pieces[moveOrigin(move)];
+            stack->movedPiece = board->pieces[origin];
+            stack->contHist = thread->history.continuationHistory[board->stm][stack->movedPiece][target];
             doMove(board, &boardStack, move, newHash, &thread->nnue);
 
             Eval value = -qsearch<NON_PV_NODE>(board, thread, stack + 1, -probCutBeta, -probCutBeta + 1);
 
             if (value >= probCutBeta)
                 value = -search<NON_PV_NODE>(board, stack + 1, thread, depth - 4, -probCutBeta, -probCutBeta + 1, !cutNode);
-            
+
             undoMove(board, move, &thread->nnue);
 
             if (value >= probCutBeta) {
@@ -649,10 +660,14 @@ movesLoop:
         }
 
         // Some setup stuff
+        Square origin = moveOrigin(move);
+        Square target = moveTarget(move);
+        stack->move = move;
+        stack->movedPiece = board->pieces[origin];
+        stack->contHist = thread->history.continuationHistory[board->stm][stack->movedPiece][target];
+
         moveCount++;
         thread->searchData.nodesSearched++;
-        stack->move = move;
-        stack->movedPiece = board->pieces[moveOrigin(move)];
         doMove(board, &boardStack, move, newHash, &thread->nnue);
 
         if (doExtensions && extension == 0 && board->stack->checkers)
@@ -824,10 +839,8 @@ void Thread::tsearch() {
                 stackList[i].killers[0] = MOVE_NONE;
                 stackList[i].killers[1] = MOVE_NONE;
                 stackList[i].doubleExtensions = 0;
-                if (i <= STACK_OVERHEAD) {
-                    stackList[i].movedPiece = NO_PIECE;
-                    stackList[i].move = MOVE_NONE;
-                }
+                stackList[i].movedPiece = NO_PIECE;
+                stackList[i].move = MOVE_NONE;
             }
 
             searchData.rootDepth = depth;
