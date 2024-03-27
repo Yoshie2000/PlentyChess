@@ -286,6 +286,9 @@ movesLoopQsearch:
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
+        uint64_t newHash = hashAfter(board, move);
+        TT.prefetch(newHash);
+
         if (futilityValue > -EVAL_INFINITE) { // Only prune when not in check
             if (bestValue >= -EVAL_MATE_IN_MAX_PLY
                 && futilityValue <= alpha
@@ -302,8 +305,6 @@ movesLoopQsearch:
         if (!isLegal(board, move))
             continue;
 
-        uint64_t newHash = hashAfter(board, move);
-        TT.prefetch(newHash);
         moveCount++;
         thread->searchData.nodesSearched++;
 
@@ -578,6 +579,9 @@ movesLoop:
         if (!isLegal(board, move))
             continue;
 
+        uint64_t newHash = hashAfter(board, move);
+        TT.prefetch(newHash);
+
         uint64_t nodesBeforeMove = thread->searchData.nodesSearched;
         int moveHistory = thread->history.getHistory(board, stack, move, capture);
 
@@ -646,9 +650,6 @@ movesLoop:
             else if (cutNode && ttValue <= alpha)
                 extension = -1;
         }
-
-        uint64_t newHash = hashAfter(board, move);
-        TT.prefetch(newHash);
 
         if (!capture) {
             if (quietMoveCount < 64)
