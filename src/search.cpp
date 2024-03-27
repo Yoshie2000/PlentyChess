@@ -286,6 +286,9 @@ movesLoopQsearch:
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
+        if (!isLegal(board, move))
+            continue;
+
         if (futilityValue > -EVAL_INFINITE) { // Only prune when not in check
             if (bestValue >= -EVAL_MATE_IN_MAX_PLY
                 && futilityValue <= alpha
@@ -298,9 +301,6 @@ movesLoopQsearch:
             if (!SEE(board, move, -107))
                 break;
         }
-
-        if (!isLegal(board, move))
-            continue;
 
         uint64_t newHash = hashAfter(board, move);
         TT.prefetch(newHash);
