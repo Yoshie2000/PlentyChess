@@ -80,28 +80,28 @@ void resetAccumulators(Board* board, NNUE* nnue) {
     }
 }
 
-__attribute_noinline__ void NNUE::addPiece(Square square, Piece piece, Color pieceColor) {
+void NNUE::addPiece(Square square, Piece piece, Color pieceColor) {
     assert(piece < NO_PIECE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
     acc->dirtyPieces[acc->numDirtyPieces++] = { NO_SQUARE, square, piece, pieceColor };
 }
 
-__attribute_noinline__ void NNUE::removePiece(Square square, Piece piece, Color pieceColor) {
+void NNUE::removePiece(Square square, Piece piece, Color pieceColor) {
     assert(piece < NO_PIECE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
     acc->dirtyPieces[acc->numDirtyPieces++] = { square, NO_SQUARE, piece, pieceColor };
 }
 
-__attribute_noinline__ void NNUE::movePiece(Square origin, Square target, Piece piece, Color pieceColor) {
+void NNUE::movePiece(Square origin, Square target, Piece piece, Color pieceColor) {
     assert(piece < NO_PIECE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
     acc->dirtyPieces[acc->numDirtyPieces++] = { origin, target, piece, pieceColor };
 }
 
-__attribute_noinline__ void NNUE::calculateAccumulators(int limit) {
+void NNUE::calculateAccumulators(int limit) {
     // Starting from the last calculated accumulator, calculate all incremental updates
 
     int i = 0;
@@ -133,7 +133,7 @@ __attribute_noinline__ void NNUE::calculateAccumulators(int limit) {
     }
 }
 
-__attribute_noinline__ void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
+void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
     for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
         // Get the index of the piece for this color in the input layer
         int weightOffset = getFeatureOffset(side, piece, pieceColor, square);
@@ -148,7 +148,7 @@ __attribute_noinline__ void NNUE::addPieceToAccumulator(Accumulator* inputAcc, A
     }
 }
 
-__attribute_noinline__ void NNUE::removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
+void NNUE::removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
     for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
         // Get the index of the piece for this color in the input layer
         int weightOffset = getFeatureOffset(side, piece, pieceColor, square);
@@ -163,7 +163,7 @@ __attribute_noinline__ void NNUE::removePieceFromAccumulator(Accumulator* inputA
     }
 }
 
-__attribute_noinline__ void NNUE::movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor) {
+void NNUE::movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor) {
     for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
         // Get the index of the piece squares for this color in the input layer
         int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin);
@@ -180,17 +180,17 @@ __attribute_noinline__ void NNUE::movePieceInAccumulator(Accumulator* inputAcc, 
     }
 }
 
-__attribute_noinline__ void NNUE::incrementAccumulator() {
+void NNUE::incrementAccumulator() {
     currentAccumulator++;
 }
 
-__attribute_noinline__ void NNUE::decrementAccumulator() {
+void NNUE::decrementAccumulator() {
     accumulatorStack[currentAccumulator].numDirtyPieces = 0;
     currentAccumulator--;
     lastCalculatedAccumulator = std::min(currentAccumulator, lastCalculatedAccumulator);
 }
 
-__attribute_noinline__ Eval NNUE::evaluate(Board* board) {
+Eval NNUE::evaluate(Board* board) {
     assert(currentAccumulator >= lastCalculatedAccumulator);
 
     // Make sure the current accumulator is up to date
