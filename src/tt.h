@@ -135,7 +135,7 @@ public:
         __builtin_prefetch(&table[index(hash)]);
     }
 
-    __attribute_noinline__ TTEntry* probe(uint64_t hash, bool* found) {
+    TTEntry* probe(uint64_t hash, bool* found) {
         TTCluster* cluster = &table[index(hash)];
         uint64_t hash16 = (uint16_t)hash;
 
@@ -162,7 +162,7 @@ public:
         return replace;
     }
 
-    __attribute_noinline__ int hashfull() {
+    int hashfull() {
         int count = 0;
         for (int i = 0; i < 1000; i++) {
             for (int j = 0; j < CLUSTER_SIZE; j++) {

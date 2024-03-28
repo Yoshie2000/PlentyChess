@@ -2,6 +2,8 @@
 
 #include <tuple>
 
+#define VERSION "1.0.0-dev"
+
 template<int... Is>
 struct seq { };
 
