@@ -24,8 +24,15 @@ else ifeq ($(arch), generic)
 else
 	CXXFLAGS := $(CXXFLAGS) -march=native
 	HAS_BMI2 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__BMI2__")
+	IS_ZEN1  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver1")
+	IS_ZEN2  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver2")
+# On Zen1/2 systems, which have slow PEXT instructions, we don't want to build with BMI2
 	ifeq ($(HAS_BMI2),1)
-		CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2
+		ifneq ($(IS_ZEN1),1)
+			ifneq ($(IS_ZEN2),1)
+				CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2
+			endif
+		endif
 	endif
 endif
 
