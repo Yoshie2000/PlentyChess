@@ -161,8 +161,7 @@ Move stringToMove(char* string, Board* board = nullptr);
 #define GEN_STAGE_GEN_REMAINING 5
 #define GEN_STAGE_REMAINING 6
 
-#define GEN_STAGE_GEN_BAD_CAPTURES 7
-#define GEN_STAGE_BAD_CAPTURES 8
+#define GEN_STAGE_BAD_CAPTURES 7
 
 #define GEN_STAGE_DONE 100
 
@@ -181,10 +180,8 @@ class MoveGen {
     int returnedMoves;
     int killerCount;
 
-    Move badCaptureList[48]; // There can never be more than 32 pieces on the board => never more than 32 captures possible
-    int badCaptureScores[48];
-    int generatedBadCaptures; // Bad captures only count as "generated" when the corresponding stage sorts them
-    int flaggedBadCaptures; // Before that, this counter will keep track of them
+    Move badCaptureList[48];
+    int generatedBadCaptures;
     int returnedBadCaptures;
 
     int generationStage;
@@ -196,21 +193,21 @@ class MoveGen {
 public:
 
     // Main search
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(false), killers{ searchStack->killers[0], searchStack->killers[1] }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), killerCount(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0) {
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(false), killers{ searchStack->killers[0], searchStack->killers[1] }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), killerCount(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0) {
         std::fill(moveList, moveList + MAX_MOVES, MOVE_NONE);
         std::fill(badCaptureList, badCaptureList + 32, MOVE_NONE);
         counterMove = searchStack->ply > 0 ? history->getCounterMove((searchStack - 1)->move) : MOVE_NONE;
     }
 
     // qSearch
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(onlyCaptures), killers{ MOVE_NONE, MOVE_NONE }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), killerCount(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0) {
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(onlyCaptures), killers{ MOVE_NONE, MOVE_NONE }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), killerCount(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0) {
         std::fill(moveList, moveList + MAX_MOVES, MOVE_NONE);
         std::fill(badCaptureList, badCaptureList + 32, MOVE_NONE);
         counterMove = onlyCaptures || searchStack->ply == 0 ? MOVE_NONE : history->getCounterMove((searchStack - 1)->move);
     }
 
     // ProbCut
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(true), killers{ MOVE_NONE, MOVE_NONE }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), killerCount(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), flaggedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE), depth(depth), probCut(true), probCutThreshold(probCutThreshold) {
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(true), killers{ MOVE_NONE, MOVE_NONE }, moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), killerCount(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), generationStage(GEN_STAGE_TTMOVE), depth(depth), probCut(true), probCutThreshold(probCutThreshold) {
         std::fill(moveList, moveList + MAX_MOVES, MOVE_NONE);
         std::fill(badCaptureList, badCaptureList + 32, MOVE_NONE);
         counterMove = MOVE_NONE;
@@ -220,10 +217,9 @@ public:
 
 private:
 
-    int scoreGoodCaptures(int beginIndex, int endIndex);
+    int scoreCaptures(int beginIndex, int endIndex);
     int scoreQuiets(int beginIndex, int endIndex);
-    void scoreBadCaptures();
 
-    void sortMoves(Move* moves, int* scores, int beginIndex, int endIndex);
+    std::pair<Move, int> findBestMove(Move* moves, int* scores, const int beginIndex, const int endIndex);
 
 };

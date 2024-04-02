@@ -491,17 +491,29 @@ Move MoveGen::nextMove() { // 2973208
         }
         endIndex = generatedMoves;
 
-        endIndex = scoreGoodCaptures(beginIndex, endIndex);
+        endIndex = scoreCaptures(beginIndex, endIndex);
         moves = moveList + generatedMoves;
-        sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
         generationStage++;
         [[fallthrough]];
 
     case GEN_STAGE_CAPTURES:
 
-        if (returnedMoves < generatedMoves)
-            return moveList[returnedMoves++];
+        while (returnedMoves < generatedMoves) {
+            auto eMove = findBestMove(moveList, moveListScores, returnedMoves++, generatedMoves);
+            Move move = eMove.first;
+            int score = eMove.second;
+
+            // Store bad captures in a separate list
+            // In qsearch, the SEE check is done later
+            bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : (onlyCaptures || SEE(board, move, -score / 80));
+            if (!goodCapture) {
+                badCaptureList[generatedBadCaptures++] = move;
+            }
+            else {
+                return move;
+            }
+        }
 
         if (probCut || onlyCaptures) {
             generationStage = GEN_STAGE_DONE;
@@ -553,7 +565,6 @@ Move MoveGen::nextMove() { // 2973208
 
         endIndex = scoreQuiets(beginIndex, endIndex);
         moves = moveList + generatedMoves;
-        sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
         generationStage++;
         [[fallthrough]];
@@ -561,16 +572,7 @@ Move MoveGen::nextMove() { // 2973208
     case GEN_STAGE_REMAINING:
 
         if (returnedMoves < generatedMoves)
-            return moveList[returnedMoves++];
-
-        generationStage++;
-        [[fallthrough]];
-
-    case GEN_STAGE_GEN_BAD_CAPTURES:
-        generatedBadCaptures = flaggedBadCaptures;
-
-        scoreBadCaptures();
-        sortMoves(badCaptureList, badCaptureScores, 0, generatedBadCaptures);
+            return findBestMove(moveList, moveListScores, returnedMoves++, generatedMoves).first;
 
         generationStage++;
         [[fallthrough]];
@@ -586,7 +588,7 @@ Move MoveGen::nextMove() { // 2973208
     return MOVE_NONE;
 }
 
-int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
+int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
 
@@ -607,19 +609,6 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
             score += PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
         else
             score += PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
-
-        // Store bad captures in a separate list
-        // In qsearch, the SEE check is done later
-        bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : (onlyCaptures || SEE(board, move, -score / 80));
-        if (!goodCapture) {
-            moveList[i] = moveList[endIndex - 1];
-            moveList[endIndex - 1] = MOVE_NONE;
-            badCaptureList[flaggedBadCaptures++] = move;
-            endIndex--;
-            generatedMoves--;
-            i--;
-            continue;
-        }
 
         moveListScores[i] = score;
     }
@@ -644,32 +633,21 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
     return endIndex;
 }
 
-void MoveGen::scoreBadCaptures() {
-    for (int i = 0; i < generatedBadCaptures; i++) {
-        Move move = badCaptureList[i];
-        // En passent and promotion will always pass SEE, no ttMove will appear here
-        badCaptureScores[i] = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
-    }
-}
-
-void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) {
-    int limit = -3500 * depth;
+__attribute_noinline__ std::pair<Move, int> MoveGen::findBestMove(Move* moves, int* scores, const int beginIndex, const int endIndex) {
+    int bestMoveIndex = beginIndex;
+    int bestMoveScore = scores[bestMoveIndex];
     for (int i = beginIndex + 1; i < endIndex; i++) {
-        if (scores[i] < limit)
-            continue;
-        Move move = moves[i];
         int score = scores[i];
-        int j = i - 1;
-
-        while (j >= beginIndex && scores[j] < score) {
-            moves[j + 1] = moves[j];
-            scores[j + 1] = scores[j];
-            j--;
+        if (score > bestMoveScore) {
+            bestMoveIndex = i;
+            bestMoveScore = score;
         }
-
-        moves[j + 1] = move;
-        scores[j + 1] = score;
     }
+    Move move = moves[bestMoveIndex];
+    int score = scores[bestMoveIndex];
+    moves[bestMoveIndex] = moves[beginIndex];
+    scores[bestMoveIndex] = scores[beginIndex];
+    return std::make_pair(move, score);
 }
 
 inline char fileFromSquare(Square square) {
