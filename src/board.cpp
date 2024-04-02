@@ -900,7 +900,7 @@ bool isDraw(Board* board) {
 Bitboard attackersTo(Board* board, Square s, Bitboard occupied) {
     Bitboard sBB = C64(1) << s;
 
-    Bitboard pawnAtks = board->byPiece[PIECE_PAWN] & ((board->byColor[COLOR_BLACK] & pawnAttacks(sBB, COLOR_WHITE)) | (board->byColor[COLOR_WHITE] & pawnAttacks(sBB, COLOR_BLACK)));
+    Bitboard pawnAtks = board->byPiece[PIECE_PAWN] & ((board->byColor[COLOR_BLACK] & PAWN_ATTACKS[s][COLOR_WHITE]) | (board->byColor[COLOR_WHITE] & PAWN_ATTACKS[s][COLOR_BLACK]));
     Bitboard knightAtks = board->byPiece[PIECE_KNIGHT] & KNIGHT_ATTACKS[s];
     Bitboard bishopAtks = (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]) & getBishopMoves(s, occupied);
     Bitboard rookAtks = (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]) & getRookMoves(s, occupied);
@@ -964,7 +964,7 @@ Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType) {
 Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupied, Color stm) {
     switch (pieceType) {
     case PIECE_PAWN:
-        return pawnAttacks(C64(1) << square, stm);
+        return PAWN_ATTACKS[square][stm];
     case PIECE_KNIGHT:
         return KNIGHT_ATTACKS[square];
     case PIECE_KING:

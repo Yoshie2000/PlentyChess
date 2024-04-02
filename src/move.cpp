@@ -57,7 +57,7 @@ bool isPseudoLegal(Board* board, Move move) {
                 return false;
         }
         if (
-            !(pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture promotion?
+            !(PAWN_ATTACKS[origin][board->stm] & targetBB & board->byColor[1 - board->stm]) && // Capture promotion?
             !(origin + UP[board->stm] == target && board->pieces[target] == NO_PIECE)) // Push promotion?
             return false;
         return true;
@@ -71,7 +71,7 @@ bool isPseudoLegal(Board* board, Move move) {
         if (targetBB & (RANK_8 | RANK_1)) return false;
 
         if (
-            !(pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture?
+            !(PAWN_ATTACKS[origin][board->stm] & targetBB & board->byColor[1 - board->stm]) && // Capture?
             !(origin + UP[board->stm] == target && board->pieces[target] == NO_PIECE) && // Single push?
             !(origin + 2 * UP[board->stm] == target && board->pieces[target] == NO_PIECE && board->pieces[target - UP[board->stm]] == NO_PIECE && (originBB & (RANK_2 | RANK_7))) // Double push?
             )

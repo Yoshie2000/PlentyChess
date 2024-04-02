@@ -9,6 +9,7 @@ Bitboard BETWEEN[64][64];
 Bitboard LINE[64][64];
 Bitboard KING_ATTACKS[64];
 Bitboard KNIGHT_ATTACKS[64];
+Bitboard PAWN_ATTACKS[64][2];
 
 Bitboard kingAttacks(Square origin) {
     Bitboard attacksBB = C64(0);
@@ -48,5 +49,7 @@ void initBitboard() {
 
         KING_ATTACKS[a] = kingAttacks(a);
         KNIGHT_ATTACKS[a] = knightAttacks(C64(1) << a);
+        PAWN_ATTACKS[a][COLOR_WHITE] = pawnAttacks((C64(1) << a), COLOR_WHITE);
+        PAWN_ATTACKS[a][COLOR_BLACK] = pawnAttacks((C64(1) << a), COLOR_BLACK);
     }
 }
