@@ -682,23 +682,23 @@ movesLoop:
         Eval value;
         int newDepth = depth - 1 + extension;
 
-        // Very basic LMR: Late moves are being searched with less depth
-        // Check if the move can exceed alpha
+        // Calculate reductions in advance
+        int reduction = REDUCTIONS[!capture][depth][moveCount];
+
+        if (!ttPv)
+            reduction++;
+
+        if (cutNode)
+            reduction += 2;
+
+        if (capture)
+            reduction -= moveHistory / lmrHistoryFactorCapture;
+        else
+            reduction -= moveHistory / lmrHistoryFactorQuiet;
+
+        // LMR
         if (moveCount > lmrMcBase + lmrMcPv * pvNode && depth >= lmrMinDepth && (!capture || !ttPv)) {
-            int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
-
-            if (!ttPv)
-                reducedDepth--;
-
-            if (cutNode)
-                reducedDepth -= 2;
-
-            if (capture)
-                reducedDepth += moveHistory / lmrHistoryFactorCapture;
-            else
-                reducedDepth += moveHistory / lmrHistoryFactorQuiet;
-
-            reducedDepth = std::clamp(reducedDepth, 1, newDepth);
+            int reducedDepth = std::clamp(newDepth - reduction, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
 
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
@@ -715,7 +715,7 @@ movesLoop:
             }
         }
         else if (!pvNode || moveCount > 1) {
-            value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
+            value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth - (reduction > 4), -(alpha + 1), -alpha, !cutNode);
         }
 
         // PV moves will be researched at full depth if good enough
