@@ -605,12 +605,14 @@ movesLoop:
                     skipQuiets = true;
             }
 
+            lmrDepth += moveHistory / (capture ? lmrHistoryFactorCapture : lmrHistoryFactorQuiet);
+
             // History pruning
             if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
                 continue;
 
             // SEE Pruning
-            if (!pvNode && depth < seeDepth && !SEE(board, move, SEE_MARGIN[depth][!capture]))
+            if (!pvNode && depth < seeDepth && !SEE(board, move, SEE_MARGIN[std::max(0, lmrDepth)][!capture]))
                 continue;
 
         }
