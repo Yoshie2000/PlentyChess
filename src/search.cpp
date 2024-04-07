@@ -605,6 +605,8 @@ movesLoop:
                     skipQuiets = true;
             }
 
+            lmrDepth += moveHistory / (capture ? lmrHistoryFactorCapture : lmrHistoryFactorQuiet);
+
             // History pruning
             if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
                 continue;
