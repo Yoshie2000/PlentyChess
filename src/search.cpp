@@ -688,7 +688,7 @@ movesLoop:
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
             if (!ttPv)
-                reducedDepth--;
+                reducedDepth -= 2;
 
             if (cutNode)
                 reducedDepth -= 2;
