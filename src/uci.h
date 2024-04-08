@@ -2,7 +2,7 @@
 
 #include <tuple>
 
-#define VERSION "1.0.0-dev"
+#define VERSION "2.0.0-dev"
 
 template<int... Is>
 struct seq { };

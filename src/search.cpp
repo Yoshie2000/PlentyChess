@@ -7,6 +7,9 @@
 #include <thread>
 #include <map>
 
+#include <chrono>
+#include <thread>
+
 #include "search.h"
 #include "board.h"
 #include "move.h"
@@ -813,8 +816,19 @@ void Thread::tsearch() {
         int m = 0;
         generateMoves(&rootBoard, moves, &m);
         for (int i = 0; i < m; i++) {
-            if (isLegal(&rootBoard, moves[i]))
+            if (isLegal(&rootBoard, moves[i])) {
                 multiPvCount++;
+
+                std::vector<Move> pv;
+                pv.push_back(moves[i]);
+                RootMove rootMove = {
+                    -EVAL_INFINITE,
+                    0,
+                    0,
+                    pv
+                };
+                result.rootMoves.push_back(rootMove);
+            }
         }
     }
     multiPvCount = std::min(multiPvCount, UCI::Options.multiPV.value);
@@ -833,6 +847,9 @@ void Thread::tsearch() {
     rootMoveNodes.clear();
 
     for (int depth = 1; depth <= maxDepth; depth++) {
+
+        for (RootMove& rootMove : result.rootMoves)
+            rootMove.value = -EVAL_INFINITE;
 
         excludedRootMoves.clear();
         for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
@@ -899,8 +916,6 @@ void Thread::tsearch() {
 
             if (!searching || exiting)
                 goto bestMoveOutput;
-            else if (rootMoveIdx == 0)
-                result.rootMoves.clear();
 
             excludedRootMoves.push_back(stack->pv[0]);
 
@@ -910,13 +925,16 @@ void Thread::tsearch() {
 
             assert(pv.size() > 0);
 
-            RootMove rootMove = {
-                value,
-                depth,
-                searchData.selDepth,
-                pv
-            };
-            result.rootMoves.push_back(rootMove);
+            // Find root move and update its stats
+            for (RootMove& rootMove : result.rootMoves) {
+                if (rootMove.pv[0] == stack->pv[0]) {
+                    rootMove.value = value;
+                    rootMove.depth = depth;
+                    rootMove.selDepth = searchData.selDepth;
+                    rootMove.pv = pv;
+                    break;
+                }
+            }
         }
 
         if (mainThread) {
@@ -968,5 +986,6 @@ bestMoveOutput:
 
     if (mainThread) {
         std::cout << "bestmove " << moveToString(result.rootMoves[0].pv[0], UCI::Options.chess960.value) << std::endl;
+        threadPool->stopSearching();
     }
 }

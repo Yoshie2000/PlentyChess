@@ -521,7 +521,7 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "isready")) printf("readyok\n");
         else if (matchesToken(line, "ucinewgame")) threads.ucinewgame();
         else if (matchesToken(line, "uci")) {
-            std::cout << "id name PlentyChess " << static_cast<std::string>(VERSION) << "\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 4096\noption name Threads type spin default 1 min 1 max 512" << std::endl;
+            std::cout << "id name PlentyChess " << static_cast<std::string>(VERSION) << "\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 32768\noption name Threads type spin default 1 min 1 max 512" << std::endl;
             UCI::Options.forEach(printOptions());
             SPSA::printUCI();
             printf("\nuciok\n");

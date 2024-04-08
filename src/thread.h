@@ -99,6 +99,7 @@ public:
     }
 
     void startSearching(Board board, std::deque<BoardStack> stackQueue, SearchParameters parameters) {
+        stopSearching();
         waitForSearchFinished();
 
         rootBoard = std::move(board);
