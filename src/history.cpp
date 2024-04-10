@@ -5,6 +5,11 @@
 #include "types.h"
 #include "move.h"
 #include "evaluation.h"
+#include "spsa.h"
+
+TUNE_INT(contHistBonusFactor, 100, 50, 150);
+TUNE_INT(contHistMalusFactor, 100, 50, 150);
+TUNE_INT(correctionHistoryDivisor, 12288, 5000, 20000);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
@@ -20,7 +25,7 @@ void History::initHistory() {
 
 Eval History::correctStaticEval(Eval eval, Board* board) {
     Eval history = getCorrectionHistory(board);
-    Eval adjustedEval = eval + (history * std::abs(history)) / 12288;
+    Eval adjustedEval = eval + (history * std::abs(history)) / correctionHistoryDivisor;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
     return adjustedEval;
 }
@@ -137,14 +142,14 @@ void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move*
 void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
     updateQuietHistory(board, move, bonus);
-    updateContinuationHistory(board, stack, move, bonus);
+    updateContinuationHistory(board, stack, move, bonus * 100 / contHistBonusFactor);
 
     // Decrease stats for all other quiets
     for (int i = 0; i < quietMoveCount; i++) {
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
         updateQuietHistory(board, qMove, -bonus);
-        updateContinuationHistory(board, stack, qMove, -bonus);
+        updateContinuationHistory(board, stack, qMove, -bonus * 100 / contHistMalusFactor);
     }
 }
 
