@@ -940,13 +940,13 @@ void Thread::tsearch() {
             }
         }
 
+        std::sort(result.rootMoves.begin(), result.rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
+
         if (mainThread) {
             // Send UCI info
             int64_t ms = getTime() - searchData.startTime;
             int64_t nodes = threadPool->nodesSearched();
             int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
-
-            std::sort(result.rootMoves.begin(), result.rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
 
             for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
                 RootMove rootMove = result.rootMoves[rootMoveIdx];
