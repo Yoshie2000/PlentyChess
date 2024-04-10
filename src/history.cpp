@@ -20,7 +20,7 @@ void History::initHistory() {
 
 Eval History::correctStaticEval(Eval eval, Board* board) {
     Eval history = getCorrectionHistory(board);
-    Eval adjustedEval = eval + (history * std::abs(history)) / 16384;
+    Eval adjustedEval = eval + (history * std::abs(history)) / 12288;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
     return adjustedEval;
 }
