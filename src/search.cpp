@@ -682,7 +682,7 @@ movesLoop:
         if (doExtensions && extension == 0 && board->stack->checkers)
             extension = 1;
 
-        Eval value;
+        Eval value = 0;
         int newDepth = depth - 1 + extension;
 
         // Very basic LMR: Late moves are being searched with less depth
@@ -761,6 +761,9 @@ movesLoop:
                     thread->history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
                 }
+
+                if (depth > 4 && depth < 10 && beta < EVAL_MATE_IN_MAX_PLY && value > -EVAL_MATE_IN_MAX_PLY)
+                    depth--;
             }
         }
 
