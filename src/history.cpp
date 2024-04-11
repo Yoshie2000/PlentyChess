@@ -94,6 +94,9 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
 
     if ((stack - 2)->movedPiece != NO_PIECE)
         (stack - 2)->contHist[pieceTo] += scaledBonus;
+    
+    if ((stack - 3)->movedPiece != NO_PIECE)
+        (stack - 3)->contHist[pieceTo] += scaledBonus / 4;
 
     if ((stack - 4)->movedPiece != NO_PIECE)
         (stack - 4)->contHist[pieceTo] += scaledBonus;
