@@ -369,10 +369,12 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     assert(!(pvNode && cutNode));
     assert(pvNode || alpha == beta - 1);
 
+    // Set up PV length and selDepth
     if (pvNode)
         stack->pvLength = stack->ply;
     thread->searchData.selDepth = std::max(stack->ply, thread->searchData.selDepth);
 
+    // Check for upcoming repetition
     if (!rootNode && alpha < 0 && hasUpcomingRepetition(board, stack->ply)) {
         alpha = drawEval(thread);
         if (alpha >= beta)
@@ -381,19 +383,9 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     if (depth <= 0) return qsearch<nodeType>(board, thread, stack, alpha, beta);
 
-    BoardStack boardStack;
-    Move bestMove = MOVE_NONE;
-    Move excludedMove = stack->excludedMove;
-    Eval bestValue = -EVAL_INFINITE;
-    Eval oldAlpha = alpha;
-    bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
-
-    (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
-    (stack + 1)->excludedMove = MOVE_NONE;
-    (stack + 1)->doubleExtensions = stack->doubleExtensions;
-
     if (!rootNode) {
 
+        // Check for time / node limits on main thread
         if (thread->mainThread && timeOver(thread->searchParameters, &thread->searchData))
             thread->threadPool->stopSearching();
 
@@ -407,6 +399,17 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         if (alpha >= beta)
             return alpha;
     }
+
+    // Initialize some stuff
+    Move bestMove = MOVE_NONE;
+    Move excludedMove = stack->excludedMove;
+    Eval bestValue = -EVAL_INFINITE;
+    Eval oldAlpha = alpha;
+    bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+
+    (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
+    (stack + 1)->excludedMove = MOVE_NONE;
+    (stack + 1)->doubleExtensions = stack->doubleExtensions;
 
     // TT Lookup
     bool ttHit = false;
@@ -433,6 +436,9 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
+    BoardStack boardStack;
+
+    // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
     if (board->stack->checkers) {
         stack->staticEval = EVAL_NONE;
@@ -564,8 +570,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
 movesLoop:
 
-    Move quietMoves[64] = { MOVE_NONE };
-    Move captureMoves[64] = { MOVE_NONE };
+    Move quietMoves[64];
+    Move captureMoves[64];
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
