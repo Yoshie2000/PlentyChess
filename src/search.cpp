@@ -518,11 +518,11 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
 
     // ProbCut
-    probCutBeta = beta + probCutBetaOffset;
+    probCutBeta = std::min(beta + probCutBetaOffset, EVAL_MATE_IN_MAX_PLY - 1);
     if (!pvNode
         && !excluded
         && depth > probCutDepth
-        && std::abs(beta) < EVAL_MATE_IN_MAX_PLY
+        && std::abs(beta) < EVAL_MATE_IN_MAX_PLY - 1
         && !(ttDepth >= depth - 3 && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
 
         assert(probCutBeta > beta);
