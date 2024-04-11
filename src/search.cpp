@@ -789,11 +789,7 @@ movesLoop:
         ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
-    if (!board->stack->checkers
-        && (bestMove == MOVE_NONE || !isCapture(board, bestMove))
-        && !(bestValue >= beta && bestValue <= stack->staticEval)
-        && !(bestMove == MOVE_NONE && bestValue >= stack->staticEval)
-        ) {
+    if (!board->stack->checkers && !isCapture(board, bestMove) && (bestValue < beta || bestValue > stack->staticEval)) {
         int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth / 8, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         thread->history.updateCorrectionHistory(board, bonus);
     }
