@@ -231,7 +231,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
         thread->threadPool->stopSearching();
 
     // Check for stop
-    if (!thread->searching || thread->exiting || stack->ply >= MAX_PLY || isDraw(board))
+    if (thread->stopped || thread->exiting || stack->ply >= MAX_PLY || isDraw(board))
         return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &thread->nnue) : drawEval(thread);
 
     BoardStack boardStack;
@@ -328,7 +328,7 @@ movesLoopQsearch:
         undoMove(board, move, &thread->nnue);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
-        if (!thread->searching || thread->exiting)
+        if (thread->stopped || thread->exiting)
             return 0;
 
         if (value > bestValue) {
@@ -390,7 +390,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
             thread->threadPool->stopSearching();
 
         // Check for stop or max depth
-        if (!thread->searching || thread->exiting || stack->ply >= MAX_PLY || isDraw(board))
+        if (thread->stopped || thread->exiting || stack->ply >= MAX_PLY || isDraw(board))
             return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &thread->nnue) : drawEval(thread);
 
         // Mate distance pruning
@@ -504,7 +504,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         Eval nullValue = -search<NON_PV_NODE>(board, stack + 1, thread, depth - R, -beta, -beta + 1, !cutNode);
         undoNullMove(board);
 
-        if (!thread->searching || thread->exiting)
+        if (thread->stopped || thread->exiting)
             return 0;
 
         if (nullValue >= beta) {
@@ -735,7 +735,7 @@ movesLoop:
         undoMove(board, move, &thread->nnue);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
-        if (!thread->searching || thread->exiting)
+        if (thread->stopped || thread->exiting)
             return 0;
 
         if (rootNode) {
@@ -744,9 +744,9 @@ movesLoop:
             else
                 thread->rootMoveNodes[move] = thread->searchData.nodesSearched - nodesBeforeMove + thread->rootMoveNodes[move];
 
-            RootMove* rootMove = &thread->result.rootMoves[0];
-            for (RootMove& rm : thread->result.rootMoves) {
-                if (rm.pv[0] == move) {
+            RootMove* rootMove = &thread->rootMoves[0];
+            for (RootMove& rm : thread->rootMoves) {
+                if (rm.move == move) {
                     rootMove = &rm;
                     break;
                 }
@@ -756,7 +756,8 @@ movesLoop:
                 rootMove->value = value;
                 rootMove->selDepth = thread->searchData.selDepth;
 
-                rootMove->pv.resize(1);
+                rootMove->pv.resize(0);
+                rootMove->pv.push_back(move);
                 for (int i = 1; i < (stack + 1)->pvLength; i++)
                     rootMove->pv.push_back((stack + 1)->pv[i]);
             }
@@ -836,32 +837,12 @@ void Thread::tsearch() {
         initTimeManagement(&rootBoard, searchParameters, &searchData);
 
     iterativeDeepening();
-    std::sort(result.rootMoves.begin(), result.rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
-    result.finished = true;
+    std::sort(rootMoves.begin(), rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
 
     if (mainThread) {
-        // The main thread stops all other threads and does some naive voting over the best move
         threadPool->stopSearching();
-        bool allFinished = false;
-        while (!allFinished && threadPool->threads.size() > 1) {
-            allFinished = true;
-            for (auto& th : threadPool->threads) {
-                if (!th.get()->result.finished) {
-                    allFinished = false;
-                    break;
-                }
-            }
-            if (!allFinished)
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
 
-        ThreadResult* bestResult = chooseBestThread();
-
-        if (bestResult != &result) {
-            printUCI(bestResult);
-        }
-
-        std::cout << "bestmove " << moveToString(bestResult->rootMoves[0].pv[0], UCI::Options.chess960.value) << std::endl;
+        std::cout << "bestmove " << moveToString(rootMoves[0].move, UCI::Options.chess960.value) << std::endl;
     }
 }
 
@@ -875,15 +856,9 @@ void Thread::iterativeDeepening() {
             if (isLegal(&rootBoard, moves[i])) {
                 multiPvCount++;
 
-                std::vector<Move> pv;
-                pv.push_back(moves[i]);
-                RootMove rootMove = {
-                    -EVAL_INFINITE,
-                    0,
-                    0,
-                    pv
-                };
-                result.rootMoves.push_back(rootMove);
+                RootMove rootMove = {};
+                rootMove.move = moves[i];
+                rootMoves.push_back(rootMove);
             }
         }
     }
@@ -903,7 +878,6 @@ void Thread::iterativeDeepening() {
     rootMoveNodes.clear();
 
     for (int depth = 1; depth <= maxDepth; depth++) {
-
         excludedRootMoves.clear();
         for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
 
@@ -941,7 +915,7 @@ void Thread::iterativeDeepening() {
                 value = search<ROOT_NODE>(&rootBoard, stack, this, searchDepth, alpha, beta, false);
 
                 // Stop if we need to
-                if (!searching || exiting)
+                if (stopped || exiting)
                     break;
 
                 // Our window was too high, lower alpha for next iteration
@@ -967,34 +941,34 @@ void Thread::iterativeDeepening() {
                 delta *= aspirationWindowDeltaFactor;
             }
 
-            if (!searching || exiting)
+            if (stopped || exiting)
                 return;
 
             excludedRootMoves.push_back(stack->pv[0]);
         }
 
-        std::sort(result.rootMoves.begin(), result.rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
+        std::sort(rootMoves.begin(), rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
         for (int i = 0; i < multiPvCount; i++)
-            result.rootMoves[i].depth = depth;
+            rootMoves[i].depth = depth;
 
         if (mainThread) {
-            printUCI(&result, multiPvCount);
+            printUCI(this, multiPvCount);
 
             // Adjust time management
             double tmAdjustment = tmInitialAdjustment;
 
             // Based on best move stability
-            if (result.rootMoves[0].pv[0] == previousMove)
+            if (rootMoves[0].move == previousMove)
                 bestMoveStability = std::min(bestMoveStability + 1, tmBestMoveStabilityMax);
             else
                 bestMoveStability = 0;
             tmAdjustment *= tmBestMoveStabilityBase - bestMoveStability * tmBestMoveStabilityFactor;
 
             // Based on score difference to last iteration
-            tmAdjustment *= tmEvalDiffBase + std::clamp(previousValue - result.rootMoves[0].value, tmEvalDiffMin, tmEvalDiffMax) * tmEvalDiffFactor;
+            tmAdjustment *= tmEvalDiffBase + std::clamp(previousValue - rootMoves[0].value, tmEvalDiffMin, tmEvalDiffMax) * tmEvalDiffFactor;
 
             // Based on fraction of nodes that went into the best move
-            tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[result.rootMoves[0].pv[0]] / (double)searchData.nodesSearched);
+            tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched);
 
             if (timeOverDepthCleared(searchParameters, &searchData, tmAdjustment)) {
                 threadPool->stopSearching();
@@ -1002,18 +976,18 @@ void Thread::iterativeDeepening() {
             }
         }
 
-        previousMove = result.rootMoves[0].pv[0];
-        previousValue = result.rootMoves[0].value;
+        previousMove = rootMoves[0].move;
+        previousValue = rootMoves[0].value;
     }
 }
 
-void Thread::printUCI(ThreadResult* result, int multiPvCount) {
+void Thread::printUCI(Thread* thread, int multiPvCount) {
     int64_t ms = getTime() - searchData.startTime;
     int64_t nodes = threadPool->nodesSearched();
     int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
 
     for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
-        RootMove rootMove = result->rootMoves[rootMoveIdx];
+        RootMove rootMove = thread->rootMoves[rootMoveIdx];
         std::cout << "info depth " << rootMove.depth << " seldepth " << rootMove.selDepth << " score " << formatEval(rootMove.value) << " multipv " << (rootMoveIdx + 1) << " nodes " << nodes << " time " << ms << " nps " << nps << " hashfull " << TT.hashfull() << " pv ";
 
         // Send PV
@@ -1023,47 +997,49 @@ void Thread::printUCI(ThreadResult* result, int multiPvCount) {
     }
 }
 
-ThreadResult* Thread::chooseBestThread() {
-    ThreadResult* bestResult = &result;
+Thread* Thread::chooseBestThread() {
+    Thread* bestThread = this;
 
     if (threadPool->threads.size() > 1 && UCI::Options.multiPV.value == 1) {
         std::map<Move, int64_t> votes;
         Eval minValue = EVAL_INFINITE;
 
         for (auto& th : threadPool->threads) {
-            minValue = std::min(minValue, th.get()->result.rootMoves[0].value);
+            minValue = std::min(minValue, th.get()->rootMoves[0].value);
         }
         minValue++;
 
         for (auto& th : threadPool->threads) {
-            ThreadResult* thResult = &th.get()->result;
             // Votes weighted by depth and difference to the minimum value
-            votes[thResult->rootMoves[0].pv[0]] += (thResult->rootMoves[0].value - minValue + 10) * thResult->rootMoves[0].depth;
+            RootMove* bestMove = &th.get()->rootMoves[0];
+            votes[bestMove->move] += (bestMove->value - minValue + 10) * bestMove->depth;
         }
 
         int i = 0;
         for (auto& th : threadPool->threads) {
-            ThreadResult* thResult = &th.get()->result;
-            Eval thValue = thResult->rootMoves[0].value;
-            Eval bestValue = bestResult->rootMoves[0].value;
+            Thread* thread = th.get();
+            Eval thValue = thread->rootMoves[0].value;
+            Eval bestValue = bestThread->rootMoves[0].value;
+            Move thMove = thread->rootMoves[0].move;
+            Move bestMove = bestThread->rootMoves[0].move;
 
             // In case of checkmate, take the shorter mate / longer getting mated
             if (std::abs(bestValue) >= EVAL_MATE_IN_MAX_PLY) {
                 if (thValue > bestValue)
-                    bestResult = thResult;
+                    bestThread = thread;
             }
             // We have found a mate, take it without voting
             else if (thValue >= EVAL_MATE_IN_MAX_PLY)
-                bestResult = thResult;
+                bestThread = thread;
             // No mate found by any thread so far, take the thread with more votes
-            else if (votes[thResult->rootMoves[0].pv[0]] > votes[bestResult->rootMoves[0].pv[0]])
-                bestResult = thResult;
+            else if (votes[thMove] > votes[bestMove])
+                bestThread = thread;
             // In case of same move, choose the thread with the highest score
-            else if (thResult->rootMoves[0].pv[0] == bestResult->rootMoves[0].pv[0] && thValue > bestValue && thResult->rootMoves[0].pv.size() > 2)
-                bestResult = thResult;
+            else if (thMove == bestMove && thValue > bestValue && thread->rootMoves[0].pv.size() > 2)
+                bestThread = thread;
             i++;
         }
     }
 
-    return bestResult;
+    return bestThread;
 }
