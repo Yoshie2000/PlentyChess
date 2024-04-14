@@ -14,15 +14,11 @@
 #include "tt.h"
 
 struct RootMove {
-    Eval value;
-    int depth;
-    int selDepth;
+    Eval value = -EVAL_INFINITE;
+    int depth = 0;
+    int selDepth = 0;
+    Move move = MOVE_NULL;
     std::vector<Move> pv;
-};
-
-struct ThreadResult {
-    std::vector<RootMove> rootMoves;
-    bool finished;
 };
 
 class ThreadPool;
@@ -41,6 +37,7 @@ public:
     std::condition_variable cv;
 
     bool searching = false;
+    bool stopped = false;
     bool exiting = false;
 
     SearchData searchData;
@@ -53,7 +50,7 @@ public:
     int threadId;
     bool mainThread;
 
-    ThreadResult result;
+    std::vector<RootMove> rootMoves;
     std::map<Move, uint64_t> rootMoveNodes;
     std::vector<Move> excludedRootMoves;
 
@@ -70,8 +67,8 @@ private:
 
     void tsearch();
     void iterativeDeepening();
-    void printUCI(ThreadResult* threadResult, int multiPvCount = 1);
-    ThreadResult* chooseBestThread();
+    void printUCI(Thread* thread, int multiPvCount = 1);
+    Thread* chooseBestThread();
 
 };
 
@@ -110,25 +107,31 @@ public:
         searchParameters = std::move(parameters);
 
         for (auto& thread : threads) {
-            thread.get()->result.rootMoves.clear();
-            thread.get()->result.finished = false;
+            thread.get()->rootMoves.clear();
+            thread.get()->stopped = false;
+            thread.get()->searching = true;
         }
 
         for (auto& thread : threads) {
-            thread.get()->searching = true;
             thread.get()->cv.notify_all();
         }
     }
 
     void stopSearching() {
         for (auto& thread : threads) {
-            thread.get()->searching = false;
+            thread.get()->stopped = true;
         }
     }
 
     void waitForSearchFinished() {
         for (auto& thread : threads) {
             thread.get()->waitForSearchFinished();
+        }
+    }
+
+    void waitForHelpersFinished() {
+        for (std::size_t i = 1; i < threads.size(); i++) {
+            threads[i].get()->waitForSearchFinished();
         }
     }
 
