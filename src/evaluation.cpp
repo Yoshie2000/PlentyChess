@@ -63,6 +63,8 @@ bool SEE(Board* board, Move move, Eval threshold) {
     // If we beat the threshold after losing our piece, pass
     value -= PIECE_VALUES[board->pieces[origin]];
     if (value >= 0) return true;
+    // Pawn captures can never actually lose material
+    if (threshold >= 0 && board->pieces[origin] == PIECE_PAWN && board->pieces[target] != NO_PIECE) return true;
 
     Bitboard occupied = (board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) ^ (C64(1) << origin);
     Bitboard attackersToTarget = attackersTo(board, target, occupied);
