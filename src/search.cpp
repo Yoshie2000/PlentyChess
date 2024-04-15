@@ -619,7 +619,10 @@ movesLoop:
                 continue;
 
             // SEE Pruning
-            if (!pvNode && depth < seeDepth && !SEE(board, move, SEE_MARGIN[depth][!capture]))
+            int seeMargin = SEE_MARGIN[depth][!capture];
+            if (capture)
+                seeMargin -= *thread->history.getCaptureHistory(board, move) / 64;
+            if (!pvNode && depth < seeDepth && !SEE(board, move, seeMargin))
                 continue;
 
         }
