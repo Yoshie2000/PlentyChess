@@ -423,7 +423,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (!excluded) {
         ttEntry = TT.probe(board->stack->hash, &ttHit);
         if (ttHit) {
-            ttMove = ttEntry->bestMove;
+            ttMove = rootNode ? thread->rootMoves[0].move : ttEntry->bestMove;
             ttValue = valueFromTt(ttEntry->value, stack->ply);
             ttEval = ttEntry->eval;
             ttDepth = ttEntry->depth + TT_DEPTH_OFFSET;
@@ -923,6 +923,8 @@ void Thread::iterativeDeepening() {
                 int searchDepth = std::max(1, depth - failHighs);
                 value = search<ROOT_NODE>(&rootBoard, stack, this, searchDepth, alpha, beta, false);
 
+                std::sort(rootMoves.begin(), rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
+
                 // Stop if we need to
                 if (stopped || exiting)
                     break;
@@ -956,7 +958,6 @@ void Thread::iterativeDeepening() {
             excludedRootMoves.push_back(stack->pv[0]);
         }
 
-        std::sort(rootMoves.begin(), rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
         for (int i = 0; i < multiPvCount; i++)
             rootMoves[i].depth = depth;
 
