@@ -10,6 +10,13 @@
 #include "bitboard.h"
 #include "evaluation.h"
 #include "tt.h"
+#include "spsa.h"
+
+TUNE_INT(mpPromotionScoreFactor, 157, 10, 10000);
+TUNE_INT(mpMvvLvaScoreFactor, 218, 10, 10000);
+TUNE_INT(mpSeeDivisor, 79, 10, 150);
+TUNE_INT(mpBadCaptureMvvLvaScoreFactor, 53, 10, 10000);
+TUNE_INT(mpBadCaptureHistoryFactor, 0, 0, 100);
 
 bool isPseudoLegal(Board* board, Move move) {
     Square origin = moveOrigin(move);
@@ -454,7 +461,7 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
     }
 }
 
-Move MoveGen::nextMove() { // 2973208
+Move MoveGen::nextMove() {
     assert((board->byColor[board->stm] & board->byPiece[PIECE_KING]) > 0);
 
     Move* moves = moveList + generatedMoves;
@@ -604,13 +611,13 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
         if ((move & 0x3000) == MOVE_ENPASSANT)
             score += 0;
         else if ((move & 0x3000) == MOVE_PROMOTION)
-            score += PIECE_VALUES[PROMOTION_PIECE[move >> 14]];
+            score += PIECE_VALUES[PROMOTION_PIECE[move >> 14]] * mpPromotionScoreFactor / 100;
         else
-            score += PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
+            score += (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
 
         // Store bad captures in a separate list
         // In qsearch, the SEE check is done later
-        bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : (onlyCaptures || SEE(board, move, -score / 80));
+        bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : (onlyCaptures || SEE(board, move, -score / mpSeeDivisor));
         if (!goodCapture) {
             moveList[i] = moveList[endIndex - 1];
             moveList[endIndex - 1] = MOVE_NONE;
@@ -648,7 +655,7 @@ void MoveGen::scoreBadCaptures() {
     for (int i = 0; i < generatedBadCaptures; i++) {
         Move move = badCaptureList[i];
         // En passent and promotion will always pass SEE, no ttMove will appear here
-        badCaptureScores[i] = PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]];
+        badCaptureScores[i] = (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpBadCaptureMvvLvaScoreFactor / 100 + *history->getCaptureHistory(board, move) * mpBadCaptureHistoryFactor / 100;
     }
 }
 
