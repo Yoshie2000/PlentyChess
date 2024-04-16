@@ -9,7 +9,7 @@
 
 TUNE_INT(contHistBonusFactor, 100, 50, 150);
 TUNE_INT(contHistMalusFactor, 100, 50, 150);
-TUNE_INT(correctionHistoryDivisor, 12288, 5000, 20000);
+TUNE_INT(correctionHistoryDivisor, 12061, 5000, 20000);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
