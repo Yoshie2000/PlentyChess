@@ -588,7 +588,7 @@ movesLoop:
             continue;
 
         bool capture = isCapture(board, move);
-        if (!capture && skipQuiets)
+        if (!capture && skipQuiets && move != movegen.killers[0] && move != movegen.killers[1] && move != movegen.counterMove)
             continue;
 
         if (!isLegal(board, move))
