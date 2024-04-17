@@ -138,13 +138,13 @@ uint64_t perftInternal(Board* board, NNUE* nnue, int depth) {
 
     BoardStack stack;
 
-    Move moves[MAX_MOVES] = { MOVE_NONE };
+    ScoredMove moves[MAX_MOVES] = { MOVE_NONE };
     int moveCount = 0;
     generateMoves(board, moves, &moveCount);
 
     uint64_t nodes = 0;
     for (int i = 0; i < moveCount; i++) {
-        Move move = moves[i];
+        Move move = moves[i].move;
 
         if (!isLegal(board, move))
             continue;
@@ -164,13 +164,13 @@ uint64_t perft(Board* board, int depth) {
     NNUE nnue;
     resetAccumulators(board, &nnue);
 
-    Move moves[MAX_MOVES] = { MOVE_NONE };
+    ScoredMove moves[MAX_MOVES] = { MOVE_NONE };
     int moveCount = 0;
     generateMoves(board, moves, &moveCount);
 
     uint64_t nodes = 0;
     for (int i = 0; i < moveCount; i++) {
-        Move move = moves[i];
+        Move move = moves[i].move;
 
         if (!isLegal(board, move))
             continue;
@@ -859,15 +859,15 @@ void Thread::tsearch() {
 void Thread::iterativeDeepening() {
     int multiPvCount = 0;
     {
-        Move moves[MAX_MOVES] = { MOVE_NONE };
+        ScoredMove moves[MAX_MOVES] = { MOVE_NONE };
         int m = 0;
         generateMoves(&rootBoard, moves, &m);
         for (int i = 0; i < m; i++) {
-            if (isLegal(&rootBoard, moves[i])) {
+            if (isLegal(&rootBoard, moves[i].move)) {
                 multiPvCount++;
 
                 RootMove rootMove = {};
-                rootMove.move = moves[i];
+                rootMove.move = moves[i].move;
                 rootMoves.push_back(rootMove);
             }
         }

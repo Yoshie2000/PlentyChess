@@ -879,12 +879,12 @@ bool isDraw(Board* board) {
             return true;
 
         // If in check, it might be checkmate
-        Move moves[MAX_MOVES] = { MOVE_NONE };
+        ScoredMove moves[MAX_MOVES] = { MOVE_NONE };
         int moveCount = 0;
         int legalMoveCount = 0;
         generateMoves(board, moves, &moveCount);
         for (int i = 0; i < moveCount; i++) {
-            Move move = moves[i];
+            Move move = moves[i].move;
             if (!isLegal(board, move))
                 continue;
             legalMoveCount++;
