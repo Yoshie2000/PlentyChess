@@ -507,8 +507,17 @@ Move MoveGen::nextMove() {
 
     case GEN_STAGE_CAPTURES:
 
-        if (returnedMoves < generatedMoves)
-            return moveList[returnedMoves++];
+        while (returnedMoves < generatedMoves) {
+            Move move = moveList[returnedMoves];
+            int score = moveListScores[returnedMoves++];
+
+            bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : (onlyCaptures || SEE(board, move, -score / mpSeeDivisor));
+            if (!goodCapture) {
+                badCaptureList[flaggedBadCaptures++] = move;
+                continue;
+            }
+            return move;
+        }
 
         if (probCut || onlyCaptures) {
             generationStage = GEN_STAGE_DONE;
@@ -614,19 +623,6 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
             score += PIECE_VALUES[PROMOTION_PIECE[move >> 14]] * mpPromotionScoreFactor / 100;
         else
             score += (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
-
-        // Store bad captures in a separate list
-        // In qsearch, the SEE check is done later
-        bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : (onlyCaptures || SEE(board, move, -score / mpSeeDivisor));
-        if (!goodCapture) {
-            moveList[i] = moveList[endIndex - 1];
-            moveList[endIndex - 1] = MOVE_NONE;
-            badCaptureList[flaggedBadCaptures++] = move;
-            endIndex--;
-            generatedMoves--;
-            i--;
-            continue;
-        }
 
         moveListScores[i] = score;
     }
