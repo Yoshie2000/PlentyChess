@@ -500,15 +500,24 @@ Move MoveGen::nextMove() {
 
         endIndex = scoreGoodCaptures(beginIndex, endIndex);
         moves = moveList + generatedMoves;
-        sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
         generationStage++;
         [[fallthrough]];
 
     case GEN_STAGE_CAPTURES:
 
-        if (returnedMoves < generatedMoves)
-            return moveList[returnedMoves++];
+        while (returnedMoves < generatedMoves) {
+            findBest(moveList, moveListScores, returnedMoves, generatedMoves);
+            Move move = moveList[returnedMoves];
+            int score = moveListScores[returnedMoves++];
+
+            bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : (onlyCaptures || SEE(board, move, -score / mpSeeDivisor));
+            if (!goodCapture) {
+                badCaptureList[generatedBadCaptures++] = move;
+                continue;
+            }
+            return move;
+        }
 
         if (probCut || onlyCaptures) {
             generationStage = GEN_STAGE_DONE;
@@ -560,24 +569,16 @@ Move MoveGen::nextMove() {
 
         endIndex = scoreQuiets(beginIndex, endIndex);
         moves = moveList + generatedMoves;
-        sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
         generationStage++;
         [[fallthrough]];
 
     case GEN_STAGE_REMAINING:
 
-        if (returnedMoves < generatedMoves)
+        if (returnedMoves < generatedMoves) {
+            findBest(moveList, moveListScores, returnedMoves, generatedMoves);
             return moveList[returnedMoves++];
-
-        generationStage++;
-        [[fallthrough]];
-
-    case GEN_STAGE_GEN_BAD_CAPTURES:
-        generatedBadCaptures = flaggedBadCaptures;
-
-        scoreBadCaptures();
-        sortMoves(badCaptureList, badCaptureScores, 0, generatedBadCaptures);
+        }
 
         generationStage++;
         [[fallthrough]];
@@ -615,19 +616,6 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
         else
             score += (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
 
-        // Store bad captures in a separate list
-        // In qsearch, the SEE check is done later
-        bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : (onlyCaptures || SEE(board, move, -score / mpSeeDivisor));
-        if (!goodCapture) {
-            moveList[i] = moveList[endIndex - 1];
-            moveList[endIndex - 1] = MOVE_NONE;
-            badCaptureList[flaggedBadCaptures++] = move;
-            endIndex--;
-            generatedMoves--;
-            i--;
-            continue;
-        }
-
         moveListScores[i] = score;
     }
     return endIndex;
@@ -651,32 +639,20 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
     return endIndex;
 }
 
-void MoveGen::scoreBadCaptures() {
-    for (int i = 0; i < generatedBadCaptures; i++) {
-        Move move = badCaptureList[i];
-        // En passent and promotion will always pass SEE, no ttMove will appear here
-        badCaptureScores[i] = (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpBadCaptureMvvLvaScoreFactor / 100 + *history->getCaptureHistory(board, move) * mpBadCaptureHistoryFactor / 100;
-    }
-}
+void MoveGen::findBest(Move* moves, int* scores, int beginIndex, int endIndex) {
+    int bestIndex = beginIndex;
+    int bestScore = scores[bestIndex];
 
-void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) {
-    int limit = -3500 * depth;
     for (int i = beginIndex + 1; i < endIndex; i++) {
-        if (scores[i] < limit)
-            continue;
-        Move move = moves[i];
         int score = scores[i];
-        int j = i - 1;
-
-        while (j >= beginIndex && scores[j] < score) {
-            moves[j + 1] = moves[j];
-            scores[j + 1] = scores[j];
-            j--;
+        if (score > bestScore) {
+            bestScore = score;
+            bestIndex = i;
         }
-
-        moves[j + 1] = move;
-        scores[j + 1] = score;
     }
+
+    std::swap(moves[beginIndex], moves[bestIndex]);
+    std::swap(scores[beginIndex], scores[bestIndex]);
 }
 
 inline char fileFromSquare(Square square) {

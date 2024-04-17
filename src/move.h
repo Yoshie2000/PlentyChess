@@ -161,8 +161,7 @@ Move stringToMove(char* string, Board* board = nullptr);
 #define GEN_STAGE_GEN_REMAINING 5
 #define GEN_STAGE_REMAINING 6
 
-#define GEN_STAGE_GEN_BAD_CAPTURES 7
-#define GEN_STAGE_BAD_CAPTURES 8
+#define GEN_STAGE_BAD_CAPTURES 7
 
 #define GEN_STAGE_DONE 100
 
@@ -216,8 +215,7 @@ private:
 
     int scoreGoodCaptures(int beginIndex, int endIndex);
     int scoreQuiets(int beginIndex, int endIndex);
-    void scoreBadCaptures();
 
-    void sortMoves(Move* moves, int* scores, int beginIndex, int endIndex);
+    void findBest(Move* moves, int* scores, int beginIndex, int endIndex);
 
 };
