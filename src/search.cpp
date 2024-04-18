@@ -433,6 +433,10 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         }
     }
 
+    // IIR
+    if ((ttMove == MOVE_NONE || ttDepth + 4 < depth) && depth >= iirMinDepth)
+        depth--;
+
     // TT cutoff
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
@@ -461,10 +465,6 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
-
-    // IIR
-    if ((ttMove == MOVE_NONE || ttDepth + 4 < depth) && depth >= iirMinDepth)
-        depth--;
 
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
