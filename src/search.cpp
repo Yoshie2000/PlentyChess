@@ -464,7 +464,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     // IIR
     if ((ttMove == MOVE_NONE || ttDepth + 4 < depth) && depth >= iirMinDepth)
-        depth--;
+        depth -= 1 + 2 * (pvNode && ttMove != MOVE_NONE);
 
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
