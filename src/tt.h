@@ -126,9 +126,7 @@ public:
     }
 
     size_t index(uint64_t hash) {
-        // Find entry
-        __extension__ using uint128 = unsigned __int128;
-        return ((uint128)hash * (uint128)clusterCount) >> 64;
+        return hash % clusterCount;
     }
 
     void prefetch(uint64_t hash) {
