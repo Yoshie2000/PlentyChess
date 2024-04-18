@@ -435,7 +435,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     // TT cutoff
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
-        return ttValue;
+        return ttValue >= beta && std::abs(ttValue) < EVAL_MATE_IN_MAX_PLY ? (ttValue * 3 + beta) / 4 : ttValue;
 
     BoardStack boardStack;
 
