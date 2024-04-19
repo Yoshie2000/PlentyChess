@@ -249,6 +249,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     uint8_t ttFlag = TT_NOBOUND;
     bool ttPv = pvNode;
 
+    thread->nnue.calculateOneAccumulator();
     ttEntry = TT.probe(board->stack->hash, &ttHit);
     if (ttHit) {
         ttMove = ttEntry->bestMove;
@@ -422,6 +423,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     bool ttPv = pvNode;
 
     if (!excluded) {
+        thread->nnue.calculateOneAccumulator();
         ttEntry = TT.probe(board->stack->hash, &ttHit);
         if (ttHit) {
             ttMove = ttEntry->bestMove;

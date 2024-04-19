@@ -69,6 +69,7 @@ void resetAccumulators(Board* board, NNUE* nnue) {
             memcpy(nnue->accumulatorStack[i].colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
         }
         nnue->accumulatorStack[i].numDirtyPieces = 0;
+        nnue->accumulatorStack[i].calculatedDirtyPieces = 0;
     }
 
     for (Square square = 0; square < 64; square++) {
@@ -101,17 +102,18 @@ void NNUE::movePiece(Square origin, Square target, Piece piece, Color pieceColor
     acc->dirtyPieces[acc->numDirtyPieces++] = { origin, target, piece, pieceColor };
 }
 
-void NNUE::calculateAccumulators(int limit) {
+void NNUE::calculateAccumulators() {
     // Starting from the last calculated accumulator, calculate all incremental updates
+    // calculateOneAccumulator();
 
     int i = 0;
-    while (lastCalculatedAccumulator < currentAccumulator && i < limit) {
+    while (lastCalculatedAccumulator < currentAccumulator) {
 
-        Accumulator* inputAcc = &accumulatorStack[lastCalculatedAccumulator];
         Accumulator* outputAcc = &accumulatorStack[lastCalculatedAccumulator + 1];
+        Accumulator* inputAcc = &accumulatorStack[lastCalculatedAccumulator + (outputAcc->calculatedDirtyPieces != 0)];
 
         // Incrementally update all the dirty pieces
-        for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
+        for (int dp = outputAcc->calculatedDirtyPieces; dp < outputAcc->numDirtyPieces; dp++) {
             DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
 
             if (dirtyPiece.origin == NO_SQUARE) {
@@ -126,11 +128,39 @@ void NNUE::calculateAccumulators(int limit) {
 
             // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
             inputAcc = outputAcc;
+            outputAcc->calculatedDirtyPieces++;
         }
 
         lastCalculatedAccumulator++;
         i++;
     }
+}
+
+void NNUE::calculateOneAccumulator() {
+    Accumulator* outputAcc = &accumulatorStack[lastCalculatedAccumulator + 1];
+    Accumulator* inputAcc = &accumulatorStack[lastCalculatedAccumulator + (outputAcc->calculatedDirtyPieces != 0)];
+
+    if (outputAcc->numDirtyPieces < 1) {
+        if (lastCalculatedAccumulator != currentAccumulator)
+            lastCalculatedAccumulator++;
+        return;
+    }
+
+    // Incrementally update all the next dirty pieece
+    DirtyPiece dirtyPiece = outputAcc->dirtyPieces[outputAcc->calculatedDirtyPieces++];
+
+    if (dirtyPiece.origin == NO_SQUARE) {
+        addPieceToAccumulator(inputAcc, outputAcc, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+    }
+    else if (dirtyPiece.target == NO_SQUARE) {
+        removePieceFromAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.piece, dirtyPiece.pieceColor);
+    }
+    else {
+        movePieceInAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+    }
+
+    if (outputAcc->calculatedDirtyPieces == outputAcc->numDirtyPieces)
+        lastCalculatedAccumulator++;
 }
 
 void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
@@ -186,6 +216,7 @@ void NNUE::incrementAccumulator() {
 
 void NNUE::decrementAccumulator() {
     accumulatorStack[currentAccumulator].numDirtyPieces = 0;
+    accumulatorStack[currentAccumulator].calculatedDirtyPieces = 0;
     currentAccumulator--;
     lastCalculatedAccumulator = std::min(currentAccumulator, lastCalculatedAccumulator);
 }

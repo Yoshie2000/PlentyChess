@@ -195,7 +195,7 @@ struct Accumulator {
   alignas(ALIGNMENT) int16_t colors[2][HIDDEN_WIDTH];
 
   DirtyPiece dirtyPieces[4];
-  int numDirtyPieces;
+  int numDirtyPieces, calculatedDirtyPieces;
 };
 
 struct NetworkData {
@@ -227,7 +227,8 @@ public:
 
   Eval evaluate(Board* board);
 
-  void calculateAccumulators(int limit = 10000000);
+  void calculateAccumulators();
+  void calculateOneAccumulator();
   void addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
   void removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
   void movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor);
