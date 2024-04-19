@@ -227,7 +227,7 @@ public:
 
   Eval evaluate(Board* board);
 
-  void calculateAccumulators(int limit = 10000000);
+  void calculateAccumulators();
   void addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
   void removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
   void movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor);

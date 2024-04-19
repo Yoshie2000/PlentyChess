@@ -507,8 +507,17 @@ Move MoveGen::nextMove() {
 
     case GEN_STAGE_CAPTURES:
 
-        if (returnedMoves < generatedMoves)
-            return moveList[returnedMoves++];
+        while (returnedMoves < generatedMoves) {
+            Move move = moveList[returnedMoves];
+            int score = moveListScores[returnedMoves++];
+
+            bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : (onlyCaptures || SEE(board, move, -score / mpSeeDivisor));
+            if (!goodCapture) {
+                badCaptureList[generatedBadCaptures++] = move;
+                continue;
+            }
+            return move;
+        }
 
         if (probCut || onlyCaptures) {
             generationStage = GEN_STAGE_DONE;
@@ -573,15 +582,6 @@ Move MoveGen::nextMove() {
         generationStage++;
         [[fallthrough]];
 
-    case GEN_STAGE_GEN_BAD_CAPTURES:
-        generatedBadCaptures = flaggedBadCaptures;
-
-        scoreBadCaptures();
-        sortMoves(badCaptureList, badCaptureScores, 0, generatedBadCaptures);
-
-        generationStage++;
-        [[fallthrough]];
-
     case GEN_STAGE_BAD_CAPTURES:
 
         if (returnedBadCaptures < generatedBadCaptures)
@@ -615,19 +615,6 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
         else
             score += (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
 
-        // Store bad captures in a separate list
-        // In qsearch, the SEE check is done later
-        bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : (onlyCaptures || SEE(board, move, -score / mpSeeDivisor));
-        if (!goodCapture) {
-            moveList[i] = moveList[endIndex - 1];
-            moveList[endIndex - 1] = MOVE_NONE;
-            badCaptureList[flaggedBadCaptures++] = move;
-            endIndex--;
-            generatedMoves--;
-            i--;
-            continue;
-        }
-
         moveListScores[i] = score;
     }
     return endIndex;
@@ -649,14 +636,6 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
         moveListScores[i] = history->getHistory(board, searchStack, move, false);
     }
     return endIndex;
-}
-
-void MoveGen::scoreBadCaptures() {
-    for (int i = 0; i < generatedBadCaptures; i++) {
-        Move move = badCaptureList[i];
-        // En passent and promotion will always pass SEE, no ttMove will appear here
-        badCaptureScores[i] = (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpBadCaptureMvvLvaScoreFactor / 100 + *history->getCaptureHistory(board, move) * mpBadCaptureHistoryFactor / 100;
-    }
 }
 
 void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) {

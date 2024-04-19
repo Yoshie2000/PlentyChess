@@ -101,11 +101,10 @@ void NNUE::movePiece(Square origin, Square target, Piece piece, Color pieceColor
     acc->dirtyPieces[acc->numDirtyPieces++] = { origin, target, piece, pieceColor };
 }
 
-void NNUE::calculateAccumulators(int limit) {
+void NNUE::calculateAccumulators() {
     // Starting from the last calculated accumulator, calculate all incremental updates
 
-    int i = 0;
-    while (lastCalculatedAccumulator < currentAccumulator && i < limit) {
+    while (lastCalculatedAccumulator < currentAccumulator) {
 
         Accumulator* inputAcc = &accumulatorStack[lastCalculatedAccumulator];
         Accumulator* outputAcc = &accumulatorStack[lastCalculatedAccumulator + 1];
@@ -129,7 +128,6 @@ void NNUE::calculateAccumulators(int limit) {
         }
 
         lastCalculatedAccumulator++;
-        i++;
     }
 }
 
