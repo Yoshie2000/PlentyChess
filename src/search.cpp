@@ -709,6 +709,9 @@ movesLoop:
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
+            
+            if (!capture && (move == stack->killers[0] || move == stack->killers[1] || (stack->ply > 0 && move == thread->history.getCounterMove((stack - 1)->move))))
+                reducedDepth++;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
