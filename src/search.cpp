@@ -705,8 +705,19 @@ movesLoop:
             if (cutNode)
                 reducedDepth -= 2;
 
-            if (capture)
-                reducedDepth += moveHistory / lmrHistoryFactorCapture;
+            if (capture) {
+                int pieceTo = 64 * stack->movedPiece + target;
+                int contHistScore = 0;
+
+                if ((stack - 1)->movedPiece != NO_PIECE)
+                    contHistScore += (stack - 1)->contHist[pieceTo];
+                if ((stack - 2)->movedPiece != NO_PIECE)
+                    contHistScore += (stack - 2)->contHist[pieceTo];
+                if ((stack - 4)->movedPiece != NO_PIECE)
+                    contHistScore += (stack - 4)->contHist[pieceTo];
+
+                reducedDepth += (moveHistory + contHistScore) / lmrHistoryFactorCapture;
+            }
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
@@ -720,10 +731,8 @@ movesLoop:
             if (value > alpha && reducedDepth < newDepth) {
                 value = -search<NON_PV_NODE>(board, stack + 1, thread, newDepth, -(alpha + 1), -alpha, !cutNode);
 
-                if (!capture) {
-                    int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
-                    thread->history.updateContinuationHistory(board, stack, move, bonus);
-                }
+                int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
+                thread->history.updateContinuationHistory(board, stack, move, bonus);
             }
         }
         else if (!pvNode || moveCount > 1) {
