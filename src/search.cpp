@@ -806,12 +806,9 @@ movesLoop:
 
     }
 
-    if (moveCount == 0) {
-        if (board->stack->checkers) {
-            return excluded ? -EVAL_INFINITE : matedIn(stack->ply); // Checkmate
-        }
-        return 0; // Stalemate
-    }
+    // (Check|Stale)mate
+    if (moveCount == 0)
+        bestValue = board->stack->checkers ? (excluded ? alpha : matedIn(stack->ply)) : 0;
 
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
