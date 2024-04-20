@@ -15,6 +15,7 @@
 
 struct RootMove {
     Eval value = -EVAL_INFINITE;
+    Eval averageValue = -EVAL_INFINITE;
     int depth = 0;
     int selDepth = 0;
     Move move = MOVE_NULL;

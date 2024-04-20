@@ -758,6 +758,7 @@ movesLoop:
             if (moveCount == 1 || value > alpha) {
                 rootMove->value = value;
                 rootMove->selDepth = thread->searchData.selDepth;
+                rootMove->averageValue = rootMove->averageValue == -EVAL_INFINITE ? value : (value + rootMove->averageValue) / 2; 
 
                 rootMove->pv.resize(0);
                 rootMove->pv.push_back(move);
@@ -913,10 +914,12 @@ void Thread::iterativeDeepening() {
             Eval value;
 
             if (depth >= aspirationWindowMinDepth) {
+                Eval averageValue = rootMoves[rootMoveIdx].averageValue;
+
                 // Set up interval for the start of this aspiration window
                 delta = aspirationWindowDelta;
-                alpha = std::max(previousValue - delta, -EVAL_INFINITE);
-                beta = std::min(previousValue + delta, (int)EVAL_INFINITE);
+                alpha = std::max(averageValue - delta, -EVAL_INFINITE);
+                beta = std::min(averageValue + delta, (int)EVAL_INFINITE);
             }
 
             int failHighs = 0;
