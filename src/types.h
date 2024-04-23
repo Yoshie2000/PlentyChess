@@ -58,6 +58,7 @@ struct SearchStack {
     Move killers[2];
 
     int doubleExtensions;
+    int cutoffCount;
 
     int16_t* contHist;
 };

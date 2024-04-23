@@ -408,6 +408,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     Eval oldAlpha = alpha;
     bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
+    (stack + 1)->cutoffCount = 0;
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
     (stack + 1)->doubleExtensions = stack->doubleExtensions;
@@ -709,6 +710,9 @@ movesLoop:
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
+            
+            if ((stack + 1)->cutoffCount > 4)
+                reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
@@ -780,6 +784,7 @@ movesLoop:
                     updatePv(stack, move);
 
                 if (bestValue >= beta) {
+                    stack->cutoffCount++;
 
                     int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
                     if (!capture) {
@@ -901,6 +906,7 @@ void Thread::iterativeDeepening() {
                 stackList[i].doubleExtensions = 0;
                 stackList[i].movedPiece = NO_PIECE;
                 stackList[i].move = MOVE_NONE;
+                stackList[i].cutoffCount = 0;
             }
 
             searchData.rootDepth = depth;
