@@ -462,10 +462,6 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
-    // IIR
-    if ((ttMove == MOVE_NONE || ttDepth + 4 < depth) && depth >= iirMinDepth)
-        depth--;
-
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
@@ -473,6 +469,10 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
     }
+
+    // IIR
+    if ((ttMove == MOVE_NONE || ttDepth + 4 - improving < depth) && depth >= iirMinDepth)
+        depth--;
 
     // Reverse futility pruning
     if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving) >= beta)
