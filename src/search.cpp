@@ -406,7 +406,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
-    bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    bool improving = false, worsening = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -469,9 +469,11 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
+        worsening = stack->staticEval + 15 < (stack - 2)->staticEval;
     }
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
+        worsening = stack->staticEval + 15 < (stack - 4)->staticEval;
     }
 
     // Reverse futility pruning
@@ -709,6 +711,9 @@ movesLoop:
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
+            
+            if (worsening)
+                reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
