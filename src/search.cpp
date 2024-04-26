@@ -434,7 +434,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
 
     // TT cutoff
-    if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (!pvNode && ttDepth >= depth - !ttPv && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
     BoardStack boardStack;
