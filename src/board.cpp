@@ -431,8 +431,6 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
             board->byColor[1 - board->stm] ^= captureTargetBB; // take away the captured piece
             board->byPiece[newStack->capturedPiece] ^= captureTargetBB;
 
-            nnue->removePiece(captureTarget, newStack->capturedPiece, (Color)(1 - board->stm));
-
             newStack->pieceCount[1 - board->stm][newStack->capturedPiece]--;
 
             if (newStack->capturedPiece == PIECE_ROOK) {
@@ -458,10 +456,7 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
 
         board->pieces[target] = promotionPiece;
 
-        // Promotion, we don't move the current piece, instead we remove it from the origin square
-        // and place the promotionPiece on the target square. This saves one accumulator update
-        nnue->removePiece(origin, piece, board->stm);
-        nnue->addPiece(target, promotionPiece, board->stm);
+        nnue->addDirtyPiece(origin, target, promotionPiece, board->stm, newStack->capturedPiece, PROMOTION_SQUARE);
 
         newStack->pieceCount[board->stm][PIECE_PAWN]--;
         newStack->pieceCount[board->stm][promotionPiece]++;
@@ -485,8 +480,8 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
         board->byPiece[PIECE_ROOK] ^= rookFromToBB;
         board->byPiece[PIECE_KING] ^= fromTo;
 
-        nnue->movePiece(origin, target, PIECE_KING, board->stm);
-        nnue->movePiece(rookOrigin, rookTarget, PIECE_ROOK, board->stm);
+        nnue->addDirtyPiece(origin, target, PIECE_KING, board->stm, NO_PIECE, NO_SQUARE);
+        nnue->addDirtyPiece(rookOrigin, rookTarget, PIECE_ROOK, board->stm, NO_PIECE, NO_SQUARE);
 
         newStack->capturedPiece = NO_PIECE;
     }
@@ -494,7 +489,6 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
 
     case MOVE_ENPASSANT:
         movePiece(board, piece, origin, target, fromTo);
-        nnue->movePiece(origin, target, piece, board->stm);
         newStack->rule50_ply = 0;
 
         captureTarget = target - UP[board->stm];
@@ -510,7 +504,7 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
         board->byColor[1 - board->stm] ^= captureTargetBB; // take away the captured piece
         board->byPiece[PIECE_PAWN] ^= captureTargetBB;
 
-        nnue->removePiece(captureTarget, PIECE_PAWN, (Color)(1 - board->stm));
+        nnue->addDirtyPiece(origin, target, piece, board->stm, PIECE_PAWN, captureTarget);
 
         newStack->pieceCount[1 - board->stm][PIECE_PAWN]--;
 
@@ -518,7 +512,6 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
 
     default: // Normal moves
         movePiece(board, piece, origin, target, fromTo);
-        nnue->movePiece(origin, target, piece, board->stm);
 
         if (piece == PIECE_PAWN) {
             // Double push
@@ -544,10 +537,13 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
             if (newStack->capturedPiece == PIECE_PAWN)
                 newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[1 - board->stm][PIECE_PAWN][captureTarget];
 
-            nnue->removePiece(captureTarget, newStack->capturedPiece, (Color)(1 - board->stm));
-
             newStack->pieceCount[1 - board->stm][newStack->capturedPiece]--;
             newStack->rule50_ply = 0;
+
+            nnue->addDirtyPiece(origin, target, piece, board->stm, newStack->capturedPiece, captureTarget);
+        }
+        else {
+            nnue->addDirtyPiece(origin, target, piece, board->stm, NO_PIECE, NO_SQUARE);
         }
 
         // Unset castling flags if necessary

@@ -80,25 +80,11 @@ void resetAccumulators(Board* board, NNUE* nnue) {
     }
 }
 
-void NNUE::addPiece(Square square, Piece piece, Color pieceColor) {
+void NNUE::addDirtyPiece(Square origin, Square target, Piece piece, Color pieceColor, Piece capturedPiece, Square captureSquare) {
     assert(piece < NO_PIECE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyPieces[acc->numDirtyPieces++] = { NO_SQUARE, square, piece, pieceColor };
-}
-
-void NNUE::removePiece(Square square, Piece piece, Color pieceColor) {
-    assert(piece < NO_PIECE);
-
-    Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyPieces[acc->numDirtyPieces++] = { square, NO_SQUARE, piece, pieceColor };
-}
-
-void NNUE::movePiece(Square origin, Square target, Piece piece, Color pieceColor) {
-    assert(piece < NO_PIECE);
-
-    Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyPieces[acc->numDirtyPieces++] = { origin, target, piece, pieceColor };
+    acc->dirtyPieces[acc->numDirtyPieces++] = { origin, target, piece, pieceColor, capturedPiece, captureSquare };
 }
 
 void NNUE::calculateAccumulators() {
@@ -113,14 +99,16 @@ void NNUE::calculateAccumulators() {
         for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
             DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
 
-            if (dirtyPiece.origin == NO_SQUARE) {
-                addPieceToAccumulator(inputAcc, outputAcc, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
-            }
-            else if (dirtyPiece.target == NO_SQUARE) {
-                removePieceFromAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.piece, dirtyPiece.pieceColor);
-            }
-            else {
+            switch (dirtyPiece.captureSquare) {
+            case NO_SQUARE: // Normal move
                 movePieceInAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+                break;
+            case PROMOTION_SQUARE: // Promotion
+                doPromotionInAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor, dirtyPiece.capturedPiece);
+                break;
+            default: // Capture
+                capturePieceInAccumulator(inputAcc, outputAcc, dirtyPiece.origin, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor, dirtyPiece.capturedPiece, dirtyPiece.captureSquare);
+                break;
             }
 
             // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
@@ -146,21 +134,6 @@ void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, 
     }
 }
 
-void NNUE::removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
-    for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
-        // Get the index of the piece for this color in the input layer
-        int weightOffset = getFeatureOffset(side, piece, pieceColor, square);
-
-        Vec* inputVec = (Vec*)inputAcc->colors[side];
-        Vec* outputVec = (Vec*)outputAcc->colors[side];
-        Vec* weightsVec = (Vec*)networkData.featureWeights;
-
-        // The number of iterations to compute the hidden layer depends on the size of the vector registers
-        for (int i = 0; i < HIDDEN_ITERATIONS; ++i)
-            outputVec[i] = subEpi16(inputVec[i], weightsVec[weightOffset + i]);
-    }
-}
-
 void NNUE::movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor) {
     for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
         // Get the index of the piece squares for this color in the input layer
@@ -174,6 +147,51 @@ void NNUE::movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc,
         // The number of iterations to compute the hidden layer depends on the size of the vector registers
         for (int i = 0; i < HIDDEN_ITERATIONS; ++i) {
             outputVec[i] = subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]);
+        }
+    }
+}
+
+void NNUE::capturePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor, Piece capturedPiece, Square captureTarget) {
+    assert(capturedPiece != NO_PIECE);
+    assert(captureTarget != NO_SQUARE);
+    for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
+        // Get the index of the piece squares for this color in the input layer
+        int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin);
+        int subtractWeightOffset2 = getFeatureOffset(side, capturedPiece, 1 - pieceColor, captureTarget);
+        int addWeightOffset = getFeatureOffset(side, piece, pieceColor, target);
+
+        Vec* inputVec = (Vec*)inputAcc->colors[side];
+        Vec* outputVec = (Vec*)outputAcc->colors[side];
+        Vec* weightsVec = (Vec*)networkData.featureWeights;
+
+        // The number of iterations to compute the hidden layer depends on the size of the vector registers
+        for (int i = 0; i < HIDDEN_ITERATIONS; ++i) {
+            outputVec[i] = subEpi16(subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]), weightsVec[subtractWeightOffset2 + i]);
+        }
+    }
+}
+
+void NNUE::doPromotionInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece promotionPiece, Color pieceColor, Piece capturedPiece) {
+    for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
+        // Get the index of the piece squares for this color in the input layer
+        int subtractWeightOffset = getFeatureOffset(side, PIECE_PAWN, pieceColor, origin);
+        int subtractWeightOffset2 = getFeatureOffset(side, capturedPiece, 1 - pieceColor, target);
+        int addWeightOffset = getFeatureOffset(side, promotionPiece, pieceColor, target);
+
+        Vec* inputVec = (Vec*)inputAcc->colors[side];
+        Vec* outputVec = (Vec*)outputAcc->colors[side];
+        Vec* weightsVec = (Vec*)networkData.featureWeights;
+
+        // The number of iterations to compute the hidden layer depends on the size of the vector registers
+        if (capturedPiece == NO_PIECE) {
+            for (int i = 0; i < HIDDEN_ITERATIONS; ++i) {
+                outputVec[i] = subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]);
+            }
+        }
+        else {
+            for (int i = 0; i < HIDDEN_ITERATIONS; ++i) {
+                outputVec[i] = subEpi16(subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]), weightsVec[subtractWeightOffset2 + i]);
+            }
         }
     }
 }

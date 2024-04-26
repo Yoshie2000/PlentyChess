@@ -184,17 +184,23 @@ constexpr int WEIGHTS_PER_VEC = sizeof(Vec) / sizeof(int16_t);
 
 constexpr int HIDDEN_ITERATIONS = HIDDEN_WIDTH / WEIGHTS_PER_VEC;
 
+// Format
+// - Move: from, to, piece, color, NO_SQUARE, NO_SQUARE
+// - Capture: from, to, piece, color, capturedPiece, captureSquare
+// - Promotion: from, to, promotionPiece, color, capturedPiece, PROMOTION_SQUARE
 struct DirtyPiece {
   Square origin;
   Square target;
   Piece piece;
   Color pieceColor;
+  Piece capturedPiece;
+  Square captureSquare;
 };
 
 struct Accumulator {
   alignas(ALIGNMENT) int16_t colors[2][HIDDEN_WIDTH];
 
-  DirtyPiece dirtyPieces[4];
+  DirtyPiece dirtyPieces[2];
   int numDirtyPieces;
 };
 
@@ -218,9 +224,7 @@ public:
   int currentAccumulator;
   int lastCalculatedAccumulator;
 
-  void addPiece(Square square, Piece piece, Color pieceColor);
-  void removePiece(Square square, Piece piece, Color pieceColor);
-  void movePiece(Square origin, Square target, Piece piece, Color pieceColor);
+  void addDirtyPiece(Square origin, Square target, Piece piece, Color pieceColor, Piece capturedPiece, Square captureSquare);
 
   void incrementAccumulator();
   void decrementAccumulator();
@@ -229,8 +233,9 @@ public:
 
   void calculateAccumulators();
   void addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
-  void removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
   void movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor);
+  void capturePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor, Piece capturedPiece, Square captureTarget);
+  void doPromotionInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece promotionPiece, Color pieceColor, Piece capturedPiece);
 
 };
 

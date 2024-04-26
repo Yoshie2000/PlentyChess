@@ -21,6 +21,7 @@
 #define COLOR_BLACK 1
 
 #define NO_SQUARE 64
+#define PROMOTION_SQUARE 65
 
 typedef uint8_t Piece;
 typedef uint8_t Square;
