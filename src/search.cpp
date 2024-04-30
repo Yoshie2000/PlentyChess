@@ -22,22 +22,22 @@
 #include "uci.h"
 
 // Time management
-TUNE_FLOAT(tmInitialAdjustment, 1.038707880252744f, 0.5f, 1.5f);
-TUNE_INT(tmBestMoveStabilityMax, 18, 10, 30);
-TUNE_FLOAT(tmBestMoveStabilityBase, 1.4635196143056373f, 0.75f, 2.5f);
-TUNE_FLOAT(tmBestMoveStabilityFactor, 0.046015069850078784f, 0.001f, 0.1f);
-TUNE_FLOAT(tmEvalDiffBase, 0.9044506885901331f, 0.5f, 1.5f);
-TUNE_FLOAT(tmEvalDiffFactor, 0.009016012421365847f, 0.001f, 0.1f);
-TUNE_INT(tmEvalDiffMin, -12, -250, 50);
-TUNE_INT(tmEvalDiffMax, 53, -50, 250);
-TUNE_FLOAT(tmNodesBase, 1.9024818673722808, 0.5f, 5.0f);
-TUNE_FLOAT(tmNodesFactor, 0.8232579381384832, 0.1f, 2.5f);
+TUNE_FLOAT_DISABLED(tmInitialAdjustment, 1.038707880252744f, 0.5f, 1.5f);
+TUNE_INT_DISABLED(tmBestMoveStabilityMax, 18, 10, 30);
+TUNE_FLOAT_DISABLED(tmBestMoveStabilityBase, 1.4635196143056373f, 0.75f, 2.5f);
+TUNE_FLOAT_DISABLED(tmBestMoveStabilityFactor, 0.046015069850078784f, 0.001f, 0.1f);
+TUNE_FLOAT_DISABLED(tmEvalDiffBase, 0.9044506885901331f, 0.5f, 1.5f);
+TUNE_FLOAT_DISABLED(tmEvalDiffFactor, 0.009016012421365847f, 0.001f, 0.1f);
+TUNE_INT_DISABLED(tmEvalDiffMin, -12, -250, 50);
+TUNE_INT_DISABLED(tmEvalDiffMax, 53, -50, 250);
+TUNE_FLOAT_DISABLED(tmNodesBase, 1.9024818673722808, 0.5f, 5.0f);
+TUNE_FLOAT_DISABLED(tmNodesFactor, 0.8232579381384832, 0.1f, 2.5f);
 
 // Aspiration windows
-TUNE_INT(aspirationWindowMinDepth, 4, 2, 6);
-TUNE_INT(aspirationWindowDelta, 17, 1, 30);
-TUNE_INT(aspirationWindowMaxFailHighs, 3, 1, 10);
-TUNE_FLOAT(aspirationWindowDeltaFactor, 1.7790758047922646, 1.0f, 3.0f);
+TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 6);
+TUNE_INT_DISABLED(aspirationWindowDelta, 17, 1, 30);
+TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 1, 10);
+TUNE_FLOAT_DISABLED(aspirationWindowDeltaFactor, 1.7790758047922646, 1.0f, 3.0f);
 
 // Reduction / Margin tables
 TUNE_FLOAT(lmrReductionNoisyBase, -0.4098500023568062, -2.0f, -0.1f);
@@ -59,6 +59,7 @@ TUNE_INT(qsFutilityOffset, 56, 1, 125);
 TUNE_INT(qsSeeMargin, -101, -200, 50);
 
 // Pre-search pruning
+TUNE_INT(worseningOffset, 15, 0, 50);
 TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 
 TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
@@ -73,6 +74,7 @@ TUNE_INT_DISABLED(nmpMin, 3, 1, 10);
 TUNE_INT(nmpDivisor, 152, 10, 1000);
 
 TUNE_INT(probCutBetaOffset, 227, 1, 500);
+TUNE_INT(probCutBetaOffsetImproving, 0, -50, 500);
 TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 
 // In-search pruning
@@ -469,11 +471,11 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
-        worsening = stack->staticEval + 15 < (stack - 2)->staticEval;
+        worsening = stack->staticEval + worseningOffset < (stack - 2)->staticEval;
     }
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
-        worsening = stack->staticEval + 15 < (stack - 4)->staticEval;
+        worsening = stack->staticEval + worseningOffset < (stack - 4)->staticEval;
     }
 
     // Reverse futility pruning
@@ -527,7 +529,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
 
     // ProbCut
-    probCutBeta = std::min(beta + probCutBetaOffset, EVAL_MATE_IN_MAX_PLY - 1);
+    probCutBeta = std::min(beta + probCutBetaOffset - probCutBetaOffsetImproving * improving, EVAL_MATE_IN_MAX_PLY - 1);
     if (!pvNode
         && !excluded
         && depth > probCutDepth
