@@ -776,10 +776,10 @@ movesLoop:
 
         if (value > bestValue) {
             bestValue = value;
-            bestMove = move;
 
             if (value > alpha) {
                 alpha = value;
+                bestMove = move;
 
                 if (pvNode)
                     updatePv(stack, move);
