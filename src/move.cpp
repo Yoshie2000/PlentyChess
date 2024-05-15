@@ -473,6 +473,7 @@ Move MoveGen::nextMove() {
 
         generationStage++;
         if (ttMove != MOVE_NONE && ttMove != MOVE_NULL && isPseudoLegal(board, ttMove)) {
+            outputStage = GEN_STAGE_TTMOVE;
             return ttMove;
         }
 
@@ -516,6 +517,7 @@ Move MoveGen::nextMove() {
                 badCaptureList[generatedBadCaptures++] = move;
                 continue;
             }
+            outputStage = GEN_STAGE_CAPTURES;
             return move;
         }
 
@@ -531,6 +533,7 @@ Move MoveGen::nextMove() {
         while (killerCount < 2) {
             Move killer = killers[killerCount++];
 
+            outputStage = GEN_STAGE_KILLERS;
             if (killer != MOVE_NONE && killer != ttMove && isPseudoLegal(board, killer))
                 return killer;
         }
@@ -541,6 +544,7 @@ Move MoveGen::nextMove() {
     case GEN_STAGE_COUNTERMOVES:
 
         generationStage++;
+        outputStage = GEN_STAGE_COUNTERMOVES;
         if (counterMove != MOVE_NONE && counterMove != ttMove && counterMove != killers[0] && counterMove != killers[1] && !isCapture(board, counterMove) && isPseudoLegal(board, counterMove))
             return counterMove;
 
@@ -576,6 +580,7 @@ Move MoveGen::nextMove() {
 
     case GEN_STAGE_REMAINING:
 
+        outputStage = GEN_STAGE_REMAINING;
         if (returnedMoves < generatedMoves)
             return moveList[returnedMoves++];
 
@@ -584,6 +589,7 @@ Move MoveGen::nextMove() {
 
     case GEN_STAGE_BAD_CAPTURES:
 
+        outputStage = GEN_STAGE_BAD_CAPTURES;
         if (returnedBadCaptures < generatedBadCaptures)
             return badCaptureList[returnedBadCaptures++];
 

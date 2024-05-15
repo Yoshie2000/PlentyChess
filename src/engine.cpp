@@ -4,6 +4,7 @@
 #include "magic.h"
 #include "bitboard.h"
 #include "nnue.h"
+#include "debug.h"
 
 int main(int argc, char* argv[]) {
     generateMagics();
@@ -17,5 +18,8 @@ int main(int argc, char* argv[]) {
     TT.clear();
 
     uciLoop(argc, argv);
+
+    Debug::printMean();
+
     return 0;
 }
