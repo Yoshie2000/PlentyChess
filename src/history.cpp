@@ -77,6 +77,7 @@ int History::getContinuationHistory(Board* board, SearchStack* stack, Move move)
     return score;
 }
 
+template int History::getContinuationHistory<1, 2>(Board* board, SearchStack* stack, Move move);
 template int History::getContinuationHistory<1, 2, 4>(Board* board, SearchStack* stack, Move move);
 
 template<int... indices>

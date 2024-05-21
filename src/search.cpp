@@ -709,8 +709,10 @@ movesLoop:
 
             if (capture)
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
-            else
+            else {
+                moveHistory = thread->history.getQuietHistory(board, move) + 2 * thread->history.getContinuationHistory<1, 2>(board, stack, move);
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
+            }
             
             if (worsening)
                 reducedDepth--;
