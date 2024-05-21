@@ -618,7 +618,8 @@ movesLoop:
             }
 
             // History pruning
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
+            int pruningHistory = capture ? moveHistory : thread->history.getContinuationHistory<1, 2>(board, stack, move);
+            if (!pvNode && lmrDepth < historyPruningDepth && pruningHistory < historyPruningFactor * depth)
                 continue;
 
             // SEE Pruning
@@ -709,10 +710,8 @@ movesLoop:
 
             if (capture)
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
-            else {
-                moveHistory = thread->history.getQuietHistory(board, move) + 2 * thread->history.getContinuationHistory<1, 2>(board, stack, move);
+            else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
-            }
             
             if (worsening)
                 reducedDepth--;
