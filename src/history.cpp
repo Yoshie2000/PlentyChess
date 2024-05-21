@@ -71,14 +71,14 @@ int History::getContinuationHistory(Board* board, SearchStack* stack, Move move)
     constexpr int indicesArray[] = { indices... };
     for (int i : indicesArray) {
         if ((stack - i)->movedPiece != NO_PIECE)
-            score += (stack - i)->contHist[pieceTo];
+            score += (stack - i)->contHist[pieceTo] / (1 + 3 * (i == 3));
     }
 
     return score;
 }
 
-template int History::getContinuationHistory<1, 2>(Board* board, SearchStack* stack, Move move);
 template int History::getContinuationHistory<1, 2, 4>(Board* board, SearchStack* stack, Move move);
+template int History::getContinuationHistory<1, 2, 3, 4>(Board* board, SearchStack* stack, Move move);
 
 template<int... indices>
 void History::updateContinuationHistory(Board* board, SearchStack* stack, Move move, int16_t bonus) {
@@ -93,7 +93,7 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
 
     Square target = moveTarget(move);
 
-    int16_t scaledBonus = bonus - getContinuationHistory<1, 2, 4>(board, stack, move) * std::abs(bonus) / 32000;
+    int16_t scaledBonus = bonus - getContinuationHistory<indices...>(board, stack, move) * std::abs(bonus) / 32000;
     int pieceTo = 64 * piece + target;
 
     constexpr int indicesArray[] = { indices... };
