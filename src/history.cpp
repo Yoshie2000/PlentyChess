@@ -40,7 +40,7 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(board, move) + 2 * getContinuationHistory(board, searchStack, move);
+        return getQuietHistory(board, move) + 2 * getContinuationHistory<1, 2, 4>(board, searchStack, move);
     }
 }
 
@@ -53,6 +53,7 @@ void History::updateQuietHistory(Board* board, Move move, int16_t bonus) {
     quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += scaledBonus;
 }
 
+template<int... indices>
 int History::getContinuationHistory(Board* board, SearchStack* stack, Move move) {
     Piece piece = board->pieces[moveOrigin(move)];
     if (piece == NO_PIECE)
@@ -67,18 +68,18 @@ int History::getContinuationHistory(Board* board, SearchStack* stack, Move move)
     int score = 0;
     int pieceTo = 64 * piece + target;
 
-    if ((stack - 1)->movedPiece != NO_PIECE)
-        score += (stack - 1)->contHist[pieceTo];
-
-    if ((stack - 2)->movedPiece != NO_PIECE)
-        score += (stack - 2)->contHist[pieceTo];
-
-    if ((stack - 4)->movedPiece != NO_PIECE)
-        score += (stack - 4)->contHist[pieceTo];
+    constexpr int indicesArray[] = { indices... };
+    for (int i : indicesArray) {
+        if ((stack - i)->movedPiece != NO_PIECE)
+            score += (stack - i)->contHist[pieceTo];
+    }
 
     return score;
 }
 
+template int History::getContinuationHistory<1, 2, 4>(Board* board, SearchStack* stack, Move move);
+
+template<int... indices>
 void History::updateContinuationHistory(Board* board, SearchStack* stack, Move move, int16_t bonus) {
     // Update continuationHistory
     Piece piece = board->pieces[moveOrigin(move)];
@@ -91,21 +92,17 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
 
     Square target = moveTarget(move);
 
-    int16_t scaledBonus = bonus - getContinuationHistory(board, stack, move) * std::abs(bonus) / 32000;
+    int16_t scaledBonus = bonus - getContinuationHistory<1, 2, 4>(board, stack, move) * std::abs(bonus) / 32000;
     int pieceTo = 64 * piece + target;
 
-    if ((stack - 1)->movedPiece != NO_PIECE)
-        (stack - 1)->contHist[pieceTo] += scaledBonus;
-
-    if ((stack - 2)->movedPiece != NO_PIECE)
-        (stack - 2)->contHist[pieceTo] += scaledBonus;
-    
-    if ((stack - 3)->movedPiece != NO_PIECE)
-        (stack - 3)->contHist[pieceTo] += scaledBonus / 4;
-
-    if ((stack - 4)->movedPiece != NO_PIECE)
-        (stack - 4)->contHist[pieceTo] += scaledBonus;
+    constexpr int indicesArray[] = { indices... };
+    for (int i : indicesArray) {
+        if ((stack - i)->movedPiece != NO_PIECE)
+            (stack - i)->contHist[pieceTo] += scaledBonus / (1 + 3 * (i == 3));
+    }
 }
+
+template void History::updateContinuationHistory<1, 2, 3, 4>(Board* board, SearchStack* stack, Move move, int16_t bonus);
 
 int16_t* History::getCaptureHistory(Board* board, Move move) {
     Piece movedPiece = board->pieces[moveOrigin(move)];
@@ -142,14 +139,14 @@ void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move*
 void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
     updateQuietHistory(board, move, bonus);
-    updateContinuationHistory(board, stack, move, bonus * 100 / contHistBonusFactor);
+    updateContinuationHistory<1, 2, 3, 4>(board, stack, move, bonus * 100 / contHistBonusFactor);
 
     // Decrease stats for all other quiets
     for (int i = 0; i < quietMoveCount; i++) {
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
         updateQuietHistory(board, qMove, -bonus);
-        updateContinuationHistory(board, stack, qMove, -bonus * 100 / contHistMalusFactor);
+        updateContinuationHistory<1, 2, 3, 4>(board, stack, qMove, -bonus * 100 / contHistMalusFactor);
     }
 }
 

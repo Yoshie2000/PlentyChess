@@ -727,7 +727,7 @@ movesLoop:
 
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
-                    thread->history.updateContinuationHistory(board, stack, move, bonus);
+                    thread->history.updateContinuationHistory<1, 2, 3, 4>(board, stack, move, bonus);
                 }
             }
         }

@@ -27,7 +27,9 @@ public:
     int16_t getQuietHistory(Board* board, Move move);
     void updateQuietHistory(Board* board, Move move, int16_t bonus);
 
+    template<int... indices>
     int getContinuationHistory(Board* board, SearchStack* stack, Move move);
+    template<int... indices>
     void updateContinuationHistory(Board* board, SearchStack* stack, Move move, int16_t bonus);
 
     int16_t* getCaptureHistory(Board* board, Move move);
