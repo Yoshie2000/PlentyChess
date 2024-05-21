@@ -618,7 +618,7 @@ movesLoop:
             }
 
             // History pruning
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
+            if (!pvNode && !capture && lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
                 continue;
 
             // SEE Pruning
