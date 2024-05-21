@@ -12,11 +12,9 @@
 #include "tt.h"
 #include "spsa.h"
 
-TUNE_INT(mpPromotionScoreFactor, 157, 10, 10000);
-TUNE_INT(mpMvvLvaScoreFactor, 218, 10, 10000);
-TUNE_INT(mpSeeDivisor, 79, 10, 150);
-TUNE_INT(mpBadCaptureMvvLvaScoreFactor, 53, 10, 10000);
-TUNE_INT(mpBadCaptureHistoryFactor, 0, 0, 100);
+TUNE_INT(mpPromotionScoreFactor, 48, 10, 10000);
+TUNE_INT(mpMvvLvaScoreFactor, 219, 10, 10000);
+TUNE_INT(mpSeeDivisor, 80, 10, 150);
 
 bool isPseudoLegal(Board* board, Move move) {
     Square origin = moveOrigin(move);
