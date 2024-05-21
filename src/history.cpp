@@ -98,6 +98,8 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
 
     constexpr int indicesArray[] = { indices... };
     for (int i : indicesArray) {
+        if (board->stack->checkers && i > 2)
+            break;
         if ((stack - i)->movedPiece != NO_PIECE)
             (stack - i)->contHist[pieceTo] += scaledBonus / (1 + 3 * (i == 3));
     }
