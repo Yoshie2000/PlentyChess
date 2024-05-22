@@ -84,7 +84,6 @@ TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
 TUNE_INT(historyPruningFactor, -2301, -8192, -128);
 
 TUNE_INT(doubleExtensionMargin, 15, 1, 30);
-TUNE_INT(doubleExtensionLimit, 12, 1, 30);
 TUNE_INT(doubleExtensionDepthIncrease, 10, 2, 20);
 
 TUNE_INT_DISABLED(seeDepth, 9, 2, 15);
@@ -410,7 +409,6 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
-    (stack + 1)->doubleExtensions = stack->doubleExtensions;
 
     // TT Lookup
     bool ttHit = false;
@@ -648,9 +646,8 @@ movesLoop:
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
                 extension = 1;
-                if (!pvNode && singularValue + doubleExtensionMargin < singularBeta && stack->doubleExtensions <= doubleExtensionLimit) {
+                if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
                     extension = 2;
-                    stack->doubleExtensions = (stack - 1)->doubleExtensions + 1;
                     depth += depth < doubleExtensionDepthIncrease;
                 }
             }
@@ -903,7 +900,6 @@ void Thread::iterativeDeepening() {
                 stackList[i].excludedMove = MOVE_NONE;
                 stackList[i].killers[0] = MOVE_NONE;
                 stackList[i].killers[1] = MOVE_NONE;
-                stackList[i].doubleExtensions = 0;
                 stackList[i].movedPiece = NO_PIECE;
                 stackList[i].move = MOVE_NONE;
             }
