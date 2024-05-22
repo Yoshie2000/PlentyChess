@@ -690,8 +690,8 @@ movesLoop:
         thread->searchData.nodesSearched++;
         doMove(board, &boardStack, move, newHash, &thread->nnue);
 
-        if (doExtensions && extension == 0 && board->stack->checkers)
-            extension = 1;
+        if (doExtensions && extension <= 0 && board->stack->checkers)
+            extension++;
 
         Eval value = 0;
         int newDepth = depth - 1 + extension;
