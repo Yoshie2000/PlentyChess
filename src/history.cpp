@@ -40,7 +40,7 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(board, move) + 2 * getContinuationHistory<1, 2, 4>(board, searchStack, move);
+        return getQuietHistory(board, move) + 2 * getContinuationHistory<1, 2>(board, searchStack, move);
     }
 }
 
@@ -77,8 +77,8 @@ int History::getContinuationHistory(Board* board, SearchStack* stack, Move move)
     return score;
 }
 
-template int History::getContinuationHistory<1, 2, 4>(Board* board, SearchStack* stack, Move move);
-template int History::getContinuationHistory<1, 2, 3, 4>(Board* board, SearchStack* stack, Move move);
+template int History::getContinuationHistory<1, 2>(Board* board, SearchStack* stack, Move move);
+template int History::getContinuationHistory<1, 2, 3>(Board* board, SearchStack* stack, Move move);
 
 template<int... indices>
 void History::updateContinuationHistory(Board* board, SearchStack* stack, Move move, int16_t bonus) {
@@ -103,7 +103,7 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
     }
 }
 
-template void History::updateContinuationHistory<1, 2, 3, 4>(Board* board, SearchStack* stack, Move move, int16_t bonus);
+template void History::updateContinuationHistory<1, 2, 3>(Board* board, SearchStack* stack, Move move, int16_t bonus);
 
 int16_t* History::getCaptureHistory(Board* board, Move move) {
     Piece movedPiece = board->pieces[moveOrigin(move)];
@@ -140,14 +140,14 @@ void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move*
 void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
     updateQuietHistory(board, move, bonus);
-    updateContinuationHistory<1, 2, 3, 4>(board, stack, move, bonus * 100 / contHistBonusFactor);
+    updateContinuationHistory<1, 2, 3>(board, stack, move, bonus * 100 / contHistBonusFactor);
 
     // Decrease stats for all other quiets
     for (int i = 0; i < quietMoveCount; i++) {
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
         updateQuietHistory(board, qMove, -bonus);
-        updateContinuationHistory<1, 2, 3, 4>(board, stack, qMove, -bonus * 100 / contHistMalusFactor);
+        updateContinuationHistory<1, 2, 3>(board, stack, qMove, -bonus * 100 / contHistMalusFactor);
     }
 }
 
