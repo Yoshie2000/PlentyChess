@@ -49,13 +49,12 @@ struct TTEntry {
     int16_t value = EVAL_NONE;
 
     void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags) {
-        // Preserve existing moves for the same position
+        // Always update ttMove for the same position, unless new move is MOVE_NONE
         if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
             bestMove = _bestMove;
 
         if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth - TT_DEPTH_OFFSET + 2 * wasPv > depth - 4) {
             hash = (uint16_t)_hash;
-            bestMove = _bestMove;
             depth = _depth - TT_DEPTH_OFFSET;
             value = _value;
             eval = _eval;
