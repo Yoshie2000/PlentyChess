@@ -816,12 +816,13 @@ movesLoop:
     }
 
     // Insert into TT
+    bool alphaRaise = alpha != oldAlpha;
     int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
         ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
-    if (!board->stack->checkers && !isCapture(board, bestMove) && (bestValue < beta || bestValue > stack->staticEval)) {
+    if (!board->stack->checkers && !isCapture(board, bestMove) && (bestValue < beta || bestValue > stack->staticEval) && (alphaRaise || bestValue <= stack->staticEval)) {
         int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         thread->history.updateCorrectionHistory(board, bonus);
     }
