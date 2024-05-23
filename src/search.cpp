@@ -83,7 +83,7 @@ TUNE_INT(fpFactor, 128, 1, 500);
 TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
 TUNE_INT(historyPruningFactor, -2301, -8192, -128);
 
-TUNE_INT(doubleExtensionMargin, 15, 1, 30);
+TUNE_INT(doubleExtensionMargin, 1, 1, 30);
 TUNE_INT(doubleExtensionDepthIncrease, 10, 2, 20);
 
 TUNE_INT_DISABLED(seeDepth, 9, 2, 15);
