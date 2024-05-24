@@ -11,6 +11,10 @@ const Eval PIECE_VALUES[PIECE_TYPES + 1] = {
     100, 300, 300, 500, 900, 0, 0
 };
 
+const Eval SEE_VALUES[PIECE_TYPES + 1] = {
+    90, 290, 310, 570, 1000, 0, 0
+};
+
 int getMaterialScale(Board* board) {
     int knightCount = board->stack->pieceCount[COLOR_WHITE][PIECE_KNIGHT] + board->stack->pieceCount[COLOR_BLACK][PIECE_KNIGHT];
     int bishopCount = board->stack->pieceCount[COLOR_WHITE][PIECE_BISHOP] + board->stack->pieceCount[COLOR_BLACK][PIECE_BISHOP];
@@ -57,11 +61,11 @@ bool SEE(Board* board, Move move, Eval threshold) {
     Square target = moveTarget(move);
 
     // If winning the piece on the target square (if there is one) for free doesn't pass the threshold, fail
-    int value = PIECE_VALUES[board->pieces[target]] - threshold;
+    int value = SEE_VALUES[board->pieces[target]] - threshold;
     if (value < 0) return false;
 
     // If we beat the threshold after losing our piece, pass
-    value -= PIECE_VALUES[board->pieces[origin]];
+    value -= SEE_VALUES[board->pieces[origin]];
     if (value >= 0) return true;
 
     Bitboard occupied = (board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) ^ (C64(1) << origin);
@@ -91,7 +95,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
         }
 
         side = 1 - side;
-        value = -value - 1 - PIECE_VALUES[piece];
+        value = -value - 1 - SEE_VALUES[piece];
         
         // Value beats (or can't beat) threshold (negamax)
         if (value >= 0) {
