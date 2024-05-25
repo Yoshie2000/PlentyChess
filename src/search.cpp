@@ -237,7 +237,6 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     BoardStack boardStack;
     Move bestMove = MOVE_NONE;
     Eval bestValue, futilityValue, unadjustedEval;
-    Eval oldAlpha = alpha;
 
     // TT Lookup
     bool ttHit = false;
@@ -353,7 +352,7 @@ movesLoopQsearch:
     }
 
     // Insert into TT
-    int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
+    int flags = bestValue >= beta ? TT_LOWERBOUND : TT_UPPERBOUND;
     ttEntry->update(board->stack->hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     return bestValue;
