@@ -268,6 +268,9 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     else if (ttHit && ttEval != EVAL_NONE) {
         unadjustedEval = ttEval;
         stack->staticEval = bestValue = thread->history.correctStaticEval(unadjustedEval, board);
+
+        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
+            bestValue = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &thread->nnue);
