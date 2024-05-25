@@ -23,9 +23,15 @@ else ifeq ($(arch), generic)
 	CXXFLAGS := $(CXXFLAGS)
 else
 	CXXFLAGS := $(CXXFLAGS) -march=native
-	HAS_BMI2 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__BMI2__")
-	IS_ZEN1  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver1")
-	IS_ZEN2  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver2")
+	ifeq ($(OS), Windows_NT)
+		HAS_BMI2 := $(shell .\detect_flags.bat $(CXX) __BMI2__)
+		IS_ZEN1  := $(shell .\detect_flags.bat $(CXX) __znver1)
+		IS_ZEN2  := $(shell .\detect_flags.bat $(CXX) __znver2)
+	else
+		HAS_BMI2 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__BMI2__")
+		IS_ZEN1  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver1")
+		IS_ZEN2  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver2")
+	endif
 # On Zen1/2 systems, which have slow PEXT instructions, we don't want to build with BMI2
 	ifeq ($(HAS_BMI2),1)
 		ifneq ($(IS_ZEN1),1)
