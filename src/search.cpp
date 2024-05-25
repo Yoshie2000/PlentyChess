@@ -234,10 +234,6 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     if (thread->stopped || thread->exiting || stack->ply >= MAX_PLY || isDraw(board))
         return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &thread->nnue) : drawEval(thread);
 
-    BoardStack boardStack;
-    Move bestMove = MOVE_NONE;
-    Eval bestValue, futilityValue, unadjustedEval;
-
     // TT Lookup
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
@@ -259,6 +255,9 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     // TT cutoff
     if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
+
+    Move bestMove = MOVE_NONE;
+    Eval bestValue, futilityValue, unadjustedEval;
 
     if (board->stack->checkers) {
         stack->staticEval = bestValue = unadjustedEval = futilityValue = -EVAL_INFINITE;
@@ -290,6 +289,8 @@ movesLoopQsearch:
     beta = std::min((int)beta, (int)mateIn(stack->ply + 1));
     if (alpha >= beta)
         return alpha;
+
+    BoardStack boardStack;
 
     // Moves loop
     MoveGen movegen(board, &thread->history, stack, ttMove, !board->stack->checkers, 1);
@@ -335,9 +336,9 @@ movesLoopQsearch:
 
         if (value > bestValue) {
             bestValue = value;
-            bestMove = move;
 
             if (value > alpha) {
+                bestMove = move;
                 alpha = value;
 
                 if (pvNode)
@@ -437,8 +438,6 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
-    BoardStack boardStack;
-
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
     if (board->stack->checkers) {
@@ -486,6 +485,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         if (razorValue <= alpha)
             return razorValue;
     }
+
+    BoardStack boardStack;
 
     // Null move pruning
     if (!pvNode
@@ -775,9 +776,9 @@ movesLoop:
 
         if (value > bestValue) {
             bestValue = value;
-            bestMove = move;
 
             if (value > alpha) {
+                bestMove = move;
                 alpha = value;
 
                 if (pvNode)
@@ -818,13 +819,14 @@ movesLoop:
     }
 
     // Insert into TT
-    bool alphaRaise = alpha != oldAlpha;
-    int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
+    bool failLow = alpha == oldAlpha;
+    bool failHigh = bestValue >= beta;
+    int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
         ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
-    if (!board->stack->checkers && !isCapture(board, bestMove) && (bestValue < beta || bestValue > stack->staticEval) && (alphaRaise || bestValue <= stack->staticEval)) {
+    if (!board->stack->checkers && !isCapture(board, bestMove) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
         int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         thread->history.updateCorrectionHistory(board, bonus);
     }

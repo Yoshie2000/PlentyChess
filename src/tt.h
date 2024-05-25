@@ -55,8 +55,6 @@ struct TTEntry {
 
         if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth - TT_DEPTH_OFFSET + 2 * wasPv > depth - 4) {
             hash = (uint16_t)_hash;
-            if (_bestMove != MOVE_NONE)
-                bestMove = _bestMove;
             depth = _depth - TT_DEPTH_OFFSET;
             value = _value;
             eval = _eval;
