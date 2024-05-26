@@ -1,7 +1,6 @@
 @echo off
 
 set OPERATION=%~1
-
 if "%OPERATION%" == "pgo" (
     rmdir /s /q pgo >nul 2>&1
 ) else (
