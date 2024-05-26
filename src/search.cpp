@@ -72,7 +72,8 @@ TUNE_INT_DISABLED(nmpDepthDiv, 3, 1, 6);
 TUNE_INT_DISABLED(nmpMin, 3, 1, 10);
 TUNE_INT(nmpDivisor, 152, 10, 1000);
 
-TUNE_INT(probCutBetaOffset, 227, 1, 500);
+TUNE_INT(probCutBetaOffset, 277, 1, 500);
+TUNE_INT(probCutBetaImprovingOffset, 50, 1, 500);
 TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 
 // In-search pruning
@@ -527,7 +528,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
 
     // ProbCut
-    probCutBeta = std::min(beta + probCutBetaOffset, EVAL_MATE_IN_MAX_PLY - 1);
+    probCutBeta = std::min(beta + probCutBetaOffset - probCutBetaImprovingOffset * improving, EVAL_MATE_IN_MAX_PLY - 1);
     if (!pvNode
         && !excluded
         && depth > probCutDepth
