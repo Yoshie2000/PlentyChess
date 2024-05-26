@@ -308,6 +308,9 @@ movesLoopQsearch:
 
             if (!SEE(board, move, qsSeeMargin))
                 break;
+
+            if (moveTarget(move) != moveTarget((stack - 1)->move) && ((move & 0x3000) != MOVE_PROMOTION) && !givesCheck(board, move) && moveCount > 2)
+                continue;
         }
 
         if (!isLegal(board, move))
