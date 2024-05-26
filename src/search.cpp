@@ -603,7 +603,7 @@ movesLoop:
             && bestValue > -EVAL_MATE_IN_MAX_PLY
             && hasNonPawns(board)
             ) {
-
+            
             int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving);
 
             if (!pvNode && !skipQuiets && !board->stack->checkers) {
@@ -612,9 +612,13 @@ movesLoop:
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
                     skipQuiets = true;
                 }
+
                 // Futility pruning
-                else if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
-                    skipQuiets = true;
+                if (!capture) {
+                    int fpLmrDepth = lmrDepth + moveHistory / 4096;
+                    if (fpLmrDepth < fpDepth && eval + fpBase + fpFactor * fpLmrDepth <= alpha)
+                        skipQuiets = true;
+                }
             }
 
             // History pruning
