@@ -561,10 +561,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
             undoMove(board, move, &thread->nnue);
 
-            if (value >= probCutBeta) {
-                ttEntry->update(board->stack->hash, move, depth - 3, unadjustedEval, valueToTT(value, stack->ply), ttPv, TT_LOWERBOUND);
+            if (value >= probCutBeta)
                 return value;
-            }
         }
 
     }
