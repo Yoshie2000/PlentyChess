@@ -180,8 +180,8 @@ class MoveGen {
     int returnedMoves;
     int killerCount;
 
-    Move badCaptureList[48];
-    int badCaptureScores[48];
+    Move badCaptureList[MAX_CAPTURES];
+    int badCaptureScores[MAX_CAPTURES];
     int generatedBadCaptures; // Bad captures only count as "generated" when they are sorted out by SEE
     int returnedBadCaptures;
 

@@ -200,10 +200,10 @@ Eval NNUE::evaluate(Board* board) {
     int bucket = (pieceCount - 2) / divisor;
     assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
 
-    Accumulator& accumulator = accumulatorStack[currentAccumulator];
+    Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
-    Vec* stmAcc = (Vec*)accumulator.colors[board->stm];
-    Vec* oppAcc = (Vec*)accumulator.colors[1 - board->stm];
+    Vec* stmAcc = (Vec*)accumulator->colors[board->stm];
+    Vec* oppAcc = (Vec*)accumulator->colors[1 - board->stm];
 
     Vec* stmWeights = (Vec*)&networkData.outputWeights[bucket][0];
     Vec* oppWeights = (Vec*)&networkData.outputWeights[bucket][HIDDEN_WIDTH];

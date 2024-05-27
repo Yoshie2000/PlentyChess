@@ -464,7 +464,7 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
 Move MoveGen::nextMove() {
     assert((board->byColor[board->stm] & board->byPiece[PIECE_KING]) > 0);
 
-    Move* moves = moveList + generatedMoves;
+    Move* moves;
     int beginIndex, endIndex;
 
     // Generate moves for the current stage
@@ -480,7 +480,7 @@ Move MoveGen::nextMove() {
 
     case GEN_STATE_GEN_CAPTURES:
         beginIndex = generatedMoves;
-
+        moves = moveList + generatedMoves;
         // If in double check, only generate king moves
         if (board->stack->checkerCount > 1) {
             generatePiece<PIECE_KING>(board, &moves, &generatedMoves, true, ~C64(0));
@@ -499,7 +499,6 @@ Move MoveGen::nextMove() {
         endIndex = generatedMoves;
 
         endIndex = scoreGoodCaptures(beginIndex, endIndex);
-        moves = moveList + generatedMoves;
         sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
         generationStage++;
@@ -548,6 +547,7 @@ Move MoveGen::nextMove() {
 
     case GEN_STAGE_GEN_REMAINING:
         beginIndex = generatedMoves;
+        moves = moveList + generatedMoves;
         // If in double check, only generate king moves
         if (board->stack->checkerCount > 1) {
             generatePiece<PIECE_KING>(board, &moves, &generatedMoves, false, ~C64(0));
@@ -568,7 +568,6 @@ Move MoveGen::nextMove() {
         endIndex = generatedMoves;
 
         endIndex = scoreQuiets(beginIndex, endIndex);
-        moves = moveList + generatedMoves;
         sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
         generationStage++;

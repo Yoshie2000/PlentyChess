@@ -6,6 +6,7 @@
 
 #define MAX_PLY 246
 #define MAX_MOVES 218
+#define MAX_CAPTURES 74
 
 #define PIECE_TYPES 6
 

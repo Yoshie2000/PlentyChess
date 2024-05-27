@@ -788,7 +788,6 @@ void updateSliderPins(Board* board, Color side) {
     Square king = lsb(board->byColor[side] & board->byPiece[PIECE_KING]);
 
     board->stack->blockers[side] = 0;
-    board->stack->pinners[1 - side] = 0;
 
     Bitboard possiblePinnersRook = getRookMoves(king, C64(0)) & (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]);
     Bitboard possiblePinnersBishop = getBishopMoves(king, C64(0)) & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]);
@@ -803,8 +802,6 @@ void updateSliderPins(Board* board, Color side) {
         if (__builtin_popcountll(blockerBB) == 1) {
             // We have exactly one blocker for this pinner
             board->stack->blockers[side] |= blockerBB;
-            if (blockerBB & board->byColor[side])
-                board->stack->pinners[1 - side] |= C64(1) << pinnerSquare;
         }
     }
 }
