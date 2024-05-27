@@ -714,6 +714,9 @@ movesLoop:
             
             if (worsening)
                 reducedDepth--;
+            
+            if (ttMove != MOVE_NONE && ttDepth > 0 && isCapture(board, ttMove))
+                reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, thread, reducedDepth, -(alpha + 1), -alpha, true);
