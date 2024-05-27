@@ -8,6 +8,8 @@
 #include <thread>
 #include <vector>
 #include <string.h>
+#include <stdlib.h>
+#include <malloc.h>
 
 #if defined(__linux__)
 #include <sys/mman.h>
@@ -65,24 +67,66 @@ struct TTEntry {
     }
 };
 
-inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
-    void* ptr;
-#if defined(__MINGW32__)
-    int offset = alignment - 1;
-    void* p = (void*)malloc(requiredBytes + offset);
-    ptr = (void*)(((size_t)(p)+offset) & ~(alignment - 1));
-#elif defined (__GNUC__)
-    ptr = std::aligned_alloc(alignment, requiredBytes);
-#else
-#error "Compiler not supported"
-#endif
+template <typename T, std::size_t N = 16>
+class AlignmentAllocator {
+public:
 
+    typedef T value_type;
+    typedef std::size_t size_type;
+    typedef std::ptrdiff_t difference_type;
+
+    inline AlignmentAllocator() throw () {}
+
+    template <typename T2>
+    inline AlignmentAllocator(const AlignmentAllocator<T2, N>&) throw () {}
+
+    inline ~AlignmentAllocator() throw () {}
+
+    inline T* adress(T& r) {
+        return &r;
+    }
+
+    inline const T* adress(const T& r) const {
+        return &r;
+    }
+
+    inline T* allocate(size_type n) {
+        T* p = (T*)aligned_alloc(N, n * sizeof(value_type));
 #if defined(__linux__)
-    madvise(ptr, requiredBytes, MADV_HUGEPAGE);
+        madvise(p, n * sizeof(value_type), MADV_HUGEPAGE);
 #endif 
+        return p;
+    }
 
-    return ptr;
-}
+    inline void deallocate(T* p, size_type) {
+        free(p);
+    }
+
+    inline void construct(T* p, const value_type& wert) {
+        new (p) value_type(wert);
+    }
+
+    inline void destroy(T* p) {
+        p->~value_type();
+    }
+
+    inline size_type max_size() const throw () {
+        return size_type(-1) / sizeof(value_type);
+    }
+
+    template <typename T2>
+    struct rebind {
+        typedef AlignmentAllocator<T2, N> other;
+    };
+
+    bool operator!=(const AlignmentAllocator<T, N>& other) const {
+        return !(*this == other);
+    }
+
+    bool operator==(const AlignmentAllocator<T, N>& other) const {
+        return true;
+    }
+};
 
 #define CLUSTER_SIZE 3 // Bits reserved for bound & ttPv 
 #define GENERATION_PADDING 3
@@ -90,16 +134,16 @@ inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
 #define GENERATION_CYCLE 255 + GENERATION_DELTA
 #define GENERATION_MASK (0xFF << GENERATION_PADDING) & 0xFF
 
-struct TTCluster {
-    TTEntry entries[CLUSTER_SIZE];
-    char padding[2];
+struct __attribute__((aligned(32))) TTCluster {
+    alignas(16) TTEntry entries[CLUSTER_SIZE];
+    char padding[2]; // ca. 1.4Mnps
 };
 
 static_assert(sizeof(TTCluster) == 32, "TTCluster size not correct!");
 
 class TranspositionTable {
 
-    TTCluster* table = nullptr;
+    std::vector<TTCluster, AlignmentAllocator<TTCluster, 64>> table;
     size_t clusterCount;
 
 public:
@@ -109,7 +153,7 @@ public:
     }
 
     ~TranspositionTable() {
-        std::free(table);
+        table.clear();
     }
 
     void newSearch() {
@@ -117,13 +161,9 @@ public:
     }
 
     void resize(size_t mb) {
-        if (table)
-            std::free(table);
-
+        table.clear();
         clusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
-        table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
-
-        clear();
+        table.resize(clusterCount);
     }
 
     size_t index(uint64_t hash) {
@@ -136,7 +176,7 @@ public:
         __builtin_prefetch(&table[index(hash)]);
     }
 
-    TTEntry* probe(uint64_t hash, bool* found) {
+    __attribute_noinline__ TTEntry* probe(uint64_t hash, bool* found) {
         TTCluster* cluster = &table[index(hash)];
         uint64_t hash16 = (uint16_t)hash;
 
