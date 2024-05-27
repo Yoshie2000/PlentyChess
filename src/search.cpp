@@ -798,8 +798,9 @@ movesLoop:
                             thread->history.setCounterMove((stack - 1)->move, move);
 
                         thread->history.updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
+                    } else {
+                        thread->history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     }
-                    thread->history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
                 }
 
