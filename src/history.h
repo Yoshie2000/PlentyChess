@@ -24,13 +24,13 @@ public:
     Eval correctStaticEval(Eval eval, Board* board);
     void updateCorrectionHistory(Board* board, int16_t bonus);
 
-    int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
+    int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
 
     int16_t getPawnHistory(Board* board, Move move);
     void updatePawnHistory(Board* board, Move move, int16_t bonus);
 
-    int16_t getQuietHistory(Board* board, Move move);
-    void updateQuietHistory(Board* board, Move move, int16_t bonus);
+    int16_t getQuietHistory(Move move, Color stm, Board* board, BoardStack* stack);
+    void updateQuietHistory(Move move, Color stm, Board* board, BoardStack* stack, int16_t bonus);
 
     int getContinuationHistory(SearchStack* stack, Piece piece, Move move);
     void updateContinuationHistory(SearchStack* stack, Piece piece, Move move, int16_t bonus);
@@ -39,7 +39,7 @@ public:
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
     void updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount);
 
-    void updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount);
+    void updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount);
 
     Move getCounterMove(Move move);
     void setCounterMove(Move move, Move counter);

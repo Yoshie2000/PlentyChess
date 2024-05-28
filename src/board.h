@@ -87,7 +87,7 @@ struct Board {
     void undoNullMove();
 
     void calculateThreats();
-    bool isSquareThreatened(Square square);
+    bool isSquareThreatened(Square square, BoardStack* bs);
 
     constexpr bool isCapture(Move move) {
         MoveType type = moveType(move);

@@ -478,7 +478,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
                 threatScore -= 7500;
         }
 
-        moveListScores[i] = history->getHistory(board, searchStack, move, false) + threatScore;
+        moveListScores[i] = history->getHistory(board, board->stack, searchStack, move, false) + threatScore;
     }
     return endIndex;
 }
