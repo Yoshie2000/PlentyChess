@@ -482,8 +482,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
-    if (!(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
-        int bonus = std::clamp(-5 * (int) (stack->staticEval + (stack - 1)->staticEval), -500, 500);
+    if ((stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
+        int bonus = std::clamp(-5 * int(stack->staticEval + (stack - 1)->staticEval), -100, 100);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
 
