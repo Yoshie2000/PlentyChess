@@ -482,8 +482,10 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
-    if (!(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
-        int bonus = std::clamp(-5 * (int) (stack->staticEval + (stack - 1)->staticEval), -500, 500);
+    if ((stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
+        int bonus = std::clamp(-10 * int(stack->staticEval + (stack - 1)->staticEval), -1000, 1000);
+        // Reward moves that improve the opponent's position more than bad moves are punished
+        bonus = bonus > 0 ? 2 * bonus : bonus / 2;
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
 
