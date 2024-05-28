@@ -47,7 +47,6 @@ struct BoardStack {
     uint64_t pawnHash;
 
     Bitboard blockers[2];
-    Bitboard pinners[2];
     Bitboard checkers;
     uint8_t checkerCount;
 

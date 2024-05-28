@@ -234,10 +234,6 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     if (thread->stopped || thread->exiting || stack->ply >= MAX_PLY || isDraw(board))
         return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &thread->nnue) : drawEval(thread);
 
-    BoardStack boardStack;
-    Move bestMove = MOVE_NONE;
-    Eval bestValue, futilityValue, unadjustedEval;
-
     // TT Lookup
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
@@ -259,6 +255,9 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     // TT cutoff
     if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
+
+    Move bestMove = MOVE_NONE;
+    Eval bestValue, futilityValue, unadjustedEval;
 
     if (board->stack->checkers) {
         stack->staticEval = bestValue = unadjustedEval = futilityValue = -EVAL_INFINITE;
@@ -290,6 +289,8 @@ movesLoopQsearch:
     beta = std::min((int)beta, (int)mateIn(stack->ply + 1));
     if (alpha >= beta)
         return alpha;
+
+    BoardStack boardStack;
 
     // Moves loop
     MoveGen movegen(board, &thread->history, stack, ttMove, !board->stack->checkers, 1);
@@ -437,8 +438,6 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
-    BoardStack boardStack;
-
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
     if (board->stack->checkers) {
@@ -486,6 +485,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         if (razorValue <= alpha)
             return razorValue;
     }
+
+    BoardStack boardStack;
 
     // Null move pruning
     if (!pvNode
@@ -573,8 +574,8 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
 
 movesLoop:
 
-    Move quietMoves[64];
-    Move captureMoves[64];
+    Move quietMoves[32];
+    Move captureMoves[32];
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
@@ -599,14 +600,14 @@ movesLoop:
         uint64_t nodesBeforeMove = thread->searchData.nodesSearched;
         int moveHistory = thread->history.getHistory(board, stack, move, capture);
 
-        if (!rootNode
+        if (!pvNode
             && bestValue > -EVAL_MATE_IN_MAX_PLY
             && hasNonPawns(board)
             ) {
 
             int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving);
 
-            if (!pvNode && !skipQuiets && !board->stack->checkers) {
+            if (!skipQuiets && !board->stack->checkers) {
 
                 // Movecount pruning (LMP)
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
@@ -618,11 +619,11 @@ movesLoop:
             }
 
             // History pruning
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
+            if (lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
                 continue;
 
             // SEE Pruning
-            if (!pvNode && depth < seeDepth && !SEE(board, move, SEE_MARGIN[!capture ? lmrDepth : depth][!capture]))
+            if (depth < seeDepth && !SEE(board, move, SEE_MARGIN[!capture ? lmrDepth : depth][!capture]))
                 continue;
 
         }
@@ -670,11 +671,11 @@ movesLoop:
         TT.prefetch(newHash);
 
         if (!capture) {
-            if (quietMoveCount < 64)
+            if (quietMoveCount < 32)
                 quietMoves[quietMoveCount++] = move;
         }
         else {
-            if (captureMoveCount < 64)
+            if (captureMoveCount < 32)
                 captureMoves[captureMoveCount++] = move;
         }
 
