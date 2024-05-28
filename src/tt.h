@@ -22,8 +22,6 @@
 #define TT_LOWERBOUND 2
 #define TT_EXACTBOUND 3
 
-#define TT_DEPTH_OFFSET -7
-
 extern uint64_t ZOBRIST_PIECE_SQUARES[2][PIECE_TYPES][64];
 extern uint64_t ZOBRIST_STM_BLACK;
 extern uint64_t ZOBRIST_NO_PAWNS;
@@ -49,15 +47,14 @@ struct TTEntry {
     int16_t value = EVAL_NONE;
 
     void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags) {
-        // Preserve existing moves for the same position
+        // Update bestMove if not MOVE_NONE
+        // Or even clear move for a different position
         if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
             bestMove = _bestMove;
 
-        if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth - TT_DEPTH_OFFSET + 2 * wasPv > depth - 4) {
+        if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + 2 * wasPv + 4 > depth) {
             hash = (uint16_t)_hash;
-            if (_bestMove != MOVE_NONE)
-                bestMove = _bestMove;
-            depth = _depth - TT_DEPTH_OFFSET;
+            depth = _depth;
             value = _value;
             eval = _eval;
             flags = (uint8_t)(_flags + (wasPv << 2)) | TT_GENERATION_COUNTER;
