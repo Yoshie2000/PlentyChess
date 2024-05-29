@@ -602,6 +602,7 @@ movesLoop:
 
         if (!pvNode
             && bestValue > -EVAL_MATE_IN_MAX_PLY
+            && !board->stack->checkers
             && hasNonPawns(board)
             ) {
 
