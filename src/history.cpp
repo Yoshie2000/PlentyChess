@@ -41,7 +41,7 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(board, move) + 2 * getContinuationHistory(board, searchStack, move) + getPawnHistory(board, move) / 2;
+        return getQuietHistory(board, move) + 2 * getContinuationHistory(board, searchStack, move) + getPawnHistory(board, move);
     }
 }
 
