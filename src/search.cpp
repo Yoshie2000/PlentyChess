@@ -266,7 +266,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     else if (ttHit && ttEval != EVAL_NONE) {
         unadjustedEval = ttEval;
         stack->staticEval = bestValue = thread->history.correctStaticEval(unadjustedEval, board);
-    
+
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
             bestValue = ttValue;
     }
@@ -711,7 +711,7 @@ movesLoop:
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
-            
+
             if (worsening)
                 reducedDepth--;
 
@@ -825,7 +825,7 @@ movesLoop:
         ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
-    if (!board->stack->checkers && !isCapture(board, bestMove) && (bestValue < beta || bestValue > stack->staticEval) && (alphaRaise || bestValue <= stack->staticEval)) {
+    if (!board->stack->checkers && (bestMove == MOVE_NONE || !isCapture(board, bestMove)) && (bestValue < beta || bestValue > stack->staticEval) && (alphaRaise || bestValue <= stack->staticEval)) {
         int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         thread->history.updateCorrectionHistory(board, bonus);
     }

@@ -10,7 +10,7 @@
 #include "types.h"
 #include "board.h"
 #include "bitboard.h"
-#include "tt.h"
+#include "zobrist.h"
 #include "magic.h"
 #include "evaluation.h"
 
