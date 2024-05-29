@@ -796,7 +796,7 @@ movesLoop:
 
                         // Update counter move
                         if (stack->ply > 0)
-                            thread->history.setCounterMove((stack - 1)->move, move);
+                            thread->history.setCounterMove(1 - board->stm, board->pieces[moveTarget((stack - 1)->move)], moveTarget((stack - 1)->move), move);
 
                         thread->history.updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }

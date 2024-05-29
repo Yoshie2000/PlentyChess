@@ -13,9 +13,11 @@ TUNE_INT(correctionHistoryDivisor, 12061, 5000, 20000);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
-    for (Square s1 = 0; s1 < 64; s1++) {
-        for (Square s2 = 0; s2 < 64; s2++) {
-            counterMoves[s1][s2] = MOVE_NONE;
+    for (Color c = COLOR_WHITE; c <= COLOR_BLACK; c++) {
+        for (Piece p = PIECE_PAWN; p <= PIECE_KING; p++) {
+            for (Square s = 0; s < 64; s++) {
+                counterMoves[c][p][s] = MOVE_NONE;
+            }
         }
     }
     memset(continuationHistory, 0, sizeof(continuationHistory));
@@ -32,7 +34,7 @@ Eval History::correctStaticEval(Eval eval, Board* board) {
 }
 
 void History::updateCorrectionHistory(Board* board, int16_t bonus) {
-    Eval scaledBonus = (Eval) bonus - getCorrectionHistory(board) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    Eval scaledBonus = (Eval)bonus - getCorrectionHistory(board) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
     correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 }
 
@@ -46,12 +48,12 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
 }
 
 int16_t History::getQuietHistory(Board* board, Move move) {
-    return quietHistory[board->stm][moveOrigin(move)][moveTarget(move)];
+    return quietHistory[board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)];
 }
 
 void History::updateQuietHistory(Board* board, Move move, int16_t bonus) {
     int16_t scaledBonus = bonus - getQuietHistory(board, move) * std::abs(bonus) / 32000;
-    quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += scaledBonus;
+    quietHistory[board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
 }
 
 int16_t History::getPawnHistory(Board* board, Move move) {
@@ -109,7 +111,7 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
 
     if ((stack - 2)->movedPiece != NO_PIECE)
         (stack - 2)->contHist[pieceTo] += scaledBonus;
-    
+
     if ((stack - 3)->movedPiece != NO_PIECE)
         (stack - 3)->contHist[pieceTo] += scaledBonus / 4;
 
@@ -165,10 +167,10 @@ void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, 
     }
 }
 
-Move History::getCounterMove(Move move) {
-    return counterMoves[moveOrigin(move)][moveTarget(move)];
+Move History::getCounterMove(Color stm, Piece piece, Square target) {
+    return counterMoves[stm][piece][target];
 }
 
-void History::setCounterMove(Move move, Move counter) {
-    counterMoves[moveOrigin(move)][moveTarget(move)] = counter;
+void History::setCounterMove(Color stm, Piece piece, Square target, Move counter) {
+    counterMoves[stm][piece][target] = counter;
 }

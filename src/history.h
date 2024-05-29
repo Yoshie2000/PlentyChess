@@ -9,8 +9,8 @@
 
 class History {
 
-    int16_t quietHistory[2][64][64];
-    Move counterMoves[64][64];
+    int16_t quietHistory[2][PIECE_TYPES][64];
+    Move counterMoves[2][PIECE_TYPES][64];
     int16_t captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
     int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][PIECE_TYPES][64];
@@ -41,8 +41,8 @@ public:
 
     void updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount);
 
-    Move getCounterMove(Move move);
-    void setCounterMove(Move move, Move counter);
+    Move getCounterMove(Color stm, Piece piece, Square target);
+    void setCounterMove(Color stm, Piece piece, Square target, Move counter);
 
 private:
 
