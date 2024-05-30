@@ -32,7 +32,7 @@ Eval History::correctStaticEval(Eval eval, Board* board) {
 }
 
 void History::updateCorrectionHistory(Board* board, int16_t bonus) {
-    Eval scaledBonus = (Eval) bonus - getCorrectionHistory(board) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    Eval scaledBonus = (Eval)bonus - getCorrectionHistory(board) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
     correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 }
 
@@ -41,7 +41,7 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(board, move) + 2 * getContinuationHistory(board, searchStack, move) + getPawnHistory(board, move);
+        return getQuietHistory(board, move) + 2 * getContinuationHistory(searchStack, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
     }
 }
 
@@ -63,15 +63,8 @@ void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
     pawnHistory[board->stack->pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
 }
 
-int History::getContinuationHistory(Board* board, SearchStack* stack, Move move) {
-    Piece piece = board->pieces[moveOrigin(move)];
-    if (piece == NO_PIECE)
-        piece = board->pieces[moveTarget(move)];
-    if ((0x3000 & move) == MOVE_CASTLING)
-        piece = PIECE_KING;
-
+int History::getContinuationHistory(SearchStack* stack, Piece piece, Move move) {
     assert(piece != NO_PIECE);
-
     Square target = moveTarget(move);
 
     int score = 0;
@@ -89,19 +82,11 @@ int History::getContinuationHistory(Board* board, SearchStack* stack, Move move)
     return score;
 }
 
-void History::updateContinuationHistory(Board* board, SearchStack* stack, Move move, int16_t bonus) {
-    // Update continuationHistory
-    Piece piece = board->pieces[moveOrigin(move)];
-    if (piece == NO_PIECE)
-        piece = board->pieces[moveTarget(move)];
-    if ((0x3000 & move) == MOVE_CASTLING)
-        piece = PIECE_KING;
-
+void History::updateContinuationHistory(SearchStack* stack, Piece piece, Move move, int16_t bonus) {
     assert(piece != NO_PIECE);
-
     Square target = moveTarget(move);
 
-    int16_t scaledBonus = bonus - getContinuationHistory(board, stack, move) * std::abs(bonus) / 32000;
+    int16_t scaledBonus = bonus - getContinuationHistory(stack, piece, move) * std::abs(bonus) / 32000;
     int pieceTo = 64 * piece + target;
 
     if ((stack - 1)->movedPiece != NO_PIECE)
@@ -109,7 +94,7 @@ void History::updateContinuationHistory(Board* board, SearchStack* stack, Move m
 
     if ((stack - 2)->movedPiece != NO_PIECE)
         (stack - 2)->contHist[pieceTo] += scaledBonus;
-    
+
     if ((stack - 3)->movedPiece != NO_PIECE)
         (stack - 3)->contHist[pieceTo] += scaledBonus / 4;
 
@@ -152,7 +137,7 @@ void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move*
 void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
     updateQuietHistory(board, move, bonus);
-    updateContinuationHistory(board, stack, move, bonus * 100 / contHistBonusFactor);
+    updateContinuationHistory(stack, board->pieces[moveOrigin(move)], move, bonus * 100 / contHistBonusFactor);
     updatePawnHistory(board, move, bonus);
 
     // Decrease stats for all other quiets
@@ -160,7 +145,7 @@ void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, 
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
         updateQuietHistory(board, qMove, -bonus);
-        updateContinuationHistory(board, stack, qMove, -bonus * 100 / contHistMalusFactor);
+        updateContinuationHistory(stack, board->pieces[moveOrigin(qMove)], qMove, -bonus * 100 / contHistMalusFactor);
         updatePawnHistory(board, qMove, -bonus);
     }
 }
