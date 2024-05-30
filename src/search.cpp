@@ -90,7 +90,7 @@ TUNE_INT_DISABLED(seeDepth, 9, 2, 15);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
-TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
+TUNE_INT_DISABLED(lmrMinDepth, 2, 1, 10);
 
 TUNE_INT(lmrHistoryFactorQuiet, 15424, 128, 32768);
 TUNE_INT(lmrHistoryFactorCapture, 11898, 128, 32768);
