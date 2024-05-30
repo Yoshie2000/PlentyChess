@@ -839,8 +839,19 @@ movesLoop:
         return 0; // Stalemate
     }
 
-    // Insert into TT
+    // If no move raised alpha, give bonus to opponent's previous move
     bool failLow = alpha == oldAlpha;
+    if (failLow && !rootNode && (stack - 1)->movedPiece != Piece::NONE) {
+        Move previousMove = (stack - 1)->move;
+        bool previousCapture = board->stack->capturedPiece != Piece::NONE;
+        int bonus = std::min(25 * depth, 250);
+
+        if (!previousCapture) {
+            history.updateContinuationHistory(stack - 1, flip(board->stm), (stack - 1)->movedPiece, previousMove, bonus);
+        }
+    }
+
+    // Insert into TT
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
