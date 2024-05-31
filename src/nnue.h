@@ -209,7 +209,7 @@ extern NetworkData networkData;
 
 void initNetworkData();
 
-class Board;
+struct Board;
 
 class NNUE {
 public:
