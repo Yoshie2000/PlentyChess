@@ -121,7 +121,7 @@ public:
             std::free(table);
 
         clusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
-        table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
+        table = static_cast<TTCluster*>(alignedAlloc(2 * 1024 * 1024, clusterCount * sizeof(TTCluster)));
 
         clear();
     }
