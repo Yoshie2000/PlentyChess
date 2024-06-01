@@ -613,9 +613,16 @@ movesLoop:
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
                     skipQuiets = true;
                 }
-                // Futility pruning
-                else if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
-                    skipQuiets = true;
+                
+                if (capture) {
+                    Piece capturedPiece = (move & 0x3000) == MOVE_ENPASSANT ? PIECE_PAWN : board->pieces[moveTarget(move)];
+                    if (lmrDepth < 9 && eval + 450 + PIECE_VALUES[capturedPiece] + 325 * lmrDepth <= alpha)
+                        continue;
+                } else {
+                    // Futility pruning for quiets
+                    if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                        skipQuiets = true;
+                }
             }
 
             // History pruning
