@@ -241,7 +241,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     Eval ttValue = EVAL_NONE;
     Eval ttEval = EVAL_NONE;
     uint8_t ttFlag = TT_NOBOUND;
-    bool ttPv = pvNode;
+    bool ttPv = false;
 
     ttEntry = TT.probe(board->stack->hash, &ttHit);
     if (ttHit) {
@@ -249,11 +249,11 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
         ttValue = valueFromTt(ttEntry->value, stack->ply);
         ttEval = ttEntry->eval;
         ttFlag = ttEntry->flags & 0x3;
-        ttPv = ttPv || ttEntry->flags & 0x4;
+        ttPv = ttEntry->flags & 0x4;
     }
 
     // TT cutoff
-    if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
     Move bestMove = MOVE_NONE;
