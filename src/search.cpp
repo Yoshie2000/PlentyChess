@@ -607,7 +607,7 @@ movesLoop:
 
             int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving);
 
-            if (!skipQuiets && !board->stack->checkers) {
+            if (!board->stack->checkers) {
 
                 // Movecount pruning (LMP)
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
@@ -616,11 +616,11 @@ movesLoop:
                 // Futility pruning
                 else if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
                     skipQuiets = true;
+                
+                // History pruning
+                if (lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
+                    continue;
             }
-
-            // History pruning
-            if (lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
-                continue;
 
             // SEE Pruning
             if (depth < seeDepth && !SEE(board, move, SEE_MARGIN[!capture ? lmrDepth : depth][!capture]))
