@@ -100,6 +100,9 @@ void History::updateContinuationHistory(SearchStack* stack, Piece piece, Move mo
 
     if ((stack - 4)->movedPiece != NO_PIECE)
         (stack - 4)->contHist[pieceTo] += scaledBonus;
+    
+    if ((stack - 6)->movedPiece != NO_PIECE)
+        (stack - 6)->contHist[pieceTo] += scaledBonus;
 }
 
 int16_t* History::getCaptureHistory(Board* board, Move move) {

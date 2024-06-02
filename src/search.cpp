@@ -888,7 +888,7 @@ void Thread::iterativeDeepening() {
 
     int bestMoveStability = 0;
 
-    constexpr int STACK_OVERHEAD = 4;
+    constexpr int STACK_OVERHEAD = 6;
     SearchStack stackList[MAX_PLY + STACK_OVERHEAD];
     SearchStack* stack = &stackList[STACK_OVERHEAD];
 
