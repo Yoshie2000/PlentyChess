@@ -462,7 +462,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
 
     // IIR
-    if ((ttMove == MOVE_NONE || ttDepth + 4 < depth) && depth >= iirMinDepth)
+    if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
         depth--;
 
     // Improving
