@@ -604,8 +604,8 @@ movesLoop:
             && bestValue > -EVAL_MATE_IN_MAX_PLY
             && hasNonPawns(board)
             ) {
-
-            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving);
+            bool noisySee = capture || givesCheck(board, move);
+            int lmrDepth = std::max(0, depth - REDUCTIONS[!noisySee][depth][moveCount] - !improving);
 
             if (!skipQuiets && !board->stack->checkers) {
 
@@ -623,7 +623,7 @@ movesLoop:
                 continue;
 
             // SEE Pruning
-            if (depth < seeDepth && !SEE(board, move, SEE_MARGIN[!capture ? lmrDepth : depth][!capture]))
+            if (depth < seeDepth && !SEE(board, move, SEE_MARGIN[!noisySee ? lmrDepth : depth][!noisySee]))
                 continue;
 
         }
