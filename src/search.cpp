@@ -266,7 +266,7 @@ Eval qsearch(Board* board, Thread* thread, SearchStack* stack, Eval alpha, Eval 
     else if (ttHit && ttEval != EVAL_NONE) {
         unadjustedEval = ttEval;
         stack->staticEval = bestValue = thread->history.correctStaticEval(unadjustedEval, board);
-    
+
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
             bestValue = ttValue;
     }
@@ -336,9 +336,9 @@ movesLoopQsearch:
 
         if (value > bestValue) {
             bestValue = value;
-            bestMove = move;
 
             if (value > alpha) {
+                bestMove = move;
                 alpha = value;
 
                 if (pvNode)
@@ -462,7 +462,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
     }
 
     // IIR
-    if ((ttMove == MOVE_NONE || ttDepth + 4 < depth) && depth >= iirMinDepth)
+    if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
         depth--;
 
     // Improving
@@ -711,7 +711,7 @@ movesLoop:
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
-            
+
             if (worsening)
                 reducedDepth--;
 
@@ -776,9 +776,9 @@ movesLoop:
 
         if (value > bestValue) {
             bestValue = value;
-            bestMove = move;
 
             if (value > alpha) {
+                bestMove = move;
                 alpha = value;
 
                 if (pvNode)
@@ -819,13 +819,14 @@ movesLoop:
     }
 
     // Insert into TT
-    bool alphaRaise = alpha != oldAlpha;
-    int flags = bestValue >= beta ? TT_LOWERBOUND : alpha != oldAlpha ? TT_EXACTBOUND : TT_UPPERBOUND;
+    bool failLow = alpha == oldAlpha;
+    bool failHigh = bestValue >= beta;
+    int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
         ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
-    if (!board->stack->checkers && !isCapture(board, bestMove) && (bestValue < beta || bestValue > stack->staticEval) && (alphaRaise || bestValue <= stack->staticEval)) {
+    if (!board->stack->checkers && (bestMove == MOVE_NONE || !isCapture(board, bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
         int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         thread->history.updateCorrectionHistory(board, bonus);
     }
