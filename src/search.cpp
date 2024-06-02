@@ -309,6 +309,9 @@ movesLoopQsearch:
 
             if (!SEE(board, move, qsSeeMargin))
                 break;
+            
+            if (moveTarget(move) != moveTarget((stack - 1)->move) && ((move & 0x3000) != MOVE_PROMOTION) && !givesCheck(board, move) && moveCount > 2)
+                continue;
         }
 
         if (!isLegal(board, move))
@@ -613,9 +616,16 @@ movesLoop:
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
                     skipQuiets = true;
                 }
+
                 // Futility pruning
-                else if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
-                    skipQuiets = true;
+                if (capture) {
+                    Piece capturedPiece = (move & 0x3000) == MOVE_ENPASSANT ? PIECE_PAWN : board->pieces[moveTarget(move)];
+                    if (lmrDepth < 9 && eval + 450 + PIECE_VALUES[capturedPiece] + 325 * lmrDepth <= alpha)
+                        continue;
+                } else {
+                    if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                        skipQuiets = true;
+                }
             }
 
             // History pruning
