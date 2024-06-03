@@ -19,6 +19,7 @@ void History::initHistory() {
         }
     }
     memset(continuationHistory, 0, sizeof(continuationHistory));
+    memset(recaptureHistory, 0, sizeof(recaptureHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
     memset(correctionHistory, 0, sizeof(correctionHistory));
     memset(pawnHistory, -1000, sizeof(pawnHistory));
@@ -38,7 +39,7 @@ void History::updateCorrectionHistory(Board* board, int16_t bonus) {
 
 int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
     if (isCapture) {
-        return *getCaptureHistory(board, move);
+        return *getCaptureHistory(board, move) + getRecaptureHistory(searchStack, board->pieces[moveOrigin(move)], move, board->pieces[moveTarget(move)]) / 2;
     }
     else {
         return getQuietHistory(board, move) + 2 * getContinuationHistory(searchStack, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
@@ -102,6 +103,42 @@ void History::updateContinuationHistory(SearchStack* stack, Piece piece, Move mo
         (stack - 4)->contHist[pieceTo] += scaledBonus;
 }
 
+int History::getRecaptureHistory(SearchStack* stack, Piece piece, Move move, Piece capturedPiece) {
+    assert(piece != NO_PIECE);
+    Square target = moveTarget(move);
+
+    int score = 0;
+    int recaptureIndex = 64 * PIECE_TYPES * piece + PIECE_TYPES * target + capturedPiece;
+
+    if ((stack - 1)->recaptureHist != nullptr)
+        score += (stack - 1)->recaptureHist[recaptureIndex];
+
+    if ((stack - 2)->recaptureHist != nullptr)
+        score += (stack - 2)->recaptureHist[recaptureIndex];
+
+    if ((stack - 4)->recaptureHist != nullptr)
+        score += (stack - 4)->recaptureHist[recaptureIndex];
+
+    return score;
+}
+
+void History::updateRecaptureHistory(SearchStack* stack, Piece piece, Move move, Piece capturedPiece, int16_t bonus) {
+    assert(piece != NO_PIECE);
+    Square target = moveTarget(move);
+
+    int16_t scaledBonus = bonus - getRecaptureHistory(stack, piece, move, capturedPiece) * std::abs(bonus) / 32000;
+    int recaptureIndex = 64 * PIECE_TYPES * piece + PIECE_TYPES * target + capturedPiece;
+
+    if ((stack - 1)->recaptureHist != nullptr)
+        (stack - 1)->recaptureHist[recaptureIndex] += scaledBonus;
+
+    if ((stack - 2)->recaptureHist != nullptr)
+        (stack - 2)->recaptureHist[recaptureIndex] += scaledBonus;
+
+    if ((stack - 4)->recaptureHist != nullptr)
+        (stack - 4)->recaptureHist[recaptureIndex] += scaledBonus;
+}
+
 int16_t* History::getCaptureHistory(Board* board, Move move) {
     Piece movedPiece = board->pieces[moveOrigin(move)];
     Piece capturedPiece = board->pieces[moveTarget(move)];
@@ -122,15 +159,17 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
     *captHistScore += scaledBonus;
 }
 
-void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
+void History::updateCaptureHistory(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
     if (isCapture(board, move)) {
         updateSingleCaptureHistory(board, move, bonus);
+        updateRecaptureHistory(stack, board->pieces[moveOrigin(move)], move, bonus, board->pieces[moveTarget(move)]);
     }
 
     for (int i = 0; i < captureMoveCount; i++) {
         Move cMove = captureMoves[i];
         if (move == cMove) continue;
         updateSingleCaptureHistory(board, cMove, -bonus);
+        updateRecaptureHistory(stack, board->pieces[moveOrigin(cMove)], cMove, board->pieces[moveTarget(cMove)], -bonus);
     }
 }
 
