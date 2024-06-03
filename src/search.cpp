@@ -324,6 +324,10 @@ movesLoopQsearch:
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = thread->history.continuationHistory[board->stm][stack->movedPiece][target];
+        if (isCapture(board, move))
+            stack->recaptureHist = thread->history.recaptureHistory[board->stm][stack->movedPiece][target][board->pieces[target]];
+        else
+            stack->recaptureHist = nullptr;
 
         doMove(board, &boardStack, move, newHash, &thread->nnue);
 
@@ -502,6 +506,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         stack->move = MOVE_NULL;
         stack->movedPiece = NO_PIECE;
         stack->contHist = thread->history.continuationHistory[board->stm][0][0];
+        stack->recaptureHist = nullptr;
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
         doNullMove(board, &boardStack);
@@ -553,6 +558,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
             stack->contHist = thread->history.continuationHistory[board->stm][stack->movedPiece][target];
+            stack->recaptureHist = thread->history.recaptureHistory[board->stm][stack->movedPiece][target][board->pieces[target]];
             doMove(board, &boardStack, move, newHash, &thread->nnue);
 
             Eval value = -qsearch<NON_PV_NODE>(board, thread, stack + 1, -probCutBeta, -probCutBeta + 1);
@@ -685,6 +691,10 @@ movesLoop:
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = thread->history.continuationHistory[board->stm][stack->movedPiece][target];
+        if (capture)
+            stack->recaptureHist = thread->history.recaptureHistory[board->stm][stack->movedPiece][target][board->pieces[target]];
+        else
+            stack->recaptureHist = nullptr;
 
         moveCount++;
         thread->searchData.nodesSearched++;
@@ -800,7 +810,7 @@ movesLoop:
 
                         thread->history.updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
                     }
-                    thread->history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
+                    thread->history.updateCaptureHistory(board, stack, move, bonus, captureMoves, captureMoveCount);
                     break;
                 }
 

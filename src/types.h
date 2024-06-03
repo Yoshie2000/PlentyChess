@@ -60,4 +60,5 @@ struct SearchStack {
     Move killers[2];
 
     int16_t* contHist;
+    int16_t* recaptureHist;
 };
