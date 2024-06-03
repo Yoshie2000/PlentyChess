@@ -612,10 +612,14 @@ movesLoop:
                 // Movecount pruning (LMP)
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
                     skipQuiets = true;
+                    continue;
                 }
+                
                 // Futility pruning
-                else if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha) {
                     skipQuiets = true;
+                    continue;
+                }
             }
 
             // History pruning
