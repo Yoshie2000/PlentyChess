@@ -11,13 +11,14 @@ class History {
 
     int16_t quietHistory[2][64][64];
     Move counterMoves[64][64];
-    int16_t captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
+    int16_t captureHistory[2][PIECE_TYPES][64][PIECE_TYPES + 1];
     int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][PIECE_TYPES][64];
 
 public:
 
     int16_t continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES * 64];
+    int16_t recaptureHistory[2][PIECE_TYPES][64][PIECE_TYPES + 1][PIECE_TYPES * 64 * (PIECE_TYPES + 1)];
 
     void initHistory();
 
@@ -35,9 +36,12 @@ public:
     int getContinuationHistory(SearchStack* stack, Piece piece, Move move);
     void updateContinuationHistory(SearchStack* stack, Piece piece, Move move, int16_t bonus);
 
+    int getRecaptureHistory(SearchStack* stack, Piece piece, Move move, Piece capturedPiece);
+    void updateRecaptureHistory(SearchStack* stack, Piece piece, Move move, Piece capturedPiece, int16_t bonus);
+
     int16_t* getCaptureHistory(Board* board, Move move);
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
-    void updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount);
+    void updateCaptureHistory(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount);
 
     void updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount);
 
