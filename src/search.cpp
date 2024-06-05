@@ -323,7 +323,10 @@ movesLoopQsearch:
         Square target = moveTarget(move);
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
-        stack->contHist = thread->history.continuationHistory[board->stm][stack->movedPiece][target];
+        if (isCapture(board, move))
+            stack->contHist = nullptr;
+        else
+            stack->contHist = thread->history.continuationHistory[board->stm][stack->movedPiece][target];
 
         doMove(board, &boardStack, move, newHash, &thread->nnue);
 
@@ -501,7 +504,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         ) {
         stack->move = MOVE_NULL;
         stack->movedPiece = NO_PIECE;
-        stack->contHist = thread->history.continuationHistory[board->stm][0][0];
+        stack->contHist = nullptr;
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
         doNullMove(board, &boardStack);
@@ -552,7 +555,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
             Square target = moveTarget(move);
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
-            stack->contHist = thread->history.continuationHistory[board->stm][stack->movedPiece][target];
+            stack->contHist = nullptr;
             doMove(board, &boardStack, move, newHash, &thread->nnue);
 
             Eval value = -qsearch<NON_PV_NODE>(board, thread, stack + 1, -probCutBeta, -probCutBeta + 1);
@@ -684,7 +687,10 @@ movesLoop:
         Square target = moveTarget(move);
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
-        stack->contHist = thread->history.continuationHistory[board->stm][stack->movedPiece][target];
+        if (capture)
+            stack->contHist = nullptr;
+        else
+            stack->contHist = thread->history.continuationHistory[board->stm][stack->movedPiece][target];
 
         moveCount++;
         thread->searchData.nodesSearched++;

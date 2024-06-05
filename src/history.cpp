@@ -70,13 +70,13 @@ int History::getContinuationHistory(SearchStack* stack, Piece piece, Move move) 
     int score = 0;
     int pieceTo = 64 * piece + target;
 
-    if ((stack - 1)->movedPiece != NO_PIECE)
+    if ((stack - 1)->contHist != nullptr)
         score += (stack - 1)->contHist[pieceTo];
 
-    if ((stack - 2)->movedPiece != NO_PIECE)
+    if ((stack - 2)->contHist != nullptr)
         score += (stack - 2)->contHist[pieceTo];
 
-    if ((stack - 4)->movedPiece != NO_PIECE)
+    if ((stack - 4)->contHist != nullptr)
         score += (stack - 4)->contHist[pieceTo];
 
     return score;
@@ -89,16 +89,16 @@ void History::updateContinuationHistory(SearchStack* stack, Piece piece, Move mo
     int16_t scaledBonus = bonus - getContinuationHistory(stack, piece, move) * std::abs(bonus) / 32000;
     int pieceTo = 64 * piece + target;
 
-    if ((stack - 1)->movedPiece != NO_PIECE)
+    if ((stack - 1)->contHist != nullptr)
         (stack - 1)->contHist[pieceTo] += scaledBonus;
 
-    if ((stack - 2)->movedPiece != NO_PIECE)
+    if ((stack - 2)->contHist != nullptr)
         (stack - 2)->contHist[pieceTo] += scaledBonus;
 
-    if ((stack - 3)->movedPiece != NO_PIECE)
+    if ((stack - 3)->contHist != nullptr)
         (stack - 3)->contHist[pieceTo] += scaledBonus / 4;
 
-    if ((stack - 4)->movedPiece != NO_PIECE)
+    if ((stack - 4)->contHist != nullptr)
         (stack - 4)->contHist[pieceTo] += scaledBonus;
 }
 
