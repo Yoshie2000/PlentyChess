@@ -703,6 +703,9 @@ movesLoop:
 
             if (!ttPv)
                 reducedDepth--;
+            
+            if (thread->history.getCorrectionHistory(board) >= 15 * CORRECTION_HISTORY_LIMIT / 16)
+                reducedDepth++;
 
             if (cutNode)
                 reducedDepth -= 2;
