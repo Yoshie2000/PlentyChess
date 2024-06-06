@@ -64,7 +64,6 @@ TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
 TUNE_INT(rfpFactor, 97, 1, 250);
 
-TUNE_INT_DISABLED(razoringDepth, 5, 2, 20);
 TUNE_INT(razoringFactor, 296, 1, 1000);
 
 TUNE_INT_DISABLED(nmpRedBase, 3, 1, 5);
@@ -480,7 +479,7 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         return eval;
 
     // Razoring
-    if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha) {
+    if (!rootNode && alpha < 2500 && eval + razoringFactor * depth < alpha) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, thread, stack, alpha, beta);
         if (razorValue <= alpha)
             return razorValue;
