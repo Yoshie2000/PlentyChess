@@ -44,8 +44,6 @@ public:
     Move getCounterMove(Move move);
     void setCounterMove(Move move, Move counter);
 
-private:
-
     constexpr Eval getCorrectionHistory(Board* board) {
         return correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
     }
