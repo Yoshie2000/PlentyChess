@@ -17,6 +17,11 @@ constexpr uint8_t CASTLING_MASK = 0xF;
 
 constexpr Square CASTLING_KING_SQUARES[] = { 6, 2, 62, 58 };
 constexpr Square CASTLING_ROOK_SQUARES[] = { 5, 3, 61, 59 };
+constexpr uint8_t CASTLING_FLAGS[] = { CASTLING_WHITE_KINGSIDE, CASTLING_WHITE_QUEENSIDE, CASTLING_BLACK_KINGSIDE, CASTLING_BLACK_QUEENSIDE };
+
+constexpr int castlingIndex(Color side, Square kingOrigin, Square kingTarget) {
+    return 2 * (side != COLOR_WHITE) + (kingTarget <= kingOrigin);
+}
 
 struct BoardStack {
     Piece capturedPiece;
@@ -68,6 +73,11 @@ struct Board {
     void undoMove(Move move, NNUE* nnue);
     void doNullMove(BoardStack* newStack);
     void undoNullMove();
+
+    bool isCapture(Move move);
+    bool isPseudoLegal(Move move);
+    bool isLegal(Move move);
+    bool givesCheck(Move move);
 
     void calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling);
 

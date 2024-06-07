@@ -5,9 +5,6 @@
 #include "search.h"
 #include "nnue.h"
 
-#define PHASE_MG 0
-#define PHASE_EG 1
-
 const Eval EVAL_MATE = 30000;
 const Eval EVAL_MATE_IN_MAX_PLY = EVAL_MATE - MAX_PLY;
 

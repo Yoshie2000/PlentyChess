@@ -665,6 +665,211 @@ void Board::undoNullMove() {
     stack = stack->previous;
 }
 
+bool Board::isCapture(Move move) {
+    MoveType type = moveType(move);
+    if (type == MOVE_CASTLING) return false;
+    if (type == MOVE_ENPASSANT || (type == MOVE_PROMOTION && promotionType(move) == PROMOTION_QUEEN)) return true;
+    return pieces[moveTarget(move)] != NO_PIECE;
+}
+
+bool Board::isPseudoLegal(Move move) {
+    Square origin = moveOrigin(move);
+    Square target = moveTarget(move);
+    Bitboard originBB = bitboard(origin);
+    Bitboard targetBB = bitboard(target);
+    Piece piece = pieces[origin];
+    MoveType type = moveType(move);
+
+    // A valid piece needs to be on the origin square
+    if (pieces[origin] == NO_PIECE) return false;
+    // We can't capture our own piece, except in castling
+    if (type != MOVE_CASTLING && (byColor[stm] & targetBB)) return false;
+    // We can't move the enemies piece
+    if (byColor[flip(stm)] & originBB) return false;
+
+    // Non-standard movetypes
+    switch (type) {
+    case MOVE_CASTLING: {
+        if (piece != PIECE_KING || stack->checkers) return false;
+
+        // Check for pieces between king and rook
+        int castlingIdx = castlingIndex(stm, origin, target);
+        Square kingSquare = lsb(byColor[stm] & byPiece[PIECE_KING]);
+        Square rookSquare = castlingSquares[castlingIdx];
+        Square kingTarget = CASTLING_KING_SQUARES[castlingIdx];
+        Square rookTarget = CASTLING_ROOK_SQUARES[castlingIdx];
+
+        Bitboard importantSquares = BB::BETWEEN[rookSquare][rookTarget] | BB::BETWEEN[kingSquare][kingTarget];
+        importantSquares &= ~bitboard(rookSquare) & ~bitboard(kingSquare);
+        if ((byColor[COLOR_WHITE] | byColor[COLOR_BLACK]) & importantSquares) return false;
+        // Check for castling flags (Attackers are done in isLegal())
+        return stack->castling & CASTLING_FLAGS[castlingIdx];
+    }
+    case MOVE_ENPASSANT:
+        if (piece != PIECE_PAWN) return false;
+        if (stack->checkerCount > 1) return false;
+        if (stack->checkers && !(lsb(stack->checkers) == target - UP[stm])) return false;
+        // Check for EP flag on the right file
+        return (bitboard(target) & stack->enpassantTarget) && pieces[target - UP[stm]] == PIECE_PAWN;
+    case MOVE_PROMOTION:
+        if (piece != PIECE_PAWN) return false;
+        if (stack->checkerCount > 1) return false;
+        if (stack->checkers) {
+            bool capturesChecker = target == lsb(stack->checkers);
+            bool blocksCheck = BB::BETWEEN[lsb(byColor[stm] & byPiece[PIECE_KING])][lsb(stack->checkers)] & bitboard(target);
+            if (!capturesChecker && !blocksCheck)
+                return false;
+        }
+        if (
+            !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[flip(stm)]) && // Capture promotion?
+            !(origin + UP[stm] == target && pieces[target] == NO_PIECE)) // Push promotion?
+            return false;
+        return true;
+    default:
+        break;
+    }
+
+    Bitboard occupied = byColor[COLOR_WHITE] | byColor[COLOR_BLACK];
+    switch (piece) {
+    case PIECE_PAWN:
+        if (targetBB & (BB::RANK_8 | BB::RANK_1)) return false;
+
+        if (
+            !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[flip(stm)]) && // Capture?
+            !(origin + UP[stm] == target && pieces[target] == NO_PIECE) && // Single push?
+            !(origin + 2 * UP[stm] == target && pieces[target] == NO_PIECE && pieces[target - UP[stm]] == NO_PIECE && (originBB & (BB::RANK_2 | BB::RANK_7))) // Double push?
+            )
+            return false;
+        break;
+    case PIECE_KNIGHT:
+        if (!(BB::KNIGHT_ATTACKS[origin] & targetBB)) return false;
+        break;
+    case PIECE_BISHOP:
+        if (!(getBishopMoves(origin, occupied) & targetBB)) return false;
+        break;
+    case PIECE_ROOK:
+        if (!(getRookMoves(origin, occupied) & targetBB)) return false;
+        break;
+    case PIECE_QUEEN:
+        if (!((getBishopMoves(origin, occupied) | getRookMoves(origin, occupied)) & targetBB)) return false;
+        break;
+    case PIECE_KING:
+        if (!(BB::KING_ATTACKS[origin] & targetBB)) return false;
+        break;
+    default:
+        return false;
+    }
+
+    if (stack->checkers) {
+        if (piece != PIECE_KING) {
+            // Double check requires king moves
+            if (stack->checkerCount > 1)
+                return false;
+
+            bool capturesChecker = target == lsb(stack->checkers);
+            bool blocksCheck = BB::BETWEEN[lsb(byColor[stm] & byPiece[PIECE_KING])][lsb(stack->checkers)] & bitboard(target);
+            if (!capturesChecker && !blocksCheck)
+                return false;
+        }
+        // King moves *should* be handled in isLegal()
+    }
+
+    return true;
+}
+
+bool Board::isLegal(Move move) {
+    assert(isPseudoLegal(move));
+
+    Square origin = moveOrigin(move);
+    Square target = moveTarget(move);
+    Bitboard originBB = bitboard(origin);
+
+    Square king = lsb(byPiece[PIECE_KING] & byColor[stm]);
+
+    MoveType type = moveType(move);
+    if (type == MOVE_ENPASSANT) {
+        // Check if king would be in check after this move
+        Square epSquare = target - UP[stm];
+
+        Bitboard epSquareBB = bitboard(epSquare);
+        Bitboard targetBB = bitboard(target);
+        Bitboard occupied = ((byColor[COLOR_WHITE] | byColor[COLOR_BLACK]) ^ originBB ^ epSquareBB) | targetBB;
+
+        // Check if any rooks/queens/bishops attack the king square, given the occupied pieces after this EP move
+        Bitboard rookAttacks = getRookMoves(king, occupied) & (byPiece[PIECE_ROOK] | byPiece[PIECE_QUEEN]) & byColor[flip(stm)];
+        Bitboard bishopAttacks = getBishopMoves(king, occupied) & (byPiece[PIECE_BISHOP] | byPiece[PIECE_QUEEN]) & byColor[flip(stm)];
+        return !rookAttacks && !bishopAttacks;
+    }
+
+    Bitboard occupied = byColor[COLOR_WHITE] | byColor[COLOR_BLACK];
+
+    if (type == MOVE_CASTLING) {
+        int castlingIdx = castlingIndex(stm, origin, target);
+        Square adjustedTarget = CASTLING_KING_SQUARES[castlingIdx];
+
+        // Check that none of the important squares (including the current king position!) are being attacked
+        if (adjustedTarget < origin) {
+            for (Square s = adjustedTarget; s <= origin; s++) {
+                if (byColor[flip(stm)] & attackersTo(s, occupied))
+                    return false;
+            }
+        }
+        else {
+            for (Square s = adjustedTarget; s >= origin; s--) {
+                if (byColor[flip(stm)] & attackersTo(s, occupied))
+                    return false;
+            }
+        }
+        // Check for castling flags
+        return stack->castling & CASTLING_FLAGS[castlingIdx];
+    }
+
+    if (pieces[origin] == PIECE_KING) {
+        // Check that we're not moving into an attack
+        return !(byColor[flip(stm)] & attackersTo(target, occupied ^ bitboard(origin)));
+    }
+
+    // Check if we're not pinned to the king, or are moving along the pin
+    bool pinned = stack->blockers[stm] & originBB;
+    return !pinned || (BB::LINE[origin][target] & bitboard(king));
+}
+
+bool Board::givesCheck(Move move) {
+    Square origin = moveOrigin(move);
+    Square target = moveTarget(move);
+    Bitboard occ = byColor[COLOR_WHITE] | byColor[COLOR_BLACK];
+    Bitboard enemyKing = byColor[flip(stm)] & byPiece[PIECE_KING];
+
+    // Direct check
+    Bitboard attacks = BB::attackedSquares(pieces[origin], target, occ ^ bitboard(origin) ^ bitboard(target), stm);
+    if (attacks & enemyKing)
+        return true;
+
+    // Discovered check: Are we blocking a check to the enemy king?
+    MoveType type = moveType(move);
+    if (stack->blockers[flip(stm)] & bitboard(origin))
+        return !(BB::LINE[origin][target] & enemyKing) || type == MOVE_CASTLING;
+
+    switch (type) {
+    case MOVE_PROMOTION: {
+        Piece promotionPiece = PROMOTION_PIECE[promotionType(move)];
+        return BB::attackedSquares(promotionPiece, target, occ ^ bitboard(origin), stm) & enemyKing;
+    }
+    case MOVE_CASTLING: {
+        return BB::attackedSquares(PIECE_ROOK, CASTLING_ROOK_SQUARES[castlingIndex(stm, origin, target)], occ, stm) & enemyKing;
+    }
+    case MOVE_ENPASSANT: {
+        Square epSquare = target - UP[stm];
+        Bitboard occupied = (occ ^ bitboard(origin) ^ bitboard(epSquare)) | bitboard(target);
+        Square ek = lsb(enemyKing);
+        return (BB::attackedSquares(PIECE_ROOK, ek, occupied, stm) & byColor[stm] & (byPiece[PIECE_ROOK] | byPiece[PIECE_QUEEN]))
+            | (BB::attackedSquares(PIECE_BISHOP, ek, occupied, stm) & byColor[stm] & (byPiece[PIECE_BISHOP] | byPiece[PIECE_QUEEN]));
+    }
+    default:
+        return false;
+    }
+}
+
 uint64_t Board::hashAfter(Move move) {
     uint64_t hash = stack->hash ^ ZOBRIST_STM_BLACK;
 
@@ -851,7 +1056,7 @@ bool Board::isDraw() {
         generateMoves(this, moves, &moveCount);
         for (int i = 0; i < moveCount; i++) {
             Move move = moves[i];
-            if (!isLegal(this, move))
+            if (!isLegal(move))
                 continue;
             legalMoveCount++;
         }

@@ -145,7 +145,7 @@ uint64_t perftInternal(Board* board, NNUE* nnue, int depth) {
     for (int i = 0; i < moveCount; i++) {
         Move move = moves[i];
 
-        if (!isLegal(board, move))
+        if (!board->isLegal(move))
             continue;
 
         board->doMove(&stack, move, board->hashAfter(move), nnue);
@@ -171,7 +171,7 @@ uint64_t perft(Board* board, int depth) {
     for (int i = 0; i < moveCount; i++) {
         Move move = moves[i];
 
-        if (!isLegal(board, move))
+        if (!board->isLegal(move))
             continue;
 
         board->doMove(&stack, move, board->hashAfter(move), &nnue);
@@ -314,7 +314,7 @@ movesLoopQsearch:
                 continue;
         }
 
-        if (!isLegal(board, move))
+        if (!board->isLegal(move))
             continue;
 
         uint64_t newHash = board->hashAfter(move);
@@ -541,11 +541,11 @@ Eval search(Board* board, SearchStack* stack, Thread* thread, int depth, Eval al
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_MATE_IN_MAX_PLY);
 
-        Move probcutTtMove = ttMove != MOVE_NONE && isPseudoLegal(board, ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : MOVE_NONE;
+        Move probcutTtMove = ttMove != MOVE_NONE && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : MOVE_NONE;
         MoveGen movegen(board, &thread->history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth);
         Move move;
         while ((move = movegen.nextMove()) != MOVE_NONE) {
-            if (move == excludedMove || !isLegal(board, move))
+            if (move == excludedMove || !board->isLegal(move))
                 continue;
 
             uint64_t newHash = board->hashAfter(move);
@@ -593,11 +593,11 @@ movesLoop:
         if (rootNode && std::find(thread->excludedRootMoves.begin(), thread->excludedRootMoves.end(), move) != thread->excludedRootMoves.end())
             continue;
 
-        bool capture = isCapture(board, move);
+        bool capture = board->isCapture(move);
         if (!capture && skipQuiets)
             continue;
 
-        if (!isLegal(board, move))
+        if (!board->isLegal(move))
             continue;
 
         uint64_t nodesBeforeMove = thread->searchData.nodesSearched;
@@ -836,7 +836,7 @@ movesLoop:
         ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
-    if (!board->stack->checkers && (bestMove == MOVE_NONE || !isCapture(board, bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
+    if (!board->stack->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
         int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         thread->history.updateCorrectionHistory(board, bonus);
     }
@@ -880,7 +880,7 @@ void Thread::iterativeDeepening() {
         int m = 0;
         generateMoves(&rootBoard, moves, &m);
         for (int i = 0; i < m; i++) {
-            if (isLegal(&rootBoard, moves[i])) {
+            if (rootBoard.isLegal(moves[i])) {
                 multiPvCount++;
 
                 RootMove rootMove = {};

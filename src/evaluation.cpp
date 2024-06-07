@@ -51,7 +51,7 @@ std::string formatEval(Eval value) {
 }
 
 bool SEE(Board* board, Move move, Eval threshold) {
-    assert(isPseudoLegal(board, move));
+    assert(board->isPseudoLegal(move));
 
     // "Special" moves pass SEE
     if (move >> 12)

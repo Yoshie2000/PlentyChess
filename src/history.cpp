@@ -123,7 +123,7 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
 }
 
 void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
-    if (isCapture(board, move)) {
+    if (board->isCapture(move)) {
         updateSingleCaptureHistory(board, move, bonus);
     }
 

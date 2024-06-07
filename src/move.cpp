@@ -16,200 +16,6 @@ TUNE_INT(mpPromotionScoreFactor, 157, 10, 10000);
 TUNE_INT(mpMvvLvaScoreFactor, 218, 10, 10000);
 TUNE_INT(mpSeeDivisor, 79, 10, 150);
 
-bool isPseudoLegal(Board* board, Move move) {
-    Square origin = moveOrigin(move);
-    Square target = moveTarget(move);
-    Bitboard originBB = bitboard(origin);
-    Bitboard targetBB = bitboard(target);
-    Piece piece = board->pieces[origin];
-    Move specialMove = move & 0x3000;
-
-    // A valid piece needs to be on the origin square
-    if (board->pieces[origin] == NO_PIECE) return false;
-    // We can't capture our own piece, except in castling
-    if (specialMove != MOVE_CASTLING && (board->byColor[board->stm] & targetBB)) return false;
-    // We can't move the enemies piece
-    if (board->byColor[1 - board->stm] & originBB) return false;
-
-    // Non-standard movetypes
-    switch (specialMove) {
-    case MOVE_CASTLING: {
-        if (piece != PIECE_KING || board->stack->checkers) return false;
-        // Check for pieces between king and rook
-        Square kingSquare = lsb(board->byColor[board->stm] & board->byPiece[PIECE_KING]);
-        Square rookSquare = board->stm == COLOR_WHITE ? (target > origin ? board->castlingSquares[0] : board->castlingSquares[1]) : (target > origin ? board->castlingSquares[2] : board->castlingSquares[3]);
-        Square kingTarget = board->stm == COLOR_WHITE ? (target > origin ? 6 : 2) : (target > origin ? 62 : 58);
-        Square rookTarget = board->stm == COLOR_WHITE ? (target > origin ? 5 : 3) : (target > origin ? 61 : 59);
-        Bitboard importantSquares = BB::BETWEEN[rookSquare][rookTarget] | BB::BETWEEN[kingSquare][kingTarget];
-        importantSquares &= ~bitboard(rookSquare) & ~bitboard(kingSquare);
-        if ((board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) & importantSquares) return false;
-        // Check for castling flags (Attackers are done in isLegal())
-        return board->stack->castling & (board->stm == COLOR_WHITE ? (target > origin ? 0b0001 : 0b0010) : (target > origin ? 0b0100 : 0b1000));
-    }
-    case MOVE_ENPASSANT:
-        if (piece != PIECE_PAWN) return false;
-        if (board->stack->checkerCount > 1) return false;
-        if (board->stack->checkers && (!(lsb(board->stack->checkers) == target - UP[board->stm]))) return false;
-        // Check for EP flag on the right file
-        return (bitboard(target) & board->stack->enpassantTarget) && board->pieces[target - UP[board->stm]] == PIECE_PAWN;
-    case MOVE_PROMOTION:
-        if (piece != PIECE_PAWN) return false;
-        if (board->stack->checkerCount > 1) return false;
-        if (board->stack->checkers) {
-            bool capturesChecker = target == lsb(board->stack->checkers);
-            bool blocksCheck = BB::BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[PIECE_KING])][lsb(board->stack->checkers)] & bitboard(target);
-            if (!capturesChecker && !blocksCheck)
-                return false;
-        }
-        if (
-            !(BB::pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture promotion?
-            !(origin + UP[board->stm] == target && board->pieces[target] == NO_PIECE)) // Push promotion?
-            return false;
-        return true;
-    default:
-        break;
-    }
-
-    Bitboard occupied = board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK];
-    switch (piece) {
-    case PIECE_PAWN:
-        if (targetBB & (BB::RANK_8 | BB::RANK_1)) return false;
-
-        if (
-            !(BB::pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture?
-            !(origin + UP[board->stm] == target && board->pieces[target] == NO_PIECE) && // Single push?
-            !(origin + 2 * UP[board->stm] == target && board->pieces[target] == NO_PIECE && board->pieces[target - UP[board->stm]] == NO_PIECE && (originBB & (BB::RANK_2 | BB::RANK_7))) // Double push?
-            )
-            return false;
-        break;
-    case PIECE_KNIGHT:
-        if (!(BB::KNIGHT_ATTACKS[origin] & targetBB)) return false;
-        break;
-    case PIECE_BISHOP:
-        if (!(getBishopMoves(origin, occupied) & targetBB)) return false;
-        break;
-    case PIECE_ROOK:
-        if (!(getRookMoves(origin, occupied) & targetBB)) return false;
-        break;
-    case PIECE_QUEEN:
-        if (!((getBishopMoves(origin, occupied) | getRookMoves(origin, occupied)) & targetBB)) return false;
-        break;
-    case PIECE_KING:
-        if (!(BB::KING_ATTACKS[origin] & targetBB)) return false;
-        break;
-    default:
-        return false;
-    }
-
-    if (board->stack->checkers) {
-        if (piece != PIECE_KING) {
-            // Double check requires king moves
-            if (board->stack->checkerCount > 1)
-                return false;
-
-            bool capturesChecker = target == lsb(board->stack->checkers);
-            bool blocksCheck = BB::BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[PIECE_KING])][lsb(board->stack->checkers)] & bitboard(target);
-            if (!capturesChecker && !blocksCheck)
-                return false;
-        }
-        // King moves *should* be handled in isLegal()
-    }
-
-    return true;
-}
-
-bool isLegal(Board* board, Move move) {
-    assert(isPseudoLegal(board, move));
-
-    Square origin = moveOrigin(move);
-    Square target = moveTarget(move);
-    Bitboard originBB = bitboard(origin);
-
-    Square king = lsb(board->byPiece[PIECE_KING] & board->byColor[board->stm]);
-
-    Move specialMove = move & 0x3000;
-    if (specialMove == MOVE_ENPASSANT) {
-        // Check if king would be in check after this move
-        Square epSquare = target - UP[board->stm];
-
-        Bitboard epSquareBB = bitboard(epSquare);
-        Bitboard targetBB = bitboard(target);
-        Bitboard occupied = ((board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) ^ originBB ^ epSquareBB) | targetBB;
-
-        // Check if any rooks/queens/bishops attack the king square, given the occupied pieces after this EP move
-        Bitboard rookAttacks = getRookMoves(king, occupied) & (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]) & board->byColor[1 - board->stm];
-        Bitboard bishopAttacks = getBishopMoves(king, occupied) & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]) & board->byColor[1 - board->stm];
-        return !rookAttacks && !bishopAttacks;
-    }
-
-    Bitboard occupied = board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK];
-
-    if (specialMove == MOVE_CASTLING) {
-        // Check that none of the important squares (including the current king position!) are being attacked
-        Square adjustedTarget = target < origin ? (board->stm == COLOR_WHITE ? 2 : 58) : (board->stm == COLOR_WHITE ? 6 : 62);
-        if (adjustedTarget < origin) {
-            for (Square s = adjustedTarget; s <= origin; s++) {
-                if (board->byColor[1 - board->stm] & board->attackersTo(s, occupied))
-                    return false;
-            }
-        }
-        else {
-            for (Square s = adjustedTarget; s >= origin; s--) {
-                if (board->byColor[1 - board->stm] & board->attackersTo(s, occupied))
-                    return false;
-            }
-        }
-        // Check for castling flags
-        return board->stack->castling & (board->stm == COLOR_WHITE ? (target > origin ? 0b0001 : 0b0010) : (target > origin ? 0b0100 : 0b1000));
-    }
-
-    if (board->pieces[origin] == PIECE_KING) {
-        // Check that we're not moving into an attack
-        return !(board->byColor[1 - board->stm] & board->attackersTo(target, occupied ^ bitboard(origin)));
-    }
-
-    // Check if we're not pinned to the king, or are moving along the pin
-    bool pinned = board->stack->blockers[board->stm] & originBB;
-    return !pinned || (BB::LINE[origin][target] & bitboard(king));
-}
-
-bool givesCheck(Board* board, Move move) {
-    Square origin = moveOrigin(move);
-    Square target = moveTarget(move);
-    Bitboard occ = board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK];
-    Bitboard enemyKing = board->byColor[1 - board->stm] & board->byPiece[PIECE_KING];
-
-    // Direct check
-    Bitboard attacks = BB::attackedSquares(board->pieces[origin], target, occ ^ bitboard(origin) ^ bitboard(target), board->stm);
-    if (attacks & enemyKing)
-        return true;
-
-    // Discovered check: Are we blocking a check to the enemy king?
-    Move specialMove = move & 0x3000;
-    if (board->stack->blockers[1 - board->stm] & bitboard(origin))
-        return !(BB::LINE[origin][target] & enemyKing) || specialMove == MOVE_CASTLING;
-
-    switch (specialMove) {
-    case MOVE_PROMOTION: {
-        Piece promotionPiece = PROMOTION_PIECE[move >> 14];
-        return BB::attackedSquares(promotionPiece, target, occ ^ bitboard(origin), board->stm) & enemyKing;
-    }
-    case MOVE_CASTLING: {
-        Square rookTarget = board->stm == COLOR_WHITE ? (target > origin ? 5 : 3) : (target > origin ? 61 : 59);
-        return BB::attackedSquares(PIECE_ROOK, rookTarget, occ, board->stm) & enemyKing;
-    }
-    case MOVE_ENPASSANT: {
-        Square epSquare = target - UP[board->stm];
-        Bitboard occupied = (occ ^ bitboard(origin) ^ bitboard(epSquare)) | bitboard(target);
-        Square ek = lsb(enemyKing);
-        return (BB::attackedSquares(PIECE_ROOK, ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]))
-             | (BB::attackedSquares(PIECE_BISHOP, ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]));
-    }
-    default:
-        return false;
-    }
-}
-
 void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targetMask) {
     Bitboard pawns = board->byPiece[PIECE_PAWN] & board->byColor[board->stm];
     Bitboard free = ~(board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]);
@@ -376,9 +182,9 @@ void generateCastling(Board* board, Move** moves, int* counter) {
     switch (board->stm) {
     case COLOR_WHITE:
         // Kingside
-        if ((board->stack->castling & 0x1)) {
+        if ((board->stack->castling & CASTLING_WHITE_KINGSIDE)) {
             Square kingsideRook = board->castlingSquares[0];
-            Bitboard between = BB::BETWEEN[kingsideRook][5] | BB::BETWEEN[king][6];
+            Bitboard between = BB::BETWEEN[kingsideRook][CASTLING_ROOK_SQUARES[0]] | BB::BETWEEN[king][CASTLING_KING_SQUARES[0]];
             between &= ~bitboard(kingsideRook) & ~bitboard(king);
             if (!(occupied & between)) {
                 *(*moves)++ = createMove(king, kingsideRook) | MOVE_CASTLING;
@@ -386,9 +192,9 @@ void generateCastling(Board* board, Move** moves, int* counter) {
             }
         }
         // Queenside
-        if ((board->stack->castling & 0x2)) {
+        if ((board->stack->castling & CASTLING_WHITE_QUEENSIDE)) {
             Square queensideRook = board->castlingSquares[1];
-            Bitboard between = BB::BETWEEN[queensideRook][3] | BB::BETWEEN[king][2];
+            Bitboard between = BB::BETWEEN[queensideRook][CASTLING_ROOK_SQUARES[1]] | BB::BETWEEN[king][CASTLING_KING_SQUARES[1]];
             between &= ~bitboard(queensideRook) & ~bitboard(king);
             if (!(occupied & between)) {
                 *(*moves)++ = createMove(king, queensideRook) | MOVE_CASTLING;
@@ -398,9 +204,9 @@ void generateCastling(Board* board, Move** moves, int* counter) {
         break;
     case COLOR_BLACK:
         // Kingside
-        if ((board->stack->castling & 0x4)) {
+        if ((board->stack->castling & CASTLING_BLACK_KINGSIDE)) {
             Square kingsideRook = board->castlingSquares[2];
-            Bitboard between = BB::BETWEEN[kingsideRook][61] | BB::BETWEEN[king][62];
+            Bitboard between = BB::BETWEEN[kingsideRook][CASTLING_ROOK_SQUARES[2]] | BB::BETWEEN[king][CASTLING_KING_SQUARES[2]];
             between &= ~bitboard(kingsideRook) & ~bitboard(king);
             if (!(occupied & between)) {
                 *(*moves)++ = createMove(king, kingsideRook) | MOVE_CASTLING;
@@ -408,9 +214,9 @@ void generateCastling(Board* board, Move** moves, int* counter) {
             }
         }
         // Queenside
-        if ((board->stack->castling & 0x8)) {
+        if ((board->stack->castling & CASTLING_BLACK_QUEENSIDE)) {
             Square queensideRook = board->castlingSquares[3];
-            Bitboard between = BB::BETWEEN[queensideRook][59] | BB::BETWEEN[king][58];
+            Bitboard between = BB::BETWEEN[queensideRook][CASTLING_ROOK_SQUARES[3]] | BB::BETWEEN[king][CASTLING_KING_SQUARES[3]];
             between &= ~bitboard(queensideRook) & ~bitboard(king);
             if (!(occupied & between)) {
                 *(*moves)++ = createMove(king, queensideRook) | MOVE_CASTLING;
@@ -466,17 +272,17 @@ Move MoveGen::nextMove() {
     int beginIndex, endIndex;
 
     // Generate moves for the current stage
-    switch (generationStage) {
-    case GEN_STAGE_TTMOVE:
+    switch (stage) {
+    case STAGE_TTMOVE:
 
-        generationStage++;
-        if (ttMove != MOVE_NONE && ttMove != MOVE_NULL && isPseudoLegal(board, ttMove)) {
+        stage++;
+        if (ttMove != MOVE_NONE && ttMove != MOVE_NULL && board->isPseudoLegal(ttMove)) {
             return ttMove;
         }
 
         [[fallthrough]];
 
-    case GEN_STATE_GEN_CAPTURES:
+    case STAGE_GEN_CAPTURES:
         beginIndex = generatedMoves;
         moves = moveList + generatedMoves;
         // If in double check, only generate king moves
@@ -499,10 +305,10 @@ Move MoveGen::nextMove() {
         endIndex = scoreCaptures(beginIndex, endIndex);
         sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
-        generationStage++;
+        stage++;
         [[fallthrough]];
 
-    case GEN_STAGE_CAPTURES:
+    case STAGE_PLAY_GOOD_CAPTURES:
 
         while (returnedMoves < generatedMoves) {
             Move move = moveList[returnedMoves];
@@ -517,33 +323,33 @@ Move MoveGen::nextMove() {
         }
 
         if (probCut || onlyCaptures) {
-            generationStage = GEN_STAGE_DONE;
+            stage = STAGE_DONE;
             return MOVE_NONE;
         }
-        generationStage++;
+        stage++;
         [[fallthrough]];
 
-    case GEN_STAGE_KILLERS:
+    case STAGE_KILLERS:
 
         while (killerCount < 2) {
             Move killer = killers[killerCount++];
 
-            if (killer != MOVE_NONE && killer != ttMove && isPseudoLegal(board, killer))
+            if (killer != MOVE_NONE && killer != ttMove && board->isPseudoLegal(killer))
                 return killer;
         }
 
-        generationStage++;
+        stage++;
         [[fallthrough]];
 
-    case GEN_STAGE_COUNTERMOVES:
+    case STAGE_COUNTERS:
 
-        generationStage++;
-        if (counterMove != MOVE_NONE && counterMove != ttMove && counterMove != killers[0] && counterMove != killers[1] && !isCapture(board, counterMove) && isPseudoLegal(board, counterMove))
+        stage++;
+        if (counterMove != MOVE_NONE && counterMove != ttMove && counterMove != killers[0] && counterMove != killers[1] && !board->isCapture(counterMove) && board->isPseudoLegal(counterMove))
             return counterMove;
 
         [[fallthrough]];
 
-    case GEN_STAGE_GEN_REMAINING:
+    case STAGE_GEN_QUIETS:
         beginIndex = generatedMoves;
         moves = moveList + generatedMoves;
         // If in double check, only generate king moves
@@ -568,23 +374,23 @@ Move MoveGen::nextMove() {
         endIndex = scoreQuiets(beginIndex, endIndex);
         sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
-        generationStage++;
+        stage++;
         [[fallthrough]];
 
-    case GEN_STAGE_REMAINING:
+    case STAGE_PLAY_QUIETS:
 
         if (returnedMoves < generatedMoves)
             return moveList[returnedMoves++];
 
-        generationStage++;
+        stage++;
         [[fallthrough]];
 
-    case GEN_STAGE_BAD_CAPTURES:
+    case STAGE_PLAY_BAD_CAPTURES:
 
         if (returnedBadCaptures < generatedBadCaptures)
             return badCaptureList[returnedBadCaptures++];
 
-        generationStage = GEN_STAGE_DONE;
+        stage = STAGE_DONE;
     }
 
     return MOVE_NONE;
@@ -605,10 +411,10 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
         }
 
         int score = *history->getCaptureHistory(board, move);
-        if ((move & 0x3000) == MOVE_ENPASSANT)
+        if (moveType(move) == MOVE_ENPASSANT)
             score += 0;
-        else if ((move & 0x3000) == MOVE_PROMOTION)
-            score += PIECE_VALUES[PROMOTION_PIECE[move >> 14]] * mpPromotionScoreFactor / 100;
+        else if (moveType(move) == MOVE_PROMOTION)
+            score += PIECE_VALUES[PROMOTION_PIECE[promotionType(move)]] * mpPromotionScoreFactor / 100;
         else
             score += (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
 
@@ -831,48 +637,4 @@ Move stringToMove(char* string, Board* board) {
     }
 
     return move;
-}
-
-void generateLastSqTable() {
-    // char string[4];
-
-    for (Square square = 0; square < 64; square++) {
-
-        // squareToString(string, square);
-        // printf("%s\n", string);
-        printf("{ ");
-
-        for (uint8_t direction = 0; direction < 8; direction++) {
-            int8_t delta = DIRECTION_DELTAS[direction];
-            Square lastSquare = square;
-
-            // printf("\t%d ", direction);
-
-            // todo: find lastSquare
-
-            bool leftDisallowed = (square % 8 == 0) && (direction == DIRECTION_LEFT || direction == DIRECTION_UP_LEFT || direction == DIRECTION_DOWN_LEFT);
-            bool rightDisallowed = (square % 8 == 7) && (direction == DIRECTION_RIGHT || direction == DIRECTION_UP_RIGHT || direction == DIRECTION_DOWN_RIGHT);
-
-            if (!leftDisallowed && !rightDisallowed)
-                for (Square toSquare = square + delta; toSquare <= 63; toSquare += delta) {
-                    lastSquare = toSquare;
-
-                    if ((toSquare % 8 == 0) && (direction == DIRECTION_LEFT || direction == DIRECTION_UP_LEFT || direction == DIRECTION_DOWN_LEFT))
-                        break;
-                    if ((toSquare % 8 == 7) && (direction == DIRECTION_RIGHT || direction == DIRECTION_UP_RIGHT || direction == DIRECTION_DOWN_RIGHT))
-                        break;
-                }
-
-            // squareToString(string, lastSquare);
-            // printf("%s\n", string);
-            if (direction < 7)
-                printf("%d, ", lastSquare);
-            else
-                printf("%d ", lastSquare);
-
-        }
-
-        printf("},\n");
-
-    }
 }
