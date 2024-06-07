@@ -41,6 +41,23 @@ namespace BB {
         return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
     }
 
+    Bitboard attackedSquares(Piece pieceType, Square square, Bitboard occupied, Color stm) {
+        switch (pieceType) {
+        case PIECE_PAWN:
+            return pawnAttacks(bitboard(square), stm);
+        case PIECE_KNIGHT:
+            return KNIGHT_ATTACKS[square];
+        case PIECE_KING:
+            return KING_ATTACKS[square];
+        case PIECE_BISHOP:
+            return getBishopMoves(square, occupied);
+        case PIECE_ROOK:
+            return getRookMoves(square, occupied);
+        default:
+            return getBishopMoves(square, occupied) | getRookMoves(square, occupied);
+        }
+    }
+
     void init() {
         for (Square a = 0; a < 64; a++) {
             for (Square b = 0; b < 64; b++) {

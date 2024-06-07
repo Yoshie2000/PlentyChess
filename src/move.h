@@ -7,17 +7,17 @@
 #include "board.h"
 #include "history.h"
 
-#define PROMOTION_QUEEN (Move) (0 << 14)
-#define PROMOTION_ROOK (Move) (1 << 14)
-#define PROMOTION_BISHOP (Move) (2 << 14)
-#define PROMOTION_KNIGHT (Move) (3 << 14)
-
 constexpr Move MOVE_NULL = 0;
 constexpr Move MOVE_NONE = INT16_MAX;
 
-constexpr Move MOVE_PROMOTION = 1 << 12;
-constexpr Move MOVE_ENPASSANT = 2 << 12;
-constexpr Move MOVE_CASTLING = 3 << 12;
+constexpr MoveType MOVE_PROMOTION = 1 << 12;
+constexpr MoveType MOVE_ENPASSANT = 2 << 12;
+constexpr MoveType MOVE_CASTLING = 3 << 12;
+
+constexpr PromotionType PROMOTION_QUEEN = 0 << 14;
+constexpr PromotionType PROMOTION_ROOK = 1 << 14;
+constexpr PromotionType PROMOTION_BISHOP = 2 << 14;
+constexpr PromotionType PROMOTION_KNIGHT = 3 << 14;
 
 // Sliding piece stuff
 constexpr uint8_t DIRECTION_UP = 0;

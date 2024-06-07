@@ -69,7 +69,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
     if (value >= 0) return true;
 
     Bitboard occupied = (board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) ^ (bitboard(origin));
-    Bitboard attackersToTarget = attackersTo(board, target, occupied);
+    Bitboard attackersToTarget = board->attackersTo(target, occupied);
 
     Bitboard bishops = board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN];
     Bitboard rooks = board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN];

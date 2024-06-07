@@ -57,7 +57,7 @@ void initZobrist() {
             for (Square squareA = 0; squareA < 64; squareA++) {
                 for (Square squareB = squareA + 1; squareB < 64; squareB++) {
                     // Check if there is a reversible move between squareA and squareB
-                    if (piece != PIECE_PAWN && (attackedSquaresByPiece(piece, squareA, bitboard(0), side) & bitboard(squareB))) {
+                    if (piece != PIECE_PAWN && (BB::attackedSquares(piece, squareA, bitboard(0), side) & bitboard(squareB))) {
                         Move move = createMove(squareA, squareB);
                         uint64_t hash = ZOBRIST_PIECE_SQUARES[side][piece][squareA] ^ ZOBRIST_PIECE_SQUARES[side][piece][squareB] ^ ZOBRIST_STM_BLACK;
                         int i = H1(hash);

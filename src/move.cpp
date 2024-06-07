@@ -62,7 +62,7 @@ bool isPseudoLegal(Board* board, Move move) {
                 return false;
         }
         if (
-            !(pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture promotion?
+            !(BB::pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture promotion?
             !(origin + UP[board->stm] == target && board->pieces[target] == NO_PIECE)) // Push promotion?
             return false;
         return true;
@@ -73,12 +73,12 @@ bool isPseudoLegal(Board* board, Move move) {
     Bitboard occupied = board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK];
     switch (piece) {
     case PIECE_PAWN:
-        if (targetBB & (RANK_8 | RANK_1)) return false;
+        if (targetBB & (BB::RANK_8 | BB::RANK_1)) return false;
 
         if (
-            !(pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture?
+            !(BB::pawnAttacks(originBB, board->stm) & targetBB & board->byColor[1 - board->stm]) && // Capture?
             !(origin + UP[board->stm] == target && board->pieces[target] == NO_PIECE) && // Single push?
-            !(origin + 2 * UP[board->stm] == target && board->pieces[target] == NO_PIECE && board->pieces[target - UP[board->stm]] == NO_PIECE && (originBB & (RANK_2 | RANK_7))) // Double push?
+            !(origin + 2 * UP[board->stm] == target && board->pieces[target] == NO_PIECE && board->pieces[target - UP[board->stm]] == NO_PIECE && (originBB & (BB::RANK_2 | BB::RANK_7))) // Double push?
             )
             return false;
         break;
@@ -149,13 +149,13 @@ bool isLegal(Board* board, Move move) {
         Square adjustedTarget = target < origin ? (board->stm == COLOR_WHITE ? 2 : 58) : (board->stm == COLOR_WHITE ? 6 : 62);
         if (adjustedTarget < origin) {
             for (Square s = adjustedTarget; s <= origin; s++) {
-                if (board->byColor[1 - board->stm] & attackersTo(board, s, occupied))
+                if (board->byColor[1 - board->stm] & board->attackersTo(s, occupied))
                     return false;
             }
         }
         else {
             for (Square s = adjustedTarget; s >= origin; s--) {
-                if (board->byColor[1 - board->stm] & attackersTo(board, s, occupied))
+                if (board->byColor[1 - board->stm] & board->attackersTo(s, occupied))
                     return false;
             }
         }
@@ -165,7 +165,7 @@ bool isLegal(Board* board, Move move) {
 
     if (board->pieces[origin] == PIECE_KING) {
         // Check that we're not moving into an attack
-        return !(board->byColor[1 - board->stm] & attackersTo(board, target, occupied ^ bitboard(origin)));
+        return !(board->byColor[1 - board->stm] & board->attackersTo(target, occupied ^ bitboard(origin)));
     }
 
     // Check if we're not pinned to the king, or are moving along the pin
@@ -180,7 +180,7 @@ bool givesCheck(Board* board, Move move) {
     Bitboard enemyKing = board->byColor[1 - board->stm] & board->byPiece[PIECE_KING];
 
     // Direct check
-    Bitboard attacks = attackedSquaresByPiece(board->pieces[origin], target, occ ^ bitboard(origin) ^ bitboard(target), board->stm);
+    Bitboard attacks = BB::attackedSquares(board->pieces[origin], target, occ ^ bitboard(origin) ^ bitboard(target), board->stm);
     if (attacks & enemyKing)
         return true;
 
@@ -192,18 +192,18 @@ bool givesCheck(Board* board, Move move) {
     switch (specialMove) {
     case MOVE_PROMOTION: {
         Piece promotionPiece = PROMOTION_PIECE[move >> 14];
-        return attackedSquaresByPiece(promotionPiece, target, occ ^ bitboard(origin), board->stm) & enemyKing;
+        return BB::attackedSquares(promotionPiece, target, occ ^ bitboard(origin), board->stm) & enemyKing;
     }
     case MOVE_CASTLING: {
         Square rookTarget = board->stm == COLOR_WHITE ? (target > origin ? 5 : 3) : (target > origin ? 61 : 59);
-        return attackedSquaresByPiece(PIECE_ROOK, rookTarget, occ, board->stm) & enemyKing;
+        return BB::attackedSquares(PIECE_ROOK, rookTarget, occ, board->stm) & enemyKing;
     }
     case MOVE_ENPASSANT: {
         Square epSquare = target - UP[board->stm];
         Bitboard occupied = (occ ^ bitboard(origin) ^ bitboard(epSquare)) | bitboard(target);
         Square ek = lsb(enemyKing);
-        return (attackedSquaresByPiece(PIECE_ROOK, ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]))
-            | (attackedSquaresByPiece(PIECE_BISHOP, ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]));
+        return (BB::attackedSquares(PIECE_ROOK, ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]))
+             | (BB::attackedSquares(PIECE_BISHOP, ek, occupied, board->stm) & board->byColor[board->stm] & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]));
     }
     default:
         return false;
@@ -217,15 +217,15 @@ void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targe
     Bitboard pushedPawns, secondRankPawns, doublePushedPawns, enemyBackrank;
     if (board->stm == COLOR_WHITE) {
         pushedPawns = (pawns << 8) & free & targetMask;
-        secondRankPawns = (pawns & RANK_2) & pawns;
+        secondRankPawns = (pawns & BB::RANK_2) & pawns;
         doublePushedPawns = (((secondRankPawns << 8) & free) << 8) & free & targetMask;
-        enemyBackrank = RANK_8;
+        enemyBackrank = BB::RANK_8;
     }
     else {
         pushedPawns = (pawns >> 8) & free & targetMask;
-        secondRankPawns = (pawns & RANK_7) & pawns;
+        secondRankPawns = (pawns & BB::RANK_7) & pawns;
         doublePushedPawns = (((secondRankPawns >> 8) & free) >> 8) & free & targetMask;
-        enemyBackrank = RANK_1;
+        enemyBackrank = BB::RANK_1;
     }
 
     while (pushedPawns) {
@@ -256,19 +256,19 @@ void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targe
 void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard targetMask) {
     // Captures
     Bitboard pawns = board->byPiece[PIECE_PAWN] & board->byColor[board->stm];
-    Bitboard pAttacksLeft = pawnAttacksLeft(pawns, board->stm);
-    Bitboard pAttacksRight = pawnAttacksRight(pawns, board->stm);
+    Bitboard pAttacksLeft = BB::pawnAttacksLeft(pawns, board->stm);
+    Bitboard pAttacksRight = BB::pawnAttacksRight(pawns, board->stm);
     Bitboard blockedEnemy = board->byColor[1 - board->stm];
-    Bitboard enemyBackrank = board->stm == COLOR_WHITE ? RANK_8 : RANK_1;
+    Bitboard enemyBackrank = board->stm == COLOR_WHITE ? BB::RANK_8 : BB::RANK_1;
     Bitboard free = ~(board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]);
 
     // Queen promotions (without capture)
     Bitboard pushedPawns;
     if (board->stm == COLOR_WHITE) {
-        pushedPawns = (pawns << 8) & free & targetMask & RANK_8;
+        pushedPawns = (pawns << 8) & free & targetMask & BB::RANK_8;
     }
     else {
-        pushedPawns = (pawns >> 8) & free & targetMask & RANK_1;
+        pushedPawns = (pawns >> 8) & free & targetMask & BB::RANK_1;
     }
     while (pushedPawns) {
         Square target = popLSB(&pushedPawns);
@@ -354,7 +354,7 @@ void generatePiece(Board* board, Move** moves, int* counter, bool captures, Bitb
     Bitboard pieces = board->byPiece[pieceType] & blockedUs;
     while (pieces) {
         Square piece = popLSB(&pieces);
-        Bitboard targets = pieceType == PIECE_KNIGHT ? BB::KNIGHT_ATTACKS[piece] : pieceType == PIECE_BISHOP ? getBishopMoves(piece, occupied) : pieceType == PIECE_ROOK ? getRookMoves(piece, occupied) : pieceType == PIECE_QUEEN ? (getRookMoves(piece, occupied) | getBishopMoves(piece, occupied)) : pieceType == PIECE_KING ? kingAttacks(board, board->stm) : bitboard(0);
+        Bitboard targets = pieceType == PIECE_KNIGHT ? BB::KNIGHT_ATTACKS[piece] : pieceType == PIECE_BISHOP ? getBishopMoves(piece, occupied) : pieceType == PIECE_ROOK ? getRookMoves(piece, occupied) : pieceType == PIECE_QUEEN ? (getRookMoves(piece, occupied) | getBishopMoves(piece, occupied)) : pieceType == PIECE_KING ? BB::KING_ATTACKS[lsb(board->byPiece[PIECE_KING] & board->byColor[board->stm])] : bitboard(0);
         targets &= mask;
 
         while (targets) {
