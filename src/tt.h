@@ -57,6 +57,13 @@ struct TTEntry {
     int16_t eval = EVAL_NONE;
     int16_t value = EVAL_NONE;
 
+    Move getMove() { return bestMove; };
+    int getDepth() { return depth == NO_DEPTH ? 0 : depth; };
+    uint8_t getFlag() { return flags & 0x3; };
+    Eval getEval() { return eval; };
+    Eval getValue() { return value; };
+    bool getTtPv() { return flags & 0x4; };
+
     void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags);
 };
 
