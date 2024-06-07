@@ -68,7 +68,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
     value -= SEE_VALUES[board->pieces[origin]];
     if (value >= 0) return true;
 
-    Bitboard occupied = (board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) ^ (C64(1) << origin);
+    Bitboard occupied = (board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) ^ (bitboard(origin));
     Bitboard attackersToTarget = attackersTo(board, target, occupied);
 
     Bitboard bishops = board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN];
@@ -105,7 +105,8 @@ bool SEE(Board* board, Move move, Eval threshold) {
         }
 
         // Remove the used piece
-        occupied ^= C64(1) << lsb(stmAttackers & board->byPiece[piece]);
+        Square pieceSquare = lsb(stmAttackers & board->byPiece[piece]);
+        occupied ^= bitboard(pieceSquare);
 
         // Add discovered attacks
         if (piece == PIECE_PAWN || piece == PIECE_BISHOP || piece == PIECE_QUEEN)

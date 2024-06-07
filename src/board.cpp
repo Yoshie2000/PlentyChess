@@ -46,20 +46,20 @@ size_t parseFen(Board* board, std::string fen, bool chess960) {
         board->pieces[s] = NO_PIECE;
     }
     for (Color c = 0; c <= 1; c++) {
-        board->byColor[c] = C64(0);
+        board->byColor[c] = bitboard(0);
         for (Piece p = 0; p < PIECE_TYPES; p++) {
             board->stack->pieceCount[c][p] = 0;
-            board->byPiece[p] = C64(0);
+            board->byPiece[p] = bitboard(0);
         }
     }
-    board->stack->checkers = C64(0);
+    board->stack->checkers = bitboard(0);
     board->stack->capturedPiece = NO_PIECE;
     board->stack->hash = 0;
     board->stack->pawnHash = ZOBRIST_NO_PAWNS;
     board->stack->nullmove_ply = 0;
 
     // Board position and everything
-    Bitboard currentSquareBB = C64(1) << currentSquare;
+    Bitboard currentSquareBB = bitboard(currentSquare);
     for (i = 0; i < fen.length(); i++) {
         char c = fen.at(i);
         if (c == ' ') {
@@ -68,7 +68,7 @@ size_t parseFen(Board* board, std::string fen, bool chess960) {
         }
 
         if (currentSquare < 64)
-            currentSquareBB = C64(1) << currentSquare;
+            currentSquareBB = bitboard(currentSquare);
         switch (c) {
         case 'p':
             board->byColor[COLOR_BLACK] |= currentSquareBB;
@@ -285,19 +285,21 @@ size_t parseFen(Board* board, std::string fen, bool chess960) {
 
     // en passent
     if (fen.at(i) == '-') {
-        board->stack->enpassantTarget = C64(0);
+        board->stack->enpassantTarget = bitboard(0);
         i += 2;
     }
     else {
         char epTargetString[2] = { fen.at(i), fen.at(i + 1) };
         Square epTargetSquare = stringToSquare(epTargetString);
-        board->stack->enpassantTarget = C64(1) << epTargetSquare;
+        board->stack->enpassantTarget = bitboard(epTargetSquare);
         i += 3;
 
         // Check if there's *actually* a pawn that can do enpassent
         Bitboard enemyPawns = board->byColor[1 - board->stm] & board->byPiece[PIECE_PAWN];
         Bitboard epRank = board->stm == COLOR_WHITE ? RANK_4 : RANK_5;
-        Bitboard epPawns = ((C64(1) << (epTargetSquare + 1 + UP[board->stm])) | (C64(1) << (epTargetSquare - 1 + UP[board->stm]))) & epRank & enemyPawns;
+        Square pawnSquare1 = epTargetSquare + 1 + UP[board->stm];
+        Square pawnSquare2 = epTargetSquare - 1 + UP[board->stm];
+        Bitboard epPawns = (bitboard(pawnSquare1) | bitboard(pawnSquare2)) & epRank & enemyPawns;
         if (epPawns)
             board->stack->hash ^= ZOBRIST_ENPASSENT[epTargetSquare % 8];
     }
@@ -411,13 +413,13 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
     newStack->capturedPiece = board->pieces[target];
     newStack->enpassantTarget = 0;
     Square captureTarget = target;
-    Bitboard captureTargetBB = C64(1) << captureTarget;
+    Bitboard captureTargetBB = bitboard(captureTarget);
 
     Piece piece = board->pieces[origin];
     Piece promotionPiece = NO_PIECE;
 
-    Bitboard originBB = C64(1) << origin;
-    Bitboard targetBB = C64(1) << target;
+    Bitboard originBB = bitboard(origin);
+    Bitboard targetBB = bitboard(target);
     Bitboard fromTo = originBB | targetBB;
 
     switch (specialMove) {
@@ -473,8 +475,8 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
         castlingSquares(board, origin, &target, &rookOrigin, &rookTarget, &newStack->castling);
         assert(rookOrigin < 64 && rookTarget < 64 && target < 64);
 
-        Bitboard rookFromToBB = (C64(1) << rookOrigin) ^ (C64(1) << rookTarget);
-        targetBB = C64(1) << target;
+        Bitboard rookFromToBB = (bitboard(rookOrigin)) ^ (bitboard(rookTarget));
+        targetBB = bitboard(target);
         fromTo = originBB ^ targetBB;
 
         board->pieces[rookOrigin] = NO_PIECE;
@@ -502,7 +504,7 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
 
         assert(captureTarget < 64);
 
-        captureTargetBB = C64(1) << captureTarget;
+        captureTargetBB = bitboard(captureTarget);
         board->pieces[captureTarget] = NO_PIECE; // remove the captured pawn
 
         newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[board->stm][PIECE_PAWN][origin] ^ ZOBRIST_PIECE_SQUARES[board->stm][PIECE_PAWN][target] ^ ZOBRIST_PIECE_SQUARES[1 - board->stm][PIECE_PAWN][captureTarget];
@@ -527,9 +529,13 @@ void doMove(Board* board, BoardStack* newStack, Move move, uint64_t newHash, NNU
 
                 Bitboard enemyPawns = board->byColor[1 - board->stm] & board->byPiece[PIECE_PAWN];
                 Bitboard epRank = board->stm == COLOR_WHITE ? RANK_4 : RANK_5;
-                Bitboard epPawns = ((C64(1) << (target + 1)) | (C64(1) << (target - 1))) & epRank & enemyPawns;
-                if (epPawns)
-                    newStack->enpassantTarget = C64(1) << (target - UP[board->stm]);
+                Square pawnSquare1 = target + 1;
+                Square pawnSquare2 = target - 1;
+                Bitboard epPawns = (bitboard(pawnSquare1) | bitboard(pawnSquare2)) & epRank & enemyPawns;
+                if (epPawns) {
+                    Square epTarget = target - UP[board->stm];
+                    newStack->enpassantTarget = bitboard(epTarget);
+                }
 
             }
 
@@ -597,12 +603,12 @@ void undoMove(Board* board, Move move, NNUE* nnue) {
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
     Square captureTarget = target;
-    Bitboard captureTargetBB = C64(1) << captureTarget;
+    Bitboard captureTargetBB = bitboard(captureTarget);
 
     assert(origin < 64 && target < 64);
 
-    Bitboard originBB = C64(1) << origin;
-    Bitboard targetBB = C64(1) << target;
+    Bitboard originBB = bitboard(origin);
+    Bitboard targetBB = bitboard(target);
     Bitboard fromTo = originBB | targetBB;
 
     Piece piece = board->pieces[target];
@@ -615,8 +621,8 @@ void undoMove(Board* board, Move move, NNUE* nnue) {
 
         assert(rookOrigin < 64 && rookTarget < 64 && target < 64);
 
-        Bitboard rookFromToBB = (C64(1) << rookOrigin) ^ (C64(1) << rookTarget);
-        targetBB = C64(1) << target;
+        Bitboard rookFromToBB = (bitboard(rookOrigin)) ^ (bitboard(rookTarget));
+        targetBB = bitboard(target);
         fromTo = originBB ^ targetBB;
 
         board->pieces[rookTarget] = NO_PIECE;
@@ -641,7 +647,7 @@ void undoMove(Board* board, Move move, NNUE* nnue) {
 
         assert(captureTarget < 64);
 
-        captureTargetBB = C64(1) << captureTarget;
+        captureTargetBB = bitboard(captureTarget);
     }
 
     // Handle capture
@@ -685,7 +691,7 @@ void doNullMove(Board* board, BoardStack* newStack) {
     // Update king checking stuff
     assert((board->byColor[1 - board->stm] & board->byPiece[PIECE_KING]) > 0);
 
-    newStack->checkers = C64(0);
+    newStack->checkers = bitboard(0);
     newStack->checkerCount = 0;
     updateSliderPins(board, COLOR_WHITE);
     updateSliderPins(board, COLOR_BLACK);
@@ -725,7 +731,9 @@ uint64_t hashAfter(Board* board, Move move) {
         if ((origin ^ target) == 16) {
             Bitboard enemyPawns = board->byColor[1 - board->stm] & board->byPiece[PIECE_PAWN];
             Bitboard epRank = board->stm == COLOR_WHITE ? RANK_4 : RANK_5;
-            Bitboard epPawns = ((C64(1) << (target + 1)) | (C64(1) << (target - 1))) & epRank & enemyPawns;
+            Square pawnSquare1 = target + 1;
+            Square pawnSquare2 = target - 1;
+            Bitboard epPawns = (bitboard(pawnSquare1) | bitboard(pawnSquare2)) & epRank & enemyPawns;
             if (epPawns)
                 hash ^= ZOBRIST_ENPASSENT[origin % 8];
         }
@@ -789,15 +797,15 @@ void updateSliderPins(Board* board, Color side) {
 
     board->stack->blockers[side] = 0;
 
-    Bitboard possiblePinnersRook = getRookMoves(king, C64(0)) & (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]);
-    Bitboard possiblePinnersBishop = getBishopMoves(king, C64(0)) & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]);
+    Bitboard possiblePinnersRook = getRookMoves(king, bitboard(0)) & (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]);
+    Bitboard possiblePinnersBishop = getBishopMoves(king, bitboard(0)) & (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]);
     Bitboard possiblePinners = (possiblePinnersBishop | possiblePinnersRook) & board->byColor[1 - side];
     Bitboard occupied = (board->byColor[side] | board->byColor[1 - side]) ^ possiblePinners;
 
     // Go through all pieces that could potentially pin the king
     while (possiblePinners) {
         Square pinnerSquare = popLSB(&possiblePinners);
-        Bitboard blockerBB = BETWEEN[king][pinnerSquare] & occupied;
+        Bitboard blockerBB = BB::BETWEEN[king][pinnerSquare] & occupied;
 
         if (__builtin_popcountll(blockerBB) == 1) {
             // We have exactly one blocker for this pinner
@@ -826,14 +834,14 @@ bool hasUpcomingRepetition(Board* board, int ply) {
             Square origin = moveOrigin(move);
             Square target = moveTarget(move);
 
-            if (BETWEEN[origin][target] & (board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]))
+            if (BB::BETWEEN[origin][target] & (board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]))
                 continue;
 
             if (ply > i)
                 return true;
 
             Square pieceSquare = board->pieces[origin] == NO_PIECE ? target : origin;
-            Color pieceColor = (board->byColor[COLOR_WHITE] & (C64(1) << pieceSquare)) ? COLOR_WHITE : COLOR_BLACK;
+            Color pieceColor = (board->byColor[COLOR_WHITE] & bitboard(pieceSquare)) ? COLOR_WHITE : COLOR_BLACK;
             if (pieceColor != board->stm)
                 continue;
 
@@ -895,30 +903,30 @@ bool isDraw(Board* board) {
 }
 
 Bitboard attackersTo(Board* board, Square s, Bitboard occupied) {
-    Bitboard sBB = C64(1) << s;
+    Bitboard sBB = bitboard(s);
 
     Bitboard pawnAtks = board->byPiece[PIECE_PAWN] & ((board->byColor[COLOR_BLACK] & pawnAttacks(sBB, COLOR_WHITE)) | (board->byColor[COLOR_WHITE] & pawnAttacks(sBB, COLOR_BLACK)));
-    Bitboard knightAtks = board->byPiece[PIECE_KNIGHT] & KNIGHT_ATTACKS[s];
+    Bitboard knightAtks = board->byPiece[PIECE_KNIGHT] & BB::KNIGHT_ATTACKS[s];
     Bitboard bishopAtks = (board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN]) & getBishopMoves(s, occupied);
     Bitboard rookAtks = (board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN]) & getRookMoves(s, occupied);
-    Bitboard kingAtks = board->byPiece[PIECE_KING] & KING_ATTACKS[s];
+    Bitboard kingAtks = board->byPiece[PIECE_KING] & BB::KING_ATTACKS[s];
     return pawnAtks | knightAtks | bishopAtks | rookAtks | kingAtks;
 }
 
 Bitboard knightAttacksAll(Board* board, Color side) {
     Bitboard knights = board->byPiece[PIECE_KNIGHT] & board->byColor[side];
-    return knightAttacks(knights);
+    return BB::knightAttacks(knights);
 }
 
 Bitboard kingAttacks(Board* board, Color color) {
     assert((board->byColor[color] & board->byPiece[PIECE_KING]) > 0);
 
     Square origin = lsb(board->byPiece[PIECE_KING] & board->byColor[color]);
-    return KING_ATTACKS[origin];
+    return BB::KING_ATTACKS[origin];
 }
 
 Bitboard slidingPieceAttacksAll(Board* board, Color side, Piece pieceType) {
-    Bitboard attacksBB = C64(0);
+    Bitboard attacksBB = bitboard(0);
 
     Bitboard pieces = board->byPiece[pieceType] & board->byColor[side];
     while (pieces) {
@@ -961,11 +969,11 @@ Bitboard attackedSquaresByPiece(Board* board, Color side, Piece pieceType) {
 Bitboard attackedSquaresByPiece(Piece pieceType, Square square, Bitboard occupied, Color stm) {
     switch (pieceType) {
     case PIECE_PAWN:
-        return pawnAttacks(C64(1) << square, stm);
+        return pawnAttacks(bitboard(square), stm);
     case PIECE_KNIGHT:
-        return KNIGHT_ATTACKS[square];
+        return BB::KNIGHT_ATTACKS[square];
     case PIECE_KING:
-        return KING_ATTACKS[square];
+        return BB::KING_ATTACKS[square];
     case PIECE_BISHOP:
         return getBishopMoves(square, occupied);
     case PIECE_ROOK:
@@ -988,7 +996,7 @@ void debugBoard(Board* board) {
 
             // Get piece at index
             int idx = file + 8 * rank;
-            Bitboard mask = C64(1) << idx;
+            Bitboard mask = bitboard(idx);
             if ((board->stack->enpassantTarget & mask) != 0)
                 printf("| E ");
             else if (((board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) & mask) == 0)
@@ -1036,7 +1044,7 @@ int validateBoard(Board* board) {
 
             // Get piece at index
             int idx = file + 8 * rank;
-            Bitboard mask = C64(1) << idx;
+            Bitboard mask = bitboard(idx);
             int first = 0;
             int second = 0;
             if ((board->stack->enpassantTarget & mask) != 0)
@@ -1106,7 +1114,7 @@ int validateBoard(Board* board) {
     return -1;
 }
 
-void debugBitboard(Bitboard bb) {
+void debugbitboard(Bitboard bb) {
     for (int rank = 7; rank >= 0; rank--) {
 
         printf("-");
@@ -1119,7 +1127,7 @@ void debugBitboard(Bitboard bb) {
 
             // Get piece at index
             int idx = file + 8 * rank;
-            Bitboard mask = C64(1) << idx;
+            Bitboard mask = bitboard(idx);
             if ((bb & mask) == 0)
                 printf("|   ");
             else

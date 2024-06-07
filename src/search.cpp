@@ -133,7 +133,7 @@ void initReductions() {
 }
 
 uint64_t perftInternal(Board* board, NNUE* nnue, int depth) {
-    if (depth == 0) return C64(1);
+    if (depth == 0) return 1;
 
     BoardStack stack;
 

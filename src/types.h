@@ -2,8 +2,6 @@
 
 #include <stdint.h>
 
-#define C64(x) ((uint64_t)(x))
-
 #define MAX_PLY 246
 #define NO_DEPTH 255
 #define MAX_MOVES 218
@@ -29,6 +27,22 @@ typedef uint8_t Square;
 typedef uint8_t Color;
 typedef uint64_t Bitboard;
 typedef int32_t Eval;
+
+constexpr Bitboard bitboard(int32_t number) {
+    return Bitboard(number);
+}
+
+constexpr Bitboard bitboard(long number) {
+    return Bitboard(number);
+}
+
+constexpr Bitboard bitboard(uint64_t number) {
+    return Bitboard(number);
+}
+
+constexpr Bitboard bitboard(Square square) {
+    return Bitboard(1) << square;
+}
 
 // 00 promotion piece 00 special move type 000000 target 000000 origin
 // Special move type: 01 == promotion, 10 == en passant, 11 == castling

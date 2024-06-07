@@ -75,7 +75,7 @@ void resetAccumulators(Board* board, NNUE* nnue) {
         Piece piece = board->pieces[square];
         if (piece == NO_PIECE) continue;
 
-        Color pieceColor = (board->byColor[COLOR_WHITE] & (C64(1) << square)) ? COLOR_WHITE : COLOR_BLACK;
+        Color pieceColor = (board->byColor[COLOR_WHITE] & bitboard(square)) ? COLOR_WHITE : COLOR_BLACK;
         nnue->addPieceToAccumulator(&nnue->accumulatorStack[0], &nnue->accumulatorStack[0], square, piece, pieceColor);
     }
 }
