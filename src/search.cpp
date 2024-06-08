@@ -828,6 +828,9 @@ movesLoop:
         return 0; // Stalemate
     }
 
+    if (std::abs(bestValue) < EVAL_MATE_IN_MAX_PLY && bestValue >= beta)
+        bestValue = (3 * bestValue + beta) / 4;
+
     // Insert into TT
     bool failLow = alpha == oldAlpha;
     bool failHigh = bestValue >= beta;
