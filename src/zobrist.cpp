@@ -6,7 +6,7 @@
 #include "board.h"
 #include "move.h"
 
-uint64_t ZOBRIST_PIECE_SQUARES[2][PIECE_TYPES][64];
+uint64_t ZOBRIST_PIECE_SQUARES[2][Piece::TOTAL][64];
 uint64_t ZOBRIST_STM_BLACK;
 uint64_t ZOBRIST_NO_PAWNS;
 uint64_t ZOBRIST_CASTLING[16];
@@ -20,9 +20,9 @@ void initZobrist() {
     rng.seed(934572);
     std::uniform_int_distribution<uint64_t> dist;
 
-    for (int side = 0; side <= 1; side++) {
-        for (int i = 0; i < PIECE_TYPES; i++) {
-            for (int j = 0; j < 64; j++) {
+    for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
+        for (Piece i = Piece::PAWN; i < Piece::TOTAL; ++i) {
+            for (Square j = 0; j < 64; j++) {
                 ZOBRIST_PIECE_SQUARES[side][i][j] = dist(rng);
             }
         }
@@ -52,12 +52,12 @@ void initZobrist() {
     }
 
     int count = 0;
-    for (Color side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
-        for (Piece piece = 0; piece < PIECE_TYPES; piece++) {
+    for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
+        for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
             for (Square squareA = 0; squareA < 64; squareA++) {
                 for (Square squareB = squareA + 1; squareB < 64; squareB++) {
                     // Check if there is a reversible move between squareA and squareB
-                    if (piece != PIECE_PAWN && (BB::attackedSquares(piece, squareA, bitboard(0), side) & bitboard(squareB))) {
+                    if (piece != Piece::PAWN && (BB::attackedSquares(piece, squareA, bitboard(0), side) & bitboard(squareB))) {
                         Move move = createMove(squareA, squareB);
                         uint64_t hash = ZOBRIST_PIECE_SQUARES[side][piece][squareA] ^ ZOBRIST_PIECE_SQUARES[side][piece][squareB] ^ ZOBRIST_STM_BLACK;
                         int i = H1(hash);

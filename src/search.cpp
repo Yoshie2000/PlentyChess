@@ -497,13 +497,13 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         && eval >= beta
         && beta > -EVAL_MATE_IN_MAX_PLY
         && !excluded
-        && (stack - 1)->movedPiece != NO_PIECE
+        && (stack - 1)->movedPiece != Piece::NONE
         && depth >= 3
         && stack->ply >= searchData.nmpPlies
         && board->hasNonPawns()
         ) {
         stack->move = MOVE_NULL;
-        stack->movedPiece = NO_PIECE;
+        stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[board->stm][0][0];
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
@@ -915,7 +915,7 @@ void Thread::iterativeDeepening() {
                 stackList[i].excludedMove = MOVE_NONE;
                 stackList[i].killers[0] = MOVE_NONE;
                 stackList[i].killers[1] = MOVE_NONE;
-                stackList[i].movedPiece = NO_PIECE;
+                stackList[i].movedPiece = Piece::NONE;
                 stackList[i].move = MOVE_NONE;
             }
 

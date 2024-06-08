@@ -19,7 +19,7 @@ namespace BB {
         Square lastSquare, toSquare;
         Bitboard toSquareBB;
 
-        for (direction = DIRECTIONS[PIECE_KING][0]; direction <= DIRECTIONS[PIECE_KING][1]; direction++) {
+        for (direction = DIRECTIONS[Piece::KING][0]; direction <= DIRECTIONS[Piece::KING][1]; direction++) {
             lastSquare = LASTSQ_TABLE[origin][direction];
             toSquare = origin + DIRECTION_DELTAS[direction];
             if (toSquare >= 64) continue;
@@ -43,15 +43,15 @@ namespace BB {
 
     Bitboard attackedSquares(Piece pieceType, Square square, Bitboard occupied, Color stm) {
         switch (pieceType) {
-        case PIECE_PAWN:
+        case Piece::PAWN:
             return pawnAttacks(bitboard(square), stm);
-        case PIECE_KNIGHT:
+        case Piece::KNIGHT:
             return KNIGHT_ATTACKS[square];
-        case PIECE_KING:
+        case Piece::KING:
             return KING_ATTACKS[square];
-        case PIECE_BISHOP:
+        case Piece::BISHOP:
             return getBishopMoves(square, occupied);
-        case PIECE_ROOK:
+        case Piece::ROOK:
             return getRookMoves(square, occupied);
         default:
             return getBishopMoves(square, occupied) | getRookMoves(square, occupied);

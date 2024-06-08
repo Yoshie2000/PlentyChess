@@ -24,7 +24,7 @@ constexpr int8_t UP_DOUBLE[2] = { 16, -16 };
 constexpr int8_t UP_LEFT[2] = { 7, -9 };
 constexpr int8_t UP_RIGHT[2] = { 9, -7 };
 
-constexpr Piece PROMOTION_PIECE[4] = { PIECE_QUEEN, PIECE_ROOK, PIECE_BISHOP, PIECE_KNIGHT };
+constexpr Piece PROMOTION_PIECE[4] = { Piece::QUEEN, Piece::ROOK, Piece::BISHOP, Piece::KNIGHT };
 
 constexpr Move createMove(Square origin, Square target) {
     return Move((origin & 0x3F) | ((target & 0x3F) << 6));

@@ -17,11 +17,6 @@
 #include "move.h"
 #include "evaluation.h"
 
-#define TT_NOBOUND 0
-#define TT_UPPERBOUND 1
-#define TT_LOWERBOUND 2
-#define TT_EXACTBOUND 3
-
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     void* ptr;
 #if defined(__MINGW32__)
@@ -41,11 +36,17 @@ inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     return ptr;
 }
 
-#define CLUSTER_SIZE 3 // Bits reserved for bound & ttPv 
-#define GENERATION_PADDING 3
-#define GENERATION_DELTA (1 << GENERATION_PADDING)
-#define GENERATION_CYCLE 255 + GENERATION_DELTA
-#define GENERATION_MASK (0xFF << GENERATION_PADDING) & 0xFF
+constexpr uint8_t TT_NOBOUND = 0;
+constexpr uint8_t TT_UPPERBOUND = 1;
+constexpr uint8_t TT_LOWERBOUND = 2;
+constexpr uint8_t TT_EXACTBOUND = 3;
+
+constexpr int CLUSTER_SIZE = 3;
+
+constexpr int GENERATION_PADDING = 3; // Reserved bits for flag / ttPv
+constexpr int GENERATION_DELTA = (1 << GENERATION_PADDING);
+constexpr int GENERATION_CYCLE = 255 + GENERATION_DELTA;
+constexpr int GENERATION_MASK = (0xFF << GENERATION_PADDING) & 0xFF;
 
 extern uint8_t TT_GENERATION_COUNTER;
 

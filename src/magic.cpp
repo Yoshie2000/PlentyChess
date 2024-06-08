@@ -83,7 +83,7 @@ void findMagics(Piece slider, MagicEntry* magicTable, Bitboard* table) {
 
         for (int index = 0; blockers != bitboard(0) || index == 0; index++) {
             Bitboard moves = sliderMoves(slider, square, blockers);
-            if (slider == PIECE_ROOK)
+            if (slider == Piece::ROOK)
                 outMagicEntry->tableIndex[magicIndexRook(square, blockers)] = moves;
             else
                 outMagicEntry->tableIndex[magicIndexBishop(square, blockers)] = moves;
@@ -147,14 +147,14 @@ void generateMagics() {
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
 #if defined(USE_BMI2)
-    findMagics(PIECE_ROOK, ROOK_MAGICS, ROOK_MOVES);
-    findMagics(PIECE_BISHOP, BISHOP_MAGICS, BISHOP_MOVES);
+    findMagics(Piece::ROOK, ROOK_MAGICS, ROOK_MOVES);
+    findMagics(Piece::BISHOP, BISHOP_MAGICS, BISHOP_MOVES);
 #else
     uint32_t seed = 2816384844;
 
     for (Square square = 0; square < 64; square++) {
-        findMagic(seed, PIECE_ROOK, square, 12, &ROOK_MAGICS[square], ROOK_MOVES[square]);
-        findMagic(seed, PIECE_BISHOP, square, 9, &BISHOP_MAGICS[square], BISHOP_MOVES[square]);
+        findMagic(seed, Piece::ROOK, square, 12, &ROOK_MAGICS[square], ROOK_MOVES[square]);
+        findMagic(seed, Piece::BISHOP, square, 9, &BISHOP_MAGICS[square], BISHOP_MOVES[square]);
     }
 #endif
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();

@@ -65,7 +65,7 @@ void resetAccumulators(Board* board, NNUE* nnue) {
     nnue->currentAccumulator = 0;
     nnue->lastCalculatedAccumulator = 0;
     for (size_t i = 0; i < sizeof(nnue->accumulatorStack) / sizeof(Accumulator); i++) {
-        for (int side = COLOR_WHITE; side <= COLOR_BLACK; ++side) {
+        for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
             memcpy(nnue->accumulatorStack[i].colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
         }
         nnue->accumulatorStack[i].numDirtyPieces = 0;
@@ -73,29 +73,29 @@ void resetAccumulators(Board* board, NNUE* nnue) {
 
     for (Square square = 0; square < 64; square++) {
         Piece piece = board->pieces[square];
-        if (piece == NO_PIECE) continue;
+        if (piece == Piece::NONE) continue;
 
-        Color pieceColor = (board->byColor[COLOR_WHITE] & bitboard(square)) ? COLOR_WHITE : COLOR_BLACK;
+        Color pieceColor = (board->byColor[Color::WHITE] & bitboard(square)) ? Color::WHITE : Color::BLACK;
         nnue->addPieceToAccumulator(&nnue->accumulatorStack[0], &nnue->accumulatorStack[0], square, piece, pieceColor);
     }
 }
 
 void NNUE::addPiece(Square square, Piece piece, Color pieceColor) {
-    assert(piece < NO_PIECE);
+    assert(piece < Piece::NONE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
     acc->dirtyPieces[acc->numDirtyPieces++] = { NO_SQUARE, square, piece, pieceColor };
 }
 
 void NNUE::removePiece(Square square, Piece piece, Color pieceColor) {
-    assert(piece < NO_PIECE);
+    assert(piece < Piece::NONE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
     acc->dirtyPieces[acc->numDirtyPieces++] = { square, NO_SQUARE, piece, pieceColor };
 }
 
 void NNUE::movePiece(Square origin, Square target, Piece piece, Color pieceColor) {
-    assert(piece < NO_PIECE);
+    assert(piece < Piece::NONE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
     acc->dirtyPieces[acc->numDirtyPieces++] = { origin, target, piece, pieceColor };
@@ -132,7 +132,7 @@ void NNUE::calculateAccumulators() {
 }
 
 void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
-    for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
+    for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
         // Get the index of the piece for this color in the input layer
         int weightOffset = getFeatureOffset(side, piece, pieceColor, square);
 
@@ -147,7 +147,7 @@ void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, 
 }
 
 void NNUE::removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor) {
-    for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
+    for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
         // Get the index of the piece for this color in the input layer
         int weightOffset = getFeatureOffset(side, piece, pieceColor, square);
 
@@ -162,7 +162,7 @@ void NNUE::removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* output
 }
 
 void NNUE::movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor) {
-    for (int side = COLOR_WHITE; side <= COLOR_BLACK; side++) {
+    for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
         // Get the index of the piece squares for this color in the input layer
         int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin);
         int addWeightOffset = getFeatureOffset(side, piece, pieceColor, target);
@@ -195,7 +195,7 @@ Eval NNUE::evaluate(Board* board) {
     calculateAccumulators();
     assert(currentAccumulator == lastCalculatedAccumulator);
 
-    int pieceCount = __builtin_popcountll(board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]);
+    int pieceCount = __builtin_popcountll(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
     constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
     int bucket = (pieceCount - 2) / divisor;
     assert(0 <= bucket && bucket < OUTPUT_BUCKETS);

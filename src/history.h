@@ -11,13 +11,13 @@ class History {
 
     int16_t quietHistory[2][64][64];
     Move counterMoves[64][64];
-    int16_t captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
+    int16_t captureHistory[2][Piece::TOTAL][64][Piece::TOTAL];
     int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
-    int16_t pawnHistory[PAWN_HISTORY_SIZE][2][PIECE_TYPES][64];
+    int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
 public:
 
-    int16_t continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES * 64];
+    int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64];
 
     void initHistory();
 

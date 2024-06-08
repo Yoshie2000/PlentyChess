@@ -14,7 +14,7 @@ constexpr uint8_t DIRECTION_UP_LEFT = 7;
 constexpr uint8_t DIRECTION_NONE = 8;
 
 // Start & End indices in the direction indices for each piece type
-constexpr uint8_t DIRECTIONS[PIECE_TYPES][2] = {
+constexpr uint8_t DIRECTIONS[Piece::TOTAL][2] = {
     { DIRECTION_NONE, DIRECTION_NONE }, // pawn
     { DIRECTION_NONE, DIRECTION_NONE }, // knight
     { DIRECTION_UP_RIGHT, DIRECTION_UP_LEFT }, // bishop
@@ -119,13 +119,13 @@ namespace BB {
     extern Bitboard KNIGHT_ATTACKS[64];
 
     constexpr Bitboard pawnAttacksLeft(Bitboard pawns, Color side) {
-        return side == COLOR_WHITE ?
+        return side == Color::WHITE ?
             ((pawns & ~BB::FILE_A) << 7) :
             ((pawns & ~BB::FILE_A) >> 9);
     }
 
     constexpr Bitboard pawnAttacksRight(Bitboard pawns, Color side) {
-        return side == COLOR_WHITE ?
+        return side == Color::WHITE ?
             ((pawns & ~BB::FILE_H) << 9) :
             ((pawns & ~BB::FILE_H) >> 7);
     }

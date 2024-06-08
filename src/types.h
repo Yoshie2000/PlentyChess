@@ -7,20 +7,31 @@ constexpr int NO_DEPTH = 255;
 constexpr int MAX_MOVES = 218;
 constexpr int MAX_CAPTURES = 74;
 
-constexpr int PIECE_TYPES = 6;
+enum Color : uint8_t {
+    WHITE = 0,
+    BLACK = 1
+};
 
-#define PIECE_PAWN 0
-#define PIECE_KNIGHT 1
-#define PIECE_BISHOP 2
-#define PIECE_ROOK 3
-#define PIECE_QUEEN 4
-#define PIECE_KING 5
-#define NO_PIECE 6
+constexpr Color& operator++(Color& color) {
+    color = Color(int(color) + 1);
+    return color;
+}
 
-#define COLOR_WHITE 0
-#define COLOR_BLACK 1
+enum Piece: uint8_t {
+    PAWN = 0,
+    KNIGHT = 1,
+    BISHOP = 2,
+    ROOK = 3,
+    QUEEN = 4,
+    KING = 5,
+    NONE = 6,
+    TOTAL = 6
+};
 
-#define NO_SQUARE 64
+constexpr Piece& operator++(Piece& piece) {
+    piece = Piece(int(piece) + 1);
+    return piece;
+}
 
 // 00 promotion piece 00 special move type 000000 target 000000 origin
 // Special move type: 01 == promotion, 10 == en passant, 11 == castling
@@ -28,11 +39,11 @@ constexpr int PIECE_TYPES = 6;
 typedef uint16_t Move;
 typedef uint16_t MoveType;
 typedef uint16_t PromotionType;
-typedef uint8_t Piece;
 typedef int32_t Eval;
 typedef uint8_t Square;
 typedef uint64_t Bitboard;
-typedef uint8_t Color;
+
+constexpr Square NO_SQUARE = 64;
 
 constexpr MoveType moveType(Move move) {
     return move & 0x3000;
@@ -67,7 +78,7 @@ constexpr int fileOf(Square square) {
     return square % 8;
 }
 constexpr Color flip(Color color) {
-    return 1 - color;
+    return Color(1 - color);
 }
 
 struct SearchStack {

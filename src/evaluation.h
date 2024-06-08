@@ -11,7 +11,7 @@ const Eval EVAL_MATE_IN_MAX_PLY = EVAL_MATE - MAX_PLY;
 const Eval EVAL_INFINITE = 31000;
 const Eval EVAL_NONE = 31010;
 
-extern const Eval PIECE_VALUES[PIECE_TYPES + 1];
+extern const Eval PIECE_VALUES[Piece::TOTAL + 1];
 
 Eval evaluate(Board* board, NNUE* nnue);
 

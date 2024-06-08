@@ -20,7 +20,7 @@ constexpr Square CASTLING_ROOK_SQUARES[] = { 5, 3, 61, 59 };
 constexpr uint8_t CASTLING_FLAGS[] = { CASTLING_WHITE_KINGSIDE, CASTLING_WHITE_QUEENSIDE, CASTLING_BLACK_KINGSIDE, CASTLING_BLACK_QUEENSIDE };
 
 constexpr int castlingIndex(Color side, Square kingOrigin, Square kingTarget) {
-    return 2 * (side != COLOR_WHITE) + (kingTarget <= kingOrigin);
+    return 2 * (side != Color::WHITE) + (kingTarget <= kingOrigin);
 }
 
 struct BoardStack {
@@ -39,7 +39,7 @@ struct BoardStack {
     Move move;
 
     // MEMCPY GOES FROM HERE
-    int pieceCount[2][PIECE_TYPES];
+    int pieceCount[2][Piece::TOTAL];
 
     uint8_t castling; // 0000 -> black queenside, black kingside, white queenside, white kingside
     // TO HERE
@@ -48,7 +48,7 @@ struct BoardStack {
 };
 
 struct Board {
-    Bitboard byPiece[PIECE_TYPES];
+    Bitboard byPiece[Piece::TOTAL];
     Bitboard byColor[2];
     Piece pieces[64];
 
@@ -66,7 +66,7 @@ struct Board {
         byColor[stm] ^= fromTo;
         byPiece[piece] ^= fromTo;
 
-        pieces[origin] = NO_PIECE;
+        pieces[origin] = Piece::NONE;
         pieces[target] = piece;
     };
     void doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue);
@@ -89,7 +89,7 @@ struct Board {
     bool isDraw();
 
     constexpr bool hasNonPawns() {
-        return stack->pieceCount[stm][PIECE_KNIGHT] > 0 || stack->pieceCount[stm][PIECE_BISHOP] > 0 || stack->pieceCount[stm][PIECE_ROOK] > 0 || stack->pieceCount[stm][PIECE_QUEEN] > 0;
+        return stack->pieceCount[stm][Piece::KNIGHT] > 0 || stack->pieceCount[stm][Piece::BISHOP] > 0 || stack->pieceCount[stm][Piece::ROOK] > 0 || stack->pieceCount[stm][Piece::QUEEN] > 0;
     }
 
     Bitboard attackersTo(Square square, Bitboard occupied);
