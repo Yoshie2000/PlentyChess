@@ -5,48 +5,79 @@
 #include "magic.h"
 #include "move.h"
 
-Bitboard BETWEEN[64][64];
-Bitboard LINE[64][64];
-Bitboard KING_ATTACKS[64];
-Bitboard KNIGHT_ATTACKS[64];
+namespace BB {
 
-Bitboard kingAttacks(Square origin) {
-    Bitboard attacksBB = C64(0);
+    Bitboard BETWEEN[64][64];
+    Bitboard LINE[64][64];
+    Bitboard KING_ATTACKS[64];
+    Bitboard KNIGHT_ATTACKS[64];
 
-    int8_t direction;
-    Square lastSquare, toSquare;
-    Bitboard toSquareBB;
+    Bitboard kingAttacks(Square origin) {
+        Bitboard attacksBB = bitboard(0);
 
-    for (direction = DIRECTIONS[PIECE_KING][0]; direction <= DIRECTIONS[PIECE_KING][1]; direction++) {
-        lastSquare = LASTSQ_TABLE[origin][direction];
-        toSquare = origin + DIRECTION_DELTAS[direction];
-        if (toSquare >= 64) continue;
+        int8_t direction;
+        Square lastSquare, toSquare;
+        Bitboard toSquareBB;
 
-        toSquareBB = C64(1) << toSquare;
-        if (origin != lastSquare && toSquareBB)
-            attacksBB |= toSquareBB;
-    }
-    return attacksBB;
-}
+        for (direction = DIRECTIONS[Piece::KING][0]; direction <= DIRECTIONS[Piece::KING][1]; direction++) {
+            lastSquare = LASTSQ_TABLE[origin][direction];
+            toSquare = origin + DIRECTION_DELTAS[direction];
+            if (toSquare >= 64) continue;
 
-void initBitboard() {
-    for (Square a = 0; a < 64; a++) {
-        for (Square b = 0; b < 64; b++) {
-            LINE[a][b] = C64(0);
-            if (getBishopMoves(a, C64(0)) & (C64(1) << b))
-                LINE[a][b] |= getBishopMoves(a, C64(0)) & getBishopMoves(b, C64(0));
-            if (getRookMoves(a, C64(0)) & (C64(1) << b))
-                LINE[a][b] |= getRookMoves(a, C64(0)) & getRookMoves(b, C64(0));
-            LINE[a][b] |= (C64(1) << a) | (C64(1) << b);
-
-            BETWEEN[a][b] = C64(0);
-            BETWEEN[a][b] |= getBishopMoves(a, C64(1) << b) & getBishopMoves(b, C64(1) << a);
-            BETWEEN[a][b] |= getRookMoves(a, C64(1) << b) & getRookMoves(b, C64(1) << a);
-            BETWEEN[a][b] |= C64(1) << b;
-            BETWEEN[a][b] &= LINE[a][b];
+            toSquareBB = bitboard(toSquare);
+            if (origin != lastSquare && toSquareBB)
+                attacksBB |= toSquareBB;
         }
-
-        KING_ATTACKS[a] = kingAttacks(a);
-        KNIGHT_ATTACKS[a] = knightAttacks(C64(1) << a);
+        return attacksBB;
     }
+
+    Bitboard knightAttacks(Bitboard knightBB) {
+        Bitboard l1 = (knightBB >> 1) & bitboard(0x7f7f7f7f7f7f7f7f);
+        Bitboard l2 = (knightBB >> 2) & bitboard(0x3f3f3f3f3f3f3f3f);
+        Bitboard r1 = (knightBB << 1) & bitboard(0xfefefefefefefefe);
+        Bitboard r2 = (knightBB << 2) & bitboard(0xfcfcfcfcfcfcfcfc);
+        Bitboard h1 = l1 | r1;
+        Bitboard h2 = l2 | r2;
+        return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
+    }
+
+    Bitboard attackedSquares(Piece pieceType, Square square, Bitboard occupied, Color stm) {
+        switch (pieceType) {
+        case Piece::PAWN:
+            return pawnAttacks(bitboard(square), stm);
+        case Piece::KNIGHT:
+            return KNIGHT_ATTACKS[square];
+        case Piece::KING:
+            return KING_ATTACKS[square];
+        case Piece::BISHOP:
+            return getBishopMoves(square, occupied);
+        case Piece::ROOK:
+            return getRookMoves(square, occupied);
+        default:
+            return getBishopMoves(square, occupied) | getRookMoves(square, occupied);
+        }
+    }
+
+    void init() {
+        for (Square a = 0; a < 64; a++) {
+            for (Square b = 0; b < 64; b++) {
+                LINE[a][b] = bitboard(0);
+                if (getBishopMoves(a, bitboard(0)) & bitboard(b))
+                    LINE[a][b] |= getBishopMoves(a, bitboard(0)) & getBishopMoves(b, bitboard(0));
+                if (getRookMoves(a, bitboard(0)) & bitboard(b))
+                    LINE[a][b] |= getRookMoves(a, bitboard(0)) & getRookMoves(b, bitboard(0));
+                LINE[a][b] |= bitboard(a) | bitboard(b);
+
+                BETWEEN[a][b] = bitboard(0);
+                BETWEEN[a][b] |= getBishopMoves(a, bitboard(b)) & getBishopMoves(b, bitboard(a));
+                BETWEEN[a][b] |= getRookMoves(a, bitboard(b)) & getRookMoves(b, bitboard(a));
+                BETWEEN[a][b] |= bitboard(b);
+                BETWEEN[a][b] &= LINE[a][b];
+            }
+
+            KING_ATTACKS[a] = kingAttacks(a);
+            KNIGHT_ATTACKS[a] = knightAttacks(bitboard(a));
+        }
+    }
+
 }

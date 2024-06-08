@@ -70,6 +70,12 @@ private:
     void printUCI(Thread* thread, int multiPvCount = 1);
     Thread* chooseBestThread();
 
+    template <NodeType nt>
+    Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, bool cutNode);
+
+    template <NodeType nodeType>
+    Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta);
+
 };
 
 class ThreadPool {

@@ -64,41 +64,41 @@ void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
 }
 
 int History::getContinuationHistory(SearchStack* stack, Piece piece, Move move) {
-    assert(piece != NO_PIECE);
+    assert(piece != Piece::NONE);
     Square target = moveTarget(move);
 
     int score = 0;
     int pieceTo = 64 * piece + target;
 
-    if ((stack - 1)->movedPiece != NO_PIECE)
+    if ((stack - 1)->movedPiece != Piece::NONE)
         score += (stack - 1)->contHist[pieceTo];
 
-    if ((stack - 2)->movedPiece != NO_PIECE)
+    if ((stack - 2)->movedPiece != Piece::NONE)
         score += (stack - 2)->contHist[pieceTo];
 
-    if ((stack - 4)->movedPiece != NO_PIECE)
+    if ((stack - 4)->movedPiece != Piece::NONE)
         score += (stack - 4)->contHist[pieceTo];
 
     return score;
 }
 
 void History::updateContinuationHistory(SearchStack* stack, Piece piece, Move move, int16_t bonus) {
-    assert(piece != NO_PIECE);
+    assert(piece != Piece::NONE);
     Square target = moveTarget(move);
 
     int16_t scaledBonus = bonus - getContinuationHistory(stack, piece, move) * std::abs(bonus) / 32000;
     int pieceTo = 64 * piece + target;
 
-    if ((stack - 1)->movedPiece != NO_PIECE)
+    if ((stack - 1)->movedPiece != Piece::NONE)
         (stack - 1)->contHist[pieceTo] += scaledBonus;
 
-    if ((stack - 2)->movedPiece != NO_PIECE)
+    if ((stack - 2)->movedPiece != Piece::NONE)
         (stack - 2)->contHist[pieceTo] += scaledBonus;
 
-    if ((stack - 3)->movedPiece != NO_PIECE)
+    if ((stack - 3)->movedPiece != Piece::NONE)
         (stack - 3)->contHist[pieceTo] += scaledBonus / 4;
 
-    if ((stack - 4)->movedPiece != NO_PIECE)
+    if ((stack - 4)->movedPiece != Piece::NONE)
         (stack - 4)->contHist[pieceTo] += scaledBonus;
 }
 
@@ -107,10 +107,10 @@ int16_t* History::getCaptureHistory(Board* board, Move move) {
     Piece capturedPiece = board->pieces[moveTarget(move)];
     Square target = moveTarget(move);
 
-    if (capturedPiece == NO_PIECE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
-        capturedPiece = PIECE_PAWN;
+    if (capturedPiece == Piece::NONE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
+        capturedPiece = Piece::PAWN;
 
-    assert(movedPiece != NO_PIECE && capturedPiece != NO_PIECE);
+    assert(movedPiece != Piece::NONE && capturedPiece != Piece::NONE);
 
     return &captureHistory[board->stm][movedPiece][target][capturedPiece];
 }
@@ -123,7 +123,7 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
 }
 
 void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
-    if (isCapture(board, move)) {
+    if (board->isCapture(move)) {
         updateSingleCaptureHistory(board, move, bonus);
     }
 
