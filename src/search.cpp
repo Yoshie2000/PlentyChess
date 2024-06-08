@@ -310,7 +310,7 @@ movesLoopQsearch:
             if (!SEE(board, move, qsSeeMargin))
                 break;
             
-            if (moveTarget(move) != moveTarget((stack - 1)->move) && ((move & 0x3000) != MOVE_PROMOTION) && !givesCheck(board, move) && moveCount > 2)
+            if (moveTarget(move) != moveTarget((stack - 1)->move) && (moveType(move) != MOVE_PROMOTION) && !board->givesCheck(move) && moveCount > 2)
                 continue;
         }
 
@@ -619,7 +619,7 @@ movesLoop:
 
                 // Futility pruning
                 if (capture) {
-                    Piece capturedPiece = (move & 0x3000) == MOVE_ENPASSANT ? PIECE_PAWN : board->pieces[moveTarget(move)];
+                    Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
                     if (lmrDepth < 9 && eval + 450 + PIECE_VALUES[capturedPiece] + 325 * lmrDepth <= alpha)
                         continue;
                 } else {

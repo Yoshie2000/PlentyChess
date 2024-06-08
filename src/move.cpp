@@ -424,10 +424,16 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
 }
 
 int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
-    Bitboard pawnThreats = attackedSquaresByPiece(board, 1 - board->stm, PIECE_PAWN);
-    Bitboard knightThreats = attackedSquaresByPiece(board, 1 - board->stm, PIECE_KNIGHT);
-    Bitboard bishopThreats = attackedSquaresByPiece(board, 1 - board->stm, PIECE_BISHOP);
-    Bitboard rookThreats = attackedSquaresByPiece(board, 1 - board->stm, PIECE_ROOK);
+    Color them = flip(board->stm);
+
+    Bitboard pawnThreats = BB::pawnAttacks(board->byPiece[Piece::PAWN] & board->byColor[them], them);
+    Bitboard knightThreats =  BB::knightAttacks(board->byPiece[Piece::KNIGHT] & board->byColor[them]);
+
+    Bitboard occupied = board->byColor[Color::WHITE] | board->byColor[Color::BLACK];
+    Bitboard bishopThreats = 0, rookThreats = 0;
+    Bitboard bishops = board->byPiece[Piece::BISHOP] & board->byColor[them], rooks = board->byPiece[Piece::ROOK] & board->byColor[them];
+    while (bishops) { bishopThreats |= getBishopMoves(popLSB(&bishops), occupied); }
+    while (rooks) { rookThreats |= getRookMoves(popLSB(&rooks), occupied); }
 
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
@@ -444,19 +450,19 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
 
         int threatScore = 0;
         Piece piece = board->pieces[moveOrigin(move)];
-        Bitboard fromBB = C64(1) << moveOrigin(move);
-        Bitboard toBB = C64(1) << moveTarget(move);
-        if (piece == PIECE_QUEEN) {
+        Bitboard fromBB = bitboard(moveOrigin(move));
+        Bitboard toBB = bitboard(moveTarget(move));
+        if (piece == Piece::QUEEN) {
             if (fromBB & (pawnThreats | knightThreats | bishopThreats | rookThreats))
                 threatScore += 20000;
             if (toBB & (pawnThreats | knightThreats | bishopThreats | rookThreats))
                 threatScore -= 20000;
-        } else if (piece == PIECE_ROOK) {
+        } else if (piece == Piece::ROOK) {
             if (fromBB & (pawnThreats | knightThreats | bishopThreats))
                 threatScore += 12500;
             if (toBB & (pawnThreats | knightThreats | bishopThreats))
                 threatScore -= 12500;
-        } else if (piece == PIECE_KNIGHT || piece == PIECE_BISHOP) {
+        } else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
             if (fromBB & pawnThreats)
                 threatScore += 7500;
             if (toBB & pawnThreats)
