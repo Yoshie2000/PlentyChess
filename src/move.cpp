@@ -489,7 +489,7 @@ void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) 
 }
 
 inline char fileFromSquare(Square square) {
-    int file = square % 8;
+    int file = fileOf(square);
     if (file == 0)
         return 'a';
     else if (file == 1)
@@ -509,7 +509,7 @@ inline char fileFromSquare(Square square) {
 }
 
 inline char rankFromSquare(Square square) {
-    int rank = square / 8;
+    int rank = rankOf(square);
     if (rank == 0)
         return '1';
     else if (rank == 1)
@@ -540,7 +540,7 @@ std::string moveToString(Move move, bool chess960) {
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
     if ((move & (0x3 << 12)) == MOVE_CASTLING && !chess960) {
-        int rank = origin / 8;
+        int rank = rankOf(origin);
         int file = origin > target ? 2 : 6;
         target = rank * 8 + file;
     }

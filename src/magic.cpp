@@ -137,7 +137,7 @@ void findMagic(uint32_t seed, Piece slider, Square square, uint8_t indexBits, Ma
             return;
         }
     }
-    printf("NO MAGICS FOUND %d %d\n", slider, square);
+    std::cout << "NO MAGICS FOUND FOR SLIDER " << slider << " / SQUARE " << square << std::endl;
     exit(-1);
 }
 

@@ -118,6 +118,13 @@ namespace BB {
     extern Bitboard KING_ATTACKS[64];
     extern Bitboard KNIGHT_ATTACKS[64];
 
+    constexpr int popcount(Bitboard bb) {
+        return __builtin_popcountll(bb);
+    }
+    constexpr int popcount(int number) {
+        return __builtin_popcount(number);
+    }
+
     constexpr Bitboard pawnAttacksLeft(Bitboard pawns, Color side) {
         return side == Color::WHITE ?
             ((pawns & ~BB::FILE_A) << 7) :

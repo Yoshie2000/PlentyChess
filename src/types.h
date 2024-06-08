@@ -77,6 +77,10 @@ constexpr Bitboard bitboard(Square square) {
 constexpr int fileOf(Square square) {
     return square % 8;
 }
+constexpr int rankOf(Square square) {
+    return square / 8;
+}
+
 constexpr Color flip(Color color) {
     return Color(1 - color);
 }

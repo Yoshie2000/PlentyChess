@@ -325,7 +325,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
             line = line.substr(fenLength);
     }
     else {
-        printf("Not a valid position, exiting\n");
+        std::cout << "Not a valid position, exiting" << std::endl;
         exit(-1);
     }
 
@@ -504,7 +504,7 @@ void uciLoop(int argc, char* argv[]) {
     board.stack = &stackQueue.back();
     board.startpos();
 
-    printf("UCI thread running\n");
+    std::cout << "UCI thread running" << std::endl;
 
     if (argc > 1 && matchesToken(argv[1], "bench")) {
         bench(&stackQueue, &board);
@@ -518,13 +518,13 @@ void uciLoop(int argc, char* argv[]) {
         }
         else if (matchesToken(line, "stop")) threads.stopSearching();
 
-        else if (matchesToken(line, "isready")) printf("readyok\n");
+        else if (matchesToken(line, "isready")) std::cout << "readyok" << std::endl;
         else if (matchesToken(line, "ucinewgame")) threads.ucinewgame();
         else if (matchesToken(line, "uci")) {
             std::cout << "id name PlentyChess " << static_cast<std::string>(VERSION) << "\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 32768\noption name Threads type spin default 1 min 1 max 512" << std::endl;
             UCI::Options.forEach(printOptions());
             SPSA::printUCI();
-            printf("\nuciok\n");
+            std::cout << std::endl << "uciok" << std::endl;
         }
         else if (matchesToken(line, "go")) go(line, &board, &stackQueue);
         else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
@@ -540,8 +540,8 @@ void uciLoop(int argc, char* argv[]) {
             std::cout << formatEval(evaluate(&board, &nnue)) << std::endl;
         }
         else if (matchesToken(line, "seetest")) seetest(&board);
-        else printf("Unknown command\n");
+        else std::cout << "Unknown command" << std::endl;
     }
 
-    printf("UCI thread stopping\n");
+    std::cout << "UCI thread stopping" << std::endl;
 }

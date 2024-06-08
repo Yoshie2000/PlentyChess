@@ -3,9 +3,9 @@
 #include "types.h"
 #include "board.h"
 
-#define PAWN_HISTORY_SIZE 32768
-#define CORRECTION_HISTORY_SIZE 16384
-#define CORRECTION_HISTORY_LIMIT 1024
+constexpr int PAWN_HISTORY_SIZE = 32768;
+constexpr int CORRECTION_HISTORY_SIZE = 16384;
+constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 
 class History {
 

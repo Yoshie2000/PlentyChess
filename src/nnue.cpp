@@ -195,7 +195,7 @@ Eval NNUE::evaluate(Board* board) {
     calculateAccumulators();
     assert(currentAccumulator == lastCalculatedAccumulator);
 
-    int pieceCount = __builtin_popcountll(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
+    int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
     constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
     int bucket = (pieceCount - 2) / divisor;
     assert(0 <= bucket && bucket < OUTPUT_BUCKETS);

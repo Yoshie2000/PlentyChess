@@ -323,7 +323,7 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
     // Update king checking stuff
     Square enemyKing = lsb(byColor[stm] & byPiece[Piece::KING]);
     stack->checkers = attackersTo(enemyKing, byColor[Color::WHITE] | byColor[Color::BLACK]) & byColor[flip(stm)];
-    stack->checkerCount = __builtin_popcountll(stack->checkers);
+    stack->checkerCount = BB::popcount(stack->checkers);
 
     updateSliderPins(Color::WHITE);
     updateSliderPins(Color::BLACK);
@@ -549,7 +549,7 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
     Square enemyKing = lsb(byColor[flip(stm)] & byPiece[Piece::KING]);
     newStack->checkers = attackersTo(enemyKing, byColor[Color::WHITE] | byColor[Color::BLACK]) & byColor[stm];
-    newStack->checkerCount = newStack->checkers ? __builtin_popcountll(newStack->checkers) : 0;
+    newStack->checkerCount = newStack->checkers ? BB::popcount(newStack->checkers) : 0;
     updateSliderPins(Color::WHITE);
     updateSliderPins(Color::BLACK);
 
@@ -973,7 +973,7 @@ void Board::updateSliderPins(Color side) {
         Square pinnerSquare = popLSB(&possiblePinners);
         Bitboard blockerBB = BB::BETWEEN[king][pinnerSquare] & occupied;
 
-        if (__builtin_popcountll(blockerBB) == 1) {
+        if (BB::popcount(blockerBB) == 1) {
             // We have exactly one blocker for this pinner
             stack->blockers[side] |= blockerBB;
         }
@@ -1082,56 +1082,56 @@ Bitboard Board::attackersTo(Square s, Bitboard occupied) {
 void Board::debugBoard() {
     for (int rank = 7; rank >= 0; rank--) {
 
-        printf("-");
+        std::cout << "-";
         for (int file = 0; file <= 15; file++) {
-            printf(" -");
+            std::cout << " -";
         }
-        printf("\n");
+        std::cout << std::endl;
 
         for (int file = 0; file <= 7; file++) {
 
             // Get piece at index
-            int idx = file + 8 * rank;
+            Square idx = file + 8 * rank;
             Bitboard mask = bitboard(idx);
             if ((stack->enpassantTarget & mask) != 0)
-                printf("| E ");
+                std::cout << "| E ";
             else if (((byColor[Color::WHITE] | byColor[Color::BLACK]) & mask) == 0)
-                printf("|   ");
+                std::cout << "|   ";
             else if ((byColor[Color::WHITE] & byPiece[Piece::PAWN] & mask) != 0)
-                printf("| ♙ ");
+                std::cout << "| ♙ ";
             else if ((byColor[Color::BLACK] & byPiece[Piece::PAWN] & mask) != 0)
-                printf("| ♟︎ ");
+                std::cout << "| ♟︎ ";
             else if ((byColor[Color::WHITE] & byPiece[Piece::KNIGHT] & mask) != 0)
-                printf("| ♘ ");
+                std::cout << "| ♘ ";
             else if ((byColor[Color::BLACK] & byPiece[Piece::KNIGHT] & mask) != 0)
-                printf("| ♞ ");
+                std::cout << "| ♞ ";
             else if ((byColor[Color::WHITE] & byPiece[Piece::BISHOP] & mask) != 0)
-                printf("| ♗ ");
+                std::cout << "| ♗ ";
             else if ((byColor[Color::BLACK] & byPiece[Piece::BISHOP] & mask) != 0)
-                printf("| ♝ ");
+                std::cout << "| ♝ ";
             else if ((byColor[Color::WHITE] & byPiece[Piece::ROOK] & mask) != 0)
-                printf("| ♖ ");
+                std::cout << "| ♖ ";
             else if ((byColor[Color::BLACK] & byPiece[Piece::ROOK] & mask) != 0)
-                printf("| ♜ ");
+                std::cout << "| ♜ ";
             else if ((byColor[Color::WHITE] & byPiece[Piece::QUEEN] & mask) != 0)
-                printf("| ♕ ");
+                std::cout << "| ♕ ";
             else if ((byColor[Color::BLACK] & byPiece[Piece::QUEEN] & mask) != 0)
-                printf("| ♛ ");
+                std::cout << "| ♛ ";
             else if ((byColor[Color::WHITE] & byPiece[Piece::KING] & mask) != 0)
-                printf("| ♔ ");
+                std::cout << "| ♔ ";
             else if ((byColor[Color::BLACK] & byPiece[Piece::KING] & mask) != 0)
-                printf("| ♚ ");
+                std::cout << "| ♚ ";
             else
-                printf("| ? ");
+                std::cout << "| ? ";
         }
-        printf("|\n");
+        std::cout << "|" << std::endl;
     }
-    printf("-");
+    std::cout << "-";
     for (int file = 0; file <= 15; file++) {
-        printf(" -");
+        std::cout << " -";
     }
-    printf("\n%" PRIu64 "\n", stack->hash);
-    printf("%" PRIu64 "\n", stack->pawnHash);
+    std::cout << std::endl << stack->hash;
+    std::cout << std::endl << stack->pawnHash << std::endl;
 }
 
 int Board::validateBoard() {
@@ -1213,11 +1213,11 @@ int Board::validateBoard() {
 void debugbitboard(Bitboard bb) {
     for (int rank = 7; rank >= 0; rank--) {
 
-        printf("-");
+        std::cout << "-";
         for (int file = 0; file <= 15; file++) {
-            printf(" -");
+            std::cout << " -";
         }
-        printf("\n");
+        std::cout << std::endl;
 
         for (int file = 0; file <= 7; file++) {
 
@@ -1225,15 +1225,15 @@ void debugbitboard(Bitboard bb) {
             int idx = file + 8 * rank;
             Bitboard mask = bitboard(idx);
             if ((bb & mask) == 0)
-                printf("|   ");
+                std::cout << "|   ";
             else
-                printf("| X ");
+                std::cout << "| X ";
         }
-        printf("|\n");
+        std::cout << "|" << std::endl;
     }
-    printf("-");
+    std::cout << "-";
     for (int file = 0; file <= 15; file++) {
-        printf(" -");
+        std::cout << " -";
     }
-    printf("\n");
+    std::cout << std::endl;
 }
