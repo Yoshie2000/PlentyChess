@@ -13,7 +13,7 @@ enum Color : uint8_t {
 };
 
 constexpr Color& operator++(Color& color) {
-    color = Color(int(color) + 1);
+    color = static_cast<Color>(static_cast<int>(color) + 1);
     return color;
 }
 
@@ -29,7 +29,7 @@ enum Piece: uint8_t {
 };
 
 constexpr Piece& operator++(Piece& piece) {
-    piece = Piece(int(piece) + 1);
+    piece = static_cast<Piece>(static_cast<int>(piece) + 1);
     return piece;
 }
 
@@ -62,16 +62,16 @@ inline Square popLSB(Bitboard* bb) {
 }
 
 constexpr Bitboard bitboard(int32_t number) {
-    return Bitboard(number);
+    return static_cast<Bitboard>(number);
 }
 constexpr Bitboard bitboard(long number) {
-    return Bitboard(number);
+    return static_cast<Bitboard>(number);
 }
 constexpr Bitboard bitboard(uint64_t number) {
-    return Bitboard(number);
+    return static_cast<Bitboard>(number);
 }
 constexpr Bitboard bitboard(Square square) {
-    return Bitboard(1) << square;
+    return static_cast<Bitboard>(1) << square;
 }
 
 constexpr int fileOf(Square square) {
@@ -82,7 +82,7 @@ constexpr int rankOf(Square square) {
 }
 
 constexpr Color flip(Color color) {
-    return Color(1 - color);
+    return static_cast<Color>(1 - color);
 }
 
 struct SearchStack {

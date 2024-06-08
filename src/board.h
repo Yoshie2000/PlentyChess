@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string>
 
+#include "move.h"
 #include "bitboard.h"
 #include "types.h"
 
@@ -74,7 +75,12 @@ struct Board {
     void doNullMove(BoardStack* newStack);
     void undoNullMove();
 
-    bool isCapture(Move move);
+    constexpr bool isCapture(Move move) {
+        MoveType type = moveType(move);
+        if (type == MOVE_CASTLING) return false;
+        if (type == MOVE_ENPASSANT || (type == MOVE_PROMOTION && promotionType(move) == PROMOTION_QUEEN)) return true;
+        return pieces[moveTarget(move)] != Piece::NONE;
+    }
     bool isPseudoLegal(Move move);
     bool isLegal(Move move);
     bool givesCheck(Move move);

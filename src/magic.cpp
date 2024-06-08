@@ -2,11 +2,12 @@
 #include <random>
 #include <inttypes.h>
 #include <chrono>
+#include <iostream>
 
 #include "types.h"
 #include "magic.h"
 #include "move.h"
-#include <iostream>
+#include "bitboard.h"
 
 #if defined(USE_BMI2)
 

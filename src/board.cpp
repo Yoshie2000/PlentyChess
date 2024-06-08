@@ -665,13 +665,6 @@ void Board::undoNullMove() {
     stack = stack->previous;
 }
 
-bool Board::isCapture(Move move) {
-    MoveType type = moveType(move);
-    if (type == MOVE_CASTLING) return false;
-    if (type == MOVE_ENPASSANT || (type == MOVE_PROMOTION && promotionType(move) == PROMOTION_QUEEN)) return true;
-    return pieces[moveTarget(move)] != Piece::NONE;
-}
-
 bool Board::isPseudoLegal(Move move) {
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
