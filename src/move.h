@@ -211,7 +211,7 @@ public:
 
 private:
 
-    int scoreGoodCaptures(int beginIndex, int endIndex);
+    int scoreCaptures(int beginIndex, int endIndex);
     int scoreQuiets(int beginIndex, int endIndex);
 
     void sortMoves(Move* moves, int* scores, int beginIndex, int endIndex);

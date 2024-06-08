@@ -496,7 +496,7 @@ Move MoveGen::nextMove() {
         }
         endIndex = generatedMoves;
 
-        endIndex = scoreGoodCaptures(beginIndex, endIndex);
+        endIndex = scoreCaptures(beginIndex, endIndex);
         sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
         generationStage++;
@@ -590,7 +590,7 @@ Move MoveGen::nextMove() {
     return MOVE_NONE;
 }
 
-int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
+int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
 
@@ -618,6 +618,11 @@ int MoveGen::scoreGoodCaptures(int beginIndex, int endIndex) {
 }
 
 int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
+    Bitboard pawnThreats = attackedSquaresByPiece(board, 1 - board->stm, PIECE_PAWN);
+    Bitboard knightThreats = attackedSquaresByPiece(board, 1 - board->stm, PIECE_KNIGHT);
+    Bitboard bishopThreats = attackedSquaresByPiece(board, 1 - board->stm, PIECE_BISHOP);
+    Bitboard rookThreats = attackedSquaresByPiece(board, 1 - board->stm, PIECE_ROOK);
+
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
 
@@ -630,7 +635,29 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
             i--;
             continue;
         }
-        moveListScores[i] = history->getHistory(board, searchStack, move, false);
+
+        int threatScore = 0;
+        Piece piece = board->pieces[moveOrigin(move)];
+        Bitboard fromBB = C64(1) << moveOrigin(move);
+        Bitboard toBB = C64(1) << moveTarget(move);
+        if (piece == PIECE_QUEEN) {
+            if (fromBB & (pawnThreats | knightThreats | bishopThreats | rookThreats))
+                threatScore += 30000;
+            if (toBB & (pawnThreats | knightThreats | bishopThreats | rookThreats))
+                threatScore -= 30000;
+        } else if (piece == PIECE_ROOK) {
+            if (fromBB & (pawnThreats | knightThreats | bishopThreats))
+                threatScore += 15000;
+            if (toBB & (pawnThreats | knightThreats | bishopThreats))
+                threatScore -= 15000;
+        } else if (piece == PIECE_KNIGHT || piece == PIECE_BISHOP) {
+            if (fromBB & pawnThreats)
+                threatScore += 15000;
+            if (toBB & pawnThreats)
+                threatScore -= 15000;
+        }
+
+        moveListScores[i] = history->getHistory(board, searchStack, move, false) + threatScore;
     }
     return endIndex;
 }
