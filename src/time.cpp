@@ -29,8 +29,8 @@ void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchDa
         time = parameters->movetime;
     }
     else if (parameters->wtime && parameters->btime) {
-        time = rootBoard->stm == COLOR_WHITE ? parameters->wtime : parameters->btime;
-        increment = rootBoard->stm == COLOR_WHITE ? parameters->winc : parameters->binc;
+        time = rootBoard->stm == Color::WHITE ? parameters->wtime : parameters->btime;
+        increment = rootBoard->stm == Color::WHITE ? parameters->winc : parameters->binc;
     }
 
     // Safety in case nothing (or something negative) was specified

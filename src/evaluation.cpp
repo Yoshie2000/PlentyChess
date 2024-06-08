@@ -7,21 +7,21 @@
 #include "magic.h"
 #include "nnue.h"
 
-const Eval PIECE_VALUES[PIECE_TYPES + 1] = {
+const Eval PIECE_VALUES[Piece::TOTAL + 1] = {
     100, 300, 300, 500, 900, 0, 0
 };
 
-const Eval SEE_VALUES[PIECE_TYPES + 1] = {
+const Eval SEE_VALUES[Piece::TOTAL + 1] = {
     90, 290, 310, 570, 1000, 0, 0
 };
 
 int getMaterialScale(Board* board) {
-    int knightCount = board->stack->pieceCount[COLOR_WHITE][PIECE_KNIGHT] + board->stack->pieceCount[COLOR_BLACK][PIECE_KNIGHT];
-    int bishopCount = board->stack->pieceCount[COLOR_WHITE][PIECE_BISHOP] + board->stack->pieceCount[COLOR_BLACK][PIECE_BISHOP];
-    int rookCount = board->stack->pieceCount[COLOR_WHITE][PIECE_ROOK] + board->stack->pieceCount[COLOR_BLACK][PIECE_ROOK];
-    int queenCount = board->stack->pieceCount[COLOR_WHITE][PIECE_QUEEN] + board->stack->pieceCount[COLOR_BLACK][PIECE_QUEEN];
+    int knightCount = board->stack->pieceCount[Color::WHITE][Piece::KNIGHT] + board->stack->pieceCount[Color::BLACK][Piece::KNIGHT];
+    int bishopCount = board->stack->pieceCount[Color::WHITE][Piece::BISHOP] + board->stack->pieceCount[Color::BLACK][Piece::BISHOP];
+    int rookCount = board->stack->pieceCount[Color::WHITE][Piece::ROOK] + board->stack->pieceCount[Color::BLACK][Piece::ROOK];
+    int queenCount = board->stack->pieceCount[Color::WHITE][Piece::QUEEN] + board->stack->pieceCount[Color::BLACK][Piece::QUEEN];
 
-    int materialValue = PIECE_VALUES[PIECE_KNIGHT] * knightCount + PIECE_VALUES[PIECE_BISHOP] * bishopCount + PIECE_VALUES[PIECE_ROOK] * rookCount + PIECE_VALUES[PIECE_QUEEN] * queenCount;
+    int materialValue = PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
     return 980 + materialValue / 48;
 }
 
@@ -51,7 +51,7 @@ std::string formatEval(Eval value) {
 }
 
 bool SEE(Board* board, Move move, Eval threshold) {
-    assert(isPseudoLegal(board, move));
+    assert(board->isPseudoLegal(move));
 
     // "Special" moves pass SEE
     if (move >> 12)
@@ -68,13 +68,13 @@ bool SEE(Board* board, Move move, Eval threshold) {
     value -= SEE_VALUES[board->pieces[origin]];
     if (value >= 0) return true;
 
-    Bitboard occupied = (board->byColor[COLOR_WHITE] | board->byColor[COLOR_BLACK]) ^ (C64(1) << origin);
-    Bitboard attackersToTarget = attackersTo(board, target, occupied);
+    Bitboard occupied = (board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) ^ (bitboard(origin));
+    Bitboard attackersToTarget = board->attackersTo(target, occupied);
 
-    Bitboard bishops = board->byPiece[PIECE_BISHOP] | board->byPiece[PIECE_QUEEN];
-    Bitboard rooks = board->byPiece[PIECE_ROOK] | board->byPiece[PIECE_QUEEN];
+    Bitboard bishops = board->byPiece[Piece::BISHOP] | board->byPiece[Piece::QUEEN];
+    Bitboard rooks = board->byPiece[Piece::ROOK] | board->byPiece[Piece::QUEEN];
 
-    Color side = 1 - board->stm;
+    Color side = flip(board->stm);
 
     // Make captures until one side has none left / fails to beat the threshold
     while (true) {
@@ -88,29 +88,30 @@ bool SEE(Board* board, Move move, Eval threshold) {
 
         // Find least valuable piece
         Piece piece;
-        for (piece = PIECE_PAWN; piece < PIECE_KING; piece++) {
+        for (piece = Piece::PAWN; piece < Piece::KING; ++piece) {
             // If the piece attacks the target square, stop
             if (stmAttackers & board->byPiece[piece])
                 break;
         }
 
-        side = 1 - side;
+        side = flip(side);
         value = -value - 1 - SEE_VALUES[piece];
         
         // Value beats (or can't beat) threshold (negamax)
         if (value >= 0) {
-            if (piece == PIECE_KING && (attackersToTarget & board->byColor[side]))
-                side = 1 - side;
+            if (piece == Piece::KING && (attackersToTarget & board->byColor[side]))
+                side = flip(side);
             break;
         }
 
         // Remove the used piece
-        occupied ^= C64(1) << lsb(stmAttackers & board->byPiece[piece]);
+        Square pieceSquare = lsb(stmAttackers & board->byPiece[piece]);
+        occupied ^= bitboard(pieceSquare);
 
         // Add discovered attacks
-        if (piece == PIECE_PAWN || piece == PIECE_BISHOP || piece == PIECE_QUEEN)
+        if (piece == Piece::PAWN || piece == Piece::BISHOP || piece == Piece::QUEEN)
             attackersToTarget |= getBishopMoves(target, occupied) & bishops;
-        if (piece == PIECE_ROOK || piece == PIECE_QUEEN)
+        if (piece == Piece::ROOK || piece == Piece::QUEEN)
             attackersToTarget |= getRookMoves(target, occupied) & rooks;
     }
 

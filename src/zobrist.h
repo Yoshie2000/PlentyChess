@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-extern uint64_t ZOBRIST_PIECE_SQUARES[2][PIECE_TYPES][64];
+extern uint64_t ZOBRIST_PIECE_SQUARES[2][Piece::TOTAL][64];
 extern uint64_t ZOBRIST_STM_BLACK;
 extern uint64_t ZOBRIST_NO_PAWNS;
 extern uint64_t ZOBRIST_CASTLING[16]; // 2^4

@@ -9,7 +9,7 @@
 int main(int argc, char* argv[]) {
     generateMagics();
 
-    initBitboard();
+    BB::init();
     initReductions();
     initZobrist();
 

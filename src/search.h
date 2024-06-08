@@ -17,6 +17,8 @@ extern int LMP_MARGIN[MAX_PLY][2];
 
 void initReductions();
 
+uint64_t perft(Board* board, int depth);
+
 struct SearchParameters {
     bool perft; // Perft (requires depth)
 
@@ -78,5 +80,3 @@ enum NodeType {
     PV_NODE,
     NON_PV_NODE
 };
-
-uint64_t perft(Board* board, int depth);

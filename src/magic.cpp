@@ -2,32 +2,33 @@
 #include <random>
 #include <inttypes.h>
 #include <chrono>
+#include <iostream>
 
 #include "types.h"
 #include "magic.h"
 #include "move.h"
-#include <iostream>
+#include "bitboard.h"
 
 #if defined(USE_BMI2)
 
 MagicEntry ROOK_MAGICS[64] = {};
 MagicEntry BISHOP_MAGICS[64] = {};
 
-Bitboard ROOK_MOVES[102400] = { C64(0) };
-Bitboard BISHOP_MOVES[5248] = { C64(0) };
+Bitboard ROOK_MOVES[102400] = { bitboard(0) };
+Bitboard BISHOP_MOVES[5248] = { bitboard(0) };
 
 #else
 
 MagicEntry ROOK_MAGICS[64] = {};
 MagicEntry BISHOP_MAGICS[64] = {};
 
-Bitboard ROOK_MOVES[64][4096] = { C64(0) };
-Bitboard BISHOP_MOVES[64][4096] = { C64(0) };
+Bitboard ROOK_MOVES[64][4096] = { bitboard(0) };
+Bitboard BISHOP_MOVES[64][4096] = { bitboard(0) };
 
 #endif
 
 Bitboard sliderMoves(Piece pieceType, Square origin, Bitboard blockers) {
-    Bitboard attacksBB = C64(0);
+    Bitboard attacksBB = bitboard(0);
 
     int8_t delta, direction;
     Square lastSquare, toSquare;
@@ -39,7 +40,7 @@ Bitboard sliderMoves(Piece pieceType, Square origin, Bitboard blockers) {
 
         if (origin != lastSquare)
             for (toSquare = origin + delta; toSquare < 64; toSquare += delta) {
-                toSquareBB = C64(1) << toSquare;
+                toSquareBB = bitboard(toSquare);
                 attacksBB |= toSquareBB;
                 if ((blockers & toSquareBB) || (toSquare == lastSquare))
                     break;
@@ -49,7 +50,7 @@ Bitboard sliderMoves(Piece pieceType, Square origin, Bitboard blockers) {
 }
 
 Bitboard relevantBlockers(Piece pieceType, Square origin) {
-    Bitboard attacksBB = C64(0);
+    Bitboard attacksBB = bitboard(0);
 
     int8_t delta, direction;
     Square lastSquare, toSquare;
@@ -61,7 +62,7 @@ Bitboard relevantBlockers(Piece pieceType, Square origin) {
 
         if (origin != lastSquare)
             for (toSquare = origin + delta; toSquare < 64 && toSquare != lastSquare; toSquare += delta) {
-                toSquareBB = C64(1) << toSquare;
+                toSquareBB = bitboard(toSquare);
                 attacksBB |= toSquareBB;
             }
     }
@@ -75,15 +76,15 @@ void findMagics(Piece slider, MagicEntry* magicTable, Bitboard* table) {
     for (Square square = 0; square < 64; square++) {
         MagicEntry* outMagicEntry = &magicTable[square];
 
-        Bitboard blockers = C64(0);
+        Bitboard blockers = bitboard(0);
         Bitboard mask = relevantBlockers(slider, square);
 
         outMagicEntry->tableIndex = table;
         outMagicEntry->mask = mask;
 
-        for (int index = 0; blockers != C64(0) || index == 0; index++) {
+        for (int index = 0; blockers != bitboard(0) || index == 0; index++) {
             Bitboard moves = sliderMoves(slider, square, blockers);
-            if (slider == PIECE_ROOK)
+            if (slider == Piece::ROOK)
                 outMagicEntry->tableIndex[magicIndexRook(square, blockers)] = moves;
             else
                 outMagicEntry->tableIndex[magicIndexBishop(square, blockers)] = moves;
@@ -99,12 +100,12 @@ void findMagics(Piece slider, MagicEntry* magicTable, Bitboard* table) {
 // Fails if there are any non-constructive collisions.
 bool tryMakeTable(Piece slider, Square square, MagicEntry magicEntry, Bitboard* table) {
     for (int i = 0; i < 4096; i++)
-        table[i] = C64(0);
+        table[i] = bitboard(0);
 
-    Bitboard blockers = C64(0);
+    Bitboard blockers = bitboard(0);
 
     // Iterate all configurations of blockers
-    for (int index = 0; blockers != C64(0) || index == 0; index++) {
+    for (int index = 0; blockers != bitboard(0) || index == 0; index++) {
         Bitboard moves = sliderMoves(slider, square, blockers);
         Bitboard* tableEntry = &table[magicIndex(magicEntry, blockers)];
         if (*tableEntry == 0) {
@@ -137,7 +138,7 @@ void findMagic(uint32_t seed, Piece slider, Square square, uint8_t indexBits, Ma
             return;
         }
     }
-    printf("NO MAGICS FOUND %d %d\n", slider, square);
+    std::cout << "NO MAGICS FOUND FOR SLIDER " << slider << " / SQUARE " << square << std::endl;
     exit(-1);
 }
 
@@ -147,14 +148,14 @@ void generateMagics() {
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
 #if defined(USE_BMI2)
-    findMagics(PIECE_ROOK, ROOK_MAGICS, ROOK_MOVES);
-    findMagics(PIECE_BISHOP, BISHOP_MAGICS, BISHOP_MOVES);
+    findMagics(Piece::ROOK, ROOK_MAGICS, ROOK_MOVES);
+    findMagics(Piece::BISHOP, BISHOP_MAGICS, BISHOP_MOVES);
 #else
     uint32_t seed = 2816384844;
 
     for (Square square = 0; square < 64; square++) {
-        findMagic(seed, PIECE_ROOK, square, 12, &ROOK_MAGICS[square], ROOK_MOVES[square]);
-        findMagic(seed, PIECE_BISHOP, square, 9, &BISHOP_MAGICS[square], BISHOP_MOVES[square]);
+        findMagic(seed, Piece::ROOK, square, 12, &ROOK_MAGICS[square], ROOK_MOVES[square]);
+        findMagic(seed, Piece::BISHOP, square, 9, &BISHOP_MAGICS[square], BISHOP_MOVES[square]);
     }
 #endif
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();

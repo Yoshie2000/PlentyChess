@@ -3,21 +3,21 @@
 #include "types.h"
 #include "board.h"
 
-#define PAWN_HISTORY_SIZE 32768
-#define CORRECTION_HISTORY_SIZE 16384
-#define CORRECTION_HISTORY_LIMIT 1024
+constexpr int PAWN_HISTORY_SIZE = 32768;
+constexpr int CORRECTION_HISTORY_SIZE = 16384;
+constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 
 class History {
 
     int16_t quietHistory[2][64][64];
     Move counterMoves[64][64];
-    int16_t captureHistory[2][PIECE_TYPES][64][PIECE_TYPES];
+    int16_t captureHistory[2][Piece::TOTAL][64][Piece::TOTAL];
     int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
-    int16_t pawnHistory[PAWN_HISTORY_SIZE][2][PIECE_TYPES][64];
+    int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
 public:
 
-    int16_t continuationHistory[2][PIECE_TYPES][64][PIECE_TYPES * 64];
+    int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64];
 
     void initHistory();
 
