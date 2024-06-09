@@ -95,6 +95,7 @@ TUNE_INT(historyPruningFactor, -2452, -8192, -128);
 
 TUNE_INT(doubleExtensionMargin, 16, 1, 30);
 TUNE_INT(doubleExtensionDepthIncrease, 11, 2, 20);
+TUNE_INT(tripleExtensionMargin, 150, 1, 30);
 
 TUNE_INT_DISABLED(seeDepth, 9, 2, 15);
 
@@ -688,7 +689,7 @@ movesLoop:
                 // This move is singular and we should investigate it further
                 extension = 1;
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
-                    extension = 2;
+                    extension = 2 + (!capture && singularValue + tripleExtensionMargin < singularBeta);
                     depth += depth < doubleExtensionDepthIncrease;
                 }
             }
