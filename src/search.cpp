@@ -471,11 +471,11 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
-        worsening = stack->staticEval + 15 < (stack - 2)->staticEval;
+        worsening = stack->staticEval < (stack - 2)->staticEval;
     }
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
-        worsening = stack->staticEval + 15 < (stack - 4)->staticEval;
+        worsening = stack->staticEval < (stack - 4)->staticEval;
     }
 
     // Reverse futility pruning
