@@ -553,6 +553,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
     updateSliderPins(Color::WHITE);
     updateSliderPins(Color::BLACK);
 
+    nnue->finalizeMove(this);
+
     stm = flip(stm);
     newStack->move = move;
 }

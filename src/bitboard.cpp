@@ -32,10 +32,10 @@ namespace BB {
     }
 
     Bitboard knightAttacks(Bitboard knightBB) {
-        Bitboard l1 = (knightBB >> 1) & bitboard(0x7f7f7f7f7f7f7f7f);
-        Bitboard l2 = (knightBB >> 2) & bitboard(0x3f3f3f3f3f3f3f3f);
-        Bitboard r1 = (knightBB << 1) & bitboard(0xfefefefefefefefe);
-        Bitboard r2 = (knightBB << 2) & bitboard(0xfcfcfcfcfcfcfcfc);
+        Bitboard l1 = (knightBB >> 1) & Bitboard(0x7f7f7f7f7f7f7f7f);
+        Bitboard l2 = (knightBB >> 2) & Bitboard(0x3f3f3f3f3f3f3f3f);
+        Bitboard r1 = (knightBB << 1) & Bitboard(0xfefefefefefefefe);
+        Bitboard r2 = (knightBB << 2) & Bitboard(0xfcfcfcfcfcfcfcfc);
         Bitboard h1 = l1 | r1;
         Bitboard h2 = l2 | r2;
         return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
