@@ -169,7 +169,8 @@ template<Color side>
 void NNUE::refreshAccumulator(Accumulator* acc) {
     FinnyEntry* finnyEntry = &finnyTable[acc->kingBucketInfo[side].mirrored][acc->kingBucketInfo[side].index];
 
-    // Update matching finny table with the changed pieces
+    int fullRefreshCost = BB::popcount(acc->byColor[side][Color::WHITE] | acc->byColor[side][Color::BLACK]);
+    int finnyRefreshCost = 0;
     for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
         for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
             Bitboard finnyBB = finnyEntry->byColor[side][c] & finnyEntry->byPiece[side][p];
@@ -178,21 +179,60 @@ void NNUE::refreshAccumulator(Accumulator* acc) {
             Bitboard addBB = accBB & ~finnyBB;
             Bitboard removeBB = ~accBB & finnyBB;
 
-            while (addBB) {
-                Square square = popLSB(&addBB);
-                addPieceToAccumulator<side>(finnyEntry->colors, finnyEntry->colors, &acc->kingBucketInfo[side], square, p, c);
-            }
-            while (removeBB) {
-                Square square = popLSB(&removeBB);
-                removePieceFromAccumulator<side>(finnyEntry->colors, finnyEntry->colors, &acc->kingBucketInfo[side], square, p, c);
-            }
+            finnyRefreshCost += BB::popcount(addBB | removeBB);
         }
     }
-    memcpy(finnyEntry->byColor[side], acc->byColor[side], sizeof(finnyEntry->byColor[side]));
-    memcpy(finnyEntry->byPiece[side], acc->byPiece[side], sizeof(finnyEntry->byPiece[side]));
 
-    // Copy result to the current accumulator
-    memcpy(acc->colors[side], finnyEntry->colors[side], sizeof(acc->colors[side]));
+    if (fullRefreshCost > finnyRefreshCost) {
+        // Do update based on finny tables
+
+        // Update matching finny table with the changed pieces
+        for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
+            for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
+                Bitboard finnyBB = finnyEntry->byColor[side][c] & finnyEntry->byPiece[side][p];
+                Bitboard accBB = acc->byColor[side][c] & acc->byPiece[side][p];
+
+                Bitboard addBB = accBB & ~finnyBB;
+                Bitboard removeBB = ~accBB & finnyBB;
+
+                while (addBB) {
+                    Square square = popLSB(&addBB);
+                    addPieceToAccumulator<side>(finnyEntry->colors, finnyEntry->colors, &acc->kingBucketInfo[side], square, p, c);
+                }
+                while (removeBB) {
+                    Square square = popLSB(&removeBB);
+                    removePieceFromAccumulator<side>(finnyEntry->colors, finnyEntry->colors, &acc->kingBucketInfo[side], square, p, c);
+                }
+            }
+        }
+        memcpy(finnyEntry->byColor[side], acc->byColor[side], sizeof(finnyEntry->byColor[side]));
+        memcpy(finnyEntry->byPiece[side], acc->byPiece[side], sizeof(finnyEntry->byPiece[side]));
+
+        // Copy result to the current accumulator
+        memcpy(acc->colors[side], finnyEntry->colors[side], sizeof(acc->colors[side]));
+    }
+    else {
+        // Do update completely from scratch
+        
+        // Full refresh using the bitboards in the accumulator
+        memcpy(acc->colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
+        for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
+            for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
+                Bitboard pieceBB = acc->byColor[side][c] & acc->byPiece[side][p];
+                while (pieceBB) {
+                    Square square = popLSB(&pieceBB);
+                    addPieceToAccumulator<side>(acc->colors, acc->colors, &acc->kingBucketInfo[side], square, p, c);
+                }
+            }
+        }
+
+        // Write updates to finny table
+        memcpy(finnyEntry->byColor[side], acc->byColor[side], sizeof(finnyEntry->byColor[side]));
+        memcpy(finnyEntry->byPiece[side], acc->byPiece[side], sizeof(finnyEntry->byPiece[side]));
+
+        // Copy result to the current accumulator
+        memcpy(finnyEntry->colors[side], acc->colors[side], sizeof(acc->colors[side]));
+    }
 }
 
 template<Color side>
