@@ -160,8 +160,7 @@ uint64_t perftInternal(Board* board, NNUE* nnue, int depth) {
 uint64_t perft(Board* board, int depth) {
     clock_t begin = clock();
     BoardStack stack;
-    NNUE nnue;
-    resetAccumulators(board, &nnue);
+    UCI::nnue.reset(board);
 
     Move moves[MAX_MOVES] = { MOVE_NONE };
     int moveCount = 0;
@@ -174,9 +173,9 @@ uint64_t perft(Board* board, int depth) {
         if (!board->isLegal(move))
             continue;
 
-        board->doMove(&stack, move, board->hashAfter(move), &nnue);
-        uint64_t subNodes = perftInternal(board, &nnue, depth - 1);
-        board->undoMove(move, &nnue);
+        board->doMove(&stack, move, board->hashAfter(move), &UCI::nnue);
+        uint64_t subNodes = perftInternal(board, &UCI::nnue, depth - 1);
+        board->undoMove(move, &UCI::nnue);
 
         std::cout << moveToString(move, UCI::Options.chess960.value) << ": " << subNodes << std::endl;
 
@@ -850,7 +849,7 @@ void Thread::tsearch() {
     if (TUNE_ENABLED)
         initReductions();
 
-    resetAccumulators(&rootBoard, &nnue);
+    nnue.reset(&rootBoard);
 
     searchData.nodesSearched = 0;
     if (mainThread)

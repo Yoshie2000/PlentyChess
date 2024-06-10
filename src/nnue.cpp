@@ -7,6 +7,7 @@
 #include <cassert>
 
 #include "nnue.h"
+#include "board.h"
 #include "incbin/incbin.h"
 
 // This will define the following variables:
@@ -16,6 +17,7 @@
 INCBIN(NETWORK, NETWORK_FILE);
 
 NetworkData networkData;
+FinnyEntry finnyTable[2][KING_BUCKETS];
 
 void initNetworkData() {
     FILE* nn = fopen(ALT_NETWORK_FILE, "rb");
@@ -61,12 +63,43 @@ inline int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square sq
         return (64 * (piece + 6) + relativeSquare) * HIDDEN_WIDTH / WEIGHTS_PER_VEC;
 }
 
-void resetAccumulators(Board* board, NNUE* nnue) {
-    nnue->currentAccumulator = 0;
-    nnue->lastCalculatedAccumulator[Color::WHITE] = 0;
-    nnue->lastCalculatedAccumulator[Color::BLACK] = 0;
-    nnue->refreshAccumulator<Color::WHITE>(board, &nnue->accumulatorStack[0]);
-    nnue->refreshAccumulator<Color::BLACK>(board, &nnue->accumulatorStack[0]);
+void NNUE::reset(Board* board) {
+    // Reset accumulator
+    currentAccumulator = 0;
+    lastCalculatedAccumulator[Color::WHITE] = 0;
+    lastCalculatedAccumulator[Color::BLACK] = 0;
+    resetAccumulator<Color::WHITE>(board, &accumulatorStack[0]);
+    resetAccumulator<Color::BLACK>(board, &accumulatorStack[0]);
+
+    // Also reset finny tables
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < KING_BUCKETS; j++) {
+            memset(finnyTable[i][j].byColor, 0, sizeof(finnyTable[i][j].byColor));
+            memset(finnyTable[i][j].byPiece, 0, sizeof(finnyTable[i][j].byPiece));
+            memcpy(finnyTable[i][j].colors[Color::WHITE], networkData.featureBiases, sizeof(networkData.featureBiases));
+            memcpy(finnyTable[i][j].colors[Color::BLACK], networkData.featureBiases, sizeof(networkData.featureBiases));
+        }
+    }
+}
+
+template<Color side>
+void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
+    // Overwrite with biases
+    memcpy(acc->colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
+
+    // Then add every piece back one by one
+    KingBucketInfo kingBucket = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
+    for (Square square = 0; square < 64; square++) {
+        Piece piece = board->pieces[square];
+        if (piece == Piece::NONE) continue;
+
+        Color pieceColor = (board->byColor[Color::WHITE] & bitboard(square)) ? Color::WHITE : Color::BLACK;
+        addPieceToAccumulator<side>(acc->colors, acc->colors, &kingBucket, square, piece, pieceColor);
+    }
+
+    acc->kingBucketInfo[side] = kingBucket;
+    memcpy(acc->byColor[side], board->byColor, sizeof(board->byColor));
+    memcpy(acc->byPiece[side], board->byPiece, sizeof(board->byPiece));
 }
 
 void NNUE::addPiece(Square square, Piece piece, Color pieceColor) {
@@ -113,26 +146,6 @@ void NNUE::finalizeMove(Board* board) {
 }
 
 template<Color side>
-void NNUE::refreshAccumulator(Board* board, Accumulator* acc) {
-    // Overwrite with biases
-    memcpy(acc->colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
-
-    // Then add every piece back one by one
-    KingBucketInfo kingBucket = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
-    for (Square square = 0; square < 64; square++) {
-        Piece piece = board->pieces[square];
-        if (piece == Piece::NONE) continue;
-
-        Color pieceColor = (board->byColor[Color::WHITE] & bitboard(square)) ? Color::WHITE : Color::BLACK;
-        addPieceToAccumulator<side>(acc, acc, &kingBucket, square, piece, pieceColor);
-    }
-
-    acc->kingBucketInfo[side] = kingBucket;
-    memcpy(acc->byColor[side], board->byColor, sizeof(board->byColor));
-    memcpy(acc->byPiece[side], board->byPiece, sizeof(board->byPiece));
-}
-
-template<Color side>
 void NNUE::calculateAccumulators() {
     // Incrementally update all accumulators for this side
     while (lastCalculatedAccumulator[side] < currentAccumulator) {
@@ -143,51 +156,74 @@ void NNUE::calculateAccumulators() {
         KingBucketInfo* inputKingBucket = &inputAcc->kingBucketInfo[side];
         KingBucketInfo* outputKingBucket = &outputAcc->kingBucketInfo[side];
 
-        if (needsRefresh(inputKingBucket, outputKingBucket)) {
-            // Full refresh using bitboards in accumulator
-            memcpy(outputAcc->colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
-            for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
-                for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
-                    Bitboard pieceBB = outputAcc->byColor[side][c] & outputAcc->byPiece[side][p];
-                    while (pieceBB) {
-                        Square square = popLSB(&pieceBB);
-                        addPieceToAccumulator<side>(outputAcc, outputAcc, outputKingBucket, square, p, c);
-                    }
-                }
-            }
-        }
-        else {
-            // Incrementally update all the dirty pieces
-            // Input and output are the same king bucket so it's all good
-            for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
-                DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
-
-                if (dirtyPiece.origin == NO_SQUARE) {
-                    addPieceToAccumulator<side>(inputAcc, outputAcc, outputKingBucket, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
-                }
-                else if (dirtyPiece.target == NO_SQUARE) {
-                    removePieceFromAccumulator<side>(inputAcc, outputAcc, outputKingBucket, dirtyPiece.origin, dirtyPiece.piece, dirtyPiece.pieceColor);
-                }
-                else {
-                    movePieceInAccumulator<side>(inputAcc, outputAcc, outputKingBucket, dirtyPiece.origin, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
-                }
-
-                // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
-                inputAcc = outputAcc;
-            }
-        }
+        if (needsRefresh(inputKingBucket, outputKingBucket))
+            refreshAccumulator<side>(outputAcc);
+        else
+            incrementallyUpdateAccumulator<side>(inputAcc, outputAcc, outputKingBucket);
 
         lastCalculatedAccumulator[side]++;
     }
 }
 
 template<Color side>
-void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
+void NNUE::refreshAccumulator(Accumulator* acc) {
+    FinnyEntry* finnyEntry = &finnyTable[acc->kingBucketInfo[side].mirrored][acc->kingBucketInfo[side].index];
+
+    // Update matching finny table with the changed pieces
+    for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
+        for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
+            Bitboard finnyBB = finnyEntry->byColor[side][c] & finnyEntry->byPiece[side][p];
+            Bitboard accBB = acc->byColor[side][c] & acc->byPiece[side][p];
+
+            Bitboard addBB = accBB & ~finnyBB;
+            Bitboard removeBB = ~accBB & finnyBB;
+
+            while (addBB) {
+                Square square = popLSB(&addBB);
+                addPieceToAccumulator<side>(finnyEntry->colors, finnyEntry->colors, &acc->kingBucketInfo[side], square, p, c);
+            }
+            while (removeBB) {
+                Square square = popLSB(&removeBB);
+                removePieceFromAccumulator<side>(finnyEntry->colors, finnyEntry->colors, &acc->kingBucketInfo[side], square, p, c);
+            }
+        }
+    }
+    memcpy(finnyEntry->byColor[side], acc->byColor[side], sizeof(finnyEntry->byColor[side]));
+    memcpy(finnyEntry->byPiece[side], acc->byPiece[side], sizeof(finnyEntry->byPiece[side]));
+
+    // Copy result to the current accumulator
+    memcpy(acc->colors[side], finnyEntry->colors[side], sizeof(acc->colors[side]));
+}
+
+template<Color side>
+void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+    // Incrementally update all the dirty pieces
+    // Input and output are the same king bucket so it's all good
+    for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
+        DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
+
+        if (dirtyPiece.origin == NO_SQUARE) {
+            addPieceToAccumulator<side>(inputAcc->colors, outputAcc->colors, kingBucket, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+        }
+        else if (dirtyPiece.target == NO_SQUARE) {
+            removePieceFromAccumulator<side>(inputAcc->colors, outputAcc->colors, kingBucket, dirtyPiece.origin, dirtyPiece.piece, dirtyPiece.pieceColor);
+        }
+        else {
+            movePieceInAccumulator<side>(inputAcc->colors, outputAcc->colors, kingBucket, dirtyPiece.origin, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+        }
+
+        // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
+        inputAcc = outputAcc;
+    }
+}
+
+template<Color side>
+void NNUE::addPieceToAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
     // Get the index of the piece for this color in the input layer
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
-    Vec* inputVec = (Vec*)inputAcc->colors[side];
-    Vec* outputVec = (Vec*)outputAcc->colors[side];
+    Vec* inputVec = (Vec*)inputData[side];
+    Vec* outputVec = (Vec*)outputData[side];
     Vec* weightsVec = (Vec*)networkData.featureWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
@@ -196,12 +232,12 @@ void NNUE::addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, 
 }
 
 template<Color side>
-void NNUE::removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
+void NNUE::removePieceFromAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
     // Get the index of the piece for this color in the input layer
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
-    Vec* inputVec = (Vec*)inputAcc->colors[side];
-    Vec* outputVec = (Vec*)outputAcc->colors[side];
+    Vec* inputVec = (Vec*)inputData[side];
+    Vec* outputVec = (Vec*)outputData[side];
     Vec* weightsVec = (Vec*)networkData.featureWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
@@ -210,13 +246,13 @@ void NNUE::removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* output
 }
 
 template<Color side>
-void NNUE::movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor) {
+void NNUE::movePieceInAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor) {
     // Get the index of the piece squares for this color in the input layer
     int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin, kingBucket);
     int addWeightOffset = getFeatureOffset(side, piece, pieceColor, target, kingBucket);
 
-    Vec* inputVec = (Vec*)inputAcc->colors[side];
-    Vec* outputVec = (Vec*)outputAcc->colors[side];
+    Vec* inputVec = (Vec*)inputData[side];
+    Vec* outputVec = (Vec*)outputData[side];
     Vec* weightsVec = (Vec*)networkData.featureWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers

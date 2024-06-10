@@ -331,7 +331,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
     }
 
     // Make further moves
-    resetAccumulators(board, &UCI::nnue);
+    UCI::nnue.reset(board);
     if (matchesToken(line, "moves")) {
         line = line.substr(6);
 
@@ -353,7 +353,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
             board->doMove(&stackQueue->back(), m, board->hashAfter(m), &UCI::nnue);
 
             if (moveCount++ > 200) {
-                resetAccumulators(board, &UCI::nnue);
+                UCI::nnue.reset(board);
             }
 
             if (line.length() > i)
@@ -535,7 +535,7 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "perfttest")) perfttest(&stackQueue, &board);
         else if (matchesToken(line, "debug")) board.debugBoard();
         else if (matchesToken(line, "eval")) {
-            resetAccumulators(&board, &UCI::nnue);
+            UCI::nnue.reset(&board);
             std::cout << formatEval(evaluate(&board, &UCI::nnue)) << std::endl;
         }
         else if (matchesToken(line, "seetest")) seetest(&board);
