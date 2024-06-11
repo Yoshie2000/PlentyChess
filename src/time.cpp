@@ -8,10 +8,14 @@ int64_t getTime() {
 }
 
 bool timeOver(SearchParameters* parameters, SearchData* data) {
+    if (parameters->ponder)
+        return false;
     return (data->maxTime && (data->nodesSearched % 1024) == 0 && getTime() >= data->maxTime) || (parameters->nodes && data->nodesSearched >= parameters->nodes);
 }
 
 bool timeOverDepthCleared(SearchParameters* parameters, SearchData* data, double factor) {
+    if (parameters->ponder)
+        return false;
     int64_t adjustedOptTime = (int64_t)(data->startTime + (double)(data->optTime - data->startTime) * factor);
     int64_t currentTime = getTime();
     return (data->maxTime && (currentTime >= adjustedOptTime || currentTime >= data->maxTime)) || (parameters->nodes && data->nodesSearched >= parameters->nodes);

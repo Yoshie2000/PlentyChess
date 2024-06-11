@@ -84,9 +84,15 @@ namespace UCI {
             10000
         };
 
+        UCIOption<UCI_CHECK> ponder = {
+            "Ponder",
+            false,
+            false
+        };
+
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&multiPV, &moveOverhead, &chess960);
+            auto optionsTuple = std::make_tuple(&multiPV, &moveOverhead, &chess960, &ponder);
             for_each_in_tuple(optionsTuple, f);
         }
     };

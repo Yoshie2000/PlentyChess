@@ -23,7 +23,7 @@ struct SearchParameters {
     bool perft; // Perft (requires depth)
 
     std::vector<Move> searchmoves; // TODO: Search only these moves at root
-    bool ponder; // TODO: Search in pondering mode => after "ponderhit", continue on ponder move
+    bool ponder; // Search in pondering mode => after "ponderhit", continue on ponder move
     uint64_t wtime; // White's remaining time (ms)
     uint64_t btime; // Black's remaining time (ms)
     uint64_t winc; // White's increment per move (ms)
@@ -34,6 +34,8 @@ struct SearchParameters {
     int mate; // TODO: Search for mate in X moves
     uint64_t movetime; // Search exactly this many ms
     bool infinite; // Search forever (until a stop / quit command)
+
+    bool ponderhit; // This only gets filled by uci.cpp when Ponder is enabled and either "stop" or "ponderhit" is sent
 
     SearchParameters() {
         perft = false;
@@ -50,6 +52,8 @@ struct SearchParameters {
         mate = 0;
         movetime = 0;
         infinite = true;
+
+        ponderhit = false;
     }
 
 };
