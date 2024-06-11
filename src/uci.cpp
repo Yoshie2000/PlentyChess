@@ -450,6 +450,10 @@ void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
             parameters.infinite = true;
         }
 
+        if (matchesToken(token, "ponder")) {
+            parameters.ponder = true;
+        }
+
         if (matchesToken(token, "movetime")) {
             nextToken(&line, &token);
             parameters.movetime = std::stoi(token);
@@ -516,7 +520,14 @@ void uciLoop(int argc, char* argv[]) {
             threads.exit();
             break;
         }
-        else if (matchesToken(line, "stop")) threads.stopSearching();
+        else if (matchesToken(line, "stop")) {
+            threads.searchParameters.ponderhit = false;
+            threads.stopSearching();
+        }
+        else if (matchesToken(line, "ponderhit")) {
+            threads.searchParameters.ponderhit = true;
+            threads.stopSearching();
+        }
 
         else if (matchesToken(line, "isready")) std::cout << "readyok" << std::endl;
         else if (matchesToken(line, "ucinewgame")) threads.ucinewgame();

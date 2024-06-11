@@ -308,7 +308,7 @@ movesLoopQsearch:
 
             if (!SEE(board, move, qsSeeMargin))
                 break;
-            
+
             if (moveTarget(move) != moveTarget((stack - 1)->move) && (moveType(move) != MOVE_PROMOTION) && !board->givesCheck(move) && moveCount > 2)
                 continue;
         }
@@ -621,7 +621,8 @@ movesLoop:
                     Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
                     if (lmrDepth < 9 && eval + 450 + PIECE_VALUES[capturedPiece] + 325 * lmrDepth <= alpha)
                         continue;
-                } else {
+                }
+                else {
                     if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
                         skipQuiets = true;
                 }
@@ -868,7 +869,12 @@ void Thread::tsearch() {
             printUCI(bestThread);
         }
 
-        std::cout << "bestmove " << moveToString(bestThread->rootMoves[0].move, UCI::Options.chess960.value) << std::endl;
+        if (!UCI::Options.ponder.value || bestThread->rootMoves[0].pv.size() < 2) {
+            std::cout << "bestmove " << moveToString(bestThread->rootMoves[0].move, UCI::Options.chess960.value) << std::endl;
+        }
+        else {
+            std::cout << "bestmove " << moveToString(bestThread->rootMoves[0].move, UCI::Options.chess960.value) << " ponder " << moveToString(bestThread->rootMoves[0].pv[1], UCI::Options.chess960.value) << std::endl;
+        }
     }
 }
 
