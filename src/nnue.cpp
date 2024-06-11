@@ -17,7 +17,6 @@
 INCBIN(NETWORK, NETWORK_FILE);
 
 NetworkData networkData;
-FinnyEntry finnyTable[2][KING_BUCKETS];
 
 void initNetworkData() {
     FILE* nn = fopen(ALT_NETWORK_FILE, "rb");

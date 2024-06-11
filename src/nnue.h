@@ -245,7 +245,6 @@ struct NetworkData {
 };
 
 extern NetworkData networkData;
-extern FinnyEntry finnyTable[2][KING_BUCKETS];
 
 void initNetworkData();
 
@@ -257,6 +256,8 @@ public:
   Accumulator accumulatorStack[MAX_PLY];
   int currentAccumulator;
   int lastCalculatedAccumulator[2];
+
+  FinnyEntry finnyTable[2][KING_BUCKETS];
 
   void addPiece(Square square, Piece piece, Color pieceColor);
   void removePiece(Square square, Piece piece, Color pieceColor);
