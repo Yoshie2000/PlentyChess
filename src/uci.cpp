@@ -21,6 +21,7 @@
 
 namespace UCI {
     UCIOptions Options;
+    NNUE nnue;
 }
 
 ThreadPool threads;
@@ -330,8 +331,7 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
     }
 
     // Make further moves
-    NNUE nnue;
-    resetAccumulators(board, &nnue);
+    UCI::nnue.reset(board);
     if (matchesToken(line, "moves")) {
         line = line.substr(6);
 
@@ -350,10 +350,10 @@ void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue
             Move m = stringToMove(move, board);
 
             stackQueue->emplace_back();
-            board->doMove(&stackQueue->back(), m, board->hashAfter(m), &nnue);
+            board->doMove(&stackQueue->back(), m, board->hashAfter(m), &UCI::nnue);
 
             if (moveCount++ > 200) {
-                resetAccumulators(board, &nnue);
+                UCI::nnue.reset(board);
             }
 
             if (line.length() > i)
@@ -535,9 +535,8 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "perfttest")) perfttest(&stackQueue, &board);
         else if (matchesToken(line, "debug")) board.debugBoard();
         else if (matchesToken(line, "eval")) {
-            NNUE nnue;
-            resetAccumulators(&board, &nnue);
-            std::cout << formatEval(evaluate(&board, &nnue)) << std::endl;
+            UCI::nnue.reset(&board);
+            std::cout << formatEval(evaluate(&board, &UCI::nnue)) << std::endl;
         }
         else if (matchesToken(line, "seetest")) seetest(&board);
         else std::cout << "Unknown command" << std::endl;

@@ -48,7 +48,7 @@ endif
 
 # Windows only flags
 ifeq ($(OS), Windows_NT)
-	CXXFLAGS := $(CXXFLAGS) -lstdc++ -static -Wl,--no-as-needed,--stack,16777216
+	CXXFLAGS := $(CXXFLAGS) -lstdc++ -static -Wl,--no-as-needed
 endif
 
 %.o:	%.cpp

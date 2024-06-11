@@ -553,6 +553,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
     updateSliderPins(Color::WHITE);
     updateSliderPins(Color::BLACK);
 
+    nnue->finalizeMove(this);
+
     stm = flip(stm);
     newStack->move = move;
 }
@@ -1203,7 +1205,7 @@ int Board::validateBoard() {
     return -1;
 }
 
-void debugbitboard(Bitboard bb) {
+void debugBitboard(Bitboard bb) {
     for (int rank = 7; rank >= 0; rank--) {
 
         std::cout << "-";
@@ -1215,7 +1217,7 @@ void debugbitboard(Bitboard bb) {
         for (int file = 0; file <= 7; file++) {
 
             // Get piece at index
-            int idx = file + 8 * rank;
+            Square idx = file + 8 * rank;
             Bitboard mask = bitboard(idx);
             if ((bb & mask) == 0)
                 std::cout << "|   ";

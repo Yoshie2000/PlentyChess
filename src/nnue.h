@@ -172,6 +172,18 @@ inline int vecHaddEpi32(Vec vec) {
 
 constexpr int INPUT_WIDTH = 768;
 constexpr int HIDDEN_WIDTH = 2048;
+
+constexpr uint8_t KING_BUCKET_LAYOUT[] = {
+    0, 0, 1, 1, 1, 1, 0, 0,
+    2, 2, 2, 2, 2, 2, 2, 2,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    4, 4, 4, 4, 4, 4, 4, 4,
+    5, 5, 5, 5, 5, 5, 5, 5,
+    5, 5, 5, 5, 5, 5, 5, 5,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6
+};
+constexpr int KING_BUCKETS = 7;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
@@ -191,21 +203,49 @@ struct DirtyPiece {
   Color pieceColor;
 };
 
+struct KingBucketInfo {
+  uint8_t index;
+  bool mirrored;
+};
+
+constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
+  return bucket1->mirrored != bucket2->mirrored || bucket1->index != bucket2->index;
+}
+
+constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
+  return {
+    KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)],
+    fileOf(kingSquare) >= 4
+  };
+}
+
 struct Accumulator {
   alignas(ALIGNMENT) int16_t colors[2][HIDDEN_WIDTH];
 
   DirtyPiece dirtyPieces[4];
-  int numDirtyPieces;
+  int32_t numDirtyPieces;
+
+  KingBucketInfo kingBucketInfo[2];
+  Bitboard byColor[2][2];
+  Bitboard byPiece[2][Piece::TOTAL];
+};
+
+struct FinnyEntry {
+  alignas(ALIGNMENT) int16_t colors[2][HIDDEN_WIDTH];
+
+  Bitboard byColor[2][2];
+  Bitboard byPiece[2][Piece::TOTAL];
 };
 
 struct NetworkData {
-  alignas(ALIGNMENT) int16_t featureWeights[INPUT_WIDTH * HIDDEN_WIDTH];
+  alignas(ALIGNMENT) int16_t featureWeights[KING_BUCKETS][INPUT_WIDTH * HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t featureBiases[HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t outputWeights[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t outputBiases[OUTPUT_BUCKETS];
 };
 
 extern NetworkData networkData;
+extern FinnyEntry finnyTable[2][KING_BUCKETS];
 
 void initNetworkData();
 
@@ -216,7 +256,7 @@ public:
 
   Accumulator accumulatorStack[MAX_PLY];
   int currentAccumulator;
-  int lastCalculatedAccumulator;
+  int lastCalculatedAccumulator[2];
 
   void addPiece(Square square, Piece piece, Color pieceColor);
   void removePiece(Square square, Piece piece, Color pieceColor);
@@ -224,16 +264,26 @@ public:
 
   void incrementAccumulator();
   void decrementAccumulator();
+  void finalizeMove(Board* board);
+
+  void reset(Board* board);
+  template<Color side>
+  void resetAccumulator(Board* board, Accumulator* acc);
 
   Eval evaluate(Board* board);
 
+  template<Color side>
   void calculateAccumulators();
-  void addPieceToAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
-  void removePieceFromAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square square, Piece piece, Color pieceColor);
-  void movePieceInAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, Square origin, Square target, Piece piece, Color pieceColor);
+  template<Color side>
+  void refreshAccumulator(Accumulator* acc);
+  template<Color side>
+  void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+
+  template<Color side>
+  void addPieceToAccumulator(int16_t(* inputData)[HIDDEN_WIDTH], int16_t(* outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
+  template<Color side>
+  void removePieceFromAccumulator(int16_t(* inputData)[HIDDEN_WIDTH], int16_t(* outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
+  template<Color side>
+  void movePieceInAccumulator(int16_t(* inputData)[HIDDEN_WIDTH], int16_t(* outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor);
 
 };
-
-#include "board.h"
-
-void resetAccumulators(Board* board, NNUE* nnue);

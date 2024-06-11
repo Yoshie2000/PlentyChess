@@ -2,6 +2,8 @@
 
 #include <tuple>
 
+#include "nnue.h"
+
 constexpr auto VERSION = "2.0.0-dev";
 
 template<int... Is>
@@ -24,6 +26,8 @@ void for_each_in_tuple(std::tuple<Ts...> const& t, Func f) {
 }
 
 namespace UCI {
+
+    extern NNUE nnue;
 
     enum UCIOptionType {
         UCI_SPIN,
