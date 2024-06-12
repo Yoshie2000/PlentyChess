@@ -62,7 +62,11 @@ pgo:	$(OBJS)
 		./$(PROGRAM) bench
 		$(MAKE) clean
 		$(MAKE) CXXFLAGS_EXTRA="-fprofile-use="pgo"" nopgo
+ifeq ($(OS), Windows_NT)
 		$(shell .\clean.bat pgo)
+else
+		$(RM) -rf pgo
+endif
 
 nopgo:	$(OBJS)
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $^ -o $(PROGRAM)
