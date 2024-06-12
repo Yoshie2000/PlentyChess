@@ -24,6 +24,15 @@ constexpr int castlingIndex(Color side, Square kingOrigin, Square kingTarget) {
     return 2 * (side != Color::WHITE) + (kingTarget <= kingOrigin);
 }
 
+struct Threats {
+    Bitboard pawnThreats;
+    Bitboard knightThreats;
+    Bitboard bishopThreats;
+    Bitboard rookThreats;
+    Bitboard queenThreats;
+    Bitboard kingThreats;
+};
+
 struct BoardStack {
     Piece capturedPiece;
     Bitboard enpassantTarget; // one-hot encoding -> 0 means no en passant possible
@@ -38,6 +47,8 @@ struct BoardStack {
     uint8_t checkerCount;
 
     Move move;
+
+    Threats threats;
 
     // MEMCPY GOES FROM HERE
     int pieceCount[2][Piece::TOTAL];
@@ -74,6 +85,9 @@ struct Board {
     void undoMove(Move move, NNUE* nnue);
     void doNullMove(BoardStack* newStack);
     void undoNullMove();
+
+    void calculateThreats();
+    bool isSquareThreatened(Square square);
 
     constexpr bool isCapture(Move move) {
         MoveType type = moveType(move);

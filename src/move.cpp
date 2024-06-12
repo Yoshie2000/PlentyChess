@@ -440,16 +440,7 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
 }
 
 int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
-    Color them = flip(board->stm);
-
-    Bitboard pawnThreats = BB::pawnAttacks(board->byPiece[Piece::PAWN] & board->byColor[them], them);
-    Bitboard knightThreats = BB::knightAttacks(board->byPiece[Piece::KNIGHT] & board->byColor[them]);
-
-    Bitboard occupied = board->byColor[Color::WHITE] | board->byColor[Color::BLACK];
-    Bitboard bishopThreats = 0, rookThreats = 0;
-    Bitboard bishops = board->byPiece[Piece::BISHOP] & board->byColor[them], rooks = board->byPiece[Piece::ROOK] & board->byColor[them];
-    while (bishops) { bishopThreats |= getBishopMoves(popLSB(&bishops), occupied); }
-    while (rooks) { rookThreats |= getRookMoves(popLSB(&rooks), occupied); }
+    Threats* threats = &board->stack->threats;
 
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
@@ -469,21 +460,21 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
         Bitboard fromBB = bitboard(moveOrigin(move));
         Bitboard toBB = bitboard(moveTarget(move));
         if (piece == Piece::QUEEN) {
-            if (fromBB & (pawnThreats | knightThreats | bishopThreats | rookThreats))
+            if (fromBB & (threats->pawnThreats | threats->knightThreats | threats->bishopThreats | threats->rookThreats))
                 threatScore += 20000;
-            if (toBB & (pawnThreats | knightThreats | bishopThreats | rookThreats))
+            if (toBB & (threats->pawnThreats | threats->knightThreats | threats->bishopThreats | threats->rookThreats))
                 threatScore -= 20000;
         }
         else if (piece == Piece::ROOK) {
-            if (fromBB & (pawnThreats | knightThreats | bishopThreats))
+            if (fromBB & (threats->pawnThreats | threats->knightThreats | threats->bishopThreats))
                 threatScore += 12500;
-            if (toBB & (pawnThreats | knightThreats | bishopThreats))
+            if (toBB & (threats->pawnThreats | threats->knightThreats | threats->bishopThreats))
                 threatScore -= 12500;
         }
         else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
-            if (fromBB & pawnThreats)
+            if (fromBB & threats->pawnThreats)
                 threatScore += 7500;
-            if (toBB & pawnThreats)
+            if (toBB & threats->pawnThreats)
                 threatScore -= 7500;
         }
 

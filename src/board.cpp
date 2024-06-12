@@ -330,6 +330,8 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
 
     chess960 = isChess960;
 
+    calculateThreats();
+
     return i;
 }
 
@@ -557,6 +559,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
     stm = flip(stm);
     newStack->move = move;
+
+    calculateThreats();
 }
 
 void Board::undoMove(Move move, NNUE* nnue) {
@@ -660,11 +664,54 @@ void Board::doNullMove(BoardStack* newStack) {
 
     stm = flip(stm);
     newStack->move = MOVE_NULL;
+
+    calculateThreats();
 }
 
 void Board::undoNullMove() {
     stm = flip(stm);
     stack = stack->previous;
+}
+
+void Board::calculateThreats() {
+    Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
+    Color them = flip(stm);
+    Threats* threats = &stack->threats;
+
+    threats->pawnThreats = BB::pawnAttacks(byPiece[Piece::PAWN] & byColor[them], them);
+    threats->knightThreats = BB::knightAttacks(byPiece[Piece::KNIGHT] & byColor[them]);
+
+    threats->bishopThreats = 0;
+    Bitboard bishops = byPiece[Piece::BISHOP] & byColor[them];
+    while (bishops) {
+        threats->bishopThreats |= getBishopMoves(popLSB(&bishops), occupied);
+    }
+
+    threats->rookThreats = 0;
+    Bitboard rooks = byPiece[Piece::ROOK] & byColor[them];
+    while (rooks) {
+        threats->rookThreats |= getRookMoves(popLSB(&rooks), occupied);
+    }
+
+    threats->queenThreats = 0;
+    Bitboard queens = byPiece[Piece::QUEEN] & byColor[them];
+    while (queens) {
+        Square square = popLSB(&queens);
+        threats->queenThreats |= getRookMoves(square, occupied);
+        threats->queenThreats |= getBishopMoves(square, occupied);
+    }
+
+    threats->kingThreats = 0;
+    Bitboard kings = byPiece[Piece::KING] & byColor[them];
+    while (kings) {
+        threats->kingThreats |= BB::KING_ATTACKS[popLSB(&kings)];
+    };
+}
+
+bool Board::isSquareThreatened(Square square) {
+    Bitboard squareBB = bitboard(square);
+    Threats* threats = &stack->threats;
+    return squareBB & (threats->pawnThreats | threats->knightThreats | threats->bishopThreats | threats->rookThreats | threats->queenThreats | threats->kingThreats);
 }
 
 bool Board::isPseudoLegal(Move move) {
