@@ -1,5 +1,5 @@
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -funroll-all-loops -flto
+CXX = clang++
+CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -flto
 CXXFLAGS_EXTRA = 
 
 SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp
@@ -54,7 +54,7 @@ endif
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
 
-all:	pgo
+all:	nopgo
 
 pgo:	CXXFLAGS_EXTRA := -fprofile-generate="pgo"
 pgo:	$(OBJS)
