@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "board.h"
+#include "nnue.h"
 
 constexpr int PAWN_HISTORY_SIZE = 32768;
 constexpr int CORRECTION_HISTORY_SIZE = 16384;
@@ -12,7 +13,7 @@ class History {
     int16_t quietHistory[2][64][2][64][2];
     Move counterMoves[64][64];
     int16_t captureHistory[2][Piece::TOTAL][64][Piece::TOTAL];
-    int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
+    int16_t correctionHistory[2][KING_BUCKETS][KING_BUCKETS][CORRECTION_HISTORY_SIZE];
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
 public:
@@ -46,8 +47,8 @@ public:
 
 private:
 
-    constexpr Eval getCorrectionHistory(Board* board) {
-        return correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
+    inline Eval getCorrectionHistory(Board* board) {
+        return correctionHistory[board->stm][getKingBucket(board->stm, lsb(board->byColor[board->stm] & board->byPiece[Piece::KING])).index][getKingBucket(flip(board->stm), lsb(board->byColor[flip(board->stm)] & board->byPiece[Piece::KING])).index][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
     }
 
 };
