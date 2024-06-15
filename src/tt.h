@@ -64,6 +64,8 @@ struct TTEntry {
     constexpr Eval getEval() { return eval; };
     constexpr Eval getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
+    constexpr int generation() { return flags & GENERATION_MASK; }
+    constexpr void resetTtPv() { flags &= ~0x4; }
 
     void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags);
 };
@@ -92,6 +94,16 @@ public:
 
     void newSearch() {
         TT_GENERATION_COUNTER += GENERATION_DELTA;
+
+        for (size_t i = 0; i < clusterCount; i++) {
+            TTCluster* cluster = &table[i];
+            for (size_t j = 0; j < CLUSTER_SIZE; j++) {
+                TTEntry* entry = &cluster->entries[j];
+                if (std::abs(static_cast<int>(TT_GENERATION_COUNTER) - static_cast<int>(entry->generation())) > 2 * GENERATION_DELTA) {
+                    entry->resetTtPv();
+                }
+            }
+        }
     }
 
     void resize(size_t mb) {
