@@ -33,7 +33,7 @@ Eval History::correctStaticEval(Eval eval, Board* board) {
 
 void History::updateCorrectionHistory(Board* board, int16_t bonus) {
     Eval scaledBonus = (Eval)bonus - getCorrectionHistory(board) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    correctionHistory[board->stm][getKingBucket(board->stm, lsb(board->byColor[board->stm] & board->byPiece[Piece::KING])).index][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 }
 
 int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
