@@ -470,11 +470,11 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
-        worsening = stack->staticEval + 15 < (stack - 2)->staticEval;
+        worsening = stack->staticEval + 0 < (stack - 2)->staticEval;
     }
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
-        worsening = stack->staticEval + 15 < (stack - 4)->staticEval;
+        worsening = stack->staticEval + 0 < (stack - 4)->staticEval;
     }
 
     // Reverse futility pruning
@@ -836,7 +836,7 @@ movesLoop:
         ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
-    if (!board->stack->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
+    if (!board->stack->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && !(failHigh && bestValue <= stack->staticEval) && !(failLow && bestValue > stack->staticEval)) {
         int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         history.updateCorrectionHistory(board, bonus);
     }
