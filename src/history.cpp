@@ -46,12 +46,14 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
 }
 
 int16_t History::getQuietHistory(Board* board, Move move) {
-    return quietHistory[board->stm][moveOrigin(move)][moveTarget(move)];
+    Square origin = moveOrigin(move), target = moveTarget(move);
+    return quietHistory[board->stm][origin][board->isSquareThreatened(origin)][target][board->isSquareThreatened(target)];
 }
 
 void History::updateQuietHistory(Board* board, Move move, int16_t bonus) {
     int16_t scaledBonus = bonus - getQuietHistory(board, move) * std::abs(bonus) / 32000;
-    quietHistory[board->stm][moveOrigin(move)][moveTarget(move)] += scaledBonus;
+    Square origin = moveOrigin(move), target = moveTarget(move);
+    quietHistory[board->stm][origin][board->isSquareThreatened(origin)][target][board->isSquareThreatened(target)] += scaledBonus;
 }
 
 int16_t History::getPawnHistory(Board* board, Move move) {
