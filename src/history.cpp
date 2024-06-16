@@ -20,6 +20,7 @@ void History::initHistory() {
     }
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
+    memset(recaptureHistory, 0, sizeof(recaptureHistory));
     memset(correctionHistory, 0, sizeof(correctionHistory));
     memset(pawnHistory, -1000, sizeof(pawnHistory));
 }
@@ -38,7 +39,7 @@ void History::updateCorrectionHistory(Board* board, int16_t bonus) {
 
 int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
     if (isCapture) {
-        return *getCaptureHistory(board, move);
+        return *getCaptureHistory(board, move) + *getRecaptureHistory(board, move) / 2;
     }
     else {
         return getQuietHistory(board, move) + 2 * getContinuationHistory(searchStack, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
@@ -119,20 +120,46 @@ int16_t* History::getCaptureHistory(Board* board, Move move) {
 
 void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus) {
     int16_t* captHistScore = getCaptureHistory(board, move);
-
     int16_t scaledBonus = bonus - *captHistScore * std::abs(bonus) / 32000;
     *captHistScore += scaledBonus;
+}
+
+int16_t* History::getRecaptureHistory(Board* board, Move move) {
+    Piece movedPiece = board->pieces[moveOrigin(move)];
+
+    Square origin = moveOrigin(move);
+    Square target = moveTarget(move);
+
+    Bitboard occupied = (board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) ^ bitboard(origin);
+    Bitboard opponentAttackers = board->attackersTo(target, occupied) & board->byColor[flip(board->stm)];
+
+    // Find the least valuable enemy piece that can recapture on the target square (if any)
+    Piece recapturePiece;
+    for (recapturePiece = Piece::PAWN; recapturePiece < Piece::NONE; ++recapturePiece) {
+        if (opponentAttackers & board->byPiece[recapturePiece])
+            break;
+    }
+
+    return &recaptureHistory[board->stm][movedPiece][target][recapturePiece];
+}
+
+void History::updateSingleRecaptureHistory(Board* board, Move move, int16_t bonus) {
+    int16_t* recaptHistScore = getRecaptureHistory(board, move);
+    int16_t scaledBonus = bonus - *recaptHistScore * std::abs(bonus) / 32000;
+    *recaptHistScore += scaledBonus;
 }
 
 void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
     if (board->isCapture(move)) {
         updateSingleCaptureHistory(board, move, bonus);
+        updateSingleRecaptureHistory(board, move, bonus);
     }
 
     for (int i = 0; i < captureMoveCount; i++) {
         Move cMove = captureMoves[i];
         if (move == cMove) continue;
         updateSingleCaptureHistory(board, cMove, -bonus);
+        updateSingleRecaptureHistory(board, cMove, -bonus);
     }
 }
 
