@@ -20,6 +20,7 @@ void History::initHistory() {
     }
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
+    memset(pawnCaptureHistory, -1000, sizeof(pawnCaptureHistory));
     memset(correctionHistory, 0, sizeof(correctionHistory));
     memset(pawnHistory, -1000, sizeof(pawnHistory));
 }
@@ -38,7 +39,7 @@ void History::updateCorrectionHistory(Board* board, int16_t bonus) {
 
 int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
     if (isCapture) {
-        return *getCaptureHistory(board, move);
+        return *getCaptureHistory(board, move) + *getPawnCaptureHistory(board, move);
     }
     else {
         return getQuietHistory(board, move) + 2 * getContinuationHistory(searchStack, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
@@ -124,15 +125,37 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
     *captHistScore += scaledBonus;
 }
 
+int16_t* History::getPawnCaptureHistory(Board* board, Move move) {
+    Piece movedPiece = board->pieces[moveOrigin(move)];
+    Piece capturedPiece = board->pieces[moveTarget(move)];
+    Square target = moveTarget(move);
+
+    if (capturedPiece == Piece::NONE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
+        capturedPiece = Piece::PAWN;
+
+    assert(movedPiece != Piece::NONE && capturedPiece != Piece::NONE);
+
+    return &pawnCaptureHistory[board->stack->pawnHash & (PAWN_CAPTURE_HISTORY_SIZE - 1)][board->stm][movedPiece][target][capturedPiece];
+}
+
+void History::updateSinglePawnCaptureHistory(Board* board, Move move, int16_t bonus) {
+    int16_t* captHistScore = getPawnCaptureHistory(board, move);
+
+    int16_t scaledBonus = bonus - *captHistScore * std::abs(bonus) / 32000;
+    *captHistScore += scaledBonus;
+}
+
 void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
     if (board->isCapture(move)) {
         updateSingleCaptureHistory(board, move, bonus);
+        updateSinglePawnCaptureHistory(board, move, bonus);
     }
 
     for (int i = 0; i < captureMoveCount; i++) {
         Move cMove = captureMoves[i];
         if (move == cMove) continue;
         updateSingleCaptureHistory(board, cMove, -bonus);
+        updateSinglePawnCaptureHistory(board, cMove, -bonus);
     }
 }
 
