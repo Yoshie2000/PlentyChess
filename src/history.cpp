@@ -38,7 +38,8 @@ void History::updateCorrectionHistory(Board* board, int16_t bonus) {
 
 int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
     if (isCapture) {
-        return *getCaptureHistory(board, move);
+        std::pair<int16_t*, int16_t*> captureHistory = getCaptureHistory(board, move);
+        return *captureHistory.first + *captureHistory.second / 2;
     }
     else {
         return getQuietHistory(board, move) + 2 * getContinuationHistory(searchStack, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
@@ -104,24 +105,34 @@ void History::updateContinuationHistory(SearchStack* stack, Piece piece, Move mo
         (stack - 4)->contHist[pieceTo] += scaledBonus;
 }
 
-int16_t* History::getCaptureHistory(Board* board, Move move) {
+std::pair<int16_t*, int16_t*> History::getCaptureHistory(Board* board, Move move) {
     Piece movedPiece = board->pieces[moveOrigin(move)];
-    Piece capturedPiece = board->pieces[moveTarget(move)];
+    Square origin = moveOrigin(move);
     Square target = moveTarget(move);
 
-    if (capturedPiece == Piece::NONE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
-        capturedPiece = Piece::PAWN;
+    Bitboard occupied = (board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) ^ bitboard(origin);
+    Bitboard opponentAttackers = board->attackersTo(target, occupied) & board->byColor[flip(board->stm)];
 
-    assert(movedPiece != Piece::NONE && capturedPiece != Piece::NONE);
+    // Find the least valuable enemy piece that can recapture on the target square (if any)
+    Piece recapturePiece;
+    for (recapturePiece = Piece::PAWN; recapturePiece < Piece::NONE; ++recapturePiece) {
+        if (opponentAttackers & board->byPiece[recapturePiece])
+            break;
+    }
 
-    return &captureHistory[board->stm][movedPiece][target][capturedPiece];
+    assert(recapturePiece != Piece::ANY);
+
+    return std::make_pair(&captureHistory[board->stm][movedPiece][target][Piece::ANY], &captureHistory[board->stm][movedPiece][target][recapturePiece]);
 }
 
 void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus) {
-    int16_t* captHistScore = getCaptureHistory(board, move);
+    std::pair<int16_t*, int16_t*> captHistScore = getCaptureHistory(board, move);
 
-    int16_t scaledBonus = bonus - *captHistScore * std::abs(bonus) / 32000;
-    *captHistScore += scaledBonus;
+    int16_t scaledBonus = bonus - *captHistScore.first * std::abs(bonus) / 32000;
+    *captHistScore.first += scaledBonus;
+    
+    scaledBonus = bonus - *captHistScore.second * std::abs(bonus) / 32000;
+    *captHistScore.second += scaledBonus;
 }
 
 void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
