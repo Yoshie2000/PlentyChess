@@ -894,7 +894,9 @@ void Thread::iterativeDeepening() {
             }
         }
     }
-    multiPvCount = std::min(multiPvCount, UCI::Options.multiPV.value);
+    int smpMultipv = threadPool->threads.size() >= 4 && threadId == threadPool->threads.size() - 1 ? 3 : 1;
+    int targetMultipv = UCI::Options.multiPV.value == UCI::Options.multiPV.defaultValue ? smpMultipv : UCI::Options.multiPV.value;
+    multiPvCount = std::min(multiPvCount, targetMultipv);
 
     int maxDepth = searchParameters->depth == 0 ? MAX_PLY - 1 : searchParameters->depth;
 
