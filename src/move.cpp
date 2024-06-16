@@ -426,7 +426,7 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
             continue;
         }
 
-        int score = *history->getCaptureHistory(board, move);
+        int score = history->getHistory(board, searchStack, move, true);
         if (moveType(move) == MOVE_ENPASSANT)
             score += 0;
         else if (moveType(move) == MOVE_PROMOTION)

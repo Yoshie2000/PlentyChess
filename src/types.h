@@ -25,7 +25,8 @@ enum Piece: uint8_t {
     QUEEN = 4,
     KING = 5,
     NONE = 6,
-    TOTAL = 6
+    TOTAL = 6,
+    ANY = 7
 };
 
 constexpr Piece& operator++(Piece& piece) {
