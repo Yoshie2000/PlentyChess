@@ -124,7 +124,7 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
     *captHistScore += scaledBonus;
 }
 
-void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
+void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, int16_t malus, Move* captureMoves, int captureMoveCount) {
     if (board->isCapture(move)) {
         updateSingleCaptureHistory(board, move, bonus);
     }
@@ -132,11 +132,11 @@ void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move*
     for (int i = 0; i < captureMoveCount; i++) {
         Move cMove = captureMoves[i];
         if (move == cMove) continue;
-        updateSingleCaptureHistory(board, cMove, -bonus);
+        updateSingleCaptureHistory(board, cMove, -malus);
     }
 }
 
-void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount) {
+void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, int16_t bonus, int16_t malus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
     updateQuietHistory(board, move, bonus);
     updateContinuationHistory(stack, board->pieces[moveOrigin(move)], move, bonus * 100 / contHistBonusFactor);
@@ -146,9 +146,9 @@ void History::updateQuietHistories(Board* board, SearchStack* stack, Move move, 
     for (int i = 0; i < quietMoveCount; i++) {
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
-        updateQuietHistory(board, qMove, -bonus);
-        updateContinuationHistory(stack, board->pieces[moveOrigin(qMove)], qMove, -bonus * 100 / contHistMalusFactor);
-        updatePawnHistory(board, qMove, -bonus);
+        updateQuietHistory(board, qMove, -malus);
+        updateContinuationHistory(stack, board->pieces[moveOrigin(qMove)], qMove, -malus * 100 / contHistMalusFactor);
+        updatePawnHistory(board, qMove, -malus);
     }
 }
 
