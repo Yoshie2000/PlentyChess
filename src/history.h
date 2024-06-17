@@ -11,7 +11,7 @@ class History {
 
     int16_t quietHistory[2][64][2][64][2];
     Move counterMoves[64][64];
-    int16_t captureHistory[2][Piece::TOTAL][64][Piece::TOTAL];
+    int16_t captureHistory[2][Piece::TOTAL][64][Piece::TOTAL][2];
     int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
