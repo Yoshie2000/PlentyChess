@@ -106,15 +106,11 @@ void History::updateContinuationHistory(SearchStack* stack, Piece piece, Move mo
 
 int16_t* History::getCaptureHistory(Board* board, Move move) {
     Piece movedPiece = board->pieces[moveOrigin(move)];
-    Piece capturedPiece = board->pieces[moveTarget(move)];
     Square target = moveTarget(move);
 
-    if (capturedPiece == Piece::NONE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
-        capturedPiece = Piece::PAWN;
+    assert(movedPiece != Piece::NONE);
 
-    assert(movedPiece != Piece::NONE && capturedPiece != Piece::NONE);
-
-    return &captureHistory[board->stm][movedPiece][target][capturedPiece];
+    return &captureHistory[board->stm][movedPiece][target][SEE(board, move, 1)];
 }
 
 void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus) {
