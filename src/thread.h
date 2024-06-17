@@ -74,6 +74,9 @@ private:
     Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, bool cutNode);
 
     template <NodeType nodeType>
+    Eval checkSearch(Board* board, SearchStack* stack, Eval alpha, Eval beta);
+
+    template <NodeType nodeType>
     Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta);
 
 };
