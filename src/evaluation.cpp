@@ -30,7 +30,7 @@ Eval evaluate(Board* board, NNUE* nnue) {
 
     Eval eval = nnue->evaluate(board);
     eval = (eval * getMaterialScale(board)) / 1024;
-    eval = eval * (220 - board->stack->rule50_ply) / 220;
+    eval = board->stack->rule50_ply < 75 ? eval * (220 - board->stack->rule50_ply) / 220 : eval * (-((board->stack->rule50_ply - 50) / 8) * ((board->stack->rule50_ply - 50) / 8) + 75) / 100;
 
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
     return eval;
