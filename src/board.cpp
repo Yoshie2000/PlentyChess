@@ -708,9 +708,9 @@ void Board::calculateThreats() {
     };
 }
 
-bool Board::isSquareThreatened(Square square) {
+bool Board::isSquareThreatened(Square square, BoardStack* bs) {
     Bitboard squareBB = bitboard(square);
-    Threats* threats = &stack->threats;
+    Threats* threats = &bs->threats;
     return squareBB & (threats->pawnThreats | threats->knightThreats | threats->bishopThreats | threats->rookThreats | threats->queenThreats | threats->kingThreats);
 }
 

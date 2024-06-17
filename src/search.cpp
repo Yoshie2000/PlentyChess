@@ -233,6 +233,8 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (stopped || exiting || stack->ply >= MAX_PLY || board->isDraw())
         return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &nnue) : drawEval(this);
 
+    stack->inCheck = board->stack->checkerCount > 0;
+
     // TT Lookup
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
@@ -323,6 +325,7 @@ movesLoopQsearch:
 
         Square origin = moveOrigin(move);
         Square target = moveTarget(move);
+        stack->capture = board->isCapture(move);
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
@@ -414,6 +417,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
+    stack->inCheck = board->stack->checkerCount > 0;
 
     // TT Lookup
     bool ttHit = false;
@@ -477,6 +481,12 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         worsening = stack->staticEval + 15 < (stack - 4)->staticEval;
     }
 
+    // Adjust quiet history based on how much the previous move changed static eval
+    if ((stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
+        int bonus = std::clamp(-5 * int(stack->staticEval + (stack - 1)->staticEval), -100, 100);
+        history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
+    }
+
     // Reverse futility pruning
     if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving) >= beta)
         return (eval + beta) / 2;
@@ -501,6 +511,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         && stack->ply >= searchData.nmpPlies
         && board->hasNonPawns()
         ) {
+        stack->capture = false;
         stack->move = MOVE_NULL;
         stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[board->stm][0][0];
@@ -552,6 +563,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
             Square origin = moveOrigin(move);
             Square target = moveTarget(move);
+            stack->capture = true;
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
             stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
@@ -600,7 +612,7 @@ movesLoop:
             continue;
 
         uint64_t nodesBeforeMove = searchData.nodesSearched;
-        int moveHistory = history.getHistory(board, stack, move, capture);
+        int moveHistory = history.getHistory(board, board->stack, stack, move, capture);
 
         if (!pvNode
             && bestValue > -EVAL_MATE_IN_MAX_PLY
@@ -692,6 +704,7 @@ movesLoop:
         // Some setup stuff
         Square origin = moveOrigin(move);
         Square target = moveTarget(move);
+        stack->capture = capture;
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
@@ -808,7 +821,7 @@ movesLoop:
                         if (stack->ply > 0)
                             history.setCounterMove((stack - 1)->move, move);
 
-                        history.updateQuietHistories(board, stack, move, bonus, quietMoves, quietMoveCount);
+                        history.updateQuietHistories(board, board->stack, stack, move, bonus, quietMoves, quietMoveCount);
                     }
                     history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
@@ -922,6 +935,8 @@ void Thread::iterativeDeepening() {
                 stackList[i].killers[1] = MOVE_NONE;
                 stackList[i].movedPiece = Piece::NONE;
                 stackList[i].move = MOVE_NONE;
+                stackList[i].capture = false;
+                stackList[i].inCheck = false;
             }
 
             searchData.rootDepth = depth;
