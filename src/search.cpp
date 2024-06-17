@@ -359,6 +359,141 @@ movesLoopQsearch:
 
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : TT_UPPERBOUND;
+    ttEntry->update(board->stack->hash, bestMove, -1, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+
+    return bestValue;
+}
+
+template <NodeType nodeType>
+Eval Thread::checkSearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
+    constexpr bool pvNode = nodeType == PV_NODE;
+
+    if (pvNode)
+        stack->pvLength = stack->ply;
+    searchData.selDepth = std::max(stack->ply, searchData.selDepth);
+
+    assert(alpha >= -EVAL_INFINITE && alpha < beta && beta <= EVAL_INFINITE);
+
+    if (mainThread && timeOver(searchParameters, &searchData))
+        threadPool->stopSearching();
+
+    // Check for stop
+    if (stopped || exiting || stack->ply >= MAX_PLY || board->isDraw())
+        return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &nnue) : drawEval(this);
+
+    // TT Lookup
+    bool ttHit = false;
+    TTEntry* ttEntry = nullptr;
+    Move ttMove = MOVE_NONE;
+    Eval ttValue = EVAL_NONE;
+    Eval ttEval = EVAL_NONE;
+    int ttDepth = 0;
+    uint8_t ttFlag = TT_NOBOUND;
+    bool ttPv = pvNode;
+
+    ttEntry = TT.probe(board->stack->hash, &ttHit);
+    if (ttHit) {
+        ttMove = ttEntry->getMove();
+        ttValue = valueFromTt(ttEntry->getValue(), stack->ply);
+        ttEval = ttEntry->getEval();
+        ttDepth = ttEntry->getDepth();
+        ttFlag = ttEntry->getFlag();
+        ttPv = ttPv || ttEntry->getTtPv();
+    }
+
+    // TT cutoff
+    if (!pvNode && ttDepth >= 0 && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+        return ttValue;
+
+    Move bestMove = MOVE_NONE;
+    Eval bestValue, unadjustedEval;
+
+    Eval qsValue = qsearch<nodeType>(board, stack, alpha, beta);
+
+    if (board->stack->checkers) {
+        stack->staticEval = bestValue = unadjustedEval = -EVAL_INFINITE;
+        goto movesLoopQsearch;
+    }
+    else if (ttHit && ttEval != EVAL_NONE) {
+        unadjustedEval = ttEval;
+        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board);
+
+        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
+            bestValue = ttValue;
+    }
+    else {
+        unadjustedEval = evaluate(board, &nnue);
+        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board);
+        ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
+    }
+    bestValue = std::max(bestValue, qsValue);
+
+    // Stand pat
+    if (bestValue >= beta)
+        return beta;
+    if (alpha < bestValue)
+        alpha = bestValue;
+
+movesLoopQsearch:
+    // Mate distance pruning
+    alpha = std::max((int)alpha, (int)matedIn(stack->ply));
+    beta = std::min((int)beta, (int)mateIn(stack->ply + 1));
+    if (alpha >= beta)
+        return alpha;
+
+    BoardStack boardStack;
+
+    // Moves loop
+    MoveGen movegen(board, &history, stack, ttMove, !board->stack->checkers, 1);
+    Move move;
+    int moveCount = 0;
+    while ((move = movegen.nextMove()) != MOVE_NONE) {
+        if (!board->isLegal(move) || !board->givesCheck(move))
+            continue;
+
+        uint64_t newHash = board->hashAfter(move);
+        TT.prefetch(newHash);
+        moveCount++;
+        searchData.nodesSearched++;
+
+        Square origin = moveOrigin(move);
+        Square target = moveTarget(move);
+        stack->move = move;
+        stack->movedPiece = board->pieces[origin];
+        stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
+
+        board->doMove(&boardStack, move, newHash, &nnue);
+
+        Eval value = -checkSearch<nodeType>(board, stack + 1, -beta, -alpha);
+        board->undoMove(move, &nnue);
+        assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
+
+        if (stopped || exiting)
+            return 0;
+
+        if (value > bestValue) {
+            bestValue = value;
+
+            if (value > alpha) {
+                bestMove = move;
+                alpha = value;
+
+                if (pvNode)
+                    updatePv(stack, move);
+
+                if (bestValue >= beta)
+                    break;
+            }
+        }
+    }
+
+    if (bestValue == -EVAL_INFINITE) {
+        assert(board->stack->checkers && moveCount == 0);
+        bestValue = matedIn(stack->ply); // Checkmate
+    }
+
+    // Insert into TT
+    int flags = bestValue >= beta ? TT_LOWERBOUND : TT_UPPERBOUND;
     ttEntry->update(board->stack->hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     return bestValue;
@@ -386,7 +521,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             return alpha;
     }
 
-    if (depth <= 0) return qsearch<nodeType>(board, stack, alpha, beta);
+    if (depth <= 0) return checkSearch<nodeType>(board, stack, alpha, beta);
 
     if (!rootNode) {
 

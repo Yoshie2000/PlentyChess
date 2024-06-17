@@ -53,13 +53,13 @@ extern uint8_t TT_GENERATION_COUNTER;
 struct TTEntry {
     uint16_t hash = 0;
     Move bestMove = MOVE_NONE;
-    uint8_t depth = NO_DEPTH;
+    uint8_t depth = 0;
     uint8_t flags = TT_NOBOUND;
     int16_t eval = EVAL_NONE;
     int16_t value = EVAL_NONE;
 
     constexpr Move getMove() { return bestMove; };
-    constexpr int getDepth() { return depth == NO_DEPTH ? 0 : depth; };
+    constexpr int getDepth() { return static_cast<int>(depth) - 1; };
     constexpr uint8_t getFlag() { return flags & 0x3; };
     constexpr Eval getEval() { return eval; };
     constexpr Eval getValue() { return value; };
