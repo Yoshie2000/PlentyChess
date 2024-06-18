@@ -960,6 +960,8 @@ void Thread::iterativeDeepening() {
                 int searchDepth = std::max(1, depth - failHighs);
                 value = search<ROOT_NODE>(&rootBoard, stack, searchDepth, alpha, beta, false);
 
+                std::sort(rootMoves.begin(), rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
+
                 // Stop if we need to
                 if (stopped || exiting)
                     break;
