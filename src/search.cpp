@@ -431,7 +431,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     if (!excluded) {
         ttEntry = TT.probe(board->stack->hash, &ttHit);
         if (ttHit) {
-            ttMove = ttEntry->getMove();
+            ttMove = rootNode && rootMoves[0].value > -EVAL_INFINITE ? rootMoves[0].move : ttEntry->getMove();
             ttValue = valueFromTt(ttEntry->getValue(), stack->ply);
             ttEval = ttEntry->getEval();
             ttDepth = ttEntry->getDepth();
@@ -959,6 +959,8 @@ void Thread::iterativeDeepening() {
             while (true) {
                 int searchDepth = std::max(1, depth - failHighs);
                 value = search<ROOT_NODE>(&rootBoard, stack, searchDepth, alpha, beta, false);
+
+                std::sort(rootMoves.begin(), rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
 
                 // Stop if we need to
                 if (stopped || exiting)
