@@ -783,6 +783,8 @@ movesLoop:
                 }
             }
 
+            rootMove->depth = searchData.rootDepth;
+
             if (moveCount == 1 || value > alpha) {
                 rootMove->value = value;
                 rootMove->selDepth = searchData.selDepth;
