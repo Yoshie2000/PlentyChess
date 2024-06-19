@@ -793,8 +793,6 @@ movesLoop:
                 for (int i = 1; i < (stack + 1)->pvLength; i++)
                     rootMove->pv.push_back((stack + 1)->pv[i]);
             }
-            // else rootMove->value = -EVAL_INFINITE;
-
         }
 
         if (value > bestValue) {
@@ -1067,11 +1065,11 @@ Thread* Thread::chooseBestThread() {
         minValue++;
 
         for (auto& th : threadPool->threads) {
-            for (auto& rm : th.get()->rootMoves) {
+            for (auto& rm : th->rootMoves) {
                 if (rm.value == -EVAL_INFINITE)
                     break;
                 // Votes weighted by depth and difference to the minimum value
-                votes[rm.move] += (rm.value - minValue + 10) * rm.depth;
+                votes[rm.move] += (rm.value - minValue + 10) * std::max(1, rm.depth - (th->rootMoves[0].depth - rm.depth));
             }
         }
 
