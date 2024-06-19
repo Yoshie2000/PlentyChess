@@ -1059,7 +1059,7 @@ Thread* Thread::chooseBestThread() {
 
         for (auto& th : threadPool->threads) {
             for (auto& rm : th.get()->rootMoves) {
-                if (rm.value == -EVAL_INFINITE)
+                if (rm.value == -EVAL_INFINITE || rm.depth != th->rootMoves[0].depth)
                     break;
                 minValue = std::min(minValue, rm.value);
             }
@@ -1067,11 +1067,14 @@ Thread* Thread::chooseBestThread() {
         minValue++;
 
         for (auto& th : threadPool->threads) {
-            for (auto& rm : th.get()->rootMoves) {
+            for (auto& rm : th->rootMoves) {
                 if (rm.value == -EVAL_INFINITE)
                     break;
-                // Votes weighted by depth and difference to the minimum value
-                votes[rm.move] += (rm.value - minValue + 10) * rm.depth;
+
+                if (rm.depth == th->rootMoves[0].depth)
+                    votes[rm.move] += (rm.value - minValue + 10) * rm.depth;
+                else
+                    votes[rm.move] -= 10 * (th->rootMoves[0].depth - rm.depth);
             }
         }
 
