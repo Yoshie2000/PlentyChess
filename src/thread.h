@@ -67,6 +67,7 @@ private:
 
     void tsearch();
     void iterativeDeepening();
+    void sortRootMoves();
     void printUCI(Thread* thread, int multiPvCount = 1);
     Thread* chooseBestThread();
 

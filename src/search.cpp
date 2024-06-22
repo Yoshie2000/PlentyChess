@@ -785,6 +785,7 @@ movesLoop:
 
             if (moveCount == 1 || value > alpha) {
                 rootMove->value = value;
+                rootMove->depth = searchData.rootDepth;
                 rootMove->selDepth = searchData.selDepth;
 
                 rootMove->pv.resize(0);
@@ -792,9 +793,6 @@ movesLoop:
                 for (int i = 1; i < (stack + 1)->pvLength; i++)
                     rootMove->pv.push_back((stack + 1)->pv[i]);
             }
-            else
-                rootMove->value = -EVAL_INFINITE;
-
         }
 
         if (value > bestValue) {
@@ -870,7 +868,7 @@ void Thread::tsearch() {
         initTimeManagement(&rootBoard, searchParameters, &searchData);
 
     iterativeDeepening();
-    std::sort(rootMoves.begin(), rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
+    sortRootMoves();
 
     if (mainThread) {
         threadPool->stopSearching();
@@ -960,7 +958,7 @@ void Thread::iterativeDeepening() {
                 int searchDepth = std::max(1, depth - failHighs);
                 value = search<ROOT_NODE>(&rootBoard, stack, searchDepth, alpha, beta, false);
 
-                std::sort(rootMoves.begin(), rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
+                sortRootMoves();
 
                 // Stop if we need to
                 if (stopped || exiting)
@@ -994,10 +992,6 @@ void Thread::iterativeDeepening() {
 
             excludedRootMoves.push_back(stack->pv[0]);
         }
-
-        std::sort(rootMoves.begin(), rootMoves.end(), [](RootMove rm1, RootMove rm2) { return rm1.value > rm2.value; });
-        for (int i = 0; i < multiPvCount; i++)
-            rootMoves[i].depth = depth;
 
         if (mainThread) {
             printUCI(this, multiPvCount);
@@ -1045,6 +1039,14 @@ void Thread::printUCI(Thread* thread, int multiPvCount) {
     }
 }
 
+void Thread::sortRootMoves() {
+    std::stable_sort(rootMoves.begin(), rootMoves.end(), [](RootMove rm1, RootMove rm2) {
+        if (rm1.depth > rm2.depth) return true;
+        if (rm1.depth < rm2.depth) return false;
+        return rm1.value > rm2.value;
+    });
+}
+
 Thread* Thread::chooseBestThread() {
     Thread* bestThread = this;
     size_t bestMoveIdx = 0;
@@ -1063,11 +1065,11 @@ Thread* Thread::chooseBestThread() {
         minValue++;
 
         for (auto& th : threadPool->threads) {
-            for (auto& rm : th.get()->rootMoves) {
+            for (auto& rm : th->rootMoves) {
                 if (rm.value == -EVAL_INFINITE)
                     break;
                 // Votes weighted by depth and difference to the minimum value
-                votes[rm.move] += (rm.value - minValue + 10) * rm.depth;
+                votes[rm.move] += (rm.value - minValue + 10) * std::max(1, rm.depth - (th->rootMoves[0].depth - rm.depth));
             }
         }
 
