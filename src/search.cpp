@@ -213,7 +213,7 @@ int valueFromTt(int value, int ply) {
 }
 
 Eval drawEval(Thread* thread) {
-    return 4 - (thread->searchData.nodesSearched & 3);  // Small overhead to avoid 3-fold blindness
+    return std::max(static_cast<Eval>(4 - (thread->searchData.nodesSearched & 3)), thread->rootEval);  // Small overhead to avoid 3-fold blindness
 }
 
 template <NodeType nodeType>
@@ -836,7 +836,7 @@ movesLoop:
         if (board->stack->checkers) {
             return excluded ? -EVAL_INFINITE : matedIn(stack->ply); // Checkmate
         }
-        return 0; // Stalemate
+        return drawEval(this); // Stalemate
     }
 
     // Insert into TT
@@ -919,6 +919,8 @@ void Thread::iterativeDeepening() {
     SearchStack* stack = &stackList[STACK_OVERHEAD];
 
     rootMoveNodes.clear();
+
+    rootEval = nnue.evaluate(&rootBoard);
 
     for (int depth = 1; depth <= maxDepth; depth++) {
         excludedRootMoves.clear();

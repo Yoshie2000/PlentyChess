@@ -50,6 +50,8 @@ public:
     int threadId;
     bool mainThread;
 
+    Eval rootEval;
+
     std::vector<RootMove> rootMoves;
     std::map<Move, uint64_t> rootMoveNodes;
     std::vector<Move> excludedRootMoves;
