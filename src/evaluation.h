@@ -13,7 +13,7 @@ const Eval EVAL_NONE = 31010;
 
 extern const Eval PIECE_VALUES[Piece::TOTAL + 1];
 
-Eval evaluate(Board* board, NNUE* nnue);
+Eval evaluate(Board* board, NNUE* nnue, uint64_t rootPawnHash, int ply);
 
 std::string formatEval(Eval value);
 

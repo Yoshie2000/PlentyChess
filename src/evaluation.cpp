@@ -25,12 +25,14 @@ int getMaterialScale(Board* board) {
     return 980 + materialValue / 48;
 }
 
-Eval evaluate(Board* board, NNUE* nnue) {
+Eval evaluate(Board* board, NNUE* nnue, uint64_t rootPawnHash, int ply) {
     assert(!board->stack->checkers);
 
     Eval eval = nnue->evaluate(board);
     eval = (eval * getMaterialScale(board)) / 1024;
     eval = eval * (220 - board->stack->rule50_ply) / 220;
+    if (rootPawnHash == board->stack->pawnHash)
+        eval = eval * (220 - ply) / 220;
 
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
     return eval;

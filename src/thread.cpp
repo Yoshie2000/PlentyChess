@@ -22,6 +22,8 @@ void Thread::startSearching() {
     rootStack = &rootStackQueue->back();
     rootBoard.stack = rootStack;
 
+    rootPawnHash = rootBoard.stack->pawnHash;
+
     if (searchParameters->perft)
         searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
     else

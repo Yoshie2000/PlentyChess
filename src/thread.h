@@ -50,6 +50,8 @@ public:
     int threadId;
     bool mainThread;
 
+    uint64_t rootPawnHash;
+
     std::vector<RootMove> rootMoves;
     std::map<Move, uint64_t> rootMoveNodes;
     std::vector<Move> excludedRootMoves;
