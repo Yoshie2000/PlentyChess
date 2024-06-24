@@ -630,9 +630,11 @@ movesLoop:
 
                 // Futility pruning
                 if (capture) {
-                    Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                    if (lmrDepth < 9 && eval + 450 + PIECE_VALUES[capturedPiece] + 325 * lmrDepth <= alpha)
-                        continue;
+                    if (moveType(move) != MOVE_PROMOTION) {
+                        Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
+                        if (lmrDepth < 9 && eval + 450 + PIECE_VALUES[capturedPiece] + 325 * lmrDepth <= alpha)
+                            continue;
+                    }
                 }
                 else {
                     if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
