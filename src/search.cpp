@@ -35,7 +35,7 @@ TUNE_FLOAT(tmNodesFactor, 0.8232579381384832, 0.1f, 2.5f);
 
 // Aspiration windows
 TUNE_INT(aspirationWindowMinDepth, 4, 2, 6);
-TUNE_INT(aspirationWindowDelta, 17, 1, 30);
+TUNE_INT(aspirationWindowDelta, 11, 1, 30);
 TUNE_INT(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT(aspirationWindowDeltaFactor, 1.7790758047922646, 1.0f, 3.0f);
 
@@ -948,7 +948,7 @@ void Thread::iterativeDeepening() {
 
             if (depth >= aspirationWindowMinDepth) {
                 // Set up interval for the start of this aspiration window
-                delta = aspirationWindowDelta;
+                delta = aspirationWindowDelta + previousValue * previousValue / 10000;
                 alpha = std::max(previousValue - delta, -EVAL_INFINITE);
                 beta = std::min(previousValue + delta, (int)EVAL_INFINITE);
             }
