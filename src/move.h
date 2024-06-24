@@ -79,7 +79,7 @@ class MoveGen {
     MoveGenStage stage;
     int depth;
 
-    bool probCut;
+    bool probCut, qsearch;
     int probCutThreshold;
 
 public:
