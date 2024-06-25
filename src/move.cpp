@@ -430,9 +430,9 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
         if (moveType(move) == MOVE_ENPASSANT)
             score += 0;
         else if (moveType(move) == MOVE_PROMOTION)
-            score += PIECE_VALUES[PROMOTION_PIECE[promotionType(move)]] * mpPromotionScoreFactor / 100;
+            score += *PIECE_VALUES[PROMOTION_PIECE[promotionType(move)]] * mpPromotionScoreFactor / 100;
         else
-            score += (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
+            score += (*PIECE_VALUES[board->pieces[moveTarget(move)]] - *PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
 
         moveListScores[i] = score;
     }

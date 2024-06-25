@@ -61,6 +61,12 @@ TUNE_INT(qsSeeMargin, -101, -200, 50);
 // Pre-search pruning
 TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 
+TUNE_INT(worseningOffset, 15, 1, 50);
+
+TUNE_INT(staticHistoryFactor, -50, -500, -1);
+TUNE_INT(staticHistoryMin, -100, -1000, -1);
+TUNE_INT(staticHistoryMax, 100, 1, 1000);
+
 TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
 TUNE_INT(rfpFactor, 97, 1, 250);
 
@@ -79,6 +85,10 @@ TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 TUNE_INT_DISABLED(fpDepth, 11, 1, 20);
 TUNE_INT(fpBase, 242, 1, 1000);
 TUNE_INT(fpFactor, 128, 1, 500);
+
+TUNE_INT_DISABLED(fpCaptDepth, 9, 1, 20);
+TUNE_INT(fpCaptBase, 450, 150, 750);
+TUNE_INT(fpCaptFactor, 325, 100, 600);
 
 TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
 TUNE_INT(historyPruningFactor, -2301, -8192, -128);
@@ -474,16 +484,16 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
-        worsening = stack->staticEval + 15 < (stack - 2)->staticEval;
+        worsening = stack->staticEval + worseningOffset < (stack - 2)->staticEval;
     }
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
-        worsening = stack->staticEval + 15 < (stack - 4)->staticEval;
+        worsening = stack->staticEval + worseningOffset < (stack - 4)->staticEval;
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
     if ((stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
-        int bonus = std::clamp(-5 * int(stack->staticEval + (stack - 1)->staticEval), -100, 100);
+        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
 
@@ -632,7 +642,7 @@ movesLoop:
                 if (capture) {
                     if (moveType(move) != MOVE_PROMOTION) {
                         Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                        if (lmrDepth < 9 && eval + 450 + PIECE_VALUES[capturedPiece] + 325 * lmrDepth <= alpha)
+                        if (lmrDepth < fpCaptDepth && eval + fpCaptBase + *PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
                             continue;
                     }
                 }
