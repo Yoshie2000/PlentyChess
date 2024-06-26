@@ -13,9 +13,9 @@
 #include "spsa.h"
 #include "history.h"
 
-TUNE_INT(mpPromotionScoreFactor, 157, 10, 10000);
-TUNE_INT(mpMvvLvaScoreFactor, 218, 10, 10000);
-TUNE_INT(mpSeeDivisor, 79, 10, 150);
+TUNE_INT(mpPromotionScoreFactor, 22, 10, 10000);
+TUNE_INT(mpMvvLvaScoreFactor, 163, 10, 10000);
+TUNE_INT(mpSeeDivisor, 78, 10, 150);
 
 void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targetMask) {
     Bitboard pawns = board->byPiece[Piece::PAWN] & board->byColor[board->stm];
@@ -430,9 +430,9 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
         if (moveType(move) == MOVE_ENPASSANT)
             score += 0;
         else if (moveType(move) == MOVE_PROMOTION)
-            score += *PIECE_VALUES[PROMOTION_PIECE[promotionType(move)]] * mpPromotionScoreFactor / 100;
+            score += PIECE_VALUES[PROMOTION_PIECE[promotionType(move)]] * mpPromotionScoreFactor / 100;
         else
-            score += (*PIECE_VALUES[board->pieces[moveTarget(move)]] - *PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
+            score += (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
 
         moveListScores[i] = score;
     }

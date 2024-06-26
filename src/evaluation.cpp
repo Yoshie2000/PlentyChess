@@ -8,19 +8,19 @@
 #include "nnue.h"
 #include "spsa.h"
 
-TUNE_INT(pawnValue, 100, 50, 150);
-TUNE_INT(knightValue, 300, 200, 400);
-TUNE_INT(bishopValue, 300, 200, 400);
-TUNE_INT(rookValue, 500, 400, 600);
-TUNE_INT(queenValue, 900, 700, 1100);
+TUNE_INT(pawnValue, 96, 50, 150);
+TUNE_INT(knightValue, 298, 200, 400);
+TUNE_INT(bishopValue, 301, 200, 400);
+TUNE_INT(rookValue, 507, 400, 600);
+TUNE_INT(queenValue, 909, 700, 1100);
 
-TUNE_INT(materialScaleBase, 980, 512, 1536);
+TUNE_INT(materialScaleBase, 933, 512, 1536);
 TUNE_INT(materialScaleDivisor, 48, 32, 64);
 
 Eval fakePiece = 0;
 
-Eval* PIECE_VALUES[Piece::TOTAL + 1] = {
-    &pawnValue, &knightValue, &bishopValue, &rookValue, &queenValue, &fakePiece, &fakePiece
+Eval PIECE_VALUES[Piece::TOTAL + 1] = {
+    pawnValue, knightValue, bishopValue, rookValue, queenValue, fakePiece, fakePiece
 };
 
 constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
@@ -33,7 +33,7 @@ int getMaterialScale(Board* board) {
     int rookCount = board->stack->pieceCount[Color::WHITE][Piece::ROOK] + board->stack->pieceCount[Color::BLACK][Piece::ROOK];
     int queenCount = board->stack->pieceCount[Color::WHITE][Piece::QUEEN] + board->stack->pieceCount[Color::BLACK][Piece::QUEEN];
 
-    int materialValue = *PIECE_VALUES[Piece::KNIGHT] * knightCount + *PIECE_VALUES[Piece::BISHOP] * bishopCount + *PIECE_VALUES[Piece::ROOK] * rookCount + *PIECE_VALUES[Piece::QUEEN] * queenCount;
+    int materialValue = PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
