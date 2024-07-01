@@ -6,12 +6,24 @@
 #include "evaluation.h"
 #include "magic.h"
 #include "nnue.h"
+#include "spsa.h"
 
-const Eval PIECE_VALUES[Piece::TOTAL + 1] = {
-    100, 300, 300, 500, 900, 0, 0
+TUNE_INT(pawnValue, 96, 50, 150);
+TUNE_INT(knightValue, 298, 200, 400);
+TUNE_INT(bishopValue, 301, 200, 400);
+TUNE_INT(rookValue, 507, 400, 600);
+TUNE_INT(queenValue, 909, 700, 1100);
+
+TUNE_INT(materialScaleBase, 933, 512, 1536);
+TUNE_INT(materialScaleDivisor, 48, 32, 64);
+
+Eval fakePiece = 0;
+
+Eval PIECE_VALUES[Piece::TOTAL + 1] = {
+    pawnValue, knightValue, bishopValue, rookValue, queenValue, fakePiece, fakePiece
 };
 
-const Eval SEE_VALUES[Piece::TOTAL + 1] = {
+constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
     90, 290, 310, 570, 1000, 0, 0
 };
 
@@ -22,7 +34,7 @@ int getMaterialScale(Board* board) {
     int queenCount = board->stack->pieceCount[Color::WHITE][Piece::QUEEN] + board->stack->pieceCount[Color::BLACK][Piece::QUEEN];
 
     int materialValue = PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
-    return 980 + materialValue / 48;
+    return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
 Eval evaluate(Board* board, NNUE* nnue) {

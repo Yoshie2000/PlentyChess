@@ -497,7 +497,7 @@ struct printOptions
             std::cout << "option name " << option->name << " type string default " << option->defaultValue << std::endl;
         }
         else if constexpr (OptionType == UCI::UCI_CHECK) {
-            std::cout << "option name " << option->name << " type check default " << option->defaultValue << std::endl;
+            std::cout << "option name " << option->name << " type check default " << (option->defaultValue ? "true" : "false") << std::endl;
         }
     }
 };
