@@ -10,7 +10,7 @@
 TUNE_INT(correctionHistoryDivisor, 9025, 5000, 20000);
 
 void History::initHistory() {
-    memset(quietHistory, 0, sizeof(quietHistory));
+    memset(quietHistory, -500, sizeof(quietHistory));
     for (Square s1 = 0; s1 < 64; s1++) {
         for (Square s2 = 0; s2 < 64; s2++) {
             counterMoves[s1][s2] = MOVE_NONE;
