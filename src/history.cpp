@@ -7,9 +7,7 @@
 #include "evaluation.h"
 #include "spsa.h"
 
-TUNE_INT(contHistBonusFactor, 100, 50, 150);
-TUNE_INT(contHistMalusFactor, 100, 50, 150);
-TUNE_INT(correctionHistoryDivisor, 10000, 5000, 20000);
+TUNE_INT(correctionHistoryDivisor, 9025, 5000, 20000);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
@@ -139,7 +137,7 @@ void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move*
 void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
     updateQuietHistory(move, board->stm, board, boardStack, bonus);
-    updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, bonus * 100 / contHistBonusFactor);
+    updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, bonus);
     updatePawnHistory(board, move, bonus);
 
     // Decrease stats for all other quiets
@@ -147,7 +145,7 @@ void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchS
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
         updateQuietHistory(qMove, board->stm, board, boardStack, -bonus);
-        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -bonus * 100 / contHistMalusFactor);
+        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -bonus);
         updatePawnHistory(board, qMove, -bonus);
     }
 }
