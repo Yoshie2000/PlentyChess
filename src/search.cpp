@@ -689,8 +689,8 @@ movesLoop:
                 }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
-            else if (singularBeta >= beta)
-                return singularBeta;
+            else if (singularValue >= beta)
+                return singularValue;
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
                 extension = -2;
