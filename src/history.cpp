@@ -19,7 +19,7 @@ void History::initHistory() {
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
     memset(correctionHistory, 0, sizeof(correctionHistory));
-    memset(pawnHistory, -1000, sizeof(pawnHistory));
+    memset(pawnHistory, 0, sizeof(pawnHistory));
 }
 
 Eval History::correctStaticEval(Eval eval, Board* board) {
