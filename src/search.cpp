@@ -667,7 +667,7 @@ movesLoop:
         }
 
         // Extensions
-        bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
+        bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2 && moveCount < 3 * (1 + !capture);
         int extension = 0;
         if (doExtensions
             && depth >= 7
