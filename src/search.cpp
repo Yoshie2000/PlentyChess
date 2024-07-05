@@ -429,12 +429,14 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Move bestMove = MOVE_NONE;
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE;
+    Eval staticEvalDiff = EVAL_NONE;
     Eval oldAlpha = alpha;
     bool improving = false, worsening = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
     stack->inCheck = board->stack->checkerCount > 0;
+    stack->improvingRate = 0;
 
     // TT Lookup
     bool ttHit = false;
@@ -490,12 +492,18 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 2)->staticEval;
-        worsening = stack->staticEval + worseningOffset < (stack - 2)->staticEval;
+        staticEvalDiff = stack->staticEval - (stack - 2)->staticEval;
+        stack->improvingRate = std::clamp((stack - 2)->improvingRate + staticEvalDiff, 0, 25);
+
+        improving = staticEvalDiff > 0;
+        worsening = staticEvalDiff < -worseningOffset;
     }
     else if ((stack - 4)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 4)->staticEval;
-        worsening = stack->staticEval + worseningOffset < (stack - 4)->staticEval;
+        staticEvalDiff = stack->staticEval - (stack - 4)->staticEval;
+        stack->improvingRate = std::clamp((stack - 4)->improvingRate + staticEvalDiff, 0, 25);
+
+        improving = staticEvalDiff > 0;
+        worsening = staticEvalDiff < -worseningOffset;
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
@@ -645,7 +653,8 @@ movesLoop:
             if (!skipQuiets && !board->stack->checkers) {
 
                 // Movecount pruning (LMP)
-                if (moveCount >= LMP_MARGIN[depth][improving]) {
+                int lmpMargin = 25 * (3 + depth * depth) / (50 - stack->improvingRate);
+                if (moveCount >= lmpMargin) {
                     skipQuiets = true;
                 }
 
@@ -950,6 +959,7 @@ void Thread::iterativeDeepening() {
             for (int i = 0; i < MAX_PLY + STACK_OVERHEAD; i++) {
                 stackList[i].pvLength = 0;
                 stackList[i].ply = i - STACK_OVERHEAD;
+                stackList[i].improvingRate = 0;
                 stackList[i].staticEval = EVAL_NONE;
                 stackList[i].excludedMove = MOVE_NONE;
                 stackList[i].killers[0] = MOVE_NONE;
