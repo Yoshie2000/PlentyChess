@@ -307,7 +307,12 @@ movesLoopQsearch:
     MoveGen movegen(board, &history, stack, ttMove, !board->stack->checkers, 1);
     Move move;
     int moveCount = 0;
+    bool playedQuiet = false;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
+
+        bool capture = board->isCapture(move);
+        if (!capture && playedQuiet)
+            continue;
 
         if (futilityValue > -EVAL_INFINITE) { // Only prune when not in check
             if (bestValue >= -EVAL_MATE_IN_MAX_PLY
@@ -335,10 +340,12 @@ movesLoopQsearch:
 
         Square origin = moveOrigin(move);
         Square target = moveTarget(move);
-        stack->capture = board->isCapture(move);
+        stack->capture = capture;
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
+
+        playedQuiet |= move != ttMove && !capture;
 
         board->doMove(&boardStack, move, newHash, &nnue);
 
