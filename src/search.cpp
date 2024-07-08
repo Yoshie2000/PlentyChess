@@ -474,8 +474,14 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
         eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board);
 
-        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
+        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND))) {
             eval = ttValue;
+
+            if (!board->stack->checkers && (ttMove == MOVE_NONE || !board->isCapture(ttMove))) {
+                int bonus = std::clamp((int)(eval - stack->staticEval) * 50, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+                history.updateCorrectionHistory(board, bonus);
+            }
+        }
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
@@ -870,8 +876,8 @@ movesLoop:
         ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
-    if (!board->stack->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > eval) && (!failLow || bestValue <= eval)) {
-        int bonus = std::clamp((int)(bestValue - eval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+    if (!board->stack->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
+        int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         history.updateCorrectionHistory(board, bonus);
     }
 
