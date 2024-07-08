@@ -61,8 +61,6 @@ TUNE_INT(qsSeeMargin, -108, -200, 50);
 // Pre-search pruning
 TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 
-TUNE_INT(worseningOffset, 15, 1, 50);
-
 TUNE_INT(staticHistoryFactor, -57, -500, -1);
 TUNE_INT(staticHistoryMin, -63, -1000, -1);
 TUNE_INT(staticHistoryMax, 95, 1, 1000);
@@ -430,7 +428,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
-    bool improving = false, worsening = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -491,11 +489,9 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
-        worsening = stack->staticEval + worseningOffset < (stack - 2)->staticEval;
     }
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
-        worsening = stack->staticEval + worseningOffset < (stack - 4)->staticEval;
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
@@ -758,7 +754,7 @@ movesLoop:
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
-            if (worsening)
+            if (!capture && !improving)
                 reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
