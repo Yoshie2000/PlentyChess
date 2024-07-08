@@ -747,19 +747,20 @@ movesLoop:
         if (moveCount > lmrMcBase + lmrMcPv * pvNode && depth >= lmrMinDepth && (!capture || !ttPv)) {
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
-            if (!ttPv)
-                reducedDepth--;
-
-            if (cutNode)
-                reducedDepth -= 2;
-
             if (capture)
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
-            else
+            else {
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
-            if (worsening)
-                reducedDepth--;
+                if (!ttPv)
+                    reducedDepth--;
+
+                if (cutNode)
+                    reducedDepth -= 2;
+
+                if (worsening)
+                    reducedDepth--;
+            }
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
