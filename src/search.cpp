@@ -241,7 +241,7 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     // Check for stop
     if (stopped || exiting || stack->ply >= MAX_PLY || board->isDraw())
-        return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &nnue) : drawEval(this);
+        return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &nnue, true) : drawEval(this);
 
     stack->inCheck = board->stack->checkerCount > 0;
 
@@ -282,7 +282,7 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
             bestValue = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue);
+        unadjustedEval = evaluate(board, &nnue, true);
         stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board);
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
@@ -416,7 +416,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
         // Check for stop or max depth
         if (stopped || exiting || stack->ply >= MAX_PLY || board->isDraw())
-            return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &nnue) : drawEval(this);
+            return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &nnue, true) : drawEval(this);
 
         // Mate distance pruning
         alpha = std::max((int)alpha, (int)matedIn(stack->ply));
@@ -471,14 +471,14 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
-        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
+        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue, false);
         eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue);
+        unadjustedEval = evaluate(board, &nnue, false);
         eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board);
 
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
