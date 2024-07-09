@@ -614,6 +614,8 @@ movesLoop:
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
+    bool ttCapture = ttMove != MOVE_NONE && board->isCapture(ttMove);
+
     // Moves loop
     MoveGen movegen(board, &history, stack, ttMove, depth);
     Move move;
@@ -759,6 +761,9 @@ movesLoop:
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
             if (worsening)
+                reducedDepth--;
+            
+            if (!capture && ttCapture)
                 reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
