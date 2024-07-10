@@ -95,6 +95,7 @@ TUNE_INT(historyPruningFactor, -2452, -8192, -128);
 
 TUNE_INT(doubleExtensionMargin, 16, 1, 30);
 TUNE_INT(doubleExtensionDepthIncrease, 11, 2, 20);
+TUNE_INT(tripleExtensionMargin, 150, 1, 30);
 
 TUNE_INT_DISABLED(seeDepth, 9, 2, 15);
 
@@ -614,6 +615,8 @@ movesLoop:
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
+    bool ttCapture = ttMove != MOVE_NONE && board->isCapture(ttMove);
+
     // Moves loop
     MoveGen movegen(board, &history, stack, ttMove, depth);
     Move move;
@@ -695,7 +698,7 @@ movesLoop:
                 // This move is singular and we should investigate it further
                 extension = 1;
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
-                    extension = 2;
+                    extension = 2 + (!ttCapture && singularValue + tripleExtensionMargin < singularBeta);
                     depth += depth < doubleExtensionDepthIncrease;
                 }
             }
@@ -759,6 +762,9 @@ movesLoop:
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
             if (worsening)
+                reducedDepth--;
+            
+            if (!capture && ttCapture)
                 reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
@@ -830,7 +836,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
+                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - historyBonusBetaOffset > beta) + excluded), historyBonusMax);
                     if (!capture) {
                         // Update quiet killers
                         if (move != stack->killers[0]) {
