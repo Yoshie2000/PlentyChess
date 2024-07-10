@@ -505,7 +505,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving) >= beta)
+    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving + 2 * pvNode) >= beta)
         return (eval + beta) / 2;
 
     // Razoring
@@ -613,6 +613,8 @@ movesLoop:
     Move captureMoves[32];
     int quietMoveCount = 0;
     int captureMoveCount = 0;
+
+    bool ttCapture = ttMove != MOVE_NONE && board->isCapture(ttMove);
 
     // Moves loop
     MoveGen movegen(board, &history, stack, ttMove, depth);
@@ -760,6 +762,9 @@ movesLoop:
 
             if (worsening)
                 reducedDepth--;
+            
+            if (!capture && ttCapture)
+                reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
@@ -830,7 +835,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
+                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - historyBonusBetaOffset > beta) + excluded), historyBonusMax);
                     if (!capture) {
                         // Update quiet killers
                         if (move != stack->killers[0]) {
