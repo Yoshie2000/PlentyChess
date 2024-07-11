@@ -286,7 +286,7 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board);
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
-    futilityValue = stack->staticEval + qsFutilityOffset;
+    futilityValue = bestValue + qsFutilityOffset;
 
     // Stand pat
     if (bestValue >= beta)
@@ -614,6 +614,8 @@ movesLoop:
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
+    bool ttCapture = ttMove != MOVE_NONE && board->isCapture(ttMove);
+
     // Moves loop
     MoveGen movegen(board, &history, stack, ttMove, depth);
     Move move;
@@ -759,6 +761,9 @@ movesLoop:
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
             if (worsening)
+                reducedDepth--;
+            
+            if(!capture && ttCapture)
                 reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
