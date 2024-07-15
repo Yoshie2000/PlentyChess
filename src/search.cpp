@@ -45,7 +45,7 @@ TUNE_FLOAT(lmrReductionNoisyFactor, 3.1541126635889754, 2.0f, 4.0f);
 TUNE_FLOAT(lmrReductionQuietBase, 0.8938568211601715, 0.50f, 1.5f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.979075747986964, 2.0f, 4.0f);
 
-TUNE_FLOAT(seeMarginNoisy, -23.491049514091436, -50.0f, -10.0f);
+TUNE_FLOAT(seeMarginNoisy, -35, -50.0f, -10.0f);
 TUNE_FLOAT(seeMarginQuiet, -72.59295931376495, -100.0f, -50.0f);
 TUNE_FLOAT(lmpMarginWorseningBase, 1.6711511820287297, -1.0f, 2.5f);
 TUNE_FLOAT(lmpMarginWorseningFactor, 0.3545355112683418, 0.1f, 1.5f);
@@ -134,7 +134,7 @@ void initReductions() {
     }
 
     for (int depth = 0; depth < MAX_PLY; depth++) {
-        SEE_MARGIN[depth][0] = seeMarginNoisy * depth * depth; // non-quiet
+        SEE_MARGIN[depth][0] = seeMarginNoisy * depth; // non-quiet
         SEE_MARGIN[depth][1] = seeMarginQuiet * depth; // quiet
 
         LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
@@ -668,7 +668,7 @@ movesLoop:
                 continue;
 
             // SEE Pruning
-            if (depth < seeDepth && !SEE(board, move, SEE_MARGIN[!capture ? lmrDepth : depth][!capture]))
+            if (depth < seeDepth && !SEE(board, move, SEE_MARGIN[lmrDepth][!capture]))
                 continue;
 
         }
