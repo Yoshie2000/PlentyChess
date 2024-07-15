@@ -697,6 +697,8 @@ movesLoop:
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
                     extension = 2;
                     depth += depth < doubleExtensionDepthIncrease;
+                } else if (pvNode && singularValue + 400 - 150 * capture < singularBeta) {
+                    extension = 2;
                 }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
