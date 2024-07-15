@@ -527,18 +527,31 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
                 newStack->castling &= CASTLING_WHITE_KINGSIDE | CASTLING_WHITE_QUEENSIDE;
             }
         }
-        if (piece == Piece::ROOK || newStack->capturedPiece == Piece::ROOK) {
-            Square rookSquare = piece == Piece::ROOK ? origin : captureTarget;
-            if (rookSquare == castlingSquares[0]) {
+        if (piece == Piece::ROOK) {
+            if (origin == castlingSquares[0]) {
                 newStack->castling &= ~CASTLING_WHITE_KINGSIDE;
             }
-            else if (rookSquare == castlingSquares[1]) {
+            else if (origin == castlingSquares[1]) {
                 newStack->castling &= ~CASTLING_WHITE_QUEENSIDE;
             }
-            else if (rookSquare == castlingSquares[2]) {
+            else if (origin == castlingSquares[2]) {
                 newStack->castling &= ~CASTLING_BLACK_KINGSIDE;
             }
-            else if (rookSquare == castlingSquares[3]) {
+            else if (origin == castlingSquares[3]) {
+                newStack->castling &= ~CASTLING_BLACK_QUEENSIDE;
+            }
+        }
+        if (newStack->capturedPiece == Piece::ROOK) {
+            if (captureTarget == castlingSquares[0]) {
+                newStack->castling &= ~CASTLING_WHITE_KINGSIDE;
+            }
+            else if (captureTarget == castlingSquares[1]) {
+                newStack->castling &= ~CASTLING_WHITE_QUEENSIDE;
+            }
+            else if (captureTarget == castlingSquares[2]) {
+                newStack->castling &= ~CASTLING_BLACK_KINGSIDE;
+            }
+            else if (captureTarget == castlingSquares[3]) {
                 newStack->castling &= ~CASTLING_BLACK_QUEENSIDE;
             }
         }
