@@ -67,7 +67,7 @@ TUNE_INT(staticHistoryFactor, -57, -500, -1);
 TUNE_INT(staticHistoryMin, -63, -1000, -1);
 TUNE_INT(staticHistoryMax, 95, 1, 1000);
 
-TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
+TUNE_INT_DISABLED(rfpDepth, 10, 2, 20);
 TUNE_INT(rfpFactor, 92, 1, 250);
 
 TUNE_INT_DISABLED(razoringDepth, 5, 2, 20);
