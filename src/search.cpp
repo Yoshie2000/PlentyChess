@@ -668,7 +668,7 @@ movesLoop:
                 continue;
 
             // SEE Pruning
-            if (depth < seeDepth && !SEE(board, move, SEE_MARGIN[!capture ? lmrDepth : depth][!capture]))
+            if (!SEE(board, move, SEE_MARGIN[!capture ? lmrDepth : depth][!capture]))
                 continue;
 
         }
