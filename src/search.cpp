@@ -664,7 +664,7 @@ movesLoop:
             }
 
             // History pruning
-            if (lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
+            if (lmrDepth < historyPruningDepth && history.getContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move) < historyPruningFactor * depth)
                 continue;
 
             // SEE Pruning
