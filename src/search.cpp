@@ -664,7 +664,7 @@ movesLoop:
             }
 
             // History pruning
-            if (lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
+            if (moveHistory < historyPruningFactor * depth * std::max(1, depth - historyPruningDepth + 2))
                 continue;
 
             // SEE Pruning
