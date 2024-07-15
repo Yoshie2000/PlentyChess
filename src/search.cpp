@@ -79,7 +79,7 @@ TUNE_INT_DISABLED(nmpMin, 3, 1, 10);
 TUNE_INT(nmpDivisor, 93, 10, 1000);
 
 TUNE_INT(probCutBetaOffset, 208, 1, 500);
-TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
+TUNE_INT_DISABLED(probCutDepth, 4, 1, 15);
 
 // In-search pruning
 TUNE_INT_DISABLED(fpDepth, 11, 1, 20);
