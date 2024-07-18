@@ -44,6 +44,13 @@ void initNetworkData() {
         memcpy(&networkData, gNETWORKData, sizeof(networkData));
     }
 
+    // Add factorized weights to buckets
+    for (int n = 0; n < KING_BUCKETS; n++) {
+        for (int w = 0; w < INPUT_WIDTH * HIDDEN_WIDTH; w++) {
+            networkData.featureWeights[n + 1][w] += networkData.featureWeights[0][w];
+        }
+    }
+
     // Transpose output weights
     int16_t transposed[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
     for (int n = 0; n < OUTPUT_BUCKETS * 2 * HIDDEN_WIDTH; n++) {
@@ -166,7 +173,7 @@ void NNUE::calculateAccumulators() {
 
 template<Color side>
 void NNUE::refreshAccumulator(Accumulator* acc) {
-    FinnyEntry* finnyEntry = &finnyTable[acc->kingBucketInfo[side].mirrored][acc->kingBucketInfo[side].index];
+    FinnyEntry* finnyEntry = &finnyTable[acc->kingBucketInfo[side].mirrored][acc->kingBucketInfo[side].index - static_cast<uint8_t>(KING_BUCKETS_FACTORIZED)];
 
     // Update matching finny table with the changed pieces
     for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {

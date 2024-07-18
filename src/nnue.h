@@ -171,7 +171,7 @@ inline int vecHaddEpi32(Vec vec) {
 #endif
 
 constexpr int INPUT_WIDTH = 768;
-constexpr int HIDDEN_WIDTH = 2048;
+constexpr int HIDDEN_WIDTH = 1536;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
     0, 0, 1, 1, 1, 1, 0, 0,
@@ -183,6 +183,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
     6, 6, 6, 6, 6, 6, 6, 6,
     6, 6, 6, 6, 6, 6, 6, 6
 };
+constexpr bool KING_BUCKETS_FACTORIZED = true;
 constexpr int KING_BUCKETS = 7;
 constexpr int OUTPUT_BUCKETS = 8;
 
@@ -213,8 +214,8 @@ constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
 }
 
 constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
-  return {
-    KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)],
+  return KingBucketInfo {
+    static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)] + static_cast<uint8_t>(KING_BUCKETS_FACTORIZED)),
     fileOf(kingSquare) >= 4
   };
 }
@@ -238,7 +239,7 @@ struct FinnyEntry {
 };
 
 struct NetworkData {
-  alignas(ALIGNMENT) int16_t featureWeights[KING_BUCKETS][INPUT_WIDTH * HIDDEN_WIDTH];
+  alignas(ALIGNMENT) int16_t featureWeights[KING_BUCKETS + static_cast<size_t>(KING_BUCKETS_FACTORIZED)][INPUT_WIDTH * HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t featureBiases[HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t outputWeights[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t outputBiases[OUTPUT_BUCKETS];
