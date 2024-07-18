@@ -677,7 +677,7 @@ movesLoop:
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
         if (doExtensions
-            && depth >= 7
+            && depth >= 6
             && move == ttMove
             && !excluded
             && (ttFlag & TT_LOWERBOUND)
