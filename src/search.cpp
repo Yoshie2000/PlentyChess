@@ -518,7 +518,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     BoardStack boardStack;
 
     // Null move pruning
-    if (!pvNode
+    if (cutNode
         && eval >= stack->staticEval
         && eval >= beta
         && beta > -EVAL_MATE_IN_MAX_PLY
@@ -535,7 +535,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
         board->doNullMove(&boardStack);
-        Eval nullValue = -search<NON_PV_NODE>(board, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
+        Eval nullValue = -search<NON_PV_NODE>(board, stack + 1, depth - R, -beta, -beta + 1, false);
         board->undoNullMove();
 
         if (stopped || exiting)
