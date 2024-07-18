@@ -10,7 +10,6 @@
 #include "types.h"
 
 #define NETWORK_FILE "network.bin"
-#define ALT_NETWORK_FILE "alt-network.bin"
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 
@@ -183,7 +182,6 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
     6, 6, 6, 6, 6, 6, 6, 6,
     6, 6, 6, 6, 6, 6, 6, 6
 };
-constexpr bool KING_BUCKETS_FACTORIZED = true;
 constexpr int KING_BUCKETS = 7;
 constexpr int OUTPUT_BUCKETS = 8;
 
@@ -215,7 +213,7 @@ constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
 
 constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
   return KingBucketInfo {
-    static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)] + static_cast<uint8_t>(KING_BUCKETS_FACTORIZED)),
+    static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
     fileOf(kingSquare) >= 4
   };
 }
@@ -238,14 +236,14 @@ struct FinnyEntry {
   Bitboard byPiece[2][Piece::TOTAL];
 };
 
-struct NetworkData {
-  alignas(ALIGNMENT) int16_t featureWeights[KING_BUCKETS + static_cast<size_t>(KING_BUCKETS_FACTORIZED)][INPUT_WIDTH * HIDDEN_WIDTH];
+struct QuantizedNetwork {
+  alignas(ALIGNMENT) int16_t featureWeights[KING_BUCKETS][INPUT_WIDTH * HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t featureBiases[HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t outputWeights[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t outputBiases[OUTPUT_BUCKETS];
 };
 
-extern NetworkData networkData;
+extern QuantizedNetwork networkData;
 
 void initNetworkData();
 
