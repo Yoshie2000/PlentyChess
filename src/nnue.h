@@ -1,6 +1,3 @@
-/**
- * NNUE Evaluation is heavily inspired by Obsidian (https://github.com/gab8192/Obsidian/)
-*/
 #pragma once
 
 #include <algorithm>
@@ -10,7 +7,6 @@
 #include "types.h"
 
 #define NETWORK_FILE "network.bin"
-#define ALT_NETWORK_FILE "alt-network.bin"
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 
@@ -171,7 +167,7 @@ inline int vecHaddEpi32(Vec vec) {
 #endif
 
 constexpr int INPUT_WIDTH = 768;
-constexpr int HIDDEN_WIDTH = 1536;
+constexpr int HIDDEN_WIDTH = 2048;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
     0, 0, 1, 1, 1, 1, 0, 0,
@@ -183,7 +179,6 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
     6, 6, 6, 6, 6, 6, 6, 6,
     6, 6, 6, 6, 6, 6, 6, 6
 };
-constexpr bool KING_BUCKETS_FACTORIZED = true;
 constexpr int KING_BUCKETS = 7;
 constexpr int OUTPUT_BUCKETS = 8;
 
@@ -215,7 +210,7 @@ constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
 
 constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
   return KingBucketInfo {
-    static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)] + static_cast<uint8_t>(KING_BUCKETS_FACTORIZED)),
+    static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
     fileOf(kingSquare) >= 4
   };
 }
@@ -239,7 +234,7 @@ struct FinnyEntry {
 };
 
 struct NetworkData {
-  alignas(ALIGNMENT) int16_t featureWeights[KING_BUCKETS + static_cast<size_t>(KING_BUCKETS_FACTORIZED)][INPUT_WIDTH * HIDDEN_WIDTH];
+  alignas(ALIGNMENT) int16_t featureWeights[KING_BUCKETS][INPUT_WIDTH * HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t featureBiases[HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t outputWeights[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
   alignas(ALIGNMENT) int16_t outputBiases[OUTPUT_BUCKETS];
