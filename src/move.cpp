@@ -15,7 +15,7 @@
 
 TUNE_INT(mpPromotionScoreFactor, 22, 10, 10000);
 TUNE_INT(mpMvvLvaScoreFactor, 163, 10, 10000);
-TUNE_INT(mpSeeDivisor, 78, 10, 150);
+TUNE_INT(mpSeeDivisor, 48, 10, 150);
 
 void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targetMask) {
     Bitboard pawns = board->byPiece[Piece::PAWN] & board->byColor[board->stm];
@@ -330,7 +330,7 @@ Move MoveGen::nextMove() {
             Move move = moveList[returnedMoves];
             int score = moveListScores[returnedMoves++];
 
-            bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : SEE(board, move, -score / mpSeeDivisor);
+            bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : SEE(board, move, -score / mpSeeDivisor + 100);
             if (!goodCapture) {
                 badCaptureList[generatedBadCaptures++] = move;
                 continue;
