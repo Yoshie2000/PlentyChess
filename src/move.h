@@ -57,6 +57,12 @@ constexpr MoveGenStage STAGE_PLAY_QUIETS = 6;
 constexpr MoveGenStage STAGE_PLAY_BAD_CAPTURES = 7;
 constexpr MoveGenStage STAGE_DONE = 100;
 
+enum MoveGenType {
+    NORMAL,
+    QSEARCH,
+    PROBCUT
+};
+
 class MoveGen {
 
     Board* board;
@@ -79,7 +85,7 @@ class MoveGen {
     MoveGenStage stage;
     int depth;
 
-    bool probCut;
+    MoveGenType movegenType;
     int probCutThreshold;
 
 public:
