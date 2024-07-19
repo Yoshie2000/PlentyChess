@@ -98,7 +98,7 @@ TUNE_INT(doubleExtensionDepthIncrease, 11, 2, 20);
 
 TUNE_INT_DISABLED(seeDepth, 9, 2, 15);
 
-TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
+TUNE_INT_DISABLED(lmrMcBase, 1, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 
