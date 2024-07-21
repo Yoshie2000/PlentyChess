@@ -244,6 +244,7 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &nnue) : drawEval(this);
 
     stack->inCheck = board->stack->checkerCount > 0;
+    stack->alphaRaises = 0;
 
     // TT Lookup
     bool ttHit = false;
@@ -362,6 +363,7 @@ movesLoopQsearch:
             if (value > alpha) {
                 bestMove = move;
                 alpha = value;
+                stack->alphaRaises++;
 
                 if (pvNode)
                     updatePv(stack, move);
@@ -435,6 +437,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
     stack->inCheck = board->stack->checkerCount > 0;
+    stack->alphaRaises = 0;
 
     // TT Lookup
     bool ttHit = false;
@@ -751,7 +754,7 @@ movesLoop:
                 reducedDepth--;
 
             if (cutNode)
-                reducedDepth -= 2;
+                reducedDepth -= 2 - ((stack - 1)->alphaRaises > 1);
 
             if (capture)
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
@@ -824,6 +827,7 @@ movesLoop:
             if (value > alpha) {
                 bestMove = move;
                 alpha = value;
+                stack->alphaRaises++;
 
                 if (pvNode)
                     updatePv(stack, move);
@@ -950,6 +954,7 @@ void Thread::iterativeDeepening() {
             for (int i = 0; i < MAX_PLY + STACK_OVERHEAD; i++) {
                 stackList[i].pvLength = 0;
                 stackList[i].ply = i - STACK_OVERHEAD;
+                stackList[i].alphaRaises = 0;
                 stackList[i].staticEval = EVAL_NONE;
                 stackList[i].excludedMove = MOVE_NONE;
                 stackList[i].killers[0] = MOVE_NONE;
