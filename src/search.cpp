@@ -271,19 +271,19 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     Eval bestValue, futilityValue, unadjustedEval;
 
     if (board->stack->checkers) {
-        stack->staticEval = bestValue = unadjustedEval = futilityValue = -EVAL_INFINITE;
+        stack->staticEval = stack->eval = bestValue = unadjustedEval = futilityValue = -EVAL_INFINITE;
         goto movesLoopQsearch;
     }
     else if (ttHit && ttEval != EVAL_NONE) {
         unadjustedEval = ttEval;
-        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board);
+        stack->staticEval = stack->eval = bestValue = history.correctStaticEval(unadjustedEval, board);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
-            bestValue = ttValue;
+            stack->eval = bestValue = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
-        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board);
+        stack->staticEval = stack->eval = bestValue = history.correctStaticEval(unadjustedEval, board);
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
     futilityValue = stack->staticEval + qsFutilityOffset;
@@ -464,22 +464,22 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
     if (board->stack->checkers) {
-        stack->staticEval = EVAL_NONE;
+        stack->staticEval = stack->eval = EVAL_NONE;
         goto movesLoop;
     }
     else if (excluded) {
-        unadjustedEval = eval = stack->staticEval;
+        unadjustedEval = eval = stack->eval = stack->staticEval;
     }
     else if (ttHit) {
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board);
+        eval = stack->staticEval = stack->eval = history.correctStaticEval(unadjustedEval, board);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
-            eval = ttValue;
+            eval = stack->eval = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board);
+        eval = stack->staticEval = stack->eval = history.correctStaticEval(unadjustedEval, board);
 
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
@@ -489,13 +489,13 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         depth--;
 
     // Improving
-    if ((stack - 2)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 2)->staticEval;
-        worsening = stack->staticEval + worseningOffset < (stack - 2)->staticEval;
+    if ((stack - 2)->eval != EVAL_NONE) {
+        improving = stack->eval > (stack - 2)->eval;
+        worsening = stack->eval + worseningOffset < (stack - 2)->eval;
     }
-    else if ((stack - 4)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 4)->staticEval;
-        worsening = stack->staticEval + worseningOffset < (stack - 4)->staticEval;
+    else if ((stack - 4)->eval != EVAL_NONE) {
+        improving = stack->eval > (stack - 4)->eval;
+        worsening = stack->eval + worseningOffset < (stack - 4)->eval;
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
@@ -951,6 +951,7 @@ void Thread::iterativeDeepening() {
                 stackList[i].pvLength = 0;
                 stackList[i].ply = i - STACK_OVERHEAD;
                 stackList[i].staticEval = EVAL_NONE;
+                stackList[i].eval = EVAL_NONE;
                 stackList[i].excludedMove = MOVE_NONE;
                 stackList[i].killers[0] = MOVE_NONE;
                 stackList[i].killers[1] = MOVE_NONE;
