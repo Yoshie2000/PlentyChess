@@ -253,6 +253,8 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     Eval ttEval = EVAL_NONE;
     uint8_t ttFlag = TT_NOBOUND;
     bool ttPv = pvNode;
+    uint8_t ttDepth = 0;
+    uint8_t effectiveDepth = stack->inCheck ? 1 : 0;
 
     ttEntry = TT.probe(board->stack->hash, &ttHit);
     if (ttHit) {
@@ -261,10 +263,11 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         ttEval = ttEntry->getEval();
         ttFlag = ttEntry->getFlag();
         ttPv = ttPv || ttEntry->getTtPv();
+        ttDepth = ttEntry->getDepth();
     }
 
     // TT cutoff
-    if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (!pvNode && ttDepth >= effectiveDepth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
     Move bestMove = MOVE_NONE;
@@ -379,7 +382,7 @@ movesLoopQsearch:
 
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : TT_UPPERBOUND;
-    ttEntry->update(board->stack->hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+    ttEntry->update(board->stack->hash, bestMove, effectiveDepth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     return bestValue;
 }
