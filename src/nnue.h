@@ -1,6 +1,3 @@
-/**
- * NNUE Evaluation is heavily inspired by Obsidian (https://github.com/gab8192/Obsidian/)
-*/
 #pragma once
 
 #include <algorithm>
@@ -10,7 +7,6 @@
 #include "types.h"
 
 #define NETWORK_FILE "network.bin"
-#define ALT_NETWORK_FILE "alt-network.bin"
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 
@@ -213,8 +209,8 @@ constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
 }
 
 constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
-  return {
-    KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)],
+  return KingBucketInfo {
+    static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
     fileOf(kingSquare) >= 4
   };
 }

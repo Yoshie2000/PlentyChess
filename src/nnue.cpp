@@ -1,6 +1,3 @@
-/**
- * NNUE Evaluation is heavily inspired by Obsidian (https://github.com/gab8192/Obsidian/)
-*/
 #include <iostream>
 #include <fstream>
 #include <string.h>
@@ -19,38 +16,7 @@ INCBIN(NETWORK, NETWORK_FILE);
 NetworkData networkData;
 
 void initNetworkData() {
-    FILE* nn = fopen(ALT_NETWORK_FILE, "rb");
-
-    if (nn) {
-        // Read network from file
-        size_t read = 0;
-        size_t fileSize = sizeof(networkData);
-        size_t objectsExpected = fileSize / sizeof(int16_t);
-
-        read += fread(networkData.featureWeights, sizeof(int16_t), INPUT_WIDTH * HIDDEN_WIDTH, nn);
-        read += fread(networkData.featureBiases, sizeof(int16_t), HIDDEN_WIDTH, nn);
-        read += fread(networkData.outputWeights, sizeof(int16_t), OUTPUT_BUCKETS * 2 * HIDDEN_WIDTH, nn);
-        read += fread(&networkData.outputBiases, sizeof(int16_t), OUTPUT_BUCKETS, nn);
-
-        if (std::abs((int64_t)read - (int64_t)objectsExpected) >= ALIGNMENT) {
-            std::cout << "Error loading the net, aborting ";
-            std::cout << "Expected " << objectsExpected << " shorts, got " << read << "\n";
-            exit(1);
-        }
-
-        fclose(nn);
-    }
-    else {
-        memcpy(&networkData, gNETWORKData, sizeof(networkData));
-    }
-
-    // Transpose output weights
-    int16_t transposed[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
-    for (int n = 0; n < OUTPUT_BUCKETS * 2 * HIDDEN_WIDTH; n++) {
-        transposed[n % OUTPUT_BUCKETS][n / OUTPUT_BUCKETS] = networkData.outputWeights[n / (2 * HIDDEN_WIDTH)][n % (2 * HIDDEN_WIDTH)];
-    }
-    memcpy(networkData.outputWeights, transposed, sizeof(transposed));
-
+    memcpy(&networkData, gNETWORKData, sizeof(networkData));
 }
 
 inline int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square square, KingBucketInfo* kingBucket) {
