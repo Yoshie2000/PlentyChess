@@ -343,7 +343,7 @@ movesLoopQsearch:
         stack->capture = capture;
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
-        stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
+        stack->contHist = history.continuationHistory[board->stm][board->isSquareThreatened(target, board->stack)][stack->movedPiece][target];
 
         playedQuiet |= move != ttMove && !capture;
 
@@ -531,7 +531,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         stack->capture = false;
         stack->move = MOVE_NULL;
         stack->movedPiece = Piece::NONE;
-        stack->contHist = history.continuationHistory[board->stm][0][0];
+        stack->contHist = history.continuationHistory[board->stm][0][0][0];
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
         board->doNullMove(&boardStack);
@@ -583,7 +583,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             stack->capture = true;
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
-            stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
+            stack->contHist = history.continuationHistory[board->stm][board->isSquareThreatened(target, board->stack)][stack->movedPiece][target];
             board->doMove(&boardStack, move, newHash, &nnue);
 
             Eval value = -qsearch<NON_PV_NODE>(board, stack + 1, -probCutBeta, -probCutBeta + 1);
@@ -730,7 +730,7 @@ movesLoop:
         stack->capture = capture;
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
-        stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
+        stack->contHist = history.continuationHistory[board->stm][board->isSquareThreatened(target, board->stack)][stack->movedPiece][target];
 
         moveCount++;
         searchData.nodesSearched++;
@@ -773,7 +773,7 @@ movesLoop:
 
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
-                    history.updateContinuationHistory(stack, flip(board->stm), stack->movedPiece, move, bonus);
+                    history.updateContinuationHistory(board, stack, flip(board->stm), stack->movedPiece, move, bonus);
                 }
             }
         }
