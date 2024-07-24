@@ -98,7 +98,7 @@ struct SearchStack {
     bool inCheck, capture;
 
     Move excludedMove;
-    Move killers[2];
+    Move killer;
 
     int16_t* contHist;
 };

@@ -432,7 +432,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Eval oldAlpha = alpha;
     bool improving = false, worsening = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
-    (stack + 1)->killers[0] = (stack + 1)->killers[1] = MOVE_NONE;
+    (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
     stack->inCheck = board->stack->checkerCount > 0;
 
@@ -832,11 +832,8 @@ movesLoop:
 
                     int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
                     if (!capture) {
-                        // Update quiet killers
-                        if (move != stack->killers[0]) {
-                            stack->killers[1] = stack->killers[0];
-                            stack->killers[0] = move;
-                        }
+                        // Update quiet killer
+                        stack->killer = move;
 
                         // Update counter move
                         if (stack->ply > 0)
@@ -952,8 +949,7 @@ void Thread::iterativeDeepening() {
                 stackList[i].ply = i - STACK_OVERHEAD;
                 stackList[i].staticEval = EVAL_NONE;
                 stackList[i].excludedMove = MOVE_NONE;
-                stackList[i].killers[0] = MOVE_NONE;
-                stackList[i].killers[1] = MOVE_NONE;
+                stackList[i].killer = MOVE_NONE;
                 stackList[i].movedPiece = Piece::NONE;
                 stackList[i].move = MOVE_NONE;
                 stackList[i].capture = false;

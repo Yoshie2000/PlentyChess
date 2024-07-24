@@ -50,7 +50,7 @@ typedef int MoveGenStage;
 constexpr MoveGenStage STAGE_TTMOVE = 0;
 constexpr MoveGenStage STAGE_GEN_CAPTURES = 1;
 constexpr MoveGenStage STAGE_PLAY_GOOD_CAPTURES = 2;
-constexpr MoveGenStage STAGE_KILLERS = 3;
+constexpr MoveGenStage STAGE_KILLER = 3;
 constexpr MoveGenStage STAGE_COUNTERS = 4;
 constexpr MoveGenStage STAGE_GEN_QUIETS = 5;
 constexpr MoveGenStage STAGE_PLAY_QUIETS = 6;
@@ -64,13 +64,12 @@ class MoveGen {
     SearchStack* searchStack;
     Move ttMove, counterMove;
     bool onlyCaptures;
-    Move killers[2];
+    Move killer;
 
     Move moveList[MAX_MOVES];
     int moveListScores[MAX_MOVES];
     int generatedMoves;
     int returnedMoves;
-    int killerCount;
 
     Move badCaptureList[MAX_CAPTURES];
     int generatedBadCaptures; // Bad captures only count as "generated" when they are sorted out by SEE
