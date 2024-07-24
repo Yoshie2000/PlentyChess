@@ -7,7 +7,8 @@
 #include "evaluation.h"
 #include "spsa.h"
 
-TUNE_INT(correctionHistoryDivisor, 9025, 5000, 20000);
+TUNE_INT(correctionHistorySize, 116, 64, 256);
+TUNE_INT(correctionHistoryScale, 256, 128, 512);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
@@ -23,15 +24,22 @@ void History::initHistory() {
 }
 
 Eval History::correctStaticEval(Eval eval, Board* board) {
-    Eval history = getCorrectionHistory(board);
-    Eval adjustedEval = eval + (history * std::abs(history)) / correctionHistoryDivisor;
-    adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
-    return adjustedEval;
+    Eval history = correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
+    Eval adjustedEval = eval + history / correctionHistoryScale;
+    return std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
 }
 
-void History::updateCorrectionHistory(Board* board, int16_t bonus) {
-    Eval scaledBonus = (Eval)bonus - getCorrectionHistory(board) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+void History::updateCorrectionHistory(Board* board, int16_t bonus, int16_t weight) {
+    int16_t *entry = &correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
+    *entry = std::clamp(
+        (*entry * (correctionHistoryScale - weight) + bonus * weight) / correctionHistoryScale,
+        -correctionHistoryScale * correctionHistorySize,
+        +correctionHistoryScale * correctionHistorySize
+    );
+}
+
+int History::getCorrectionHistoryScale() {
+    return correctionHistoryScale;
 }
 
 int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture) {

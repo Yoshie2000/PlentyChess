@@ -22,7 +22,8 @@ public:
     void initHistory();
 
     Eval correctStaticEval(Eval eval, Board* board);
-    void updateCorrectionHistory(Board* board, int16_t bonus);
+    void updateCorrectionHistory(Board* board, int16_t bonus, int16_t weight);
+    int getCorrectionHistoryScale();
 
     int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
 
@@ -43,11 +44,5 @@ public:
 
     Move getCounterMove(Move move);
     void setCounterMove(Move move, Move counter);
-
-private:
-
-    constexpr Eval getCorrectionHistory(Board* board) {
-        return correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
-    }
 
 };
