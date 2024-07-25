@@ -910,6 +910,8 @@ void Thread::tsearch() {
 }
 
 void Thread::iterativeDeepening() {
+    history.initCorrhist(rootBoard.stm);
+
     int multiPvCount = 0;
     {
         Move moves[MAX_MOVES] = { MOVE_NONE };

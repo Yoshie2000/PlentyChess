@@ -22,6 +22,15 @@ void History::initHistory() {
     memset(pawnHistory, -1000, sizeof(pawnHistory));
 }
 
+void History::initCorrhist(Color side) {
+    if (corrhistInitialised)
+        return;
+
+    for (int i = 0; i < CORRECTION_HISTORY_SIZE; i++)
+        correctionHistory[side][i] = 10;
+    corrhistInitialised = true;
+}
+
 Eval History::correctStaticEval(Eval eval, Board* board) {
     Eval history = getCorrectionHistory(board);
     Eval adjustedEval = eval + (history * std::abs(history)) / correctionHistoryDivisor;

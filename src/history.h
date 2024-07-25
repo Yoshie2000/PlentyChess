@@ -15,11 +15,14 @@ class History {
     int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
+    bool corrhistInitialised = false;
+
 public:
 
     int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2];
 
     void initHistory();
+    void initCorrhist(Color side);
 
     Eval correctStaticEval(Eval eval, Board* board);
     void updateCorrectionHistory(Board* board, int16_t bonus);
