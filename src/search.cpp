@@ -640,7 +640,7 @@ movesLoop:
             && board->hasNonPawns()
             ) {
 
-            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving);
+            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving + moveHistory / (capture ? lmrHistoryFactorCapture : lmrHistoryFactorQuiet));
 
             if (!skipQuiets && !board->stack->checkers) {
 
