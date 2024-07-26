@@ -39,7 +39,19 @@ int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searc
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(move, board->stm, board, boardStack) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
+        int score = 0;
+        int pieceTo = 2 * 64 * board->pieces[moveOrigin(move)] + 2 * moveTarget(move) + board->stm;
+
+        if ((searchStack - 1)->movedPiece != Piece::NONE)
+            score += 2 * (searchStack - 1)->contHist[pieceTo];
+
+        if ((searchStack - 2)->movedPiece != Piece::NONE)
+            score += (searchStack - 2)->contHist[pieceTo];
+
+        if ((searchStack - 4)->movedPiece != Piece::NONE)
+            score += (searchStack - 4)->contHist[pieceTo];
+
+        return getQuietHistory(move, board->stm, board, boardStack) + 2 * score + getPawnHistory(board, move);
     }
 }
 
@@ -71,7 +83,7 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
     int pieceTo = 2 * 64 * piece + 2 * target + side;
 
     if ((stack - 1)->movedPiece != Piece::NONE)
-        score += 2 * (stack - 1)->contHist[pieceTo];
+        score += (stack - 1)->contHist[pieceTo];
 
     if ((stack - 2)->movedPiece != Piece::NONE)
         score += (stack - 2)->contHist[pieceTo];
