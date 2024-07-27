@@ -74,7 +74,7 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
         score += 2 * (stack - 1)->contHist[pieceTo];
 
     if ((stack - 2)->movedPiece != Piece::NONE)
-        score += (stack - 2)->contHist[pieceTo];
+        score += 3 * (stack - 2)->contHist[pieceTo] / 2;
 
     if ((stack - 4)->movedPiece != Piece::NONE)
         score += (stack - 4)->contHist[pieceTo];
