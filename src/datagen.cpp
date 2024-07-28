@@ -1,9 +1,9 @@
 #include "thread.h"
 
-void playRandomMoves(Board* board, NNUE* nnue, int remainingMoves) {
+bool playRandomMoves(Board* board, NNUE* nnue, int remainingMoves) {
     if (remainingMoves == 0) {
         std::cout << "info string genfens " << board->fen() << std::endl;
-        return;
+        return true;
     }
 
     BoardStack boardStack;
@@ -16,10 +16,12 @@ void playRandomMoves(Board* board, NNUE* nnue, int remainingMoves) {
             legalMoves.push_back(moves[i]);
         }
     }
+    if (legalMoves.empty())
+        return false;
     Move move = legalMoves[std::rand() % legalMoves.size()];
     board->doMove(&boardStack, move, board->hashAfter(move), nnue);
 
-    playRandomMoves(board, nnue, remainingMoves - 1);
+    return playRandomMoves(board, nnue, remainingMoves - 1);
 }
 
 void Thread::tgenfens() {
@@ -36,8 +38,8 @@ void Thread::tgenfens() {
 
         // Play 6-9 random moves
         int randomMoves = 6 + std::rand() % 4;
-        playRandomMoves(&board, &nnue, randomMoves);
-
-        generatedFens++;
+        if (playRandomMoves(&board, &nnue, randomMoves)) {
+            generatedFens++;
+        }
     }
 }

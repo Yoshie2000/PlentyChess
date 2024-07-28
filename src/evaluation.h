@@ -5,6 +5,8 @@
 #include "search.h"
 #include "nnue.h"
 
+extern const PhaseEval PSQ[Piece::TOTAL][64];
+
 const Eval EVAL_MATE = 30000;
 const Eval EVAL_MATE_IN_MAX_PLY = EVAL_MATE - MAX_PLY;
 

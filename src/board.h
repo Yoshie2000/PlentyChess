@@ -52,6 +52,7 @@ struct BoardStack {
 
     // MEMCPY GOES FROM HERE
     int pieceCount[2][Piece::TOTAL];
+    Eval psq[2][2];
 
     uint8_t castling; // 0000 -> black queenside, black kingside, white queenside, white kingside
     // TO HERE
@@ -75,13 +76,7 @@ struct Board {
     size_t parseFen(std::string fen, bool chess960);
     std::string fen();
 
-    constexpr void movePiece(Piece piece, Square origin, Square target, Bitboard fromTo) {
-        byColor[stm] ^= fromTo;
-        byPiece[piece] ^= fromTo;
-
-        pieces[origin] = Piece::NONE;
-        pieces[target] = piece;
-    };
+    void movePiece(BoardStack* newStack, Piece piece, Square origin, Square target, Bitboard fromTo);
     void doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue);
     void undoMove(Move move, NNUE* nnue);
     void doNullMove(BoardStack* newStack);

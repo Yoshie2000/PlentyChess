@@ -29,6 +29,8 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
     }
     for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
         byColor[c] = bitboard(0);
+        stack->psq[c][PHASE_MG] = 0;
+        stack->psq[c][PHASE_EG] = 0;
         for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
             stack->pieceCount[c][p] = 0;
             byPiece[p] = bitboard(0);
@@ -332,6 +334,16 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
 
     calculateThreats();
 
+    // Set up piece values
+    for (Square s = 0; s < 64; s++) {
+        Piece p = pieces[s];
+        if (p != Piece::NONE) {
+            Color pieceColor = bitboard(s) & byColor[Color::WHITE] ? Color::WHITE : Color::BLACK;
+            stack->psq[pieceColor][PHASE_MG] += PSQ[p][psqIndex(s, pieceColor)].mg;
+            stack->psq[pieceColor][PHASE_EG] += PSQ[p][psqIndex(s, pieceColor)].eg;
+        }
+    }
+
     return i;
 }
 
@@ -388,6 +400,19 @@ std::string Board::fen() {
     return result;
 }
 
+void Board::movePiece(BoardStack* newStack, Piece piece, Square origin, Square target, Bitboard fromTo) {
+    byColor[stm] ^= fromTo;
+    byPiece[piece] ^= fromTo;
+
+    pieces[origin] = Piece::NONE;
+    pieces[target] = piece;
+
+    newStack->psq[stm][PHASE_MG] -= PSQ[piece][psqIndex(origin, stm)].mg;
+    newStack->psq[stm][PHASE_EG] -= PSQ[piece][psqIndex(origin, stm)].eg;
+    newStack->psq[stm][PHASE_MG] += PSQ[piece][psqIndex(target, stm)].mg;
+    newStack->psq[stm][PHASE_EG] += PSQ[piece][psqIndex(target, stm)].eg;
+};
+
 void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling) {
     if (stm == Color::WHITE) {
         int idx = *kingTarget <= kingOrigin;
@@ -409,7 +434,7 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
     // General setup stuff
     newStack->previous = stack;
     stack = newStack;
-    memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(uint8_t));
+    memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + 4 * sizeof(Eval) + sizeof(uint8_t));
 
     newStack->hash = newHash;
     newStack->pawnHash = newStack->previous->pawnHash;
@@ -441,7 +466,7 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
     switch (type) {
     case MOVE_PROMOTION:
-        movePiece(piece, origin, target, fromTo);
+        movePiece(newStack, piece, origin, target, fromTo);
         newStack->rule50_ply = 0;
 
         newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin];
@@ -453,6 +478,9 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
             nnue->removePiece(captureTarget, newStack->capturedPiece, flip(stm));
 
             newStack->pieceCount[flip(stm)][newStack->capturedPiece]--;
+
+            newStack->psq[flip(stm)][PHASE_MG] -= PSQ[newStack->capturedPiece][psqIndex(captureTarget, flip(stm))].mg;
+            newStack->psq[flip(stm)][PHASE_EG] -= PSQ[newStack->capturedPiece][psqIndex(captureTarget, flip(stm))].eg;
 
             if (newStack->capturedPiece == Piece::ROOK) {
                 Square rookSquare = piece == Piece::ROOK ? origin : captureTarget;
@@ -485,6 +513,11 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
         newStack->pieceCount[stm][Piece::PAWN]--;
         newStack->pieceCount[stm][promotionPiece]++;
 
+        newStack->psq[stm][PHASE_MG] -= PSQ[Piece::PAWN][psqIndex(target, stm)].mg;
+        newStack->psq[stm][PHASE_EG] -= PSQ[Piece::PAWN][psqIndex(target, stm)].eg;
+        newStack->psq[stm][PHASE_MG] += PSQ[promotionPiece][psqIndex(target, stm)].mg;
+        newStack->psq[stm][PHASE_EG] += PSQ[promotionPiece][psqIndex(target, stm)].eg;
+
         break;
 
     case MOVE_CASTLING: {
@@ -504,6 +537,15 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
         byPiece[Piece::ROOK] ^= rookFromToBB;
         byPiece[Piece::KING] ^= fromTo;
 
+        newStack->psq[stm][PHASE_MG] -= PSQ[Piece::ROOK][psqIndex(rookOrigin, stm)].mg;
+        newStack->psq[stm][PHASE_EG] -= PSQ[Piece::ROOK][psqIndex(rookOrigin, stm)].eg;
+        newStack->psq[stm][PHASE_MG] -= PSQ[Piece::KING][psqIndex(origin, stm)].mg;
+        newStack->psq[stm][PHASE_EG] -= PSQ[Piece::KING][psqIndex(origin, stm)].eg;
+        newStack->psq[stm][PHASE_MG] += PSQ[Piece::ROOK][psqIndex(rookTarget, stm)].mg;
+        newStack->psq[stm][PHASE_EG] += PSQ[Piece::ROOK][psqIndex(rookTarget, stm)].eg;
+        newStack->psq[stm][PHASE_MG] += PSQ[Piece::KING][psqIndex(target, stm)].mg;
+        newStack->psq[stm][PHASE_EG] += PSQ[Piece::KING][psqIndex(target, stm)].eg;
+
         nnue->movePiece(origin, target, Piece::KING, stm);
         nnue->movePiece(rookOrigin, rookTarget, Piece::ROOK, stm);
 
@@ -512,7 +554,7 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
                       break;
 
     case MOVE_ENPASSANT:
-        movePiece(piece, origin, target, fromTo);
+        movePiece(newStack, piece, origin, target, fromTo);
         nnue->movePiece(origin, target, piece, stm);
         newStack->rule50_ply = 0;
 
@@ -533,10 +575,13 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
         newStack->pieceCount[flip(stm)][Piece::PAWN]--;
 
+        newStack->psq[flip(stm)][PHASE_MG] -= PSQ[Piece::PAWN][psqIndex(captureTarget, flip(stm))].mg;
+        newStack->psq[flip(stm)][PHASE_EG] -= PSQ[Piece::PAWN][psqIndex(captureTarget, flip(stm))].eg;
+
         break;
 
     default: // Normal moves
-        movePiece(piece, origin, target, fromTo);
+        movePiece(newStack, piece, origin, target, fromTo);
         nnue->movePiece(origin, target, piece, stm);
 
         if (piece == Piece::PAWN) {
@@ -570,6 +615,10 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
             nnue->removePiece(captureTarget, newStack->capturedPiece, flip(stm));
 
             newStack->pieceCount[flip(stm)][newStack->capturedPiece]--;
+
+            newStack->psq[flip(stm)][PHASE_MG] -= PSQ[newStack->capturedPiece][psqIndex(captureTarget, flip(stm))].mg;
+            newStack->psq[flip(stm)][PHASE_EG] -= PSQ[newStack->capturedPiece][psqIndex(captureTarget, flip(stm))].eg;
+
             newStack->rule50_ply = 0;
         }
 
@@ -711,7 +760,7 @@ void Board::doNullMove(BoardStack* newStack) {
 
     newStack->previous = stack;
     stack = newStack;
-    memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(uint8_t));
+    memcpy(newStack->pieceCount, newStack->previous->pieceCount, sizeof(int) * 12 + sizeof(uint8_t) + 4 * sizeof(Eval));
 
     newStack->hash = newStack->previous->hash ^ ZOBRIST_STM_BLACK;
     newStack->pawnHash = newStack->previous->pawnHash;
