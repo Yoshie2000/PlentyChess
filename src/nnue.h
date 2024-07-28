@@ -183,7 +183,7 @@ constexpr int KING_BUCKETS = 7;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
-constexpr int NETWORK_QA = 255;
+constexpr int NETWORK_QA = 510;
 constexpr int NETWORK_QB = 64;
 constexpr int NETWORK_QAB = NETWORK_QA * NETWORK_QB;
 
