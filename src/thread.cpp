@@ -26,6 +26,9 @@ void Thread::startSearching() {
         searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
     else
         tsearch();
+    
+    if (searchParameters->mcts)
+        mctsSearch();
 }
 
 void Thread::waitForSearchFinished() {

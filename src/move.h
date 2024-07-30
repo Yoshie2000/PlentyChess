@@ -57,6 +57,8 @@ constexpr MoveGenStage STAGE_PLAY_QUIETS = 6;
 constexpr MoveGenStage STAGE_PLAY_BAD_CAPTURES = 7;
 constexpr MoveGenStage STAGE_DONE = 100;
 
+class MCTSNode;
+
 class MoveGen {
 
     Board* board;
@@ -81,6 +83,8 @@ class MoveGen {
     bool probCut;
     int probCutThreshold;
 
+    MCTSNode* mctsNode;
+
 public:
 
     // Main search
@@ -89,6 +93,8 @@ public:
     MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int depth);
     // ProbCut
     MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int depth);
+    // MCTS
+    MoveGen(Board* board, History* history, MCTSNode* mctsNode, Move ttMove);
 
     Move nextMove();
 

@@ -66,6 +66,7 @@ public:
 private:
 
     void tsearch();
+    void mctsSearch();
     void iterativeDeepening();
     void sortRootMoves();
     void printUCI(Thread* thread, int multiPvCount = 1);

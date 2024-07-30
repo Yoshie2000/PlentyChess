@@ -436,6 +436,12 @@ void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
             parameters.depth = std::stoi(token);
         }
 
+        if (matchesToken(token, "mcts")) {
+            parameters.mcts = true;
+            nextToken(&line, &token);
+            parameters.rollouts = std::stoi(token);
+        }
+
         if (matchesToken(token, "depth")) {
             nextToken(&line, &token);
             parameters.depth = std::stoi(token);

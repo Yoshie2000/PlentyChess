@@ -6,6 +6,7 @@
 #include "move.h"
 #include "evaluation.h"
 #include "spsa.h"
+#include "mcts/mcts.h"
 
 TUNE_INT(correctionHistoryDivisor, 9025, 5000, 20000);
 
@@ -40,6 +41,15 @@ int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searc
     }
     else {
         return getQuietHistory(move, board->stm, board, boardStack) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
+    }
+}
+
+int History::getHistory(Board* board, BoardStack* boardStack, MCTSNode* mctsNode, Move move, bool isCapture) {
+    if (isCapture) {
+        return *getCaptureHistory(board, move);
+    }
+    else {
+        return getQuietHistory(move, board->stm, board, boardStack) + 2 * getContinuationHistory(mctsNode, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
     }
 }
 
@@ -78,6 +88,37 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
 
     if ((stack - 4)->movedPiece != Piece::NONE)
         score += (stack - 4)->contHist[pieceTo];
+
+    return score;
+}
+
+int History::getContinuationHistory(MCTSNode* mctsNode, Color side, Piece piece, Move move) {
+    assert(piece != Piece::NONE);
+    Square target = moveTarget(move);
+
+    int score = 0;
+    int pieceTo = 2 * 64 * piece + 2 * target + side;
+
+    // Ply 1
+    if (mctsNode->parent) {
+        score += 2 * continuationHistory[flip(side)][mctsNode->parentMovedPiece][moveTarget(mctsNode->parentMove)][pieceTo];
+
+        // Ply 2
+        mctsNode = mctsNode->parent;
+        if (mctsNode->parent) {
+            score += continuationHistory[side][mctsNode->parentMovedPiece][moveTarget(mctsNode->parentMove)][pieceTo];
+
+            // Ply 4
+            mctsNode = mctsNode->parent;
+            if (mctsNode->parent) {
+                mctsNode = mctsNode->parent;
+
+                if (mctsNode->parent) {
+                    score += continuationHistory[side][mctsNode->parentMovedPiece][moveTarget(mctsNode->parentMove)][pieceTo];
+                }
+            }
+        }
+    }
 
     return score;
 }

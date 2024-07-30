@@ -363,7 +363,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
     newStack->nullmove_ply = newStack->previous->nullmove_ply + 1;
 
-    nnue->incrementAccumulator();
+    if (nnue)
+        nnue->incrementAccumulator();
 
     // Calculate general information about the move
     Square origin = moveOrigin(move);
@@ -395,7 +396,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
             byColor[flip(stm)] ^= captureTargetBB; // take away the captured piece
             byPiece[newStack->capturedPiece] ^= captureTargetBB;
 
-            nnue->removePiece(captureTarget, newStack->capturedPiece, flip(stm));
+            if (nnue)
+                nnue->removePiece(captureTarget, newStack->capturedPiece, flip(stm));
 
             newStack->pieceCount[flip(stm)][newStack->capturedPiece]--;
 
@@ -424,8 +426,10 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
         // Promotion, we don't move the current piece, instead we remove it from the origin square
         // and place the promotionPiece on the target square. This saves one accumulator update
-        nnue->removePiece(origin, piece, stm);
-        nnue->addPiece(target, promotionPiece, stm);
+        if (nnue) {
+            nnue->removePiece(origin, piece, stm);
+            nnue->addPiece(target, promotionPiece, stm);
+        }
 
         newStack->pieceCount[stm][Piece::PAWN]--;
         newStack->pieceCount[stm][promotionPiece]++;
@@ -449,8 +453,10 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
         byPiece[Piece::ROOK] ^= rookFromToBB;
         byPiece[Piece::KING] ^= fromTo;
 
-        nnue->movePiece(origin, target, Piece::KING, stm);
-        nnue->movePiece(rookOrigin, rookTarget, Piece::ROOK, stm);
+        if (nnue) {
+            nnue->movePiece(origin, target, Piece::KING, stm);
+            nnue->movePiece(rookOrigin, rookTarget, Piece::ROOK, stm);
+        }
 
         newStack->capturedPiece = Piece::NONE;
     }
@@ -458,7 +464,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
     case MOVE_ENPASSANT:
         movePiece(piece, origin, target, fromTo);
-        nnue->movePiece(origin, target, piece, stm);
+        if (nnue)
+            nnue->movePiece(origin, target, piece, stm);
         newStack->rule50_ply = 0;
 
         captureTarget = target - UP[stm];
@@ -474,7 +481,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
         byColor[flip(stm)] ^= captureTargetBB; // take away the captured piece
         byPiece[Piece::PAWN] ^= captureTargetBB;
 
-        nnue->removePiece(captureTarget, Piece::PAWN, flip(stm));
+        if (nnue)
+            nnue->removePiece(captureTarget, Piece::PAWN, flip(stm));
 
         newStack->pieceCount[flip(stm)][Piece::PAWN]--;
 
@@ -482,7 +490,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
     default: // Normal moves
         movePiece(piece, origin, target, fromTo);
-        nnue->movePiece(origin, target, piece, stm);
+        if (nnue)
+            nnue->movePiece(origin, target, piece, stm);
 
         if (piece == Piece::PAWN) {
             // Double push
@@ -512,7 +521,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
             if (newStack->capturedPiece == Piece::PAWN)
                 newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][Piece::PAWN][captureTarget];
 
-            nnue->removePiece(captureTarget, newStack->capturedPiece, flip(stm));
+            if (nnue)
+                nnue->removePiece(captureTarget, newStack->capturedPiece, flip(stm));
 
             newStack->pieceCount[flip(stm)][newStack->capturedPiece]--;
             newStack->rule50_ply = 0;
@@ -567,8 +577,9 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
     newStack->checkerCount = newStack->checkers ? BB::popcount(newStack->checkers) : 0;
     updateSliderPins(Color::WHITE);
     updateSliderPins(Color::BLACK);
-
-    nnue->finalizeMove(this);
+    
+    if (nnue)
+        nnue->finalizeMove(this);
 
     stm = flip(stm);
     newStack->move = move;

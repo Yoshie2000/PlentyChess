@@ -7,6 +7,8 @@ constexpr int PAWN_HISTORY_SIZE = 32768;
 constexpr int CORRECTION_HISTORY_SIZE = 16384;
 constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 
+class MCTSNode;
+
 class History {
 
     int16_t quietHistory[2][64][2][64][2];
@@ -25,6 +27,7 @@ public:
     void updateCorrectionHistory(Board* board, int16_t bonus);
 
     int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
+    int getHistory(Board* board, BoardStack* boardStack, MCTSNode* mctsNode, Move move, bool isCapture);
 
     int16_t getPawnHistory(Board* board, Move move);
     void updatePawnHistory(Board* board, Move move, int16_t bonus);
@@ -33,6 +36,7 @@ public:
     void updateQuietHistory(Move move, Color stm, Board* board, BoardStack* stack, int16_t bonus);
 
     int getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move);
+    int getContinuationHistory(MCTSNode* mctsNode, Color side, Piece piece, Move move);
     void updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus);
 
     int16_t* getCaptureHistory(Board* board, Move move);

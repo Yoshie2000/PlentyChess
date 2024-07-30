@@ -12,6 +12,7 @@
 #include "tt.h"
 #include "spsa.h"
 #include "history.h"
+#include "mcts/mcts.h"
 
 TUNE_INT(mpPromotionScoreFactor, 22, 10, 10000);
 TUNE_INT(mpMvvLvaScoreFactor, 163, 10, 10000);
@@ -267,18 +268,23 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
 }
 
 // Main search
-MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(false), killer(searchStack->killer), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0) {
+MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(false), killer(searchStack->killer), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0), mctsNode(nullptr) {
     counterMove = searchStack->ply > 0 ? history->getCounterMove((searchStack - 1)->move) : MOVE_NONE;
 }
 
 // qSearch
-MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(onlyCaptures), killer(MOVE_NONE), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0) {
+MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(onlyCaptures), killer(MOVE_NONE), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0), mctsNode(nullptr) {
     counterMove = onlyCaptures || searchStack->ply == 0 ? MOVE_NONE : history->getCounterMove((searchStack - 1)->move);
 }
 
 // ProbCut
-MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(true), killer(MOVE_NONE), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(true), probCutThreshold(probCutThreshold) {
+MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(true), killer(MOVE_NONE), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(true), probCutThreshold(probCutThreshold), mctsNode(nullptr) {
     counterMove = MOVE_NONE;
+}
+
+// MCTS
+MoveGen::MoveGen(Board* board, History* history, MCTSNode* mctsNode, Move ttMove) : board(board), history(history), searchStack(nullptr), ttMove(ttMove), onlyCaptures(false), killer(MOVE_NONE), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(99), probCut(false), probCutThreshold(0), mctsNode(mctsNode) {
+    counterMove = mctsNode->parent ? history->getCounterMove(mctsNode->parentMove) : MOVE_NONE;
 }
 
 Move MoveGen::nextMove() {
@@ -475,7 +481,10 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
                 threatScore -= 7500;
         }
 
-        moveListScores[i] = history->getHistory(board, board->stack, searchStack, move, false) + threatScore;
+        if (searchStack)
+            moveListScores[i] = history->getHistory(board, board->stack, searchStack, move, false) + threatScore;
+        else
+            moveListScores[i] = history->getHistory(board, board->stack, mctsNode, move, false) + threatScore;
     }
     return endIndex;
 }

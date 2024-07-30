@@ -21,6 +21,8 @@ uint64_t perft(Board* board, int depth);
 
 struct SearchParameters {
     bool perft; // Perft (requires depth)
+    bool mcts; // MCTS mode (after a/b)
+    int rollouts; // MCTS rollouts
 
     std::vector<Move> searchmoves; // TODO: Search only these moves at root
     bool ponder; // Search in pondering mode => after "ponderhit", continue on ponder move
@@ -39,6 +41,8 @@ struct SearchParameters {
 
     SearchParameters() {
         perft = false;
+        mcts = false;
+        rollouts = 0;
 
         searchmoves = std::vector<Move>();
         ponder = false;
