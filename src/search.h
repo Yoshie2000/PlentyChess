@@ -21,6 +21,9 @@ uint64_t perft(Board* board, int depth);
 
 struct SearchParameters {
     bool perft; // Perft (requires depth)
+    bool genfens; // Are we running a genfens search
+    int genfensSeed; // Seed for genfens
+    int genfensFens; // Number of fens for genfens
 
     std::vector<Move> searchmoves; // TODO: Search only these moves at root
     bool ponder; // Search in pondering mode => after "ponderhit", continue on ponder move
@@ -39,6 +42,9 @@ struct SearchParameters {
 
     SearchParameters() {
         perft = false;
+        genfens = false;
+        genfensSeed = 0;
+        genfensFens = 0;
 
         searchmoves = std::vector<Move>();
         ponder = false;

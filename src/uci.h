@@ -90,9 +90,15 @@ namespace UCI {
             false
         };
 
+        UCIOption<UCI_CHECK> datagen = {
+            "Datagen",
+            false,
+            false
+        };
+
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&multiPV, &moveOverhead, &chess960, &ponder);
+            auto optionsTuple = std::make_tuple(&multiPV, &moveOverhead, &chess960, &ponder, &datagen);
             for_each_in_tuple(optionsTuple, f);
         }
     };

@@ -1135,3 +1135,104 @@ Thread* Thread::chooseBestThread() {
 
     return bestThread;
 }
+
+void Thread::tdatagen() {
+    nnue.reset(&rootBoard);
+    
+    searchData.nodesSearched = 0;
+    initTimeManagement(&rootBoard, searchParameters, &searchData);
+    {
+        Move moves[MAX_MOVES] = { MOVE_NONE };
+        int m = 0;
+        generateMoves(&rootBoard, moves, &m);
+        for (int i = 0; i < m; i++) {
+            if (rootBoard.isLegal(moves[i])) {
+                RootMove rootMove = {};
+                rootMove.move = moves[i];
+                rootMoves.push_back(rootMove);
+            }
+        }
+    }
+
+    Eval previousValue = EVAL_NONE;
+
+    constexpr int STACK_OVERHEAD = 4;
+    SearchStack stackList[MAX_PLY + STACK_OVERHEAD];
+    SearchStack* stack = &stackList[STACK_OVERHEAD];
+
+    rootMoveNodes.clear();
+
+    for (int depth = 1; depth <= MAX_PLY - 1; depth++) {
+        for (int i = 0; i < MAX_PLY + STACK_OVERHEAD; i++) {
+            stackList[i].pvLength = 0;
+            stackList[i].ply = i - STACK_OVERHEAD;
+            stackList[i].staticEval = EVAL_NONE;
+            stackList[i].excludedMove = MOVE_NONE;
+            stackList[i].killer = MOVE_NONE;
+            stackList[i].movedPiece = Piece::NONE;
+            stackList[i].move = MOVE_NONE;
+            stackList[i].capture = false;
+            stackList[i].inCheck = false;
+        }
+
+        searchData.rootDepth = depth;
+        searchData.selDepth = 0;
+
+        // Aspiration Windows
+        Eval delta = 2 * EVAL_INFINITE;
+        Eval alpha = -EVAL_INFINITE;
+        Eval beta = EVAL_INFINITE;
+        Eval value;
+
+        if (depth >= aspirationWindowMinDepth) {
+            // Set up interval for the start of this aspiration window
+            delta = aspirationWindowDelta;
+            alpha = std::max(previousValue - delta, -EVAL_INFINITE);
+            beta = std::min(previousValue + delta, (int)EVAL_INFINITE);
+        }
+
+        int failHighs = 0;
+        while (true) {
+            int searchDepth = std::max(1, depth - failHighs);
+            value = search<ROOT_NODE>(&rootBoard, stack, searchDepth, alpha, beta, false);
+
+            sortRootMoves();
+
+            // Stop if we need to
+            if (stopped || exiting || searchData.nodesSearched >= searchParameters->nodes)
+                break;
+
+            // Our window was too high, lower alpha for next iteration
+            if (value <= alpha) {
+                beta = (alpha + beta) / 2;
+                alpha = std::max(value - delta, -EVAL_INFINITE);
+                failHighs = 0;
+            }
+            // Our window was too low, increase beta for next iteration
+            else if (value >= beta) {
+                beta = std::min(value + delta, (int)EVAL_INFINITE);
+                failHighs = std::min(failHighs + 1, aspirationWindowMaxFailHighs);
+            }
+            // Our window was good, increase depth for next iteration
+            else
+                break;
+
+            if (value >= EVAL_MATE_IN_MAX_PLY) {
+                beta = EVAL_INFINITE;
+                failHighs = 0;
+            }
+
+            delta *= aspirationWindowDeltaFactor;
+        }
+
+        if (stopped || exiting || searchData.nodesSearched >= searchParameters->nodes)
+            break;
+
+        previousValue = rootMoves[0].value;
+    }
+
+    sortRootMoves();
+    printUCI(this);
+
+    std::cout << "bestmove " << moveToString(rootMoves[0].move, UCI::Options.chess960.value) << std::endl;
+}

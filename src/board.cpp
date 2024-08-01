@@ -286,7 +286,7 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
 
     if (fen.length() <= i) {
         stack->rule50_ply = 0;
-        ply = 0;
+        ply = 1;
     }
     else {
         // 50 move rule
@@ -335,6 +335,59 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
     return i;
 }
 
+std::string Board::fen() {
+    // rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    // r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 10
+    std::string result;
+
+    std::string pieceChars = "pnbrqk ";
+
+    for (int rank = 7; rank >= 0; rank--) {
+        int freeSquares = 0;
+        for (int file = 0; file < 8; file++) {
+            Square s = Square(8 * rank + file);
+            Piece p = pieces[s];
+            if (p == Piece::NONE)
+                freeSquares++;
+            else {
+                if (freeSquares != 0) {
+                    result += std::to_string(freeSquares);
+                    freeSquares = 0;
+                }
+                result += (byColor[Color::WHITE] & bitboard(s)) ? toupper(pieceChars[p]) : pieceChars[p];
+            }
+        }
+        if (freeSquares != 0)
+            result += std::to_string(freeSquares);
+        if (rank != 0)
+            result += "/";
+    }
+
+    if (stm == Color::WHITE)
+        result += " w ";
+    else
+        result += " b ";
+    
+    if (stack->castling & CASTLING_WHITE_KINGSIDE) result += "K";
+    if (stack->castling & CASTLING_WHITE_QUEENSIDE) result += "Q";
+    if (stack->castling & CASTLING_BLACK_KINGSIDE) result += "k";
+    if (stack->castling & CASTLING_BLACK_QUEENSIDE) result += "q";
+    if (stack->castling)
+        result += " ";
+    else
+        result += "- ";
+
+    if (stack->enpassantTarget) {
+        Square epSquare = lsb(stack->enpassantTarget);
+        result += squareToString(epSquare) + " ";
+    } else
+        result += "- ";
+    
+    result += std::to_string(stack->rule50_ply) + " " + std::to_string(ply);
+
+    return result;
+}
+
 void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling) {
     if (stm == Color::WHITE) {
         int idx = *kingTarget <= kingOrigin;
@@ -362,6 +415,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
     newStack->pawnHash = newStack->previous->pawnHash;
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
     newStack->nullmove_ply = newStack->previous->nullmove_ply + 1;
+    if (stm == Color::BLACK)
+        ply++;
 
     nnue->incrementAccumulator();
 
@@ -577,6 +632,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 }
 
 void Board::undoMove(Move move, NNUE* nnue) {
+    if (stm == Color::WHITE)
+        ply--;
     stm = flip(stm);
 
     Square origin = moveOrigin(move);

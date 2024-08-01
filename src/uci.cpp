@@ -486,6 +486,27 @@ void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
     threads.startSearching(*board, *stackQueue, parameters);
 }
 
+void genfens(std::string params, Board* board, std::deque<BoardStack>* stackQueue) {
+    std::string token;
+    SearchParameters parameters;
+    parameters.genfens = true;
+
+    while (nextToken(&params, &token)) {
+        if (matchesToken(token, "genfens")) {
+            nextToken(&params, &token);
+            parameters.genfensFens = std::stoi(token);
+        }
+        if (matchesToken(token, "seed")) {
+            nextToken(&params, &token);
+            parameters.genfensSeed = std::stoi(token);
+        }
+    }
+
+    TT.newSearch();
+    threads.startSearching(*board, *stackQueue, parameters);
+    threads.waitForSearchFinished();
+}
+
 struct printOptions
 {
     template<UCI::UCIOptionType OptionType>
@@ -510,6 +531,14 @@ void uciLoop(int argc, char* argv[]) {
 
     std::cout << "UCI thread running" << std::endl;
 
+    if (argc > 1 && matchesToken(argv[1], "genfens")) {
+        std::cout << "starting fen generation" << std::endl;
+        std::string params(argv[1]);
+        genfens(params, &board, &stackQueue);
+
+        if (argc > 2 && matchesToken(argv[2], "quit"))
+            return;
+    }
     if (argc > 1 && matchesToken(argv[1], "bench")) {
         bench(&stackQueue, &board);
         return;

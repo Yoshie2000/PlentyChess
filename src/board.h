@@ -73,6 +73,7 @@ struct Board {
 
     void startpos();
     size_t parseFen(std::string fen, bool chess960);
+    std::string fen();
 
     constexpr void movePiece(Piece piece, Square origin, Square target, Bitboard fromTo) {
         byColor[stm] ^= fromTo;

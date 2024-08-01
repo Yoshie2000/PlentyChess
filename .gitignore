@@ -8,3 +8,4 @@ stuff/
 tools/*.o
 tools/process_net
 params.bin
+datagen_scrape/
