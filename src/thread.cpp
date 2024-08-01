@@ -54,8 +54,11 @@ void Thread::idle() {
 }
 
 void Thread::exit() {
-    searching = true;
-    exiting = true;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        searching = true;
+        exiting = true;
+    }
     cv.notify_all();
     if (thread.joinable())
         thread.join();
