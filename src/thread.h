@@ -26,7 +26,6 @@ class ThreadPool;
 class Thread {
 
     std::thread thread;
-    std::mutex mutex;
 
     Board rootBoard;
     BoardStack* rootStack;
@@ -34,6 +33,7 @@ class Thread {
 
 public:
 
+    std::mutex mutex;
     std::condition_variable cv;
 
     bool searching = false;
@@ -119,6 +119,7 @@ public:
         for (auto& thread : threads) {
             thread.get()->rootMoves.clear();
             thread.get()->stopped = false;
+            std::lock_guard<std::mutex> lock(thread.get()->mutex);
             thread.get()->searching = true;
         }
 
