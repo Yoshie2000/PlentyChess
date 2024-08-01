@@ -28,12 +28,12 @@ class Thread {
     std::thread thread;
     std::mutex mutex;
 
-    Board rootBoard;
-    BoardStack* rootStack;
     std::deque<BoardStack>* rootStackQueue;
 
 public:
 
+    Board rootBoard;
+    BoardStack* rootStack;
     std::condition_variable cv;
 
     bool searching = false;
@@ -68,7 +68,6 @@ public:
 private:
 
     void tgenfens();
-    void tdatagen();
 
     void tsearch();
     void iterativeDeepening();

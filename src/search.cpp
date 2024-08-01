@@ -1162,7 +1162,9 @@ void Thread::tdatagen() {
 
     rootMoveNodes.clear();
 
-    for (int depth = 1; depth <= MAX_PLY - 1; depth++) {
+    int maxDepth = searchParameters->depth ? searchParameters->depth : MAX_PLY - 1;
+
+    for (int depth = 1; depth <= maxDepth; depth++) {
         for (int i = 0; i < MAX_PLY + STACK_OVERHEAD; i++) {
             stackList[i].pvLength = 0;
             stackList[i].ply = i - STACK_OVERHEAD;
