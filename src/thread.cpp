@@ -8,6 +8,7 @@
 #include "thread.h"
 #include "search.h"
 #include "history.h"
+#include "uci.h"
 
 Thread::Thread(ThreadPool* threadPool, int threadId) : threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
     history.initHistory();
@@ -26,6 +27,8 @@ void Thread::startSearching() {
         searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
     else if (searchParameters->genfens)
         tgenfens();
+    else if (UCI::Options.datagen.value)
+        tdatagen();
     else
         tsearch();
 }

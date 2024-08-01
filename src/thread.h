@@ -66,6 +66,7 @@ public:
 private:
 
     void tgenfens();
+    void tdatagen();
 
     void tsearch();
     void iterativeDeepening();
