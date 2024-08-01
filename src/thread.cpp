@@ -24,6 +24,8 @@ void Thread::startSearching() {
 
     if (searchParameters->perft)
         searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
+    else if (searchParameters->genfens)
+        tgenfens();
     else
         tsearch();
 }

@@ -65,6 +65,8 @@ public:
 
 private:
 
+    void tgenfens();
+
     void tsearch();
     void iterativeDeepening();
     void sortRootMoves();
