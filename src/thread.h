@@ -63,10 +63,11 @@ public:
 
     void ucinewgame();
 
+    void tdatagen();
+
 private:
 
     void tgenfens();
-    void tdatagen();
 
     void tsearch();
     void iterativeDeepening();
