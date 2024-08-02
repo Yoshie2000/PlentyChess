@@ -612,13 +612,13 @@ inline int rankFromString(char string) {
         return 7;
 }
 
-Square stringToSquare(char* string) {
+Square stringToSquare(const char* string) {
     int file = fileFromString(string[0]);
     int rank = rankFromString(string[1]);
     return (Square)(8 * rank + file);
 }
 
-Move stringToMove(char* string, Board* board) {
+Move stringToMove(const char* string, Board* board) {
     Square origin = stringToSquare(&string[0]);
     Square target = stringToSquare(&string[2]);
     Move move = createMove(origin, target);

@@ -89,7 +89,8 @@
         "list": "cpp",
         "xhash": "cpp",
         "span": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "regex": "cpp"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }
