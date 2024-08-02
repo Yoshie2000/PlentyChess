@@ -238,7 +238,7 @@ Eval NNUE::evaluate(Board* board) {
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
     constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-    int bucket = (pieceCount - 2) / divisor;
+    int bucket = 0;//(pieceCount - 2) / divisor;
     assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
 
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];

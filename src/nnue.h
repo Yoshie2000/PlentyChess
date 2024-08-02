@@ -167,23 +167,23 @@ inline int vecHaddEpi32(Vec vec) {
 #endif
 
 constexpr int INPUT_WIDTH = 768;
-constexpr int HIDDEN_WIDTH = 2048;
+constexpr int HIDDEN_WIDTH = 512;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
-    0, 0, 1, 1, 1, 1, 0, 0,
-    2, 2, 2, 2, 2, 2, 2, 2,
-    3, 3, 3, 3, 3, 3, 3, 3,
-    4, 4, 4, 4, 4, 4, 4, 4,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0
 };
-constexpr int KING_BUCKETS = 7;
-constexpr int OUTPUT_BUCKETS = 8;
+constexpr int KING_BUCKETS = 1;
+constexpr int OUTPUT_BUCKETS = 1;
 
 constexpr int NETWORK_SCALE = 400;
-constexpr int NETWORK_QA = 510;
+constexpr int NETWORK_QA = 255;
 constexpr int NETWORK_QB = 64;
 constexpr int NETWORK_QAB = NETWORK_QA * NETWORK_QB;
 
@@ -205,13 +205,13 @@ struct KingBucketInfo {
 };
 
 constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
-  return bucket1->mirrored != bucket2->mirrored || bucket1->index != bucket2->index;
+  return false;//bucket1->mirrored != bucket2->mirrored || bucket1->index != bucket2->index;
 }
 
 constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
   return KingBucketInfo {
     static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
-    fileOf(kingSquare) >= 4
+    false//fileOf(kingSquare) >= 4
   };
 }
 

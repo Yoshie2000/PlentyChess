@@ -103,12 +103,6 @@ struct SearchStack {
     int16_t* contHist;
 };
 
-constexpr Square psqIndex(Square square, Color side) {
-    if (side == Color::BLACK)
-        return square;
-    return square ^ 56;
-}
-
 struct PhaseEval {
     Eval mg;
     Eval eg;
