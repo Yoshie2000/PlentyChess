@@ -27,11 +27,25 @@ constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
     90, 290, 310, 570, 1000, 0, 0
 };
 
+int getMaterialScale(Board* board) {
+    int knightCount = board->stack->pieceCount[Color::WHITE][Piece::KNIGHT] + board->stack->pieceCount[Color::BLACK][Piece::KNIGHT];
+    int bishopCount = board->stack->pieceCount[Color::WHITE][Piece::BISHOP] + board->stack->pieceCount[Color::BLACK][Piece::BISHOP];
+    int rookCount = board->stack->pieceCount[Color::WHITE][Piece::ROOK] + board->stack->pieceCount[Color::BLACK][Piece::ROOK];
+    int queenCount = board->stack->pieceCount[Color::WHITE][Piece::QUEEN] + board->stack->pieceCount[Color::BLACK][Piece::QUEEN];
+
+    int materialValue = PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
+    return materialScaleBase + materialValue / materialScaleDivisor;
+}
 
 Eval evaluate(Board* board, NNUE* nnue) {
     assert(!board->stack->checkers);
 
-    return 2 * nnue->evaluate(board);
+    Eval eval = 2 * nnue->evaluate(board);
+    // eval = (eval * getMaterialScale(board)) / 1024;
+    eval = eval * (220 - board->stack->rule50_ply) / 220;
+
+    eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
+    return eval;
 }
 
 std::string formatEval(Eval value) {
