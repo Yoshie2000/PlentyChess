@@ -6,9 +6,9 @@
 constexpr int INPUT_WIDTH = 768;
 constexpr int HIDDEN_WIDTH = 768;
 
-constexpr bool KING_BUCKETS_FACTORIZED = false;
-constexpr int KING_BUCKETS = 1;
-constexpr int OUTPUT_BUCKETS = 1;
+constexpr bool KING_BUCKETS_FACTORIZED = true;
+constexpr int KING_BUCKETS = 5;
+constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
 constexpr int NETWORK_QA = 255;

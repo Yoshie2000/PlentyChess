@@ -75,7 +75,7 @@ struct Board {
     size_t parseFen(std::string fen, bool chess960);
     std::string fen();
 
-    void movePiece(BoardStack* newStack, Piece piece, Square origin, Square target, Bitboard fromTo);
+    void movePiece(Piece piece, Square origin, Square target, Bitboard fromTo);
     void doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue);
     void undoMove(Move move, NNUE* nnue);
     void doNullMove(BoardStack* newStack);

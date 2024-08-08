@@ -31,7 +31,7 @@ constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
 Eval evaluate(Board* board, NNUE* nnue) {
     assert(!board->stack->checkers);
 
-    return nnue->evaluate(board);
+    return 3 * nnue->evaluate(board) / 2;
 }
 
 std::string formatEval(Eval value) {
