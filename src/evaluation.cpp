@@ -8,14 +8,14 @@
 #include "nnue.h"
 #include "spsa.h"
 
-TUNE_INT(pawnValue, 96, 50, 150);
-TUNE_INT(knightValue, 298, 200, 400);
-TUNE_INT(bishopValue, 301, 200, 400);
-TUNE_INT(rookValue, 507, 400, 600);
-TUNE_INT(queenValue, 909, 700, 1100);
+TUNE_INT_DISABLED(pawnValue, 96, 50, 150);
+TUNE_INT_DISABLED(knightValue, 298, 200, 400);
+TUNE_INT_DISABLED(bishopValue, 301, 200, 400);
+TUNE_INT_DISABLED(rookValue, 507, 400, 600);
+TUNE_INT_DISABLED(queenValue, 909, 700, 1100);
 
-TUNE_INT(materialScaleBase, 933, 512, 1536);
-TUNE_INT(materialScaleDivisor, 48, 32, 64);
+TUNE_INT_DISABLED(materialScaleBase, 933, 512, 1536);
+TUNE_INT_DISABLED(materialScaleDivisor, 48, 32, 64);
 
 Eval fakePiece = 0;
 
