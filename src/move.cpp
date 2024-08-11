@@ -13,8 +13,8 @@
 #include "spsa.h"
 #include "history.h"
 
-TUNE_INT(mpPromotionScoreFactor, 141, 10, 10000);
-TUNE_INT(mpMvvLvaScoreFactor, 99, 10, 10000);
+TUNE_INT(mpPromotionScoreFactor, 22, 10, 10000);
+TUNE_INT(mpMvvLvaScoreFactor, 163, 10, 10000);
 TUNE_INT(mpSeeDivisor, 78, 10, 150);
 
 void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targetMask) {
