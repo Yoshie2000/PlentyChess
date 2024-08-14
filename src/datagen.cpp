@@ -58,8 +58,8 @@ void Thread::tgenfens() {
         board.startpos();
         nnue.reset(&board);
 
-        // Play 6-9 random moves
-        int randomMoves = 6 + std::rand() % 4;
+        // Play 8-9 random moves
+        int randomMoves = 8 + std::rand() % 2;
         if (playRandomMoves(&board, this, randomMoves)) {
             generatedFens++;
         }
