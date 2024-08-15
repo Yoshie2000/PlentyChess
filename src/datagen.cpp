@@ -39,7 +39,19 @@ bool playRandomMoves(Board* board, Thread* thread, int remainingMoves) {
     }
 
     BoardStack boardStack;
-    Move move = legalMoves[std::rand() % legalMoves.size()];
+    Move move = MOVE_NONE;
+    while (move == MOVE_NONE) {
+        int r = std::rand() % 100;
+        Piece randomPiece = r < 35 ? Piece::PAWN : r < 50 ? Piece::KNIGHT : r < 65 ? Piece::BISHOP : r < 80 ? Piece::QUEEN : r < 95 ? Piece::KING : Piece::ROOK;
+        std::vector<Move> pieceMoves;
+        for (Move m : legalMoves) {
+            if (board->pieces[moveOrigin(m)] == randomPiece)
+                pieceMoves.push_back(m);
+        }
+        if (!pieceMoves.empty()) {
+            move = pieceMoves[std::rand() % pieceMoves.size()];
+        }
+    }
     board->doMove(&boardStack, move, board->hashAfter(move), &thread->nnue);
 
     return playRandomMoves(board, thread, remainingMoves - 1);
