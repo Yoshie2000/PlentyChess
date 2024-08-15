@@ -4,14 +4,14 @@
 #include <string.h>
 
 constexpr int INPUT_WIDTH = 768;
-constexpr int HIDDEN_WIDTH = 2048;
+constexpr int HIDDEN_WIDTH = 768;
 
-constexpr bool KING_BUCKETS_FACTORIZED = true;
-constexpr int KING_BUCKETS = 7;
-constexpr int OUTPUT_BUCKETS = 8;
+constexpr bool KING_BUCKETS_FACTORIZED = false;
+constexpr int KING_BUCKETS = 1;
+constexpr int OUTPUT_BUCKETS = 1;
 
-constexpr int NETWORK_SCALE = 400;
-constexpr int NETWORK_QA = 512;
+constexpr int NETWORK_SCALE = 150;
+constexpr int NETWORK_QA = 255;
 constexpr int NETWORK_QB = 64;
 constexpr int NETWORK_QAB = NETWORK_QA * NETWORK_QB;
 
