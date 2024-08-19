@@ -8,7 +8,7 @@ constexpr int HIDDEN_WIDTH = 1024;
 
 constexpr bool KING_BUCKETS_FACTORIZED = false;
 constexpr int KING_BUCKETS = 1;
-constexpr int OUTPUT_BUCKETS = 1;
+constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
 constexpr int NETWORK_QA = 255;
