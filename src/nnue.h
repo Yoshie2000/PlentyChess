@@ -165,7 +165,7 @@ inline int vecHaddEpi32(Vec vec) {
 #endif
 
 constexpr int INPUT_WIDTH = 768;
-constexpr int HIDDEN_WIDTH = 1024;
+constexpr int HIDDEN_WIDTH = 1536;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
     0, 0, 0, 0, 0, 0, 0, 0,
@@ -178,7 +178,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
     0, 0, 0, 0, 0, 0, 0, 0
 };
 constexpr int KING_BUCKETS = 1;
-constexpr int OUTPUT_BUCKETS = 1;
+constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
 constexpr int NETWORK_QA = 255;
