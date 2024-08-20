@@ -51,14 +51,34 @@ ifeq ($(OS), Windows_NT)
 	CXXFLAGS := $(CXXFLAGS) -lstdc++ -static -Wl,--no-as-needed
 endif
 
+# Network flags
+ifndef EVALFILE
+	NET_ID := $(file < network.txt)
+	EVALFILE := $(NET_ID).bin
+	EVALFILE_NOT_DEFINED = true
+endif
+
+CXXFLAGS := $(CXXFLAGS) -DEVALFILE=\"$(EVALFILE)\"
+
+# Targets
+
+.PHONY:	all
+.DEFAULT_GOAL := all
+
+ifdef EVALFILE_NOT_DEFINED
+$(EVALFILE):
+	$(info Downloading network $(NET_ID))
+	curl -sOL https://github.com/Yoshie2000/PlentyNetworks/releases/download/$(NET_ID)/$(EVALFILE)
+endif
+
+all:	pgo
+
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
 
-all:	nopgo
-
 pgo:	CXXFLAGS_EXTRA := -fprofile-generate="pgo"
-pgo:	$(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $^ -o $(PROGRAM)
+pgo:	$(EVALFILE) $(OBJS)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE),$^) -o $(PROGRAM)
 		./$(PROGRAM) bench
 		$(MAKE) clean
 		$(MAKE) CXXFLAGS_EXTRA="-fprofile-use="pgo"" nopgo
@@ -68,8 +88,8 @@ else
 		$(RM) -rf pgo
 endif
 
-nopgo:	$(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $^ -o $(PROGRAM)
+nopgo:	$(EVALFILE) $(OBJS)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE),$^) -o $(PROGRAM)
 
 clean:	
 ifeq ($(OS), Windows_NT)
