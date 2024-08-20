@@ -11,7 +11,7 @@
 // const unsigned char        gNETWORKData[];
 // const unsigned char *const gNETWORKEnd;
 // const unsigned int         gNETWORKSize;
-INCBIN(NETWORK, NETWORK_FILE);
+INCBIN(NETWORK, EVALFILE);
 
 NetworkData networkData;
 

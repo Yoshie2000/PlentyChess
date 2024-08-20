@@ -6,8 +6,6 @@
 
 #include "types.h"
 
-#define NETWORK_FILE "network.bin"
-
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 
 using Vec = __m512i;
