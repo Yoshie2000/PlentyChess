@@ -332,14 +332,6 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
 
     calculateThreats();
 
-    // Set up piece values
-    for (Square s = 0; s < 64; s++) {
-        Piece p = pieces[s];
-        if (p != Piece::NONE) {
-            Color pieceColor = bitboard(s) & byColor[Color::WHITE] ? Color::WHITE : Color::BLACK;
-        }
-    }
-
     return i;
 }
 
@@ -396,7 +388,7 @@ std::string Board::fen() {
     return result;
 }
 
-void Board::movePiece(BoardStack* newStack, Piece piece, Square origin, Square target, Bitboard fromTo) {
+void Board::movePiece(Piece piece, Square origin, Square target, Bitboard fromTo) {
     byColor[stm] ^= fromTo;
     byPiece[piece] ^= fromTo;
 
@@ -457,7 +449,7 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
     switch (type) {
     case MOVE_PROMOTION:
-        movePiece(newStack, piece, origin, target, fromTo);
+        movePiece(piece, origin, target, fromTo);
         newStack->rule50_ply = 0;
 
         newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin];
@@ -528,7 +520,7 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
                       break;
 
     case MOVE_ENPASSANT:
-        movePiece(newStack, piece, origin, target, fromTo);
+        movePiece(piece, origin, target, fromTo);
         nnue->movePiece(origin, target, piece, stm);
         newStack->rule50_ply = 0;
 
@@ -552,7 +544,7 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
         break;
 
     default: // Normal moves
-        movePiece(newStack, piece, origin, target, fromTo);
+        movePiece(piece, origin, target, fromTo);
         nnue->movePiece(origin, target, piece, stm);
 
         if (piece == Piece::PAWN) {

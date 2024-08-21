@@ -402,19 +402,8 @@ void setoption(std::string line) {
         value = line.find(' ') != std::string::npos ? line.substr(0, line.find(' ')) : line;
     }
 
-    if (name == "Hash") {
-        size_t hashSize = std::stoi(value);
-        TT.resize(hashSize);
-    }
-    else if (name == "Threads") {
-        int numThreads = std::stoi(value);
-        threads.resize(numThreads);
-    }
-    else {
-        // No option found, maybe it's actually an SPSA parameter or one of the other UCI Options?
-        UCI::Options.forEach(setUciOption(name, value));
-        SPSA::trySetParam(name, value);
-    }
+    UCI::Options.forEach(setUciOption(name, value));
+    SPSA::trySetParam(name, value);
 }
 
 void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
@@ -559,9 +548,13 @@ void uciLoop(int argc, char* argv[]) {
         }
 
         else if (matchesToken(line, "isready")) std::cout << "readyok" << std::endl;
-        else if (matchesToken(line, "ucinewgame")) threads.ucinewgame();
+        else if (matchesToken(line, "ucinewgame")) {
+            threads.resize(UCI::Options.threads.value);
+            TT.resize(UCI::Options.hash.value);
+            threads.ucinewgame();
+        }
         else if (matchesToken(line, "uci")) {
-            std::cout << "id name PlentyChess " << static_cast<std::string>(VERSION) << "\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 32768\noption name Threads type spin default 1 min 1 max 512" << std::endl;
+            std::cout << "id name PlentyChess " << static_cast<std::string>(VERSION) << "\nid author Yoshie2000\n" << std::endl;
             UCI::Options.forEach(printOptions());
             SPSA::printUCI();
             std::cout << std::endl << "uciok" << std::endl;

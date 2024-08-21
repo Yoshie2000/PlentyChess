@@ -16,6 +16,7 @@
 #include "types.h"
 #include "move.h"
 #include "evaluation.h"
+#include "uci.h"
 
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     void* ptr;
@@ -78,7 +79,7 @@ static_assert(sizeof(TTCluster) == 32, "TTCluster size not correct!");
 class TranspositionTable {
 
     TTCluster* table = nullptr;
-    size_t clusterCount;
+    size_t clusterCount = 0;
 
 public:
 
@@ -95,10 +96,14 @@ public:
     }
 
     void resize(size_t mb) {
+        size_t newClusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
+        if (newClusterCount == clusterCount)
+            return;
+        
         if (table)
             std::free(table);
         
-        clusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
+        clusterCount = newClusterCount;
         table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
 
         clear();
@@ -128,9 +133,22 @@ public:
     }
 
     void clear() {
-        for (size_t i = 0; i < clusterCount; i++) {
-            table[i] = TTCluster();
+        size_t threadCount = UCI::Options.threads.value;
+        std::vector<std::thread> ts;
+
+        for (size_t thread = 0; thread < threadCount; thread++) {
+            size_t startCluster = thread * (clusterCount / threadCount);
+            size_t endCluster = thread == threadCount - 1 ? clusterCount : (thread + 1) * (clusterCount / threadCount);
+            ts.push_back(std::thread([this, startCluster, endCluster]() {
+                for (size_t i = startCluster; i < endCluster; i++) {
+                    table[i] = TTCluster();
+                }
+            }));
         }
+
+        std::for_each(std::make_move_iterator(ts.begin()), std::make_move_iterator(ts.end()), [](std::thread t) {
+            t.join();
+        });
     }
 
 };

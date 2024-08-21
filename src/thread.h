@@ -102,10 +102,13 @@ public:
         exit();
     }
 
-    void resize(int numThreads) {
+    void resize(size_t numThreads) {
+        if (threads.size() == numThreads)
+            return;
+
         exit();
         threads.clear();
-        for (int i = 0; i < numThreads; i++) {
+        for (size_t i = 0; i < numThreads; i++) {
             threads.push_back(std::make_unique<Thread>(this, i));
         }
     }
