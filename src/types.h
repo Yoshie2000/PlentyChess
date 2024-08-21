@@ -102,13 +102,3 @@ struct SearchStack {
 
     int16_t* contHist;
 };
-
-struct PhaseEval {
-    Eval mg;
-    Eval eg;
-
-    PhaseEval(Eval mg, Eval eg) : mg(mg), eg(eg) {};
-};
-
-#define PHASE_MG 0
-#define PHASE_EG 1

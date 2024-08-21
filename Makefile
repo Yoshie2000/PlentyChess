@@ -14,6 +14,10 @@ else
 	CXXFLAGS := $(CXXFLAGS) -g -ggdb
 endif
 
+ifdef INCLUDE_DEBUG_SYMBOLS
+	CXXFLAGS := $(CXXFLAGS) -g -ggdb
+endif
+
 # CPU Flags
 ifeq ($(arch), avx512)
 	CXXFLAGS := $(CXXFLAGS) -march=skylake-avx512
