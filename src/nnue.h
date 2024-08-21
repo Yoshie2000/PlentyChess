@@ -203,13 +203,13 @@ struct KingBucketInfo {
 };
 
 constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
-  return false;//bucket1->mirrored != bucket2->mirrored || bucket1->index != bucket2->index;
+  return bucket1->mirrored != bucket2->mirrored || bucket1->index != bucket2->index;
 }
 
 constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
   return KingBucketInfo {
     static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
-    false//fileOf(kingSquare) >= 4
+    fileOf(kingSquare) >= 4
   };
 }
 
