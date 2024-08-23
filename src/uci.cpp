@@ -531,7 +531,7 @@ void uciLoop(int argc, char* argv[]) {
     std::cout << "UCI thread running" << std::endl;
 
     if (argc > 2 && matchesToken(argv[1], "rescore")) {
-        tb_init("/mnt/c/Syzygy/345:/mnt/c/Syzygy/6");
+        tb_init("/home/patrick/Syzygy/345:/home/patrick/Syzygy/6");
         UCI::Options.datagen.value = true;
         if (TB_LARGEST)
             std::cout << "info string Syzygy tablebases loaded. Pieces: " << TB_LARGEST << std::endl;

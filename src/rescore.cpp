@@ -58,6 +58,7 @@ void rescore(std::string path, ThreadPool& threads) {
     double meanDiff = 0;
     long changedWdls = 0;
     while (file.read(reinterpret_cast<char*>(&entry), sizeof(Bulletformat))) {
+        positions++;
 
         if (BB::popcount(entry.occ) <= 9) {
 
@@ -141,15 +142,16 @@ void rescore(std::string path, ThreadPool& threads) {
             else if (rescoreResult <= -EVAL_TB_WIN_IN_MAX_PLY && entry.result != 0)
                 entry.result = 0, changedWdls++; // "Them" win
             
-            if (std::abs(rescoreResult) <= EVAL_MATE_IN_MAX_PLY) {
+            if (std::abs(rescoreResult) <= EVAL_TB_WIN_IN_MAX_PLY) {
                 int newScore = 100 * rescoreResult / 266;
                 meanDiff = ((researchedPositions - 1) * meanDiff + std::abs(newScore - entry.score)) / researchedPositions;
                 entry.score = newScore;
+            } else {
+                continue;
             }
         }
 
         outputFile.write(reinterpret_cast<const char*>(&entry), sizeof(Bulletformat));
-        positions++;
 
         if (positions % 1000 == 0) {
             auto end = std::chrono::high_resolution_clock::now();
