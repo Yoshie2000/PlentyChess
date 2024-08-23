@@ -1330,7 +1330,7 @@ void Thread::tdatagen() {
     }
 
     sortRootMoves();
-    printUCI(this);
+    // printUCI(this);
 
-    std::cout << "bestmove " << moveToString(rootMoves[0].move, UCI::Options.chess960.value) << std::endl;
+    // std::cout << "bestmove " << moveToString(rootMoves[0].move, UCI::Options.chess960.value) << std::endl;
 }

@@ -1343,7 +1343,7 @@ int Board::validateBoard() {
         for (int file = 0; file <= 7; file++) {
 
             // Get piece at index
-            int idx = file + 8 * rank;
+            Square idx = file + 8 * rank;
             Bitboard mask = bitboard(idx);
             int first = 0;
             int second = 0;
@@ -1407,6 +1407,7 @@ int Board::validateBoard() {
 
             if (first != second) {
                 std::cout << first << " " << second << std::endl;
+                debugBitboard(mask);
                 return idx;
             }
         }
