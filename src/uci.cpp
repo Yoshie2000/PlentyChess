@@ -18,6 +18,7 @@
 #include "nnue.h"
 #include "spsa.h"
 #include "history.h"
+#include "fathom/src/tbprobe.h"
 
 namespace UCI {
     UCIOptions Options;
@@ -399,11 +400,19 @@ void setoption(std::string line) {
 
     if (matchesToken(line, "value")) {
         line = line.substr(6);
-        value = line.find(' ') != std::string::npos ? line.substr(0, line.find(' ')) : line;
+        value = line.find(' ') != std::string::npos && name != "SyzygyPath" ? line.substr(0, line.find(' ')) : line;
     }
 
     UCI::Options.forEach(setUciOption(name, value));
     SPSA::trySetParam(name, value);
+
+    if (name == "SyzygyPath") {
+        tb_init(value.c_str());
+        if (TB_LARGEST)
+            std::cout << "info string Syzygy tablebases loaded. Pieces: " << TB_LARGEST << std::endl;
+        else
+            std::cout << "info string Syzygy tablebases failed to load" << std::endl;
+    }
 }
 
 void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {

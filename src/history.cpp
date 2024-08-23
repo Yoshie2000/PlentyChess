@@ -37,7 +37,7 @@ Eval History::correctStaticEval(Eval eval, Board* board) {
     int64_t history = (pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor) / 1000;
 
     Eval adjustedEval = eval + (history * std::abs(history)) / correctionHistoryDivisor;
-    adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
+    adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_TB_WIN_IN_MAX_PLY + 1, (int)EVAL_TB_WIN_IN_MAX_PLY - 1);
     return adjustedEval;
 }
 
