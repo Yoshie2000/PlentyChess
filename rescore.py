@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import sys
+import glob
 
 if (len(sys.argv) < 2):
     print("Please provide the path to the folder of bullet data")
@@ -17,15 +18,25 @@ def rescoreFile(filename):
 
     print(f"Copying {testId}")
 
-    shutil.copyfile(f"{dataFolder}/{filename}", f"./data/{filename}")
+    if not os.path.exists(f"./data/{filename}"):
+        shutil.copyfile(f"{dataFolder}/{filename}", f"./data/{filename}")
 
     print(f"Rescoring {testId}")
 
     subprocess.call(f"./engine rescore data/{filename}", shell=True)
 
-    shutil.copyfile(f"./data/{filename}r.data", f"{dataFolder}/{testId}r.data")
-    os.remove(f"./data/{testId}.data")
-    os.remove(f"./data/{testId}r.data")
+    # {testId}r.data, maybe {testId}rX.data => concatenate => {testId}rc.data
+    concatFiles = sorted(glob.glob(f"./data/{testId}r*.data"))
+    with open(f"./data/{testId}rc.data", "wb") as outf:
+        for concatFile in concatFiles:
+            with open(concatFile, "rb") as inf:
+                outf.write(inf.read())
+
+    # shutil.copyfile(f"./data/{testId}rc.data", f"{dataFolder}/{testId}r.data")
+    # os.remove(f"./data/{testId}.data")
+    # for concatFile in concatFiles:
+        # os.remove(concatFile)
+    # os.remove(f"./data/{testId}rc.data")
 
     # bytes_to_copy = os.path.getsize(f"./data/{testId}r.data")
     # with open(f"./data/{testId}.data", "rb") as infile:

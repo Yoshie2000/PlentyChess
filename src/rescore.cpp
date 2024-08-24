@@ -4,6 +4,7 @@
 #include <fstream>
 #include <vector>
 #include <chrono>
+#include <filesystem>
 
 #include "rescore.h"
 #include "bitboard.h"
@@ -42,11 +43,33 @@ void rescore(std::string path, ThreadPool& threads) {
         std::cerr << "Unable to name the output file!" << std::endl;
         exit(1);
     }
+
+    bool exists = false;
+    size_t totalFileSize = 0;
+    std::string correctedOutputPath = outputPath;
+    int counter = 2;
+    do {
+        std::ifstream f(correctedOutputPath);
+        exists = f.good();
+
+        if (exists) {
+            totalFileSize += std::filesystem::file_size(correctedOutputPath);
+            correctedOutputPath = outputPath;
+            correctedOutputPath.insert(pos + 1, std::to_string(counter));
+            counter++;
+        }
+    } while (exists);
+    outputPath = correctedOutputPath;
+
     std::ofstream outputFile(outputPath, std::ios::binary);
     if (!outputFile) {
         std::cerr << "Unable to open output file!" << std::endl;
         exit(1);
     }
+
+    long existingPositions = totalFileSize / sizeof(Bulletformat);
+
+    std::cout << outputPath << " " << totalFileSize << " " << existingPositions << std::endl;
 
     SearchParameters parameters;
     parameters.nodes = 5000;
@@ -59,6 +82,7 @@ void rescore(std::string path, ThreadPool& threads) {
     long changedWdls = 0;
     while (file.read(reinterpret_cast<char*>(&entry), sizeof(Bulletformat))) {
         positions++;
+        if (positions - 1 < existingPositions) continue;
 
         if (BB::popcount(entry.occ) <= 9) {
 
