@@ -4,7 +4,7 @@
 #include <string.h>
 
 constexpr int INPUT_WIDTH = 768;
-constexpr int HIDDEN_WIDTH = 1536;
+constexpr int HIDDEN_WIDTH = 128;
 
 constexpr bool KING_BUCKETS_FACTORIZED = false;
 constexpr int KING_BUCKETS = 1;
