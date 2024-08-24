@@ -129,7 +129,7 @@ void rescore(std::string path, ThreadPool& threads) {
 
             board.calculateThreats();
 
-            //threads.ucinewgame();
+            threads.ucinewgame();
             TT.newSearch();
             threads.startSearching(board, stackQueue, parameters);
             threads.waitForSearchFinished();
