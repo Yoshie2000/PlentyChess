@@ -165,7 +165,7 @@ inline int vecHaddEpi32(Vec vec) {
 #endif
 
 constexpr int INPUT_WIDTH = 768;
-constexpr int HIDDEN_WIDTH = 1536;
+constexpr int HIDDEN_WIDTH = 768;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
     0, 0, 0, 0, 0, 0, 0, 0,
@@ -178,7 +178,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
     0, 0, 0, 0, 0, 0, 0, 0
 };
 constexpr int KING_BUCKETS = 1;
-constexpr int OUTPUT_BUCKETS = 8;
+constexpr int OUTPUT_BUCKETS = 1;
 
 constexpr int NETWORK_SCALE = 400;
 constexpr int NETWORK_QA = 255;
@@ -209,7 +209,7 @@ constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
 constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
   return KingBucketInfo {
     static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
-    fileOf(kingSquare) >= 4
+    false, //fileOf(kingSquare) >= 4
   };
 }
 
