@@ -7,7 +7,7 @@
 #include "evaluation.h"
 #include "spsa.h"
 
-TUNE_INT(correctionHistoryDivisor, 8413, 5000, 20000);
+TUNE_INT(correctionHistoryDivisor, 8613, 5000, 20000);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
