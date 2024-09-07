@@ -7,6 +7,7 @@
 #include "magic.h"
 #include "nnue.h"
 #include "spsa.h"
+#include "uci.h"
 
 TUNE_INT_DISABLED(pawnValue, 96, 50, 150);
 TUNE_INT_DISABLED(knightValue, 298, 200, 400);
@@ -58,7 +59,10 @@ std::string formatEval(Eval value) {
         evalString = "mate " + std::to_string(-(EVAL_MATE + value) / 2);
     }
     else {
-        evalString = "cp " + std::to_string(100 * value / 266);
+        Eval outputEval = value;
+        if (!UCI::Options.datagen.value)
+            outputEval = 100 * outputEval / 266;
+        evalString = "cp " + std::to_string(outputEval);
     }
     return evalString;
 }
