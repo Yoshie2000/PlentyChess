@@ -754,7 +754,7 @@ movesLoop:
                 reducedDepth -= 2;
 
             if (capture)
-                reducedDepth += moveHistory / lmrHistoryFactorCapture;
+                reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture * 2);
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
