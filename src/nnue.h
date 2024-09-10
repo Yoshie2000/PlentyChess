@@ -165,7 +165,7 @@ inline int vecHaddEpi32(Vec vec) {
 #endif
 
 constexpr int INPUT_WIDTH = 768;
-constexpr int HIDDEN_WIDTH = 1536;
+constexpr int HIDDEN_WIDTH = 512;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
     0, 0, 0, 0, 0, 0, 0, 0,
@@ -203,13 +203,13 @@ struct KingBucketInfo {
 };
 
 constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
-  return bucket1->mirrored != bucket2->mirrored || bucket1->index != bucket2->index;
+  return false; //bucket1->mirrored != bucket2->mirrored || bucket1->index != bucket2->index;
 }
 
 constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
   return KingBucketInfo {
-    static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
-    fileOf(kingSquare) >= 4
+    0, //static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
+    false //fileOf(kingSquare) >= 4
   };
 }
 
