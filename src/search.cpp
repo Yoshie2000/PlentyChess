@@ -756,7 +756,7 @@ movesLoop:
             if (capture)
                 reducedDepth += moveHistory / lmrHistoryFactorCapture;
             else
-                reducedDepth += moveHistory / lmrHistoryFactorQuiet;
+                reducedDepth += static_cast<int64_t>(moveHistory) * std::abs(static_cast<int64_t>(moveHistory)) / (static_cast<int64_t>(lmrHistoryFactorQuiet) * static_cast<int64_t>(lmrHistoryFactorQuiet) * 8);
 
             if (worsening)
                 reducedDepth--;
