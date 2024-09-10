@@ -509,7 +509,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         return (eval + beta) / 2;
 
     // Razoring
-    if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha) {
+    if (!rootNode && depth < razoringDepth && eval + (razoringFactor * (depth - !improving)) < alpha && alpha < 1000) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
         if (razorValue <= alpha)
             return razorValue;
