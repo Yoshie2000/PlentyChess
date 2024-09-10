@@ -642,24 +642,26 @@ movesLoop:
 
             int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving + moveHistory / (capture ? lmrHistoryFactorCapture : lmrHistoryFactorQuiet));
 
-            if (!skipQuiets && !board->stack->checkers) {
+            if (!skipQuiets) {
 
                 // Movecount pruning (LMP)
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
                     skipQuiets = true;
                 }
 
-                // Futility pruning
-                if (capture) {
-                    if (moveType(move) != MOVE_PROMOTION) {
-                        Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                        if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
-                            continue;
+                if (!board->stack->checkers) {
+                    // Futility pruning
+                    if (capture) {
+                        if (moveType(move) != MOVE_PROMOTION) {
+                            Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
+                            if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
+                                continue;
+                        }
                     }
-                }
-                else {
-                    if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
-                        skipQuiets = true;
+                    else {
+                        if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                            skipQuiets = true;
+                    }
                 }
             }
 
