@@ -180,7 +180,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
 constexpr int KING_BUCKETS = 1;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int NETWORK_SCALE = 400;
+constexpr int NETWORK_SCALE = 200;
 constexpr int NETWORK_QA = 255;
 constexpr int NETWORK_QB = 64;
 constexpr int NETWORK_QAB = NETWORK_QA * NETWORK_QB;
