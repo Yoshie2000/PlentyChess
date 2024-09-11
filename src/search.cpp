@@ -664,7 +664,8 @@ movesLoop:
             }
 
             // History pruning
-            if (lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
+            int hpFactor = capture ? historyPruningFactor / 2 : historyPruningFactor * 2;
+            if (lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth)
                 continue;
 
             // SEE Pruning
