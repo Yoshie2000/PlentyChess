@@ -430,7 +430,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
-    bool improving = false, worsening = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    bool improving = false, worsening = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE, failedProbcut = false;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -599,6 +599,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             }
         }
 
+        failedProbcut = true;
     }
 
     assert(board->stack);
@@ -680,6 +681,7 @@ movesLoop:
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
         if (doExtensions
+            && !(failedProbcut && capture)
             && depth >= 7
             && move == ttMove
             && !excluded
