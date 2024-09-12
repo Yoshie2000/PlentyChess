@@ -568,7 +568,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_MATE_IN_MAX_PLY);
 
-        Move probcutTtMove = ttMove != MOVE_NONE && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : MOVE_NONE;
+        Move probcutTtMove = ttMove != MOVE_NONE && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval - 100) ? ttMove : MOVE_NONE;
         MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth);
         Move move;
         while ((move = movegen.nextMove()) != MOVE_NONE) {

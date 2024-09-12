@@ -330,7 +330,7 @@ Move MoveGen::nextMove() {
             Move move = moveList[returnedMoves];
             int score = moveListScores[returnedMoves++];
 
-            bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : SEE(board, move, -score / mpSeeDivisor);
+            bool goodCapture = probCut ? SEE(board, move, probCutThreshold - score / 320) : SEE(board, move, -score / mpSeeDivisor);
             if (!goodCapture) {
                 badCaptureList[generatedBadCaptures++] = move;
                 continue;
