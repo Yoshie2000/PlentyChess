@@ -642,29 +642,32 @@ movesLoop:
 
             int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving + moveHistory / (capture ? lmrHistoryFactorCapture : lmrHistoryFactorQuiet));
 
-            if (!skipQuiets && !board->stack->checkers) {
+            if (!skipQuiets) {
 
                 // Movecount pruning (LMP)
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
                     skipQuiets = true;
                 }
 
-                // Futility pruning
-                if (capture) {
-                    if (moveType(move) != MOVE_PROMOTION) {
-                        Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                        if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
-                            continue;
+                if (!board->stack->checkers) {
+                    // Futility pruning
+                    if (capture) {
+                        if (moveType(move) != MOVE_PROMOTION) {
+                            Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
+                            if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
+                                continue;
+                        }
                     }
-                }
-                else {
-                    if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
-                        skipQuiets = true;
+                    else {
+                        if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                            skipQuiets = true;
+                    }
                 }
             }
 
             // History pruning
-            if (lmrDepth < historyPruningDepth && moveHistory < historyPruningFactor * depth)
+            int hpFactor = capture ? historyPruningFactor / 2 : historyPruningFactor * 2;
+            if (lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth)
                 continue;
 
             // SEE Pruning
@@ -754,7 +757,7 @@ movesLoop:
                 reducedDepth -= 2;
 
             if (capture)
-                reducedDepth += moveHistory / lmrHistoryFactorCapture;
+                reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture * 2);
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
@@ -1063,7 +1066,7 @@ void Thread::sortRootMoves() {
         if (rm1.depth > rm2.depth) return true;
         if (rm1.depth < rm2.depth) return false;
         return rm1.value > rm2.value;
-    });
+        });
 }
 
 Thread* Thread::chooseBestThread() {
@@ -1138,7 +1141,7 @@ Thread* Thread::chooseBestThread() {
 
 void Thread::tdatagen() {
     nnue.reset(&rootBoard);
-    
+
     searchData.nodesSearched = 0;
     initTimeManagement(&rootBoard, searchParameters, &searchData);
     {
