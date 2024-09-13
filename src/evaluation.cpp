@@ -43,8 +43,11 @@ Eval evaluate(Board* board, NNUE* nnue) {
     assert(!board->stack->checkers);
 
     Eval eval = nnue->evaluate(board);
-    eval = (eval * getMaterialScale(board)) / 1024;
-    eval = eval * (300 - board->stack->rule50_ply) / 300;
+
+    if (!UCI::Options.datagen.value) {
+        eval = (eval * getMaterialScale(board)) / 1024;
+        eval = eval * (300 - board->stack->rule50_ply) / 300;
+    }
 
     eval = std::clamp((int) eval, (int) -EVAL_TB_WIN_IN_MAX_PLY + 1, (int) EVAL_TB_WIN_IN_MAX_PLY - 1);
     return eval;
