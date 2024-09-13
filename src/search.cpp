@@ -649,20 +649,16 @@ movesLoop:
                     skipQuiets = true;
                 }
 
-                if (!board->stack->checkers) {
-                    // Futility pruning
-                    if (capture) {
-                        if (moveType(move) != MOVE_PROMOTION) {
-                            Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                            if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
-                                continue;
-                        }
-                    }
-                    else {
-                        if (lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
-                            skipQuiets = true;
-                    }
-                }
+                // Futility pruning
+                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                    skipQuiets = true;
+            }
+
+            // Futility pruning for captures
+            if (capture && moveType(move) != MOVE_PROMOTION) {
+                Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
+                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
+                    continue;
             }
 
             // History pruning
