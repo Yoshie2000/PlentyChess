@@ -839,7 +839,7 @@ movesLoop:
                             history.setCounterMove((stack - 1)->move, move);
 
                         history.updateQuietHistories(board, board->stack, stack, move, bonus, quietMoves, quietMoveCount);
-                        bonus = 3 * bonus / 2;
+                        bonus /= 2;
                     }
                     history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
