@@ -831,7 +831,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
+                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + singular + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
                     if (!capture) {
                         // Update quiet killer
                         stack->killer = move;
@@ -841,9 +841,6 @@ movesLoop:
                             history.setCounterMove((stack - 1)->move, move);
 
                         history.updateQuietHistories(board, board->stack, stack, move, bonus, quietMoves, quietMoveCount);
-
-                        if (singular)
-                            bonus = 3 * bonus / 2;
                     }
                     history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
