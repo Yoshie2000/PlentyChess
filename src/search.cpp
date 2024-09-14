@@ -674,6 +674,7 @@ movesLoop:
 
         // Extensions
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
+        bool singular = false;
         int extension = 0;
         if (doExtensions
             && depth >= 7
@@ -691,6 +692,7 @@ movesLoop:
             stack->excludedMove = MOVE_NONE;
 
             if (singularValue < singularBeta) {
+                singular = true;
                 // This move is singular and we should investigate it further
                 extension = 1;
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
@@ -839,6 +841,9 @@ movesLoop:
                             history.setCounterMove((stack - 1)->move, move);
 
                         history.updateQuietHistories(board, board->stack, stack, move, bonus, quietMoves, quietMoveCount);
+
+                        if (singular)
+                            bonus = 3 * bonus / 2;
                     }
                     history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
                     break;
