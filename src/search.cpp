@@ -614,6 +614,8 @@ movesLoop:
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
+    bool singularQuiet = false;
+
     // Moves loop
     MoveGen movegen(board, &history, stack, ttMove, depth);
     Move move;
@@ -674,7 +676,6 @@ movesLoop:
 
         // Extensions
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
-        bool singular = false;
         int extension = 0;
         if (doExtensions
             && depth >= 7
@@ -692,7 +693,7 @@ movesLoop:
             stack->excludedMove = MOVE_NONE;
 
             if (singularValue < singularBeta) {
-                singular = true;
+                singularQuiet = !capture;
                 // This move is singular and we should investigate it further
                 extension = 1;
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
@@ -760,6 +761,9 @@ movesLoop:
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
             if (worsening)
+                reducedDepth--;
+            
+            if (capture && singularQuiet)
                 reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
@@ -831,7 +835,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + singular + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
+                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
                     if (!capture) {
                         // Update quiet killer
                         stack->killer = move;
