@@ -15,6 +15,8 @@ class History {
 
     int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
     int16_t nonPawnCorrectionHistory[2][2][CORRECTION_HISTORY_SIZE];
+    int16_t minorCorrectionHistory[2][CORRECTION_HISTORY_SIZE];
+    int16_t majorCorrectionHistory[2][CORRECTION_HISTORY_SIZE];
 
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
