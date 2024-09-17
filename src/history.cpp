@@ -22,6 +22,7 @@ void History::initHistory() {
     memset(nonPawnCorrectionHistory, 0, sizeof(nonPawnCorrectionHistory));
     memset(minorCorrectionHistory, 0, sizeof(minorCorrectionHistory));
     memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
+    memset(pieceCountCorrectionHistory, 0, sizeof(pieceCountCorrectionHistory));
     memset(pawnHistory, -1000, sizeof(pawnHistory));
 }
 
@@ -30,7 +31,8 @@ Eval History::correctStaticEval(Eval eval, Board* board) {
     Eval nonPawnEntry = nonPawnCorrectionHistory[board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[board->stm][Color::BLACK][board->stack->nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
     Eval minorEntry = minorCorrectionHistory[board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)];
     Eval majorEntry = majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)];
-    Eval history = pawnEntry + nonPawnEntry / 2 + minorEntry / 2 + majorEntry / 2;
+    Eval pieceCountEntry = pieceCountCorrectionHistory[board->stm][BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK])];
+    Eval history = pawnEntry + nonPawnEntry / 2 + minorEntry / 2 + majorEntry / 2 + pieceCountEntry / 4;
 
     Eval adjustedEval = eval + (history * std::abs(history)) / correctionHistoryDivisor;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
@@ -53,6 +55,11 @@ void History::updateCorrectionHistory(Board* board, int16_t bonus) {
     minorCorrectionHistory[board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
     scaledBonus = bonus - majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
     majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+
+    // Piece count
+    int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
+    scaledBonus = bonus - pieceCountCorrectionHistory[board->stm][pieceCount] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    pieceCountCorrectionHistory[board->stm][pieceCount] += scaledBonus;
 }
 
 int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture) {
