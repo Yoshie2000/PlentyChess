@@ -822,6 +822,22 @@ void Board::undoNullMove() {
     stack = stack->previous;
 }
 
+uint64_t Board::materialKey() {
+    uint64_t result = 0;
+    for (Color color = Color::WHITE; color <= Color::BLACK; ++color) {
+        for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
+            result |= static_cast<uint64_t>(BB::popcount(byColor[color] & byPiece[piece])) << (piece * 6 + color * 30);
+        }
+    }
+
+    result ^= result >> 33;
+    result *= static_cast<uint64_t>(0xff51afd7ed558ccd);
+    result ^= result >> 33;
+    result *= static_cast<uint64_t>(0xc4ceb9fe1a85ec53);
+    result ^= result >> 33;
+    return result;
+}
+
 void Board::calculateThreats() {
     Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
     Color them = flip(stm);
