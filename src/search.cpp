@@ -82,6 +82,9 @@ TUNE_INT(probCutBetaOffset, 181, 1, 500);
 TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 
 // In-search pruning
+TUNE_INT(earlyLmrHistoryFactorQuiet, 16870, 128, 32768);
+TUNE_INT(earlyLmrHistoryFactorCapture, 13507, 128, 32768);
+
 TUNE_INT_DISABLED(fpDepth, 11, 1, 20);
 TUNE_INT(fpBase, 257, 1, 1000);
 TUNE_INT(fpFactor, 106, 1, 500);
@@ -91,7 +94,8 @@ TUNE_INT(fpCaptBase, 455, 150, 750);
 TUNE_INT(fpCaptFactor, 334, 100, 600);
 
 TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
-TUNE_INT(historyPruningFactor, -2551, -8192, -128);
+TUNE_INT(historyPruningFactorCapture, -1275, -8192, -128);
+TUNE_INT(historyPruningFactorQuiet, -5102, -8192, -128);
 
 TUNE_INT(doubleExtensionMargin, 15, 1, 30);
 TUNE_INT(doubleExtensionDepthIncrease, 11, 2, 20);
@@ -103,7 +107,7 @@ TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 
 TUNE_INT(lmrHistoryFactorQuiet, 16870, 128, 32768);
-TUNE_INT(lmrHistoryFactorCapture, 13507, 128, 32768);
+TUNE_INT(lmrHistoryFactorCapture, 19101, 128, 32768);
 TUNE_INT(lmrDeeperBase, 38, 1, 100);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
 
@@ -640,7 +644,7 @@ movesLoop:
             && board->hasNonPawns()
             ) {
 
-            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving + moveHistory / (capture ? lmrHistoryFactorCapture : lmrHistoryFactorQuiet));
+            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
             if (!skipQuiets) {
 
@@ -662,7 +666,7 @@ movesLoop:
             }
 
             // History pruning
-            int hpFactor = capture ? historyPruningFactor / 2 : historyPruningFactor * 2;
+            int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
             if (lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth)
                 continue;
 
@@ -753,7 +757,7 @@ movesLoop:
                 reducedDepth -= 2;
 
             if (capture)
-                reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture * 2);
+                reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
