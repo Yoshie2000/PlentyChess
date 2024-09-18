@@ -31,6 +31,7 @@ Eval History::correctStaticEval(Eval eval, Board* board) {
     Eval minorEntry = minorCorrectionHistory[board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)];
     Eval majorEntry = majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)];
     Eval history = pawnEntry + nonPawnEntry / 2 + minorEntry / 2 + majorEntry / 2;
+    history = 5 * history / 3;
 
     Eval adjustedEval = eval + (history * std::abs(history)) / correctionHistoryDivisor;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
