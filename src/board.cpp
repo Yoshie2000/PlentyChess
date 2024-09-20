@@ -477,6 +477,8 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
     Bitboard targetBB = bitboard(target);
     Bitboard fromTo = originBB | targetBB;
 
+    Color nstm = flip(stm);
+
     switch (type) {
     case MOVE_PROMOTION:
         movePiece(piece, origin, target, fromTo);
@@ -485,12 +487,12 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
         newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin];
 
         if (newStack->capturedPiece != Piece::NONE) {
-            byColor[flip(stm)] ^= captureTargetBB; // take away the captured piece
+            byColor[nstm] ^= captureTargetBB; // take away the captured piece
             byPiece[newStack->capturedPiece] ^= captureTargetBB;
 
-            nnue->removePiece(captureTarget, newStack->capturedPiece, flip(stm));
+            nnue->removePiece(captureTarget, newStack->capturedPiece, nstm);
 
-            newStack->pieceCount[flip(stm)][newStack->capturedPiece]--;
+            newStack->pieceCount[nstm][newStack->capturedPiece]--;
 
             if (newStack->capturedPiece == Piece::ROOK) {
                 Square rookSquare = piece == Piece::ROOK ? origin : captureTarget;
@@ -508,11 +510,11 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
                 }
             }
 
-            newStack->nonPawnHash[flip(stm)] ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
+            newStack->nonPawnHash[nstm] ^= ZOBRIST_PIECE_SQUARES[nstm][newStack->capturedPiece][captureTarget];
             if (newStack->capturedPiece == Piece::KNIGHT || newStack->capturedPiece == Piece::BISHOP)
-                newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
+                newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[nstm][newStack->capturedPiece][captureTarget];
             else
-                newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
+                newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[nstm][newStack->capturedPiece][captureTarget];
         }
 
         promotionPiece = PROMOTION_PIECE[promotionType(move)];
@@ -521,9 +523,9 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
         pieces[target] = promotionPiece;
         newStack->nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][promotionPiece][target];
         if (promotionPiece == Piece::KNIGHT || promotionPiece == Piece::BISHOP)
-            newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][promotionPiece][captureTarget];
+            newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[nstm][promotionPiece][captureTarget];
         else
-            newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][promotionPiece][captureTarget];
+            newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[nstm][promotionPiece][captureTarget];
 
         // Promotion, we don't move the current piece, instead we remove it from the origin square
         // and place the promotionPiece on the target square. This saves one accumulator update
@@ -581,14 +583,14 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
         captureTargetBB = bitboard(captureTarget);
         pieces[captureTarget] = Piece::NONE; // remove the captured pawn
 
-        newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][target] ^ ZOBRIST_PIECE_SQUARES[flip(stm)][Piece::PAWN][captureTarget];
+        newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][target] ^ ZOBRIST_PIECE_SQUARES[nstm][Piece::PAWN][captureTarget];
 
-        byColor[flip(stm)] ^= captureTargetBB; // take away the captured piece
+        byColor[nstm] ^= captureTargetBB; // take away the captured piece
         byPiece[Piece::PAWN] ^= captureTargetBB;
 
-        nnue->removePiece(captureTarget, Piece::PAWN, flip(stm));
+        nnue->removePiece(captureTarget, Piece::PAWN, nstm);
 
-        newStack->pieceCount[flip(stm)][Piece::PAWN]--;
+        newStack->pieceCount[nstm][Piece::PAWN]--;
 
         break;
 
@@ -601,7 +603,7 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
             if ((origin ^ target) == 16) {
                 assert(target - UP[stm] < 64);
 
-                Bitboard enemyPawns = byColor[flip(stm)] & byPiece[Piece::PAWN];
+                Bitboard enemyPawns = byColor[nstm] & byPiece[Piece::PAWN];
                 Bitboard epRank = stm == Color::WHITE ? BB::RANK_4 : BB::RANK_5;
                 Square pawnSquare1 = target + 1;
                 Square pawnSquare2 = target - 1;
@@ -628,22 +630,22 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
         }
 
         if (newStack->capturedPiece != Piece::NONE) {
-            byColor[flip(stm)] ^= captureTargetBB; // take away the captured piece
+            byColor[nstm] ^= captureTargetBB; // take away the captured piece
             byPiece[newStack->capturedPiece] ^= captureTargetBB;
 
             if (newStack->capturedPiece == Piece::PAWN)
-                newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][Piece::PAWN][captureTarget];
+                newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[nstm][Piece::PAWN][captureTarget];
             else {
-                newStack->nonPawnHash[flip(stm)] ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
+                newStack->nonPawnHash[nstm] ^= ZOBRIST_PIECE_SQUARES[nstm][newStack->capturedPiece][captureTarget];
                 if (newStack->capturedPiece == Piece::KNIGHT || newStack->capturedPiece == Piece::BISHOP)
-                    newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
+                    newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[nstm][newStack->capturedPiece][captureTarget];
                 else
-                    newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
+                    newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[nstm][newStack->capturedPiece][captureTarget];
             }
 
-            nnue->removePiece(captureTarget, newStack->capturedPiece, flip(stm));
+            nnue->removePiece(captureTarget, newStack->capturedPiece, nstm);
 
-            newStack->pieceCount[flip(stm)][newStack->capturedPiece]--;
+            newStack->pieceCount[nstm][newStack->capturedPiece]--;
 
             newStack->rule50_ply = 0;
         }
@@ -689,10 +691,10 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
     }
 
     // Update king checking stuff
-    assert((byColor[flip(stm)] & byPiece[Piece::KING]) > 0);
+    assert((byColor[nstm] & byPiece[Piece::KING]) > 0);
     assert((byColor[stm] & byPiece[Piece::KING]) > 0);
 
-    Square enemyKing = lsb(byColor[flip(stm)] & byPiece[Piece::KING]);
+    Square enemyKing = lsb(byColor[nstm] & byPiece[Piece::KING]);
     newStack->checkers = attackersTo(enemyKing, byColor[Color::WHITE] | byColor[Color::BLACK]) & byColor[stm];
     newStack->checkerCount = newStack->checkers ? BB::popcount(newStack->checkers) : 0;
     updateSliderPins(Color::WHITE);
@@ -700,7 +702,7 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
     nnue->finalizeMove(this);
 
-    stm = flip(stm);
+    stm = nstm;
     newStack->move = move;
 
     calculateThreats();
@@ -870,13 +872,14 @@ bool Board::isPseudoLegal(Move move) {
     Bitboard targetBB = bitboard(target);
     Piece piece = pieces[origin];
     MoveType type = moveType(move);
+    Color nstm = flip(stm);
 
     // A valid piece needs to be on the origin square
     if (pieces[origin] == Piece::NONE) return false;
     // We can't capture our own piece, except in castling
     if (type != MOVE_CASTLING && (byColor[stm] & targetBB)) return false;
     // We can't move the enemies piece
-    if (byColor[flip(stm)] & originBB) return false;
+    if (byColor[nstm] & originBB) return false;
 
     // Non-standard movetypes
     switch (type) {
@@ -912,7 +915,7 @@ bool Board::isPseudoLegal(Move move) {
                 return false;
         }
         if (
-            !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[flip(stm)]) && // Capture promotion?
+            !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[nstm]) && // Capture promotion?
             !(origin + UP[stm] == target && pieces[target] == Piece::NONE)) // Push promotion?
             return false;
         return true;
@@ -926,7 +929,7 @@ bool Board::isPseudoLegal(Move move) {
         if (targetBB & (BB::RANK_8 | BB::RANK_1)) return false;
 
         if (
-            !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[flip(stm)]) && // Capture?
+            !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[nstm]) && // Capture?
             !(origin + UP[stm] == target && pieces[target] == Piece::NONE) && // Single push?
             !(origin + 2 * UP[stm] == target && pieces[target] == Piece::NONE && pieces[target - UP[stm]] == Piece::NONE && (originBB & (BB::RANK_2 | BB::RANK_7))) // Double push?
             )
@@ -974,6 +977,7 @@ bool Board::isLegal(Move move) {
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
     Bitboard originBB = bitboard(origin);
+    Color nstm = flip(stm);
 
     Square king = lsb(byPiece[Piece::KING] & byColor[stm]);
 
@@ -987,8 +991,8 @@ bool Board::isLegal(Move move) {
         Bitboard occupied = ((byColor[Color::WHITE] | byColor[Color::BLACK]) ^ originBB ^ epSquareBB) | targetBB;
 
         // Check if any rooks/queens/bishops attack the king square, given the occupied pieces after this EP move
-        Bitboard rookAttacks = getRookMoves(king, occupied) & (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]) & byColor[flip(stm)];
-        Bitboard bishopAttacks = getBishopMoves(king, occupied) & (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]) & byColor[flip(stm)];
+        Bitboard rookAttacks = getRookMoves(king, occupied) & (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]) & byColor[nstm];
+        Bitboard bishopAttacks = getBishopMoves(king, occupied) & (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]) & byColor[nstm];
         return !rookAttacks && !bishopAttacks;
     }
 
@@ -1001,13 +1005,13 @@ bool Board::isLegal(Move move) {
         // Check that none of the important squares (including the current king position!) are being attacked
         if (adjustedTarget < origin) {
             for (Square s = adjustedTarget; s <= origin; s++) {
-                if (byColor[flip(stm)] & attackersTo(s, occupied))
+                if (byColor[nstm] & attackersTo(s, occupied))
                     return false;
             }
         }
         else {
             for (Square s = adjustedTarget; s >= origin; s--) {
-                if (byColor[flip(stm)] & attackersTo(s, occupied))
+                if (byColor[nstm] & attackersTo(s, occupied))
                     return false;
             }
         }
@@ -1017,7 +1021,7 @@ bool Board::isLegal(Move move) {
 
     if (pieces[origin] == Piece::KING) {
         // Check that we're not moving into an attack
-        return !(byColor[flip(stm)] & attackersTo(target, occupied ^ bitboard(origin)));
+        return !(byColor[nstm] & attackersTo(target, occupied ^ bitboard(origin)));
     }
 
     // Check if we're not pinned to the king, or are moving along the pin
@@ -1028,8 +1032,9 @@ bool Board::isLegal(Move move) {
 bool Board::givesCheck(Move move) {
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
+    Color nstm = flip(stm);
     Bitboard occ = byColor[Color::WHITE] | byColor[Color::BLACK];
-    Bitboard enemyKing = byColor[flip(stm)] & byPiece[Piece::KING];
+    Bitboard enemyKing = byColor[nstm] & byPiece[Piece::KING];
 
     // Direct check
     Bitboard attacks = BB::attackedSquares(pieces[origin], target, occ ^ bitboard(origin) ^ bitboard(target), stm);
@@ -1038,7 +1043,7 @@ bool Board::givesCheck(Move move) {
 
     // Discovered check: Are we blocking a check to the enemy king?
     MoveType type = moveType(move);
-    if (stack->blockers[flip(stm)] & bitboard(origin))
+    if (stack->blockers[nstm] & bitboard(origin))
         return !(BB::LINE[origin][target] & enemyKing) || type == MOVE_CASTLING;
 
     switch (type) {
@@ -1073,6 +1078,8 @@ uint64_t Board::hashAfter(Move move) {
 
     MoveType type = moveType(move);;
 
+    Color nstm = flip(stm);
+
     uint8_t newCastling = stack->castling;
 
     if (stack->enpassantTarget != 0)
@@ -1086,7 +1093,7 @@ uint64_t Board::hashAfter(Move move) {
 
         // Double push
         if ((origin ^ target) == 16) {
-            Bitboard enemyPawns = byColor[flip(stm)] & byPiece[Piece::PAWN];
+            Bitboard enemyPawns = byColor[nstm] & byPiece[Piece::PAWN];
             Bitboard epRank = stm == Color::WHITE ? BB::RANK_4 : BB::RANK_5;
             Square pawnSquare1 = target + 1;
             Square pawnSquare2 = target - 1;
@@ -1110,7 +1117,7 @@ uint64_t Board::hashAfter(Move move) {
         hash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
 
         if (capturedPiece != Piece::NONE)
-            hash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
+            hash ^= ZOBRIST_PIECE_SQUARES[nstm][capturedPiece][captureTarget];
     }
 
     if (type == MOVE_PROMOTION) {
