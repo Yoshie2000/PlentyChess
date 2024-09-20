@@ -13,9 +13,9 @@
 #include "spsa.h"
 #include "history.h"
 
-TUNE_INT(mpPromotionScoreFactor, 284, 10, 10000);
-TUNE_INT(mpMvvLvaScoreFactor, 34, 10, 10000);
-TUNE_INT(mpSeeDivisor, 78, 10, 150);
+TUNE_INT(mpPromotionScoreFactor, 49, 10, 10000);
+TUNE_INT(mpMvvLvaScoreFactor, 305, 10, 10000);
+TUNE_INT(mpSeeDivisor, 80, 10, 150);
 
 void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targetMask) {
     Bitboard pawns = board->byPiece[Piece::PAWN] & board->byColor[board->stm];
