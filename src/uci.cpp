@@ -497,7 +497,7 @@ void genfens(std::string params, Board* board, std::deque<BoardStack>* stackQueu
         }
         if (matchesToken(token, "seed")) {
             nextToken(&params, &token);
-            parameters.genfensSeed = std::stoi(token);
+            parameters.genfensSeed = static_cast<unsigned int>(std::stol(token));
         }
     }
 

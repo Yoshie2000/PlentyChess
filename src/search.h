@@ -22,7 +22,7 @@ uint64_t perft(Board* board, int depth);
 struct SearchParameters {
     bool perft; // Perft (requires depth)
     bool genfens; // Are we running a genfens search
-    int genfensSeed; // Seed for genfens
+    unsigned int genfensSeed; // Seed for genfens
     int genfensFens; // Number of fens for genfens
 
     std::vector<Move> searchmoves; // TODO: Search only these moves at root
