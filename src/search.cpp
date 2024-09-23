@@ -317,6 +317,8 @@ movesLoopQsearch:
         bool capture = board->isCapture(move);
         if (!capture && playedQuiet)
             continue;
+        
+        bool previousNullmove = (stack - 1)->move == MOVE_NULL;
 
         if (futilityValue > -EVAL_INFINITE) { // Only prune when not in check
             if (bestValue >= -EVAL_MATE_IN_MAX_PLY
@@ -327,7 +329,7 @@ movesLoopQsearch:
                 continue;
             }
 
-            if (!SEE(board, move, qsSeeMargin))
+            if (!SEE(board, move, previousNullmove ? 1 : qsSeeMargin))
                 break;
 
             if (moveTarget(move) != moveTarget((stack - 1)->move) && (moveType(move) != MOVE_PROMOTION) && !board->givesCheck(move) && moveCount > 2)
