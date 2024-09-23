@@ -673,7 +673,8 @@ movesLoop:
             // SEE Pruning
             if (!SEE(board, move, SEE_MARGIN[!capture ? lmrDepth : depth][!capture]))
                 continue;
-
+            
+            moveHistory += capture ? 1000 : 4000;
         }
 
         // Extensions
