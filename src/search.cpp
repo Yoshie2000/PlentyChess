@@ -778,6 +778,9 @@ movesLoop:
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
                     history.updateContinuationHistory(stack, flip(board->stm), stack->movedPiece, move, bonus);
                 }
+            } else if (value <= alpha && newDepth - reducedDepth >= 3 && !capture && moveHistory > 0) {
+                int malus = std::min(50 * depth, 500);
+                history.updateQuietHistory(move, flip(board->stm), board, board->stack->previous, -malus);
             }
         }
         else if (!pvNode || moveCount > 1) {
