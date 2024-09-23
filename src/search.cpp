@@ -317,11 +317,13 @@ movesLoopQsearch:
         bool capture = board->isCapture(move);
         if (!capture && playedQuiet)
             continue;
+        
+        bool previousNullmove = (stack - 1)->move == MOVE_NULL;
 
         if (futilityValue > -EVAL_INFINITE) { // Only prune when not in check
             if (bestValue >= -EVAL_MATE_IN_MAX_PLY
                 && futilityValue <= alpha
-                && !SEE(board, move, 1)
+                && !SEE(board, move, 1 - 100 * previousNullmove)
                 ) {
                 bestValue = std::max(bestValue, futilityValue);
                 continue;
