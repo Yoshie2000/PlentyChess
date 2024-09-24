@@ -280,14 +280,14 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     }
     else if (ttHit && ttEval != EVAL_NONE) {
         unadjustedEval = ttEval;
-        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board);
+        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board, stack);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
             bestValue = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
-        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board);
+        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board, stack);
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
     futilityValue = stack->staticEval + qsFutilityOffset;
@@ -348,6 +348,7 @@ movesLoopQsearch:
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
+        stack->pieceTo = 2 * 64 * stack->movedPiece + 2 * moveTarget(stack->move) + board->stm;
 
         playedQuiet |= move != ttMove && !capture;
 
@@ -476,14 +477,14 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
     else if (ttHit) {
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board);
+        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board, stack);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board);
+        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board, stack);
 
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
@@ -536,6 +537,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         stack->move = MOVE_NULL;
         stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[board->stm][0][0];
+        stack->pieceTo = 2 * 64 * Piece::PAWN + 2 * 0 + 0;
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
         board->doNullMove(&boardStack);
@@ -588,6 +590,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
             stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
+            stack->pieceTo = 2 * 64 * stack->movedPiece + 2 * moveTarget(stack->move) + board->stm;
             board->doMove(&boardStack, move, newHash, &nnue);
 
             Eval value = -qsearch<NON_PV_NODE>(board, stack + 1, -probCutBeta, -probCutBeta + 1);
@@ -734,6 +737,7 @@ movesLoop:
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
+        stack->pieceTo = 2 * 64 * stack->movedPiece + 2 * moveTarget(stack->move) + board->stm;
 
         moveCount++;
         searchData.nodesSearched++;
@@ -872,7 +876,7 @@ movesLoop:
     // Adjust correction history
     if (!board->stack->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
         int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
-        history.updateCorrectionHistory(board, bonus);
+        history.updateCorrectionHistory(board, stack, bonus);
     }
 
     assert(bestValue > -EVAL_INFINITE && bestValue < EVAL_INFINITE);
