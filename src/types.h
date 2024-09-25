@@ -101,4 +101,5 @@ struct SearchStack {
     Move killer;
 
     int16_t* contHist;
+    int16_t* contCorrHist;
 };
