@@ -754,6 +754,10 @@ movesLoop:
         if (moveCount > lmrMcBase + lmrMcPv * rootNode && depth >= lmrMinDepth && (!capture || !ttPv)) {
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
+            int correction = stack->staticEval - unadjustedEval;
+            if (stack->staticEval <= alpha && ttValue <= alpha && correction <= -100 && correction >= -500)
+                reducedDepth--;
+
             if (!ttPv)
                 reducedDepth--;
 
