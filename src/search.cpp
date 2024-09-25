@@ -755,10 +755,10 @@ movesLoop:
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
             if (!ttPv)
-                reducedDepth--;
+                reducedDepth -= 1 + cutNode;
 
             if (cutNode)
-                reducedDepth -= 2;
+                reducedDepth -= 1;
 
             if (capture)
                 reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
