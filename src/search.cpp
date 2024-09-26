@@ -511,12 +511,12 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Reverse futility pruning
     if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving) >= beta)
-        return (eval + beta) / 2;
+        return std::min((eval + beta) / 2, EVAL_MATE_IN_MAX_PLY - 1);
 
     // Razoring
     if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
-        if (razorValue <= alpha)
+        if (razorValue <= alpha && razorValue > -EVAL_MATE_IN_MAX_PLY)
             return razorValue;
     }
 
@@ -527,6 +527,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         && eval >= stack->staticEval
         && eval >= beta
         && beta > -EVAL_MATE_IN_MAX_PLY
+        && beta < EVAL_MATE_IN_MAX_PLY
         && !excluded
         && (stack - 1)->movedPiece != Piece::NONE
         && depth >= 3
@@ -548,7 +549,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             return 0;
 
         if (nullValue >= beta) {
-            if (nullValue > EVAL_MATE_IN_MAX_PLY)
+            if (nullValue >= EVAL_MATE_IN_MAX_PLY)
                 nullValue = beta;
 
             if (searchData.nmpPlies || depth < 15)
@@ -601,6 +602,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             board->undoMove(move, &nnue);
 
             if (value >= probCutBeta) {
+                value = std::min(value, EVAL_MATE_IN_MAX_PLY - 1);
                 ttEntry->update(board->stack->hash, move, depth - 3, unadjustedEval, valueToTT(value, stack->ply), ttPv, TT_LOWERBOUND);
                 return value;
             }
@@ -707,7 +709,7 @@ movesLoop:
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta)
-                return singularBeta;
+                return std::min(singularBeta, EVAL_MATE_IN_MAX_PLY - 1);
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
                 extension = -2;
