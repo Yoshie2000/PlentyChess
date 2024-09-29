@@ -644,14 +644,14 @@ movesLoop:
         uint64_t nodesBeforeMove = searchData.nodesSearched;
         int moveHistory = history.getHistory(board, board->stack, stack, move, capture);
 
-        if (!pvNode
+        if (!rootNode
             && bestValue > -EVAL_MATE_IN_MAX_PLY
             && board->hasNonPawns()
             ) {
 
             int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
-            if (!skipQuiets) {
+            if (!pvNode && !skipQuiets) {
 
                 // Movecount pruning (LMP)
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
@@ -664,7 +664,7 @@ movesLoop:
             }
 
             // Futility pruning for captures
-            if (capture && moveType(move) != MOVE_PROMOTION) {
+            if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
                 Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
                 if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
                     continue;
@@ -672,11 +672,11 @@ movesLoop:
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth)
+            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth)
                 continue;
 
             // SEE Pruning
-            if (!SEE(board, move, SEE_MARGIN[!capture ? lmrDepth : depth][!capture]))
+            if (!SEE(board, move, (2 + pvNode) * SEE_MARGIN[!capture ? lmrDepth : depth][!capture] / 2))
                 continue;
 
         }
