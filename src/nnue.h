@@ -10,6 +10,14 @@
 
 using Vec = __m512i;
 
+inline Vec loadEpi16(Vec* x) {
+  return _mm512_load_si512(x);
+}
+
+inline void storeEpi16(Vec* x, Vec y) {
+  _mm512_store_si512(x, y);
+}
+
 inline Vec addEpi16(Vec x, Vec y) {
   return _mm512_add_epi16(x, y);
 }
@@ -53,6 +61,14 @@ inline int vecHaddEpi32(Vec vec) {
 #elif defined(__AVX2__)
 
 using Vec = __m256i;
+
+inline Vec loadEpi16(Vec* x) {
+  return _mm256_load_si256(x);
+}
+
+inline void storeEpi16(Vec* x, Vec y) {
+  _mm256_store_si256(x, y);
+}
 
 inline Vec addEpi16(Vec x, Vec y) {
   return _mm256_add_epi16(x, y);
@@ -121,6 +137,14 @@ inline int vecHaddEpi32(Vec vec) {
 
 using Vec = __m128i;
 
+inline Vec loadEpi16(Vec* x) {
+  return _mm_load_si128(x);
+}
+
+inline void storeEpi16(Vec* x, Vec y) {
+  _mm_store_si128(x, y);
+}
+
 inline Vec addEpi16(Vec x, Vec y) {
   return _mm_add_epi16(x, y);
 }
@@ -187,6 +211,9 @@ constexpr int NETWORK_QAB = NETWORK_QA * NETWORK_QB;
 
 constexpr int ALIGNMENT = std::max<int>(8, sizeof(Vec));
 constexpr int WEIGHTS_PER_VEC = sizeof(Vec) / sizeof(int16_t);
+
+constexpr int UNROLL_REGISTERS = 16;
+constexpr int UNROLL_SIZE = UNROLL_REGISTERS * WEIGHTS_PER_VEC;
 
 constexpr int HIDDEN_ITERATIONS = HIDDEN_WIDTH / WEIGHTS_PER_VEC;
 

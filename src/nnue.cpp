@@ -184,45 +184,78 @@ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* ou
 
 template<Color side>
 void NNUE::addPieceToAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
-    // Get the index of the piece for this color in the input layer
+    Vec registers[UNROLL_REGISTERS];
+    
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
-    Vec* inputVec = (Vec*)inputData[side];
-    Vec* outputVec = (Vec*)outputData[side];
-    Vec* weightsVec = (Vec*)networkData.featureWeights[kingBucket->index];
+    for (int i = 0; i < HIDDEN_WIDTH / UNROLL_SIZE; i++) {
+        int unrollOffset = i * UNROLL_SIZE;
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < HIDDEN_ITERATIONS; ++i)
-        outputVec[i] = addEpi16(inputVec[i], weightsVec[weightOffset + i]);
+        Vec* inputVec = (Vec*) &inputData[side][unrollOffset];
+        Vec* outputVec = (Vec*) &outputData[side][unrollOffset];
+        Vec* weightVec = (Vec*) &networkData.featureWeights[kingBucket->index][weightOffset * WEIGHTS_PER_VEC + unrollOffset];
+
+        for (int r = 0; r < UNROLL_REGISTERS; r++)
+            registers[r] = loadEpi16(&inputVec[r]);
+        
+        for (int r = 0; r < UNROLL_REGISTERS; r++)
+            registers[r] = addEpi16(registers[r], weightVec[r]);
+
+        for (int r = 0; r < UNROLL_REGISTERS; r++)
+            storeEpi16(&outputVec[r], registers[r]);
+    }
 }
 
 template<Color side>
 void NNUE::removePieceFromAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
-    // Get the index of the piece for this color in the input layer
+    Vec registers[UNROLL_REGISTERS];
+    
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
-    Vec* inputVec = (Vec*)inputData[side];
-    Vec* outputVec = (Vec*)outputData[side];
-    Vec* weightsVec = (Vec*)networkData.featureWeights[kingBucket->index];
+    for (int i = 0; i < HIDDEN_WIDTH / UNROLL_SIZE; i++) {
+        int unrollOffset = i * UNROLL_SIZE;
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < HIDDEN_ITERATIONS; ++i)
-        outputVec[i] = subEpi16(inputVec[i], weightsVec[weightOffset + i]);
+        Vec* inputVec = (Vec*) &inputData[side][unrollOffset];
+        Vec* outputVec = (Vec*) &outputData[side][unrollOffset];
+        Vec* weightVec = (Vec*) &networkData.featureWeights[kingBucket->index][weightOffset * WEIGHTS_PER_VEC + unrollOffset];
+
+        for (int r = 0; r < UNROLL_REGISTERS; r++)
+            registers[r] = loadEpi16(&inputVec[r]);
+        
+        for (int r = 0; r < UNROLL_REGISTERS; r++)
+            registers[r] = subEpi16(registers[r], weightVec[r]);
+
+        for (int r = 0; r < UNROLL_REGISTERS; r++)
+            storeEpi16(&outputVec[r], registers[r]);
+    }
 }
 
 template<Color side>
 void NNUE::movePieceInAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor) {
-    // Get the index of the piece squares for this color in the input layer
+    Vec registers[UNROLL_REGISTERS];
+    
     int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin, kingBucket);
     int addWeightOffset = getFeatureOffset(side, piece, pieceColor, target, kingBucket);
 
-    Vec* inputVec = (Vec*)inputData[side];
-    Vec* outputVec = (Vec*)outputData[side];
-    Vec* weightsVec = (Vec*)networkData.featureWeights[kingBucket->index];
+    for (int i = 0; i < HIDDEN_WIDTH / UNROLL_SIZE; i++) {
+        int unrollOffset = i * UNROLL_SIZE;
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < HIDDEN_ITERATIONS; ++i) {
-        outputVec[i] = subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]);
+        Vec* inputVec = (Vec*) &inputData[side][unrollOffset];
+        Vec* outputVec = (Vec*) &outputData[side][unrollOffset];
+        Vec* subtractWeightVec = (Vec*) &networkData.featureWeights[kingBucket->index][subtractWeightOffset * WEIGHTS_PER_VEC + unrollOffset];
+        Vec* addWeightVec = (Vec*) &networkData.featureWeights[kingBucket->index][addWeightOffset * WEIGHTS_PER_VEC + unrollOffset];
+
+        for (int r = 0; r < UNROLL_REGISTERS; r++)
+            registers[r] = loadEpi16(&inputVec[r]);
+        
+        for (int r = 0; r < UNROLL_REGISTERS; r++)
+            registers[r] = subEpi16(registers[r], subtractWeightVec[r]);
+        
+        for (int r = 0; r < UNROLL_REGISTERS; r++)
+            registers[r] = addEpi16(registers[r], addWeightVec[r]);
+
+        for (int r = 0; r < UNROLL_REGISTERS; r++)
+            storeEpi16(&outputVec[r], registers[r]);
     }
 }
 
