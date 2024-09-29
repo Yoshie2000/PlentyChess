@@ -1044,7 +1044,7 @@ void Thread::iterativeDeepening() {
             tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched);
 
             // Adjust based on number of best move changes
-            tmAdjustment *= 0.9 + 0.1 * searchData.rootBestMoveChanges;
+            tmAdjustment *= 0.95 + 0.05 * searchData.rootBestMoveChanges;
 
             if (timeOverDepthCleared(searchParameters, &searchData, tmAdjustment)) {
                 threadPool->stopSearching();
