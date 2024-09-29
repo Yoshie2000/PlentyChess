@@ -824,6 +824,8 @@ movesLoop:
                 rootMove->pv.push_back(move);
                 for (int i = 1; i < (stack + 1)->pvLength; i++)
                     rootMove->pv.push_back((stack + 1)->pv[i]);
+                
+                searchData.rootBestMoveChanges++;
             }
         }
 
@@ -984,6 +986,7 @@ void Thread::iterativeDeepening() {
             int failHighs = 0;
             while (true) {
                 int searchDepth = std::max(1, depth - failHighs);
+                searchData.rootBestMoveChanges = 0;
                 value = search<ROOT_NODE>(&rootBoard, stack, searchDepth, alpha, beta, false);
 
                 sortRootMoves();
@@ -1039,6 +1042,9 @@ void Thread::iterativeDeepening() {
 
             // Based on fraction of nodes that went into the best move
             tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched);
+
+            // Adjust based on number of best move changes
+            tmAdjustment *= 0.9 + 0.1 * searchData.rootBestMoveChanges;
 
             if (timeOverDepthCleared(searchParameters, &searchData, tmAdjustment)) {
                 threadPool->stopSearching();

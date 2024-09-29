@@ -69,6 +69,8 @@ struct SearchData {
     int rootDepth;
     int selDepth;
 
+    int rootBestMoveChanges;
+
     uint64_t nodesSearched;
 
     int64_t startTime;
@@ -78,6 +80,8 @@ struct SearchData {
     SearchData() {
         nmpPlies = 0;
         rootDepth = 0;
+        selDepth = 0;
+        rootBestMoveChanges = 0;
         nodesSearched = 0;
         startTime = 0;
         optTime = 0;
