@@ -42,7 +42,7 @@ TUNE_FLOAT(aspirationWindowDeltaFactor, 1.586604734243168f, 1.0f, 3.0f);
 // Reduction / Margin tables
 TUNE_FLOAT(lmrReductionNoisyBase, -0.5324261546201264f, -2.0f, -0.1f);
 TUNE_FLOAT(lmrReductionNoisyFactor, 3.101248838743935f, 2.0f, 4.0f);
-TUNE_FLOAT(lmrReductionQuietBase, 0.8853925100676814f, 0.50f, 1.5f);
+TUNE_FLOAT(lmrReductionQuietBase, 0.6353925100676814f, 0.50f, 1.5f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.9693799546531925f, 2.0f, 4.0f);
 
 TUNE_FLOAT(seeMarginNoisy, -21.653963208850904f, -50.0f, -10.0f);
@@ -623,6 +623,8 @@ movesLoop:
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
+    bool ttCapture = ttMove != MOVE_NONE && board->isCapture(ttMove);
+
     // Moves loop
     MoveGen movegen(board, &history, stack, ttMove, depth);
     Move move;
@@ -761,6 +763,9 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth -= 2;
+            
+            if (ttCapture && !capture)
+                reducedDepth--;
 
             if (capture)
                 reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
