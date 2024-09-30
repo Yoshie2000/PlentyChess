@@ -256,7 +256,7 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     Eval ttValue = EVAL_NONE;
     Eval ttEval = EVAL_NONE;
     uint8_t ttFlag = TT_NOBOUND;
-    bool ttPv = pvNode;
+    bool ttPv = false;
 
     ttEntry = TT.probe(board->stack->hash, &ttHit);
     if (ttHit) {
@@ -264,7 +264,7 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         ttValue = valueFromTt(ttEntry->getValue(), stack->ply);
         ttEval = ttEntry->getEval();
         ttFlag = ttEntry->getFlag();
-        ttPv = ttPv || ttEntry->getTtPv();
+        ttPv = ttEntry->getTtPv();
     }
 
     // TT cutoff
@@ -448,7 +448,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Eval ttValue = EVAL_NONE, ttEval = EVAL_NONE;
     int ttDepth = 0;
     uint8_t ttFlag = TT_NOBOUND;
-    bool ttPv = pvNode;
+    bool ttPv = depth >= 2 && pvNode;
 
     if (!excluded) {
         ttEntry = TT.probe(board->stack->hash, &ttHit);
