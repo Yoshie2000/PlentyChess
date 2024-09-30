@@ -623,6 +623,8 @@ movesLoop:
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
+    bool ttCapture = ttMove != MOVE_NONE && board->isCapture(ttMove);
+
     // Moves loop
     MoveGen movegen(board, &history, stack, ttMove, depth);
     Move move;
@@ -761,6 +763,9 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth -= 2;
+            
+            if (ttCapture)
+                reducedDepth--;
 
             if (capture)
                 reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
