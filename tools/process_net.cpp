@@ -2,31 +2,41 @@
 #include <cstdio>
 #include <iostream>
 #include <string.h>
+#include <cmath>
 
-constexpr int INPUT_WIDTH = 768;
-constexpr int HIDDEN_WIDTH = 1536;
+constexpr int INPUT_SIZE = 768;
+constexpr int L1_SIZE = 1536;
+constexpr int L2_SIZE = 16;
+constexpr int L3_SIZE = 32;
 
 constexpr bool KING_BUCKETS_FACTORIZED = false;
 constexpr int KING_BUCKETS = 1;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
-constexpr int NETWORK_QA = 255;
-constexpr int NETWORK_QB = 64;
-constexpr int NETWORK_QAB = NETWORK_QA * NETWORK_QB;
+constexpr int INPUT_QUANT = 362;
+constexpr int L1_QUANT = 32;
 
 struct Network {
-    float featureWeights[KING_BUCKETS + static_cast<size_t>(KING_BUCKETS_FACTORIZED)][INPUT_WIDTH * HIDDEN_WIDTH];
-    float featureBiases[HIDDEN_WIDTH];
-    float outputWeights[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
-    float outputBiases[OUTPUT_BUCKETS];
+    float inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
+    float inputBiases [L1_SIZE];
+    float l1Weights   [L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
+    float l1Biases    [OUTPUT_BUCKETS][L2_SIZE];
+    float l2Weights   [L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
+    float l2Biases    [OUTPUT_BUCKETS][L3_SIZE];
+    float l3Weights   [L3_SIZE][OUTPUT_BUCKETS];
+    float l3Biases    [OUTPUT_BUCKETS];
 };
 
 struct QuantizedNetwork {
-  int16_t featureWeights[KING_BUCKETS][INPUT_WIDTH * HIDDEN_WIDTH];
-  int16_t featureBiases[HIDDEN_WIDTH];
-  int16_t outputWeights[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
-  int16_t outputBiases[OUTPUT_BUCKETS];
+  int16_t inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
+  int16_t inputBiases [L1_SIZE];
+  int8_t  l1Weights   [OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+  float   l1Biases    [OUTPUT_BUCKETS][L2_SIZE];
+  float   l2Weights   [OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+  float   l2Biases    [OUTPUT_BUCKETS][L3_SIZE];
+  float   l3Weights   [OUTPUT_BUCKETS][L3_SIZE];
+  float   l3Biases    [OUTPUT_BUCKETS];
 };
 
 Network network;
@@ -34,7 +44,7 @@ QuantizedNetwork out;
 
 template<int Q>
 int16_t quantize(float number) {
-    return static_cast<int16_t>(static_cast<double>(number) * static_cast<double>(Q));
+    return static_cast<int16_t>(std::round(number * static_cast<float>(Q)));
 }
 
 int main(void) {
@@ -45,10 +55,14 @@ int main(void) {
         size_t read = 0;
         size_t objectsExpected = sizeof(network) / sizeof(float);
 
-        read += fread(network.featureWeights, sizeof(float), sizeof(network.featureWeights) / sizeof(float), nn);
-        read += fread(network.featureBiases, sizeof(float), sizeof(network.featureBiases) / sizeof(float), nn);
-        read += fread(network.outputWeights, sizeof(float), sizeof(network.outputWeights) / sizeof(float), nn);
-        read += fread(&network.outputBiases, sizeof(float), sizeof(network.outputBiases) / sizeof(float), nn);
+        read += fread(network.inputWeights, sizeof(float), sizeof(network.inputWeights) / sizeof(float), nn);
+        read += fread(network.inputBiases, sizeof(float), sizeof(network.inputBiases) / sizeof(float), nn);
+        read += fread(network.l1Weights, sizeof(float), sizeof(network.l1Weights) / sizeof(float), nn);
+        read += fread(network.l1Biases, sizeof(float), sizeof(network.l1Biases) / sizeof(float), nn);
+        read += fread(network.l2Weights, sizeof(float), sizeof(network.l2Weights) / sizeof(float), nn);
+        read += fread(network.l2Biases, sizeof(float), sizeof(network.l2Biases) / sizeof(float), nn);
+        read += fread(network.l3Weights, sizeof(float), sizeof(network.l3Weights) / sizeof(float), nn);
+        read += fread(network.l3Biases, sizeof(float), sizeof(network.l3Biases) / sizeof(float), nn);
 
         if (std::abs((int64_t)read - (int64_t)objectsExpected) > 0) {
             std::cout << "Error loading the net, aborting ";
@@ -63,48 +77,82 @@ int main(void) {
         return -1;
     }
 
-    // Transpose output weights
-    float transposed[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
-    for (int n = 0; n < OUTPUT_BUCKETS * 2 * HIDDEN_WIDTH; n++) {
-        transposed[n % OUTPUT_BUCKETS][n / OUTPUT_BUCKETS] = network.outputWeights[n / (2 * HIDDEN_WIDTH)][n % (2 * HIDDEN_WIDTH)];
+    // Transpose L1/L2/L3 weights
+    float transposedL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+    for (int b = 0; b < OUTPUT_BUCKETS; b++) {
+        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+            for (int l2 = 0; l2 < L2_SIZE; l2++) {
+                transposedL1Weights[b][l2 * L1_SIZE + l1] = network.l1Weights[l1][b][l2];
+            }
+        }
     }
-    memcpy(network.outputWeights, transposed, sizeof(transposed));
+    memcpy(network.l1Weights, transposedL1Weights, sizeof(transposedL1Weights));
 
-    // Add factorized weights to buckets, and quantize
+    float transposedL2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+    for (int b = 0; b < OUTPUT_BUCKETS; b++) {
+        for (int l2 = 0; l2 < L2_SIZE; l2++) {
+            for (int l3 = 0; l3 < L3_SIZE; l3++) {
+                transposedL2Weights[b][l2 * L3_SIZE + l3] = network.l2Weights[l2][b][l3];
+            }
+        }
+    }
+    memcpy(network.l2Weights, transposedL2Weights, sizeof(transposedL2Weights));
+
+    float transposedL3Weights[OUTPUT_BUCKETS][L3_SIZE];
+    for (int b = 0; b < OUTPUT_BUCKETS; b++) {
+        for (int l3 = 0; l3 < L3_SIZE; l3++) {
+            transposedL3Weights[b][l3] = network.l3Weights[l3][b];
+        }
+    }
+    memcpy(network.l3Weights, transposedL3Weights, sizeof(transposedL3Weights));
+
+    // Add factorized input weights to buckets, and quantize
     for (int n = 0; n < KING_BUCKETS; n++) {
-        for (int w = 0; w < INPUT_WIDTH * HIDDEN_WIDTH; w++) {
+        for (int w = 0; w < INPUT_SIZE * L1_SIZE; w++) {
             if (KING_BUCKETS_FACTORIZED) {
-                out.featureWeights[n][w] = quantize<NETWORK_QA>(network.featureWeights[n + 1][w] + network.featureWeights[0][w]);
+                out.inputWeights[n][w] = quantize<INPUT_QUANT>(network.inputWeights[n + 1][w] + network.inputWeights[0][w]);
             } else {
-                out.featureWeights[n][w] = quantize<NETWORK_QA>(network.featureWeights[n][w]);
+                out.inputWeights[n][w] = quantize<INPUT_QUANT>(network.inputWeights[n][w]);
             }
         }
     }
 
-    // Quantize feature biases
-    for (int b = 0; b < HIDDEN_WIDTH; b++) {
-        out.featureBiases[b] = quantize<NETWORK_QA>(network.featureBiases[b]);
+    // Quantize input biases
+    for (int b = 0; b < L1_SIZE; b++) {
+        out.inputBiases[b] = quantize<INPUT_QUANT>(network.inputBiases[b]);
     }
 
-    // Quantize output weights and biases
+    // Quantize L1 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-        out.outputBiases[b] = quantize<NETWORK_QAB>(network.outputBiases[b]);
-        for (int w = 0; w < 2 * HIDDEN_WIDTH; w++) {
-            out.outputWeights[b][w] = quantize<NETWORK_QB>(network.outputWeights[b][w]);
+        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+            for (int l2 = 0; l2 < L2_SIZE; l2++) {
+                out.l1Weights[b][l2 * L1_SIZE + l1] = quantize<L1_QUANT>(((float*) network.l1Weights)[b * L1_SIZE * L2_SIZE + l2 * L1_SIZE + l1]);
+            }
         }
     }
+
+    // Memcpy the rest
+    memcpy(out.l1Biases, network.l1Biases, sizeof(network.l1Biases));
+    memcpy(out.l2Weights, network.l2Weights, sizeof(network.l2Weights));
+    memcpy(out.l2Biases, network.l2Biases, sizeof(network.l2Biases));
+    memcpy(out.l3Weights, network.l3Weights, sizeof(network.l3Weights));
+    memcpy(out.l3Biases, network.l3Biases, sizeof(network.l3Biases));
 
     // Write the network
     nn = fopen("../network.bin", "wb");
     if (nn) {
         // Read network from file
         size_t written = 0;
-        size_t objectsExpected = sizeof(out) / sizeof(int16_t);
+        size_t objectsExpected = sizeof(out);
 
-        written += fwrite(out.featureWeights, sizeof(int16_t), sizeof(out.featureWeights) / sizeof(int16_t), nn);
-        written += fwrite(out.featureBiases, sizeof(int16_t), sizeof(out.featureBiases) / sizeof(int16_t), nn);
-        written += fwrite(out.outputWeights, sizeof(int16_t), sizeof(out.outputWeights) / sizeof(int16_t), nn);
-        written += fwrite(&out.outputBiases, sizeof(int16_t), sizeof(out.outputBiases) / sizeof(int16_t), nn);
+        written += sizeof(int16_t) * fwrite(out.inputWeights, sizeof(int16_t), sizeof(out.inputWeights) / sizeof(int16_t), nn);
+        written += sizeof(int16_t) * fwrite(out.inputBiases, sizeof(int16_t), sizeof(out.inputBiases) / sizeof(int16_t), nn);
+        written += sizeof(int8_t) * fwrite(out.l1Weights, sizeof(int8_t), sizeof(out.l1Weights) / sizeof(int8_t), nn);
+        written += sizeof(float) * fwrite(out.l1Biases, sizeof(float), sizeof(out.l1Biases) / sizeof(float), nn);
+        written += sizeof(float) * fwrite(out.l2Weights, sizeof(float), sizeof(out.l2Weights) / sizeof(float), nn);
+        written += sizeof(float) * fwrite(out.l2Biases, sizeof(float), sizeof(out.l2Biases) / sizeof(float), nn);
+        written += sizeof(float) * fwrite(out.l3Weights, sizeof(float), sizeof(out.l3Weights) / sizeof(float), nn);
+        written += sizeof(float) * fwrite(out.l3Biases, sizeof(float), sizeof(out.l3Biases) / sizeof(float), nn);
 
         if (std::abs((int64_t)written - (int64_t)objectsExpected) > 0) {
             std::cout << "Error writing the net, aborting ";

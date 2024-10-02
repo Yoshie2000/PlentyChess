@@ -532,6 +532,9 @@ void uciLoop(int argc, char* argv[]) {
         bench(&stackQueue, &board);
         return;
     }
+    //UCI::nnue.reset(&board);
+    //std::cout << UCI::nnue.evaluate(&board) << std::endl;
+    //return;
     for (std::string line;std::getline(std::cin, line);) {
 
         if (matchesToken(line, "quit")) {
