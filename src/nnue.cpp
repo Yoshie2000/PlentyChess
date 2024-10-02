@@ -16,16 +16,40 @@ INCBIN(NETWORK, EVALFILE);
 NetworkData networkData;
 
 void initNetworkData() {
-    memcpy(&networkData, gNETWORKData, sizeof(networkData));
+    UnalignedNetworkData* incNetwork = (UnalignedNetworkData*)gNETWORKData;
+    memcpy(networkData.inputWeights, incNetwork->inputWeights, sizeof(networkData.inputWeights));
+    memcpy(networkData.inputBiases, incNetwork->inputBiases, sizeof(networkData.inputBiases));
+    memcpy(networkData.l1Biases, incNetwork->l1Biases, sizeof(networkData.l1Biases));
+    memcpy(networkData.l2Biases, incNetwork->l2Biases, sizeof(networkData.l2Biases));
+    memcpy(networkData.l3Biases, incNetwork->l3Biases, sizeof(networkData.l3Biases));
+
+    // Transpose L1 / L2 / L3 weights
+    for (int b = 0; b < OUTPUT_BUCKETS; b++) {
+        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+            for (int l2 = 0; l2 < L2_SIZE; l2++) {
+                networkData.l1Weights[b][l2 * L1_SIZE + l1] = reinterpret_cast<int8_t*>(incNetwork->l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
+            }
+        }
+
+        for (int l2 = 0; l2 < L2_SIZE; l2++) {
+            for (int l3 = 0; l3 < L3_SIZE; l3++) {
+                networkData.l2Weights[b][l2 * L3_SIZE + l3] = reinterpret_cast<float*>(incNetwork->l2Weights)[l2 * OUTPUT_BUCKETS * L3_SIZE + b * L3_SIZE + l3];
+            }
+        }
+
+        for (int l3 = 0; l3 < L3_SIZE; l3++) {
+            networkData.l3Weights[b][l3] = reinterpret_cast<float*>(incNetwork->l3Weights)[l3 * OUTPUT_BUCKETS + b];
+        }
+    }
 }
 
 inline int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square square, KingBucketInfo* kingBucket) {
     square ^= kingBucket->mirrored * 7;
     int relativeSquare = square ^ (side * 56);
     if (side == pieceColor)
-        return (64 * piece + relativeSquare) * HIDDEN_WIDTH / WEIGHTS_PER_VEC;
+        return (64 * piece + relativeSquare) * L1_SIZE / L1_VEC_SIZE;
     else
-        return (64 * (piece + 6) + relativeSquare) * HIDDEN_WIDTH / WEIGHTS_PER_VEC;
+        return (64 * (piece + 6) + relativeSquare) * L1_SIZE / L1_VEC_SIZE;
 }
 
 void NNUE::reset(Board* board) {
@@ -41,8 +65,8 @@ void NNUE::reset(Board* board) {
         for (int j = 0; j < KING_BUCKETS; j++) {
             memset(finnyTable[i][j].byColor, 0, sizeof(finnyTable[i][j].byColor));
             memset(finnyTable[i][j].byPiece, 0, sizeof(finnyTable[i][j].byPiece));
-            memcpy(finnyTable[i][j].colors[Color::WHITE], networkData.featureBiases, sizeof(networkData.featureBiases));
-            memcpy(finnyTable[i][j].colors[Color::BLACK], networkData.featureBiases, sizeof(networkData.featureBiases));
+            memcpy(finnyTable[i][j].colors[Color::WHITE], networkData.inputBiases, sizeof(networkData.inputBiases));
+            memcpy(finnyTable[i][j].colors[Color::BLACK], networkData.inputBiases, sizeof(networkData.inputBiases));
         }
     }
 }
@@ -50,7 +74,7 @@ void NNUE::reset(Board* board) {
 template<Color side>
 void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     // Overwrite with biases
-    memcpy(acc->colors[side], networkData.featureBiases, sizeof(networkData.featureBiases));
+    memcpy(acc->colors[side], networkData.inputBiases, sizeof(networkData.inputBiases));
 
     // Then add every piece back one by one
     KingBucketInfo kingBucket = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
@@ -183,45 +207,45 @@ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* ou
 }
 
 template<Color side>
-void NNUE::addPieceToAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
+void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
     // Get the index of the piece for this color in the input layer
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
     Vec* inputVec = (Vec*)inputData[side];
     Vec* outputVec = (Vec*)outputData[side];
-    Vec* weightsVec = (Vec*)networkData.featureWeights[kingBucket->index];
+    Vec* weightsVec = (Vec*)networkData.inputWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < HIDDEN_ITERATIONS; ++i)
+    for (int i = 0; i < L1_ITERATIONS; ++i)
         outputVec[i] = addEpi16(inputVec[i], weightsVec[weightOffset + i]);
 }
 
 template<Color side>
-void NNUE::removePieceFromAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
+void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
     // Get the index of the piece for this color in the input layer
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
     Vec* inputVec = (Vec*)inputData[side];
     Vec* outputVec = (Vec*)outputData[side];
-    Vec* weightsVec = (Vec*)networkData.featureWeights[kingBucket->index];
+    Vec* weightsVec = (Vec*)networkData.inputWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < HIDDEN_ITERATIONS; ++i)
+    for (int i = 0; i < L1_ITERATIONS; ++i)
         outputVec[i] = subEpi16(inputVec[i], weightsVec[weightOffset + i]);
 }
 
 template<Color side>
-void NNUE::movePieceInAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor) {
+void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor) {
     // Get the index of the piece squares for this color in the input layer
     int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin, kingBucket);
     int addWeightOffset = getFeatureOffset(side, piece, pieceColor, target, kingBucket);
 
     Vec* inputVec = (Vec*)inputData[side];
     Vec* outputVec = (Vec*)outputData[side];
-    Vec* weightsVec = (Vec*)networkData.featureWeights[kingBucket->index];
+    Vec* weightsVec = (Vec*)networkData.inputWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < HIDDEN_ITERATIONS; ++i) {
+    for (int i = 0; i < L1_ITERATIONS; ++i) {
         outputVec[i] = subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]);
     }
 }
@@ -237,25 +261,71 @@ Eval NNUE::evaluate(Board* board) {
 
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
-    constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-    int bucket = (pieceCount - 2) / divisor;
+    // constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
+    int bucket = std::min((63 - pieceCount) * (32 - pieceCount) / 225, 7);
     assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
 
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
-    Vec* stmAcc = (Vec*)accumulator->colors[board->stm];
+    int16_t* stmAcc = accumulator->colors[board->stm];
+    int16_t* oppAcc = accumulator->colors[1 - board->stm];
+
+    int8_t l1Neurons[L1_SIZE];
+    for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
+        int16_t stmClipped1 = std::clamp(static_cast<int>(stmAcc[l1]), 0, INPUT_QUANT);
+        int16_t stmClipped2 = std::clamp(static_cast<int>(stmAcc[l1 + L1_SIZE / 2]), 0, INPUT_QUANT);
+        l1Neurons[l1] = (stmClipped1 * stmClipped2) >> INPUT_SHIFT;
+
+        int16_t oppClipped1 = std::clamp(static_cast<int>(oppAcc[l1]), 0, INPUT_QUANT);
+        int16_t oppClipped2 = std::clamp(static_cast<int>(oppAcc[l1 + L1_SIZE / 2]), 0, INPUT_QUANT);
+        l1Neurons[l1 + L1_SIZE / 2] = (oppClipped1 * oppClipped2) >> INPUT_SHIFT;
+    }
+
+    int l2Neurons[L2_SIZE] = {};
+
+    for (int l1 = 0; l1 < L1_SIZE; l1++) {
+        for (int l2 = 0; l2 < L2_SIZE; l2++) {
+            l2Neurons[l2] += l1Neurons[l1] * networkData.l1Weights[bucket][l2 * L1_SIZE + l1];
+        }
+    }
+
+    float l3Neurons[L3_SIZE];
+    memcpy(l3Neurons, networkData.l2Biases[bucket], sizeof(l3Neurons));
+
+    constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
+
+    for (int l2 = 0; l2 < L2_SIZE; l2++) {
+        float l2Result = static_cast<float>(l2Neurons[l2]) * L1_NORMALISATION + networkData.l1Biases[bucket][l2];
+        float l2Activated = std::clamp(l2Result, 0.0f, 1.0f);
+        l2Activated *= l2Activated;
+
+        for (int l3 = 0; l3 < L3_SIZE; l3++) {
+            l3Neurons[l3] += l2Activated * networkData.l2Weights[bucket][l2 * L3_SIZE + l3];
+        }
+    }
+
+    float result = networkData.l3Biases[bucket];
+    for (int l3 = 0; l3 < L3_SIZE; l3++) {
+        float l3Activated = std::clamp(l3Neurons[l3], 0.0f, 1.0f);
+        l3Activated *= l3Activated;
+        result += l3Activated * networkData.l3Weights[bucket][l3];
+    }
+    // TODO reduce add
+
+    return result * NETWORK_SCALE;
+    /*Vec* stmAcc = (Vec*)accumulator->colors[board->stm];
     Vec* oppAcc = (Vec*)accumulator->colors[1 - board->stm];
 
-    Vec* stmWeights = (Vec*)&networkData.outputWeights[bucket][0];
-    Vec* oppWeights = (Vec*)&networkData.outputWeights[bucket][HIDDEN_WIDTH];
+    Vec* stmWeights = (Vec*)&networkData.l1Weights[bucket][0];
+    Vec* oppWeights = (Vec*)&networkData.l1Weights[bucket][L1_SIZE];
 
     Vec reluClipMin = vecSetZero();
-    Vec reluClipMax = vecSet1Epi16(NETWORK_QA);
+    Vec reluClipMax = vecSet1Epi16(INPUT_QUANT);
 
     Vec sum = vecSetZero();
     Vec vec0, vec1;
 
-    for (int i = 0; i < HIDDEN_ITERATIONS; ++i) {
+    for (int i = 0; i < L1_ITERATIONS; ++i) {
         // Side to move
         vec0 = maxEpi16(stmAcc[i], reluClipMin); // clip (screlu min)
         vec0 = minEpi16(vec0, reluClipMax); // clip (screlu max)
@@ -271,7 +341,7 @@ Eval NNUE::evaluate(Board* board) {
         sum = addEpi32(sum, vec1);
     }
 
-    int unsquared = vecHaddEpi32(sum) / NETWORK_QA + networkData.outputBiases[bucket];
+    int unsquared = vecHaddEpi32(sum) / INPUT_QUANT + networkData.l1Biases[bucket];
 
-    return (Eval)((unsquared * NETWORK_SCALE) / NETWORK_QAB);
+    return (Eval)((unsquared * NETWORK_SCALE) / NETWORK_QAB);*/
 }
