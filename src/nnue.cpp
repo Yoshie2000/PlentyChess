@@ -30,6 +30,18 @@ void initNetworkData() {
                 networkData.l1Weights[b][l2 * L1_SIZE + l1] = reinterpret_cast<int8_t*>(incNetwork->l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
             }
         }
+        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+            for (int l2 = 0; l2 < L2_SIZE; l2++) {
+                networkData.l1Weights[b][l1 * L2_SIZE + l2] = reinterpret_cast<int8_t*>(incNetwork->l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
+            }
+        }
+        // for (int l1 = 0; l1 < L1_SIZE / INT8_PER_INT32; l1++) {
+        //     for (int l2 = 0; l2 < L2_SIZE; l2++) {
+        //         for (int c = 0; c < INT8_PER_INT32; c++) {
+        //             networkData.l1Weights[b][l1 * INT8_PER_INT32 * L2_SIZE + l2 * INT8_PER_INT32 + c] = reinterpret_cast<int8_t*>(incNetwork->l1Weights)[(l1 * INT8_PER_INT32 + c) * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
+        //         }
+        //     }
+        // }
 
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
             for (int l3 = 0; l3 < L3_SIZE; l3++) {
@@ -47,9 +59,9 @@ inline int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square sq
     square ^= kingBucket->mirrored * 7;
     int relativeSquare = square ^ (side * 56);
     if (side == pieceColor)
-        return (64 * piece + relativeSquare) * L1_SIZE / L1_VEC_SIZE;
+        return (64 * piece + relativeSquare) * L1_SIZE / I16_VEC_SIZE;
     else
-        return (64 * (piece + 6) + relativeSquare) * L1_SIZE / L1_VEC_SIZE;
+        return (64 * (piece + 6) + relativeSquare) * L1_SIZE / I16_VEC_SIZE;
 }
 
 void NNUE::reset(Board* board) {
@@ -270,7 +282,7 @@ Eval NNUE::evaluate(Board* board) {
     int16_t* stmAcc = accumulator->colors[board->stm];
     int16_t* oppAcc = accumulator->colors[1 - board->stm];
 
-    int8_t l1Neurons[L1_SIZE];
+    alignas(ALIGNMENT) uint8_t l1Neurons[L1_SIZE];
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
         int16_t stmClipped1 = std::clamp(static_cast<int>(stmAcc[l1]), 0, INPUT_QUANT);
         int16_t stmClipped2 = std::clamp(static_cast<int>(stmAcc[l1 + L1_SIZE / 2]), 0, INPUT_QUANT);
@@ -281,35 +293,76 @@ Eval NNUE::evaluate(Board* board) {
         l1Neurons[l1 + L1_SIZE / 2] = (oppClipped1 * oppClipped2) >> INPUT_SHIFT;
     }
 
-    int l2Neurons[L2_SIZE] = {};
+    alignas(ALIGNMENT) int l2Neurons[L2_SIZE] = {};
+    for (int l1 = 0; l1 < L1_SIZE; l1 += INT8_PER_INT32) {
+        for (int l2 = 0; l2 < L2_SIZE; l2 += 256 / 32) {
+            int u8s = *((int*) &l1Neurons[l1]);
+            __m256i tmp = _mm256_maddubs_epi16(_mm256_set1_epi32(u8s), *((__m256i*) &networkData.l1Weights[bucket][l1 * L2_SIZE + INT8_PER_INT32 * l2]));
+            __m256i sum = _mm256_madd_epi16(tmp, _mm256_set1_epi16(1));
+
+            for (int i = 0; i < 32; i++)
+                std::cout << std::to_string(((int8_t*) &(*((__m256i*) &networkData.l1Weights[bucket][l1 * L2_SIZE + INT8_PER_INT32 * l2])))[i]) << " ";
+
+            *((__m256i*) &l2Neurons[l2]) = _mm256_add_epi32(*((__m256i*) &l2Neurons[l2]), sum);
+
+
+            // *((__m256i*) &l2Neurons[l2 * 8]) = _mm256_dpbusd_avx_epi32(*((__m256i*) &l2Neurons[l2 * 8]), *((__m256i*) &l1Neurons[l1 * 32]), *((__m256i*) &networkData.l1Weights[bucket][l2 * L1_SIZE * 8 + l1 * 32]));
+        }
+    }
+    std::cout << std::endl << std::endl;
 
     for (int l1 = 0; l1 < L1_SIZE; l1++) {
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
-            l2Neurons[l2] += l1Neurons[l1] * networkData.l1Weights[bucket][l2 * L1_SIZE + l1];
+            std::cout << std::to_string(networkData.l1Weights[bucket][l1 * L2_SIZE + l2]) << " ";
+            //l2Neurons[l2] += l1Neurons[l1] * networkData.l1Weights[bucket][l1 * L2_SIZE + l2];
         }
     }
+    std::cout << std::endl << std::endl;
 
-    float l3Neurons[L3_SIZE];
+    alignas(ALIGNMENT) float l2Floats[L2_SIZE];
+    for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
+        __m256 converted = _mm256_cvtepi32_ps(*((__m256i*) &l2Neurons[l2 * FLOAT_VEC_SIZE]));
+        __m256 l2Result = _mm256_add_ps(_mm256_mul_ps(converted, _mm256_set1_ps(L1_NORMALISATION)), *((__m256*) &networkData.l1Biases[bucket][l2 * FLOAT_VEC_SIZE]));
+        __m256 l2Clipped = _mm256_max_ps(_mm256_min_ps(l2Result, _mm256_set1_ps(1.0f)), _mm256_set1_ps(0.0f));
+        *((__m256*) &l2Floats[l2 * FLOAT_VEC_SIZE]) = _mm256_mul_ps(l2Clipped, l2Clipped);
+    }
+
+    alignas(ALIGNMENT) float l3Neurons[L3_SIZE];
     memcpy(l3Neurons, networkData.l2Biases[bucket], sizeof(l3Neurons));
-
-    constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
-
     for (int l2 = 0; l2 < L2_SIZE; l2++) {
-        float l2Result = static_cast<float>(l2Neurons[l2]) * L1_NORMALISATION + networkData.l1Biases[bucket][l2];
-        float l2Activated = std::clamp(l2Result, 0.0f, 1.0f);
-        l2Activated *= l2Activated;
-
-        for (int l3 = 0; l3 < L3_SIZE; l3++) {
-            l3Neurons[l3] += l2Activated * networkData.l2Weights[bucket][l2 * L3_SIZE + l3];
+        for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3++) {
+            *((__m256*) &l3Neurons[l3 * FLOAT_VEC_SIZE]) = _mm256_fmadd_ps(_mm256_set1_ps(l2Floats[l2]), *((__m256*) &networkData.l2Weights[bucket][l2 * L3_SIZE + l3 * FLOAT_VEC_SIZE]), *((__m256*) &l3Neurons[l3 * FLOAT_VEC_SIZE]));
         }
     }
 
-    float result = networkData.l3Biases[bucket];
-    for (int l3 = 0; l3 < L3_SIZE; l3++) {
-        float l3Activated = std::clamp(l3Neurons[l3], 0.0f, 1.0f);
-        l3Activated *= l3Activated;
-        result += l3Activated * networkData.l3Weights[bucket][l3];
+    // for (int l2 = 0; l2 < L2_SIZE; l2++) {
+    //     float l2Result = static_cast<float>(l2Neurons[l2]) * L1_NORMALISATION + networkData.l1Biases[bucket][l2];
+    //     float l2Activated = std::clamp(l2Result, 0.0f, 1.0f);
+    //     l2Activated *= l2Activated;
+
+    //     for (int l3 = 0; l3 < L3_SIZE; l3++) {
+    //         l3Neurons[l3] += l2Activated * networkData.l2Weights[bucket][l2 * L3_SIZE + l3];
+    //     }
+    // }
+
+    __m256 resultSums = _mm256_set1_ps(0.0f);
+    for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3++) {
+        __m256 l3Clipped = _mm256_max_ps(_mm256_min_ps(*((__m256*) &l3Neurons[l3 * FLOAT_VEC_SIZE]), _mm256_set1_ps(1.0f)), _mm256_set1_ps(0.0f));
+        __m256 l3Activated = _mm256_mul_ps(l3Clipped, l3Clipped);
+        resultSums = _mm256_fmadd_ps(l3Activated, *((__m256*) &networkData.l3Weights[bucket][l3 * FLOAT_VEC_SIZE]), resultSums);
     }
+
+    __m256 hadd = _mm256_hadd_ps(resultSums, _mm256_set1_ps(0.0f));
+    hadd = _mm256_hadd_ps(hadd, _mm256_set1_ps(0.0f));
+    float result = networkData.l3Biases[bucket] + ((float*) &hadd)[0] + ((float*) &hadd)[4];
+
+
+    // float result = networkData.l3Biases[bucket];
+    // for (int l3 = 0; l3 < L3_SIZE; l3++) {
+    //     float l3Activated = std::clamp(l3Neurons[l3], 0.0f, 1.0f);
+    //     l3Activated *= l3Activated;
+    //     result += l3Activated * networkData.l3Weights[bucket][l3];
+    // }
     // TODO reduce add
 
     return result * NETWORK_SCALE;

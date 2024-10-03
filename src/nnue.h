@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <immintrin.h>
+#include <xmmintrin.h>
 
 #include "types.h"
 
@@ -187,10 +188,16 @@ constexpr int INPUT_QUANT = 362;
 constexpr int INPUT_SHIFT = 10;
 constexpr int L1_QUANT = 32;
 
+constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
+
 constexpr int ALIGNMENT = 64;
 
-constexpr int L1_VEC_SIZE = sizeof(Vec) / sizeof(int16_t);
-constexpr int L1_ITERATIONS = L1_SIZE / L1_VEC_SIZE;
+constexpr int I16_VEC_SIZE = sizeof(Vec) / sizeof(int16_t);
+constexpr int FLOAT_VEC_SIZE = sizeof(__m256) / sizeof(float);
+
+constexpr int INT8_PER_INT32 = sizeof(int) / sizeof(int8_t);
+
+constexpr int L1_ITERATIONS = L1_SIZE / I16_VEC_SIZE;
 
 struct DirtyPiece {
   Square origin;
@@ -209,7 +216,7 @@ constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
 }
 
 constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
-  return KingBucketInfo {
+  return KingBucketInfo{
     static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
     fileOf(kingSquare) >= 4
   };
@@ -235,24 +242,24 @@ struct FinnyEntry {
 
 struct UnalignedNetworkData {
   int16_t inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
-  int16_t inputBiases [L1_SIZE];
-  int8_t  l1Weights   [OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-  float   l1Biases    [OUTPUT_BUCKETS][L2_SIZE];
-  float   l2Weights   [OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
-  float   l2Biases    [OUTPUT_BUCKETS][L3_SIZE];
-  float   l3Weights   [OUTPUT_BUCKETS][L3_SIZE];
-  float   l3Biases    [OUTPUT_BUCKETS];
+  int16_t inputBiases[L1_SIZE];
+  int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+  float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
+  float   l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+  float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
+  float   l3Weights[OUTPUT_BUCKETS][L3_SIZE];
+  float   l3Biases[OUTPUT_BUCKETS];
 };
 
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
-  alignas(ALIGNMENT) int16_t inputBiases [L1_SIZE];
-  alignas(ALIGNMENT) int8_t  l1Weights   [OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-  alignas(ALIGNMENT) float   l1Biases    [OUTPUT_BUCKETS][L2_SIZE];
-  alignas(ALIGNMENT) float   l2Weights   [OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
-  alignas(ALIGNMENT) float   l2Biases    [OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Weights   [OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Biases    [OUTPUT_BUCKETS];
+  alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
+  alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+  alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
+  alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+  alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
+  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE];
+  alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
 };
 
 extern NetworkData networkData;
@@ -292,10 +299,10 @@ public:
   void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
   template<Color side>
-  void addPieceToAccumulator(int16_t(* inputData)[L1_SIZE], int16_t(* outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
+  void addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
   template<Color side>
-  void removePieceFromAccumulator(int16_t(* inputData)[L1_SIZE], int16_t(* outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
+  void removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
   template<Color side>
-  void movePieceInAccumulator(int16_t(* inputData)[L1_SIZE], int16_t(* outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor);
+  void movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor);
 
 };
