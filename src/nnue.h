@@ -164,9 +164,9 @@ inline int vecHaddEpi32(Vec vec) {
 }
 
 inline float vecReduceAddPs(float* sums, int length) {
-    for (int i = 0; i < length; i++)
-      std::cout << std::to_string(((int*)sums)[i]) << " ";
-    std::cout << std::endl << std::endl;
+    // for (int i = 0; i < length; i++)
+    //   std::cout << std::to_string(((int*)sums)[i]) << " ";
+    // std::cout << std::endl << std::endl;
     if (length == 2) return sums[0] + sums[1];
     for (int i = 0; i < length / 2; ++i)
         sums[i] += sums[i + length / 2];
