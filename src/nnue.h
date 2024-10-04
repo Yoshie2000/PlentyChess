@@ -163,14 +163,15 @@ inline int vecHaddEpi32(Vec vec) {
   return asArray[0] + asArray[1] + asArray[2] + asArray[3];
 }
 
-inline float vecReduceAddPs(float* vec, int len) {
-  if (len == 2)
-    return vec[0] + vec[1];
-  len /= 2;
-  for (int i = 0; i < len; i++) {
-    vec[i] += vec[i + len];
-  }
-  return vecReduceAddPs(vec, len);
+inline float vecReduceAddPs(float* sums, int length) {
+    for (int i = 0; i < length; i++)
+      std::cout << std::to_string(((int*)sums)[i]) << " ";
+    std::cout << std::endl << std::endl;
+    if (length == 2) return sums[0] + sums[1];
+    for (int i = 0; i < length / 2; ++i)
+        sums[i] += sums[i + length / 2];
+
+    return vecReduceAddPs(sums, length / 2);
 }
 
 #endif
