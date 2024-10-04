@@ -382,9 +382,12 @@ Eval NNUE::evaluate(Board* board) {
     }
 // #endif
 
-    for (int i = 0; i < L2_SIZE; i++)
-        std::cout << *((int*) &l2Neurons[i]) << " ";
+    for (int i = 0; i < L3_SIZE * 4; i++)
+        std::cout << int(((int8_t*) &l3Neurons)[i]) << " ";
     std::cout << std::endl << std::endl << std::endl << std::endl;
+
+    // -50 -42 -29 62 -99 -83 50 63 -72 91 -50 62 18 -78 31 -67 -46 16 -110 -73 0 -62 113 -69 -92 48 -73 -66 -31 -87 90 62 -96 -72 105 61 32 -109 42 63 124 62 57 62 58 75 23 63 -80 42 28 -67 26 44 8 -65 -24 26 -123 -66 41 -17 -8 62 30 -3 91 -73 -128 90 -30 62 -116 56 -44 62 94 110 22 63 -44 -70 99 -66 -78 27 0 63 26 -27 25 62 -36 -3 -115 63 -24 42 -92 -68 -76 40 29 63 -64 90 75 -69 -32 88 -39 -68 84 -10 65 -73 64 72 -30 60 126 59 10 63 -43 -101 59 63
+    // -50 -42 -29 62 -99 -83 50 63 -72 91 -50 62 18 -78 31 -67 -46 16 -110 -73 0 -62 113 -69 -90 48 -73 -66 -32 -87 90 62 -96 -72 105 61 32 -109 42 63 126 62 57 62 57 75 23 63 -64 42 28 -67 26 44 8 -65 -24 26 -123 -66 41 -17 -8 62 30 -3 91 -73 -128 90 -30 62 -116 56 -44 62 94 110 22 63 -44 -70 99 -66 -78 27 0 63 25 -27 25 62 -36 -3 -115 63 -24 42 -92 -68 -77 40 29 63 64 91 75 -69 -25 88 -39 -68 84 -10 65 -73 64 72 -30 60 126 59 10 63 -43 -101 59 63
 
     // 66 1294 2944 0 3476 0 1476 2287 313 825 0 0 2077 3163 0 0
     // 66 1294 2944 0 3476 0 1476 2287 313 825 0 0 2077 3163 0 0
@@ -406,9 +409,9 @@ Eval NNUE::evaluate(Board* board) {
         // for (int i = 0; i < 16; i++)
         //     std::cout << std::to_string(((int*)resultSums)[i]) << " ";
         // std::cout << std::endl;
-        for (int i = 0; i < 16; i++)
-            std::cout << std::to_string(((int*)&l3Neurons[l3 * 2 * FLOAT_VEC_SIZE])[i]) << " ";
-        std::cout << std::endl;
+        // for (int i = 0; i < 16; i++)
+        //     std::cout << std::to_string(((int*)&l3Neurons[l3 * 2 * FLOAT_VEC_SIZE])[i]) << " ";
+        // std::cout << std::endl;
     }
     /*
     0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
@@ -426,7 +429,7 @@ Eval NNUE::evaluate(Board* board) {
 
     // for (int i = 0; i < 16; i++)
     //   std::cout << std::to_string(((int*)resultSums)[i]) << " ";
-    std::cout << std::endl << std::endl;
+    //std::cout << std::endl << std::endl;
 
     float result = networkData.l3Biases[bucket] + _mm512_reduce_add_ps(resultSums[0]); // 1792885
 
@@ -443,27 +446,27 @@ Eval NNUE::evaluate(Board* board) {
         resultSums[0] = _mm256_fmadd_ps(l3Activated1, *((__m256*) & networkData.l3Weights[bucket][l3 * FLOAT_VEC_SIZE]), resultSums[0]);
         resultSums[1] = _mm256_fmadd_ps(l3Activated2, *((__m256*) & networkData.l3Weights[bucket][(l3 + 1) * FLOAT_VEC_SIZE]), resultSums[1]);
     }
-    for (int i = 0; i < 16; i++)
-        std::cout << std::to_string(((int*)resultSums)[i]) << " ";
-    std::cout << std::endl;
+    // for (int i = 0; i < 16; i++)
+    //     std::cout << std::to_string(((int*)resultSums)[i]) << " ";
+    // std::cout << std::endl;
     resultSums[0] = _mm256_add_ps(resultSums[0], resultSums[1]);
-    for (int i = 0; i < 8; i++)
-        std::cout << std::to_string(((int*)&resultSums[0])[i]) << " ";
-    std::cout << std::endl;
+    // for (int i = 0; i < 8; i++)
+    //     std::cout << std::to_string(((int*)&resultSums[0])[i]) << " ";
+    // std::cout << std::endl;
 
     // -1113241193 1032152916 1031080608 -1105374148 0 1036308773 -1131935051 -1109907012 -1151759439 -1107455700 -1120895139 -1107214903 0 977431842 1035921954 1052688518
 
     __m128 high = _mm256_extractf128_ps(resultSums[0], 1);
     __m128 low = _mm256_castps256_ps128(resultSums[0]);
     __m128 sum = _mm_add_ps(high, low);
-    for (int i = 0; i < 4; i++)
-        std::cout << std::to_string(((int*)&sum)[i]) << " ";
-    std::cout << std::endl;
+    // for (int i = 0; i < 4; i++)
+    //     std::cout << std::to_string(((int*)&sum)[i]) << " ";
+    // std::cout << std::endl;
     __m128 high64 = _mm_movehl_ps(sum, sum);
     __m128 sum64 = _mm_add_ps(sum, high64);
-    for (int i = 0; i < 2; i++)
-        std::cout << std::to_string(((int*)&sum64)[i]) << " ";
-    std::cout << std::endl;
+    // for (int i = 0; i < 2; i++)
+    //     std::cout << std::to_string(((int*)&sum64)[i]) << " ";
+    // std::cout << std::endl;
     /*
     -1113241193 1032152916 1031080608 -1105374148 0 1036308773 -1131935051 -1109907012 -1151759439 -1107455700 -1120895139 -1107214903 0 977431842 1035921954 1052688518
     -1112795659 -1116712016 1015617158 -1097905918 0 1036408319 1033693045 1049146903
@@ -483,15 +486,15 @@ Eval NNUE::evaluate(Board* board) {
         for (int chunk = 0; chunk < chunks; chunk++) {
             float l3Activated = std::clamp(l3Neurons[l3 + chunk], 0.0f, 1.0f);
             float l3Squared = l3Activated * l3Activated;
-            std::cout << *((int*) &l3Neurons[l3 + chunk]) << " " << *((int*) &l3Activated) << " " << *((int*) &l3Squared) << " " << *((int*) &networkData.l3Weights[bucket][l3 + chunk]) << "\t";
+            // std::cout << *((int*) &l3Neurons[l3 + chunk]) << " " << *((int*) &l3Activated) << " " << *((int*) &l3Squared) << " " << *((int*) &networkData.l3Weights[bucket][l3 + chunk]) << "\t";
             resultSums[chunk] += l3Squared * networkData.l3Weights[bucket][l3 + chunk]; // 1872511
         }
-        std::cout << std::endl;
+        // std::cout << std::endl;
         // for (int i = 0; i < 16; i++)
         //     std::cout << std::to_string(((int*)resultSums)[i]) << " ";
         // std::cout << std::endl;
     }
-    std::cout << std::endl << std::endl;
+    // std::cout << std::endl << std::endl;
 
     /*
     1055119054 1060285853 1053711288 -1121996270 -1215164206 -1150172672 -1095290714 1046129120 1030338720 1059754784 1043938942 1058491193 -1122227520 -1089983462 -1098573080 1056501545 
