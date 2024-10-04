@@ -163,6 +163,16 @@ inline int vecHaddEpi32(Vec vec) {
   return asArray[0] + asArray[1] + asArray[2] + asArray[3];
 }
 
+inline float vecReduceAddPs(float* vec, int len) {
+  if (len == 2)
+    return vec[0] + vec[1];
+  len /= 2;
+  for (int i = 0; i < len; i++) {
+    vec[i] += vec[i + len];
+  }
+  return vecReduceAddPs(vec, len);
+}
+
 #endif
 
 constexpr int INPUT_SIZE = 768;

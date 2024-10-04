@@ -284,7 +284,7 @@ Eval NNUE::evaluate(Board* board) {
 
     alignas(ALIGNMENT) uint8_t l1Neurons[L1_SIZE];
 
-#if defined(__AVX2__)
+#if defined(__AVX2__) && false
     for (int l1 = 0; l1 < L1_SIZE / 2; l1 += 2 * sizeof(__m256i) / sizeof(int16_t)) {
         // STM
         __m256i clipped1 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & stmAcc[l1]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
@@ -355,7 +355,7 @@ Eval NNUE::evaluate(Board* board) {
     alignas(ALIGNMENT) float l3Neurons[L3_SIZE];
     memcpy(l3Neurons, networkData.l2Biases[bucket], sizeof(l3Neurons));
 
-#if defined(__AVX2__)
+#if defined(__AVX2__) && false
     alignas(ALIGNMENT) float l2Floats[L2_SIZE];
 
     for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
@@ -382,24 +382,51 @@ Eval NNUE::evaluate(Board* board) {
     }
 #endif
 
-#if defined(__AVX2__)
-    __m256 resultSums = _mm256_set1_ps(0.0f);
-    for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3++) {
-        __m256 l3Clipped = _mm256_max_ps(_mm256_min_ps(*((__m256*) & l3Neurons[l3 * FLOAT_VEC_SIZE]), _mm256_set1_ps(1.0f)), _mm256_set1_ps(0.0f));
-        __m256 l3Activated = _mm256_mul_ps(l3Clipped, l3Clipped);
-        resultSums = _mm256_fmadd_ps(l3Activated, *((__m256*) & networkData.l3Weights[bucket][l3 * FLOAT_VEC_SIZE]), resultSums);
+#if defined(__AVX512F__) && defined(__AVX512BW__)
+    __m512 resultSums[1];
+    resultSums[0] = _mm512_set1_ps(0.0f);
+
+    for (int l3 = 0; l3 < L3_SIZE / (sizeof(__m512) / sizeof(float)); l3++) {
+        __m512 l3Clipped = _mm512_max_ps(_mm512_min_ps(*((__m512*) & l3Neurons[l3 * FLOAT_VEC_SIZE]), _mm512_set1_ps(1.0f)), _mm512_set1_ps(0.0f));
+        __m512 l3Activated = _mm512_mul_ps(l3Clipped, l3Clipped);
+        resultSums[0] = _mm512_fmadd_ps(l3Activated, *((__m512*) & networkData.l3Weights[bucket][l3 * FLOAT_VEC_SIZE]), resultSums[0]);
     }
 
-    __m256 hadd = _mm256_hadd_ps(resultSums, _mm256_set1_ps(0.0f));
-    hadd = _mm256_hadd_ps(hadd, _mm256_set1_ps(0.0f));
-    float result = networkData.l3Biases[bucket] + ((float*)&hadd)[0] + ((float*)&hadd)[4];
-#else
-    float result = networkData.l3Biases[bucket];
-    for (int l3 = 0; l3 < L3_SIZE; l3++) {
-        float l3Activated = std::clamp(l3Neurons[l3], 0.0f, 1.0f);
-        l3Activated *= l3Activated;
-        result += l3Activated * networkData.l3Weights[bucket][l3];
+    float result = networkData.l3Biases[bucket] + _mm512_reduce_add_ps(resultSums[0]); // 1892450
+
+#elif defined(__AVX2__)
+    __m256 resultSums[2];
+    resultSums[0] = _mm256_set1_ps(0.0f);
+    resultSums[1] = _mm256_set1_ps(0.0f);
+
+    for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3 += 2) {
+        __m256 l3Clipped1 = _mm256_max_ps(_mm256_min_ps(*((__m256*) & l3Neurons[l3 * FLOAT_VEC_SIZE]), _mm256_set1_ps(1.0f)), _mm256_set1_ps(0.0f));
+        __m256 l3Clipped2 = _mm256_max_ps(_mm256_min_ps(*((__m256*) & l3Neurons[(l3 + 1) * FLOAT_VEC_SIZE]), _mm256_set1_ps(1.0f)), _mm256_set1_ps(0.0f));
+        __m256 l3Activated1 = _mm256_mul_ps(l3Clipped1, l3Clipped1);
+        __m256 l3Activated2 = _mm256_mul_ps(l3Clipped2, l3Clipped2);
+        resultSums[0] = _mm256_fmadd_ps(l3Activated1, *((__m256*) & networkData.l3Weights[bucket][l3 * FLOAT_VEC_SIZE]), resultSums[0]);
+        resultSums[1] = _mm256_fmadd_ps(l3Activated2, *((__m256*) & networkData.l3Weights[bucket][(l3 + 1) * FLOAT_VEC_SIZE]), resultSums[1]);
     }
+    resultSums[0] = _mm256_add_ps(resultSums[0], resultSums[1]);
+
+    __m128 high = _mm256_extractf128_ps(resultSums[0], 1);
+    __m128 low = _mm256_castps256_ps128(resultSums[0]);
+    __m128 sum = _mm_add_ps(high, low);
+    __m128 high64 = _mm_movehl_ps(sum, sum);
+    __m128 sum64 = _mm_add_ps(sum, high64);
+    float result = networkData.l3Biases[bucket] + ((float*)&sum64)[0] + ((float*)&sum64)[1]; // 1792885
+#else
+    constexpr int chunks = sizeof(__m512) / sizeof(float);
+
+    float results[chunks] = {};
+    for (int l3 = 0; l3 < L3_SIZE; l3 += chunks) {
+        for (int chunk = 0; chunk < chunks; chunk++) {
+            float l3Activated = std::clamp(l3Neurons[l3 + chunk], 0.0f, 1.0f);
+            l3Activated *= l3Activated;
+            results[chunk] += l3Activated * networkData.l3Weights[bucket][l3 + chunk]; // 1872511
+        }
+    }
+    float result = networkData.l3Biases[bucket] + vecReduceAddPs(results, chunks);
 #endif
 
     // float result = networkData.l3Biases[bucket];
