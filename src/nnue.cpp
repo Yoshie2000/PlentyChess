@@ -284,39 +284,39 @@ Eval NNUE::evaluate(Board* board) {
 
     alignas(ALIGNMENT) uint8_t l1Neurons[L1_SIZE];
 
-#if defined(__AVX2__) && false
-    for (int l1 = 0; l1 < L1_SIZE / 2; l1 += 2 * sizeof(__m256i) / sizeof(int16_t)) {
-        // STM
-        __m256i clipped1 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & stmAcc[l1]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
-        __m256i clipped2 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & stmAcc[l1 + L1_SIZE / 2]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
-        __m256i shift = _mm256_slli_epi16(clipped1, 16 - INPUT_SHIFT);
-        __m256i mul1 = _mm256_mulhi_epi16(shift, clipped2);
+// #if defined(__AVX2__) && false
+//     for (int l1 = 0; l1 < L1_SIZE / 2; l1 += 2 * sizeof(__m256i) / sizeof(int16_t)) {
+//         // STM
+//         __m256i clipped1 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & stmAcc[l1]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
+//         __m256i clipped2 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & stmAcc[l1 + L1_SIZE / 2]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
+//         __m256i shift = _mm256_slli_epi16(clipped1, 16 - INPUT_SHIFT);
+//         __m256i mul1 = _mm256_mulhi_epi16(shift, clipped2);
 
-        clipped1 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & stmAcc[l1 + sizeof(__m256i) / sizeof(int16_t)]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
-        clipped2 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & stmAcc[l1 + sizeof(__m256i) / sizeof(int16_t) + L1_SIZE / 2]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
-        shift = _mm256_slli_epi16(clipped1, 16 - INPUT_SHIFT);
-        __m256i mul2 = _mm256_mulhi_epi16(shift, clipped2);
+//         clipped1 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & stmAcc[l1 + sizeof(__m256i) / sizeof(int16_t)]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
+//         clipped2 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & stmAcc[l1 + sizeof(__m256i) / sizeof(int16_t) + L1_SIZE / 2]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
+//         shift = _mm256_slli_epi16(clipped1, 16 - INPUT_SHIFT);
+//         __m256i mul2 = _mm256_mulhi_epi16(shift, clipped2);
 
-        __m256i u8s = _mm256_packus_epi16(mul1, mul2);
-        u8s = _mm256_permute4x64_epi64(u8s, _MM_SHUFFLE(3, 1, 2, 0));
-        _mm256_store_si256((__m256i*) & l1Neurons[l1], u8s);
+//         __m256i u8s = _mm256_packus_epi16(mul1, mul2);
+//         u8s = _mm256_permute4x64_epi64(u8s, _MM_SHUFFLE(3, 1, 2, 0));
+//         _mm256_store_si256((__m256i*) & l1Neurons[l1], u8s);
 
-        // NSTM
-        clipped1 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & oppAcc[l1]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
-        clipped2 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & oppAcc[l1 + L1_SIZE / 2]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
-        shift = _mm256_slli_epi16(clipped1, 16 - INPUT_SHIFT);
-        mul1 = _mm256_mulhi_epi16(shift, clipped2);
+//         // NSTM
+//         clipped1 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & oppAcc[l1]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
+//         clipped2 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & oppAcc[l1 + L1_SIZE / 2]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
+//         shift = _mm256_slli_epi16(clipped1, 16 - INPUT_SHIFT);
+//         mul1 = _mm256_mulhi_epi16(shift, clipped2);
 
-        clipped1 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & oppAcc[l1 + sizeof(__m256i) / sizeof(int16_t)]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
-        clipped2 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & oppAcc[l1 + sizeof(__m256i) / sizeof(int16_t) + L1_SIZE / 2]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
-        shift = _mm256_slli_epi16(clipped1, 16 - INPUT_SHIFT);
-        mul2 = _mm256_mulhi_epi16(shift, clipped2);
+//         clipped1 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & oppAcc[l1 + sizeof(__m256i) / sizeof(int16_t)]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
+//         clipped2 = _mm256_min_epi16(_mm256_max_epi16(*((__m256i*) & oppAcc[l1 + sizeof(__m256i) / sizeof(int16_t) + L1_SIZE / 2]), _mm256_set1_epi16(0)), _mm256_set1_epi16(INPUT_QUANT));
+//         shift = _mm256_slli_epi16(clipped1, 16 - INPUT_SHIFT);
+//         mul2 = _mm256_mulhi_epi16(shift, clipped2);
 
-        u8s = _mm256_packus_epi16(mul1, mul2);
-        u8s = _mm256_permute4x64_epi64(u8s, _MM_SHUFFLE(3, 1, 2, 0));
-        _mm256_store_si256((__m256i*) & l1Neurons[l1 + L1_SIZE / 2], u8s);
-    }
-#else
+//         u8s = _mm256_packus_epi16(mul1, mul2);
+//         u8s = _mm256_permute4x64_epi64(u8s, _MM_SHUFFLE(3, 1, 2, 0));
+//         _mm256_store_si256((__m256i*) & l1Neurons[l1 + L1_SIZE / 2], u8s);
+//     }
+// #else
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
         int16_t stmClipped1 = std::clamp(static_cast<int>(stmAcc[l1]), 0, INPUT_QUANT);
         int16_t stmClipped2 = std::clamp(static_cast<int>(stmAcc[l1 + L1_SIZE / 2]), 0, INPUT_QUANT);
@@ -326,7 +326,7 @@ Eval NNUE::evaluate(Board* board) {
         int16_t oppClipped2 = std::clamp(static_cast<int>(oppAcc[l1 + L1_SIZE / 2]), 0, INPUT_QUANT);
         l1Neurons[l1 + L1_SIZE / 2] = (oppClipped1 * oppClipped2) >> INPUT_SHIFT;
     }
-#endif
+// #endif
 
     alignas(ALIGNMENT) int l2Neurons[L2_SIZE] = {};
     // for (int l1 = 0; l1 < L1_SIZE; l1 += 1) {
@@ -355,22 +355,22 @@ Eval NNUE::evaluate(Board* board) {
     alignas(ALIGNMENT) float l3Neurons[L3_SIZE];
     memcpy(l3Neurons, networkData.l2Biases[bucket], sizeof(l3Neurons));
 
-#if defined(__AVX2__) && false
-    alignas(ALIGNMENT) float l2Floats[L2_SIZE];
+// #if defined(__AVX2__) && false
+//     alignas(ALIGNMENT) float l2Floats[L2_SIZE];
 
-    for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
-        __m256 converted = _mm256_cvtepi32_ps(*((__m256i*) & l2Neurons[l2 * FLOAT_VEC_SIZE]));
-        __m256 l2Result = _mm256_add_ps(_mm256_mul_ps(converted, _mm256_set1_ps(L1_NORMALISATION)), *((__m256*) & networkData.l1Biases[bucket][l2 * FLOAT_VEC_SIZE]));
-        __m256 l2Clipped = _mm256_max_ps(_mm256_min_ps(l2Result, _mm256_set1_ps(1.0f)), _mm256_set1_ps(0.0f));
-        *((__m256*) & l2Floats[l2 * FLOAT_VEC_SIZE]) = _mm256_mul_ps(l2Clipped, l2Clipped);
-    }
+//     for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
+//         __m256 converted = _mm256_cvtepi32_ps(*((__m256i*) & l2Neurons[l2 * FLOAT_VEC_SIZE]));
+//         __m256 l2Result = _mm256_add_ps(_mm256_mul_ps(converted, _mm256_set1_ps(L1_NORMALISATION)), *((__m256*) & networkData.l1Biases[bucket][l2 * FLOAT_VEC_SIZE]));
+//         __m256 l2Clipped = _mm256_max_ps(_mm256_min_ps(l2Result, _mm256_set1_ps(1.0f)), _mm256_set1_ps(0.0f));
+//         *((__m256*) & l2Floats[l2 * FLOAT_VEC_SIZE]) = _mm256_mul_ps(l2Clipped, l2Clipped);
+//     }
 
-    for (int l2 = 0; l2 < L2_SIZE; l2++) {
-        for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3++) {
-            *((__m256*) & l3Neurons[l3 * FLOAT_VEC_SIZE]) = _mm256_fmadd_ps(_mm256_set1_ps(l2Floats[l2]), *((__m256*) & networkData.l2Weights[bucket][l2 * L3_SIZE + l3 * FLOAT_VEC_SIZE]), *((__m256*) & l3Neurons[l3 * FLOAT_VEC_SIZE]));
-        }
-    }
-#else
+//     for (int l2 = 0; l2 < L2_SIZE; l2++) {
+//         for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3++) {
+//             *((__m256*) & l3Neurons[l3 * FLOAT_VEC_SIZE]) = _mm256_fmadd_ps(_mm256_set1_ps(l2Floats[l2]), *((__m256*) & networkData.l2Weights[bucket][l2 * L3_SIZE + l3 * FLOAT_VEC_SIZE]), *((__m256*) & l3Neurons[l3 * FLOAT_VEC_SIZE]));
+//         }
+//     }
+// #else
     for (int l2 = 0; l2 < L2_SIZE; l2++) {
         float l2Result = static_cast<float>(l2Neurons[l2]) * L1_NORMALISATION + networkData.l1Biases[bucket][l2];
         float l2Activated = std::clamp(l2Result, 0.0f, 1.0f);
@@ -380,19 +380,55 @@ Eval NNUE::evaluate(Board* board) {
             l3Neurons[l3] += l2Activated * networkData.l2Weights[bucket][l2 * L3_SIZE + l3];
         }
     }
-#endif
+// #endif
+
+    for (int i = 0; i < L2_SIZE; i++)
+        std::cout << *((int*) &l2Neurons[i]) << " ";
+    std::cout << std::endl << std::endl << std::endl << std::endl;
+
+    // 66 1294 2944 0 3476 0 1476 2287 313 825 0 0 2077 3163 0 0
+    // 66 1294 2944 0 3476 0 1476 2287 313 825 0 0 2077 3163 0 0
+
+    // 1055119054 1060285853 1053711288 -1121996270 -1215164206 -1150172672 -1095290714 1046129120 1030338720 1059754784 1043938942 1058491193 -1122227520 -1089983462 -1098573080 1056501545 -1218708194 1055021696 1054095500 1058434654 -1100760364 1056971698 1041884441 1066270172 -1130091800 1058875571 -1152689344 -1126606617 -1220413868 1021462592 1057635198 1060871125
+    // 1055119054 1060285853 1053711288 -1121996270 -1215164206 -1150172672 -1095290716 1046129121 1030338720 1059754784 1043938940 1058491194 -1122227536 -1089983462 -1098573080 1056501545 -1218708194 1055021696 1054095500 1058434654 -1100760364 1056971698 1041884442 1066270172 -1130091800 1058875572 -1152689472 -1126606624 -1220413868 1021462592 1057635198 1060871125
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
     __m512 resultSums[1];
     resultSums[0] = _mm512_set1_ps(0.0f);
 
     for (int l3 = 0; l3 < L3_SIZE / (sizeof(__m512) / sizeof(float)); l3++) {
-        __m512 l3Clipped = _mm512_max_ps(_mm512_min_ps(*((__m512*) & l3Neurons[l3 * FLOAT_VEC_SIZE]), _mm512_set1_ps(1.0f)), _mm512_set1_ps(0.0f));
+        __m512 l3Clipped = _mm512_max_ps(_mm512_min_ps(*((__m512*)&l3Neurons[l3 * 2 * FLOAT_VEC_SIZE]), _mm512_set1_ps(1.0f)), _mm512_set1_ps(0.0f));
         __m512 l3Activated = _mm512_mul_ps(l3Clipped, l3Clipped);
-        resultSums[0] = _mm512_fmadd_ps(l3Activated, *((__m512*) & networkData.l3Weights[bucket][l3 * FLOAT_VEC_SIZE]), resultSums[0]);
+        // for (int i = 0; i < 16; i++)
+        //     std::cout << std::to_string(((int*)resultSums)[i]) << " ";
+        // std::cout << std::endl;
+        resultSums[0] = _mm512_fmadd_ps(l3Activated, *((__m512*)&networkData.l3Weights[bucket][l3 * 2 * FLOAT_VEC_SIZE]), resultSums[0]);
+        // for (int i = 0; i < 16; i++)
+        //     std::cout << std::to_string(((int*)resultSums)[i]) << " ";
+        // std::cout << std::endl;
+        for (int i = 0; i < 16; i++)
+            std::cout << std::to_string(((int*)&l3Neurons[l3 * 2 * FLOAT_VEC_SIZE])[i]) << " ";
+        std::cout << std::endl;
     }
+    /*
+    0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    -1113241193 1041988499 -1111398094 0 0 0 0 1027782587 -1151759439 1040584681 -1120895139 -1107214903 0 0 0 1040390274
+    -1113241193 1041988499 -1111398094 0 0 0 0 1027782587 -1151759439 1040584681 -1120895139 -1107214903 0 0 0 1040390274
+    -1113241193 1032152916 1031080608 -1105374148 0 1036308773 -1131935051 -1109907012 -1151759439 -1107455700 -1120895139 -1107214903 0 977431842 1035921954 1052688518
+    */
 
-    float result = networkData.l3Biases[bucket] + _mm512_reduce_add_ps(resultSums[0]); // 1892450
+    /*
+    0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+    -1113241193 1041988499 -1111398094 0 0 0 0 1027782589 -1151759439 1040584681 -1120895143 -1107214901 0 0 0 1040390274 
+    -1113241193 1041988499 -1111398094 0 0 0 0 1027782589 -1151759439 1040584681 -1120895143 -1107214901 0 0 0 1040390274 
+    -1113241193 1032152916 1031080608 -1105374148 0 1036308773 -1131935050 -1109907012 -1151759439 -1107455690 -1120895143 -1107214901 0 977431842 1035921954 1052688518
+    */
+
+    // for (int i = 0; i < 16; i++)
+    //   std::cout << std::to_string(((int*)resultSums)[i]) << " ";
+    std::cout << std::endl << std::endl;
+
+    float result = networkData.l3Biases[bucket] + _mm512_reduce_add_ps(resultSums[0]); // 1792885
 
 #elif defined(__AVX2__)
     __m256 resultSums[2];
@@ -407,26 +443,104 @@ Eval NNUE::evaluate(Board* board) {
         resultSums[0] = _mm256_fmadd_ps(l3Activated1, *((__m256*) & networkData.l3Weights[bucket][l3 * FLOAT_VEC_SIZE]), resultSums[0]);
         resultSums[1] = _mm256_fmadd_ps(l3Activated2, *((__m256*) & networkData.l3Weights[bucket][(l3 + 1) * FLOAT_VEC_SIZE]), resultSums[1]);
     }
+    for (int i = 0; i < 16; i++)
+        std::cout << std::to_string(((int*)resultSums)[i]) << " ";
+    std::cout << std::endl;
     resultSums[0] = _mm256_add_ps(resultSums[0], resultSums[1]);
+    for (int i = 0; i < 8; i++)
+        std::cout << std::to_string(((int*)&resultSums[0])[i]) << " ";
+    std::cout << std::endl;
+
+    // -1113241193 1032152916 1031080608 -1105374148 0 1036308773 -1131935051 -1109907012 -1151759439 -1107455700 -1120895139 -1107214903 0 977431842 1035921954 1052688518
 
     __m128 high = _mm256_extractf128_ps(resultSums[0], 1);
     __m128 low = _mm256_castps256_ps128(resultSums[0]);
     __m128 sum = _mm_add_ps(high, low);
+    for (int i = 0; i < 4; i++)
+        std::cout << std::to_string(((int*)&sum)[i]) << " ";
+    std::cout << std::endl;
     __m128 high64 = _mm_movehl_ps(sum, sum);
     __m128 sum64 = _mm_add_ps(sum, high64);
+    for (int i = 0; i < 2; i++)
+        std::cout << std::to_string(((int*)&sum64)[i]) << " ";
+    std::cout << std::endl;
+    /*
+    -1113241193 1032152916 1031080608 -1105374148 0 1036308773 -1131935051 -1109907012 -1151759439 -1107455700 -1120895139 -1107214903 0 977431842 1035921954 1052688518
+    -1112795659 -1116712016 1015617158 -1097905918 0 1036408319 1033693045 1049146903
+    -1112795659 1025267790 1035939094 -1135452832
+    1008253192 1020232172
+    19
+    */
     float result = networkData.l3Biases[bucket] + ((float*)&sum64)[0] + ((float*)&sum64)[1]; // 1792885
 #else
     constexpr int chunks = sizeof(__m512) / sizeof(float);
 
-    float results[chunks] = {};
+    float resultSums[chunks] = {};
     for (int l3 = 0; l3 < L3_SIZE; l3 += chunks) {
+        // for (int i = 0; i < 16; i++)
+        //     std::cout << std::to_string(((int*)resultSums)[i]) << " ";
+        // std::cout << std::endl;
         for (int chunk = 0; chunk < chunks; chunk++) {
             float l3Activated = std::clamp(l3Neurons[l3 + chunk], 0.0f, 1.0f);
-            l3Activated *= l3Activated;
-            results[chunk] += l3Activated * networkData.l3Weights[bucket][l3 + chunk]; // 1872511
+            float l3Squared = l3Activated * l3Activated;
+            std::cout << *((int*) &l3Neurons[l3 + chunk]) << " " << *((int*) &l3Activated) << " " << *((int*) &l3Squared) << " " << *((int*) &networkData.l3Weights[bucket][l3 + chunk]) << "\t";
+            resultSums[chunk] += l3Squared * networkData.l3Weights[bucket][l3 + chunk]; // 1872511
         }
+        std::cout << std::endl;
+        // for (int i = 0; i < 16; i++)
+        //     std::cout << std::to_string(((int*)resultSums)[i]) << " ";
+        // std::cout << std::endl;
     }
-    float result = networkData.l3Biases[bucket] + vecReduceAddPs(results, chunks);
+    std::cout << std::endl << std::endl;
+
+    /*
+    1055119054 1060285853 1053711288 -1121996270 -1215164206 -1150172672 -1095290714 1046129120 1030338720 1059754784 1043938942 1058491193 -1122227520 -1089983462 -1098573080 1056501545 
+    -1218708194 1055021696 1054095500 1058434654 -1100760364 1056971698 1041884441 1066270172 -1130091800 1058875571 -1152689344 -1126606617 -1220413868 1021462592 1057635198 1060871125
+    */
+
+    /*
+    1055119054 1055119054 1045087910 -1093620753
+    1060285853 1060285853 1056533448 1050645881     
+    1053711288 1053711288 1042700221 -1089154000    
+    -1121996270 0 0 -1087303386     
+    -1215164206 0 0 -1229327317     
+    -1150172672 0 0 1060334188   
+    -1095290716 0 0 1065654282      
+    1046129121 1046129121 1027261892 1065710063     
+    1030338720 1030338720 995451288 -1081966716     
+    1059754784 1059754784 1055084406 1050082186     
+    1043938940 1043938940 1023806302 -10794736861058491194 1058491194 1051906985 -1095171057     
+    -1122227536 0 0 1056620974      
+    -1089983462 0 0 -1088318171     
+    -1098573080 0 0 1073571098      
+    1056501545 1056501545 1047662655 1057662136
+    -1218708194 0 0 908532093       
+    1055021696 1055021696 1044915178 -1092411734    
+    1054095500 1054095500 1043328436 1063640225     
+    1058434654 1058434654 1051773707 -1092366133    
+    -1100760364 0 0 -1073913917     
+    1056971698 1056971698 1048590186 1053064213  
+    1041884442 1041884442 1018758988 -1086572233    
+    1066270172 1065353216 1065353216 -1105411379    
+    -1130091800 0 0 1067733633      
+    1058875572 1058875572 1052833255 -1087567855    
+    -1152689472 0 0 1061531094  
+    -1126606624 0 0 -1079698266      
+    -1220413868 0 0 902482719       
+    1021462592 1021462592 977798053 1064884499      
+    1057635198 1057635198 1049970787 1050915406     
+    1060871125 1060871125 1057586440 1055465608
+    */
+
+    /*
+    -1113241193 1032152916 1031080608 -1105374148 0 1036308773 -1131935050 -1109907012 -1151759439 -1107455690 -1120895143 -1107214901 0 977431842 1035921954 1052688518
+    -1112795659 -1116711996 1015617166 -1097905916 0 1036408319 1033693044 1049146903
+    -1112795659 1025267770 1035939096 -1135452768
+    1008253208 1020232100
+    19
+    */
+
+    float result = networkData.l3Biases[bucket] + vecReduceAddPs(resultSums, chunks);
 #endif
 
     // float result = networkData.l3Biases[bucket];
