@@ -26,23 +26,21 @@ void initNetworkData() {
 
     // Transpose L1 / L2 / L3 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+#if defined(__AVX2__)
+        for (int l1 = 0; l1 < L1_SIZE / INT8_PER_INT32; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                networkData.l1Weights[b][l2 * L1_SIZE + l1] = reinterpret_cast<int8_t*>(incNetwork->l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
+                for (int c = 0; c < INT8_PER_INT32; c++) {
+                    networkData.l1Weights[b][l1 * INT8_PER_INT32 * L2_SIZE + l2 * INT8_PER_INT32 + c] = reinterpret_cast<int8_t*>(incNetwork->l1Weights)[(l1 * INT8_PER_INT32 + c) * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
+                }
             }
         }
+#else
         for (int l1 = 0; l1 < L1_SIZE; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
                 networkData.l1Weights[b][l1 * L2_SIZE + l2] = reinterpret_cast<int8_t*>(incNetwork->l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
             }
         }
-        // for (int l1 = 0; l1 < L1_SIZE / INT8_PER_INT32; l1++) {
-        //     for (int l2 = 0; l2 < L2_SIZE; l2++) {
-        //         for (int c = 0; c < INT8_PER_INT32; c++) {
-        //             networkData.l1Weights[b][l1 * INT8_PER_INT32 * L2_SIZE + l2 * INT8_PER_INT32 + c] = reinterpret_cast<int8_t*>(incNetwork->l1Weights)[(l1 * INT8_PER_INT32 + c) * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
-        //         }
-        //     }
-        // }
+#endif
 
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
             for (int l3 = 0; l3 < L3_SIZE; l3++) {
@@ -331,14 +329,14 @@ Eval NNUE::evaluate(Board* board) {
 
     alignas(ALIGNMENT) int l2Neurons[L2_SIZE] = {};
 #if defined(__AVX2__)
+    int* l1Packs = reinterpret_cast<int*>(l1Neurons);
+
     for (int l1 = 0; l1 < L1_SIZE; l1 += INT8_PER_INT32) {
         for (int l2 = 0; l2 < L2_SIZE; l2 += 256 / 32) {
-            __m256i u8 = _mm256_set1_epi32(l1Neurons[l1]);
+            __m256i u8 = _mm256_set1_epi32(l1Packs[l1 / INT8_PER_INT32]);
             __m256i i8 = *((__m256i*) &networkData.l1Weights[bucket][l1 * L2_SIZE + INT8_PER_INT32 * l2]);
             __m256i tmp = _mm256_maddubs_epi16(u8, i8);
             __m256i sum = _mm256_madd_epi16(tmp, _mm256_set1_epi16(1));
-
-            // std::cout << l1 << " " << l2 << " " << (((char*) &networkData.l1Weights[bucket][l1 * L2_SIZE + INT8_PER_INT32 * l2]) - ((char*) &networkData.l1Weights[bucket])) << std::endl;
             
             *((__m256i*) &l2Neurons[l2]) = _mm256_add_epi32(*((__m256i*) &l2Neurons[l2]), sum);
         }
