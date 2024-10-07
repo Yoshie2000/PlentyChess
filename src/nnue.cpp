@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string.h>
 #include <cassert>
+#include <cmath>
 
 #include "nnue.h"
 #include "board.h"
@@ -300,7 +301,7 @@ Eval NNUE::evaluate(Board* board) {
         l2Activated *= l2Activated;
 
         for (int l3 = 0; l3 < L3_SIZE; l3++) {
-            l3Neurons[l3] += l2Activated * networkData.l2Weights[bucket][l2 * L3_SIZE + l3];
+            l3Neurons[l3] = std::fma(l2Activated, networkData.l2Weights[bucket][l2 * L3_SIZE + l3], l3Neurons[l3]);
         }
     }
 
