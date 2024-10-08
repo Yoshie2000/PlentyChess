@@ -168,16 +168,16 @@ constexpr int INPUT_WIDTH = 768;
 constexpr int HIDDEN_WIDTH = 1536;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0
+    0, 0, 1, 1, 1, 1, 0, 0,
+    2, 2, 3, 3, 3, 3, 2, 2,
+    4, 4, 4, 4, 4, 4, 4, 4,
+    5, 5, 5, 5, 5, 5, 5, 5,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
 };
-constexpr int KING_BUCKETS = 1;
+constexpr int KING_BUCKETS = 7;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
@@ -207,7 +207,7 @@ constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
 }
 
 constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
-  return KingBucketInfo {
+  return KingBucketInfo{
     static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
     fileOf(kingSquare) >= 4
   };
@@ -275,10 +275,10 @@ public:
   void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
   template<Color side>
-  void addPieceToAccumulator(int16_t(* inputData)[HIDDEN_WIDTH], int16_t(* outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
+  void addPieceToAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
   template<Color side>
-  void removePieceFromAccumulator(int16_t(* inputData)[HIDDEN_WIDTH], int16_t(* outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
+  void removePieceFromAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
   template<Color side>
-  void movePieceInAccumulator(int16_t(* inputData)[HIDDEN_WIDTH], int16_t(* outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor);
+  void movePieceInAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*outputData)[HIDDEN_WIDTH], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor);
 
 };
