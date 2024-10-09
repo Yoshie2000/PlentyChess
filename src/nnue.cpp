@@ -146,7 +146,7 @@ void NNUE::finalizeMove(Board* board) {
 }
 
 template<Color side>
-void NNUE::calculateAccumulators() {
+__attribute_noinline__ void NNUE::calculateAccumulators() {
     // Incrementally update all accumulators for this side
     while (lastCalculatedAccumulator[side] < currentAccumulator) {
 
@@ -166,7 +166,7 @@ void NNUE::calculateAccumulators() {
 }
 
 template<Color side>
-void NNUE::refreshAccumulator(Accumulator* acc) {
+__attribute_noinline__ void NNUE::refreshAccumulator(Accumulator* acc) {
     FinnyEntry* finnyEntry = &finnyTable[acc->kingBucketInfo[side].mirrored][acc->kingBucketInfo[side].index];
 
     // Update matching finny table with the changed pieces
@@ -196,7 +196,7 @@ void NNUE::refreshAccumulator(Accumulator* acc) {
 }
 
 template<Color side>
-void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+__attribute_noinline__ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
     // Incrementally update all the dirty pieces
     // Input and output are the same king bucket so it's all good
     for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
@@ -218,7 +218,7 @@ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* ou
 }
 
 template<Color side>
-void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
+__attribute_noinline__ void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
     // Get the index of the piece for this color in the input layer
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
@@ -232,7 +232,7 @@ void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputDa
 }
 
 template<Color side>
-void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
+__attribute_noinline__ void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
     // Get the index of the piece for this color in the input layer
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
@@ -246,7 +246,7 @@ void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*out
 }
 
 template<Color side>
-void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor) {
+__attribute_noinline__ void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor) {
     // Get the index of the piece squares for this color in the input layer
     int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin, kingBucket);
     int addWeightOffset = getFeatureOffset(side, piece, pieceColor, target, kingBucket);
@@ -261,34 +261,13 @@ void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputD
     }
 }
 
-Eval NNUE::evaluate(Board* board) {
-    assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
-
-    // Make sure the current accumulators are up to date
-    calculateAccumulators<Color::WHITE>();
-    calculateAccumulators<Color::BLACK>();
-
-    assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
-
-    // Calculate output bucket based on piece count
-    int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
-    // constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-    int bucket = std::min((63 - pieceCount) * (32 - pieceCount) / 225, 7);
-    assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
-
-    Accumulator* accumulator = &accumulatorStack[currentAccumulator];
-
-    VecI* stmAcc = reinterpret_cast<VecI*>(accumulator->colors[board->stm]);
-    VecI* oppAcc = reinterpret_cast<VecI*>(accumulator->colors[1 - board->stm]);
-
-    alignas(ALIGNMENT) uint8_t l1Neurons[L1_SIZE];
+__attribute_noinline__ void NNUE::pairwise(VecI* stmAcc, VecI* oppAcc, VecI* l1NeuronsVec) {
     VecI i16Zero = set1Epi16(0);
     VecI i16Quant = set1Epi16(INPUT_QUANT);
 
-    VecI* l1NeuronsVec = reinterpret_cast<VecI*>(l1Neurons);
-
     constexpr int inverseShift = 16 - INPUT_SHIFT;
     constexpr int pairwiseOffset = L1_SIZE / I16_VEC_SIZE / 2;
+
     for (int l1 = 0; l1 < pairwiseOffset; l1 += 2) {
         // STM
         VecI clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
@@ -325,8 +304,9 @@ Eval NNUE::evaluate(Board* board) {
     //     int16_t oppClipped2 = std::clamp(static_cast<int>(oppAcc[l1 + L1_SIZE / 2]), 0, INPUT_QUANT);
     //     l1Neurons[l1 + L1_SIZE / 2] = (oppClipped1 * oppClipped2) >> INPUT_SHIFT;
     // }
+}
 
-    alignas(ALIGNMENT) int l2Neurons[L2_SIZE] = {};
+__attribute_noinline__ void NNUE::l2Matmul(uint8_t* l1Neurons, int* l2Neurons, int bucket) {
 #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
     int* l1Packs = reinterpret_cast<int*>(l1Neurons);
 
@@ -345,11 +325,10 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
 #endif
+}
 
-    alignas(ALIGNMENT) float l3Neurons[L3_SIZE];
-    memcpy(l3Neurons, networkData.l2Biases[bucket], sizeof(l3Neurons));
-
-#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
+void NNUE::propagateL3(int* l2Neurons, float* l3Neurons, int bucket) {
+    #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
     alignas(ALIGNMENT) float l2Floats[L2_SIZE];
 
     VecF psNorm = set1Ps(L1_NORMALISATION);
@@ -386,14 +365,20 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
 #endif
+}
 
-#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
+__attribute_noinline__ float NNUE::propagateOutput(float* l3Neurons, int bucket) {
+    #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
     constexpr int chunks = 64 / sizeof(VecF);
+
+    VecF psZero = set1Ps(0.0f);
+    VecF psOne = set1Ps(1.0f);
 
     VecF resultSums[chunks];
     for (int i = 0; i < chunks; i++)
         resultSums[i] = psZero;
 
+    VecF* l3NeuronsVec = reinterpret_cast<VecF*>(l3Neurons);
     VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData.l3Weights[bucket]);
     for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
@@ -403,7 +388,7 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
 
-    float result = networkData.l3Biases[bucket] + reduceAddPs(resultSums);
+    return networkData.l3Biases[bucket] + reduceAddPs(resultSums);
 #else
     constexpr int chunks = sizeof(VecF) / sizeof(float);
     float resultSums[chunks] = {};
@@ -416,8 +401,38 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
 
-    float result = networkData.l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
+    return networkData.l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
 #endif
+}
 
-    return result * NETWORK_SCALE;
+Eval NNUE::evaluate(Board* board) {
+    assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
+
+    // Make sure the current accumulators are up to date
+    calculateAccumulators<Color::WHITE>();
+    calculateAccumulators<Color::BLACK>();
+
+    assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
+
+    // Calculate output bucket based on piece count
+    int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
+    // constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
+    int bucket = std::min((63 - pieceCount) * (32 - pieceCount) / 225, 7);
+    assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
+
+    Accumulator* accumulator = &accumulatorStack[currentAccumulator];
+
+    VecI* stmAcc = reinterpret_cast<VecI*>(accumulator->colors[board->stm]);
+    VecI* oppAcc = reinterpret_cast<VecI*>(accumulator->colors[1 - board->stm]);
+    alignas(ALIGNMENT) uint8_t l1Neurons[L1_SIZE];
+    pairwise(stmAcc, oppAcc, reinterpret_cast<VecI*>(l1Neurons));
+
+    alignas(ALIGNMENT) int l2Neurons[L2_SIZE] = {};
+    l2Matmul(l1Neurons, l2Neurons, bucket);
+
+    alignas(ALIGNMENT) float l3Neurons[L3_SIZE];
+    memcpy(l3Neurons, networkData.l2Biases[bucket], sizeof(l3Neurons));
+    propagateL3(l2Neurons, l3Neurons, bucket);
+
+    return propagateOutput(l3Neurons, bucket) * NETWORK_SCALE;
 }

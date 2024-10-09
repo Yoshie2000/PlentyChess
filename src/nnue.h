@@ -410,6 +410,10 @@ public:
   void resetAccumulator(Board* board, Accumulator* acc);
 
   Eval evaluate(Board* board);
+  void pairwise(VecI* stmAcc, VecI* oppAcc, VecI* l1NeuronsVec);
+  void l2Matmul(uint8_t* l1Neurons, int* l2Neurons, int bucket);
+  void propagateL3(int* l2Neurons, float* l3Neurons, int bucket);
+  float propagateOutput(float* l3Neurons, int bucket);
 
   template<Color side>
   void calculateAccumulators();
