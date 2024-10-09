@@ -21,7 +21,7 @@ endif
 # CPU Flags
 ifeq ($(arch), avx512vnni)
 	CXXFLAGS := $(CXXFLAGS) -march=cascadelake
-else ifeq ($(arch), avx5122)
+else ifeq ($(arch), avx512)
 	CXXFLAGS := $(CXXFLAGS) -march=skylake-avx512
 else ifeq ($(arch), avx2)
 	CXXFLAGS := $(CXXFLAGS) -march=haswell
