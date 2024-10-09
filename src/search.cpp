@@ -436,6 +436,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, worsening = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    int searchDepth = depth;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -491,7 +492,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // IIR
     if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
-        depth--;
+        searchDepth--;
 
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
@@ -613,8 +614,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     assert(board->stack);
 
     // IIR 2: Electric boolagoo
-    if (!ttHit && depth >= iirMinDepth && pvNode)
-        depth--;
+    if (!ttHit && searchDepth >= iirMinDepth && pvNode)
+        searchDepth--;
 
 movesLoop:
 
@@ -685,15 +686,15 @@ movesLoop:
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
         if (doExtensions
-            && depth >= 7
+            && searchDepth >= 7
             && move == ttMove
             && !excluded
             && (ttFlag & TT_LOWERBOUND)
             && std::abs(ttValue) < EVAL_MATE_IN_MAX_PLY
             && ttDepth >= depth - 3
             ) {
-            Eval singularBeta = ttValue - depth;
-            int singularDepth = (depth - 1) / 2;
+            Eval singularBeta = ttValue - searchDepth;
+            int singularDepth = (searchDepth - 1) / 2;
 
             stack->excludedMove = move;
             Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
@@ -705,6 +706,7 @@ movesLoop:
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
                     extension = 2;
                     depth += depth < doubleExtensionDepthIncrease;
+                    searchDepth += searchDepth < doubleExtensionDepthIncrease;
                 }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
@@ -749,7 +751,7 @@ movesLoop:
             extension = 1;
 
         Eval value = 0;
-        int newDepth = depth - 1 + extension;
+        int newDepth = searchDepth - 1 + extension;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
@@ -839,7 +841,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
+                    int bonus = std::min(historyBonusBase + historyBonusFactor * (searchDepth + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
                     if (!capture) {
                         // Update quiet killer
                         stack->killer = move;
@@ -854,8 +856,8 @@ movesLoop:
                     break;
                 }
 
-                if (depth > 4 && depth < 10 && beta < EVAL_MATE_IN_MAX_PLY && value > -EVAL_MATE_IN_MAX_PLY)
-                    depth--;
+                if (searchDepth > 4 && searchDepth < 10 && beta < EVAL_MATE_IN_MAX_PLY && value > -EVAL_MATE_IN_MAX_PLY)
+                    searchDepth--;
             }
         }
 
