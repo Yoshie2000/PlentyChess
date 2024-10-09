@@ -278,41 +278,43 @@ Eval NNUE::evaluate(Board* board) {
 
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
-    int16_t* stmAcc = accumulator->colors[board->stm];
-    int16_t* oppAcc = accumulator->colors[1 - board->stm];
+    VecI* stmAcc = reinterpret_cast<VecI*>(accumulator->colors[board->stm]);
+    VecI* oppAcc = reinterpret_cast<VecI*>(accumulator->colors[1 - board->stm]);
 
     alignas(ALIGNMENT) uint8_t l1Neurons[L1_SIZE];
     VecI i16Zero = set1Epi16(0);
     VecI i16Quant = set1Epi16(INPUT_QUANT);
 
-    for (int l1 = 0; l1 < L1_SIZE / 2; l1 += 2 * I16_VEC_SIZE) {
+    VecI* l1NeuronsVec = reinterpret_cast<VecI*>(l1Neurons);
+
+    constexpr int inverseShift = 16 - INPUT_SHIFT;
+    constexpr int pairwiseOffset = L1_SIZE / I16_VEC_SIZE / 2;
+    for (int l1 = 0; l1 < pairwiseOffset; l1 += 2) {
         // STM
-        VecI clipped1 = minEpi16(maxEpi16(*((VecI*) & stmAcc[l1]), i16Zero), i16Quant);
-        VecI clipped2 = minEpi16(maxEpi16(*((VecI*) & stmAcc[l1 + L1_SIZE / 2]), i16Zero), i16Quant);
-        VecI shift = slliEpi16(clipped1, 16 - INPUT_SHIFT);
+        VecI clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
+        VecI clipped2 = minEpi16(maxEpi16(stmAcc[l1 + pairwiseOffset], i16Zero), i16Quant);
+        VecI shift = slliEpi16(clipped1, inverseShift);
         VecI mul1 = mulhiEpi16(shift, clipped2);
 
-        clipped1 = minEpi16(maxEpi16(*((VecI*) & stmAcc[l1 + I16_VEC_SIZE]), i16Zero), i16Quant);
-        clipped2 = minEpi16(maxEpi16(*((VecI*) & stmAcc[l1 + I16_VEC_SIZE + L1_SIZE / 2]), i16Zero), i16Quant);
-        shift = slliEpi16(clipped1, 16 - INPUT_SHIFT);
+        clipped1 = minEpi16(maxEpi16(stmAcc[l1 + 1], i16Zero), i16Quant);
+        clipped2 = minEpi16(maxEpi16(stmAcc[l1 + 1 + pairwiseOffset], i16Zero), i16Quant);
+        shift = slliEpi16(clipped1, inverseShift);
         VecI mul2 = mulhiEpi16(shift, clipped2);
 
-        VecI u8s = packusEpi16(mul1, mul2);
-        vecStoreI((VecI*) & l1Neurons[l1], u8s);
+        l1NeuronsVec[l1 / 2] = packusEpi16(mul1, mul2);
 
         // NSTM
-        clipped1 = minEpi16(maxEpi16(*((VecI*) & oppAcc[l1]), i16Zero), i16Quant);
-        clipped2 = minEpi16(maxEpi16(*((VecI*) & oppAcc[l1 + L1_SIZE / 2]), i16Zero), i16Quant);
-        shift = slliEpi16(clipped1, 16 - INPUT_SHIFT);
+        clipped1 = minEpi16(maxEpi16(oppAcc[l1], i16Zero), i16Quant);
+        clipped2 = minEpi16(maxEpi16(oppAcc[l1 + pairwiseOffset], i16Zero), i16Quant);
+        shift = slliEpi16(clipped1, inverseShift);
         mul1 = mulhiEpi16(shift, clipped2);
 
-        clipped1 = minEpi16(maxEpi16(*((VecI*) & oppAcc[l1 + I16_VEC_SIZE]), i16Zero), i16Quant);
-        clipped2 = minEpi16(maxEpi16(*((VecI*) & oppAcc[l1 + I16_VEC_SIZE + L1_SIZE / 2]), i16Zero), i16Quant);
-        shift = slliEpi16(clipped1, 16 - INPUT_SHIFT);
+        clipped1 = minEpi16(maxEpi16(oppAcc[l1 + 1], i16Zero), i16Quant);
+        clipped2 = minEpi16(maxEpi16(oppAcc[l1 + 1 + pairwiseOffset], i16Zero), i16Quant);
+        shift = slliEpi16(clipped1, inverseShift);
         mul2 = mulhiEpi16(shift, clipped2);
 
-        u8s = packusEpi16(mul1, mul2);
-        vecStoreI((VecI*) & l1Neurons[l1 + L1_SIZE / 2], u8s);
+        l1NeuronsVec[l1 / 2 + pairwiseOffset / 2] = packusEpi16(mul1, mul2);
     }
     // for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
     //     int16_t stmClipped1 = std::clamp(static_cast<int>(stmAcc[l1]), 0, INPUT_QUANT);
@@ -329,10 +331,11 @@ Eval NNUE::evaluate(Board* board) {
     int* l1Packs = reinterpret_cast<int*>(l1Neurons);
 
     for (int l1 = 0; l1 < L1_SIZE; l1 += INT8_PER_INT32) {
-        for (int l2 = 0; l2 < L2_SIZE; l2 += I32_VEC_SIZE) {
-            VecI u8 = set1Epi32(l1Packs[l1 / INT8_PER_INT32]);
-            VecI i8 = *((VecI*) &networkData.l1Weights[bucket][l1 * L2_SIZE + INT8_PER_INT32 * l2]);
-            *((VecI*) &l2Neurons[l2]) = dpbusdEpi32(*((VecI*) &l2Neurons[l2]), u8, i8);
+        VecI u8 = set1Epi32(l1Packs[l1 / INT8_PER_INT32]);
+        VecI* weights = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1 * L2_SIZE]);
+        VecI* l2NeuronsVec = reinterpret_cast<VecI*>(l2Neurons);
+        for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
+            l2NeuronsVec[l2] = dpbusdEpi32(l2NeuronsVec[l2], u8, weights[l2]);
         }
     }
 #else
@@ -353,16 +356,23 @@ Eval NNUE::evaluate(Board* board) {
     VecF psZero = set1Ps(0.0f);
     VecF psOne = set1Ps(1.0f);
 
+    VecI* l2NeuronsVec = reinterpret_cast<VecI*>(l2Neurons);
+    VecF* l1Biases = reinterpret_cast<VecF*>(networkData.l1Biases[bucket]);
+    VecF* l2FloatsVec = reinterpret_cast<VecF*>(l2Floats);
+
     for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
-        VecF converted = cvtepi32Ps(*((VecI*) & l2Neurons[l2 * FLOAT_VEC_SIZE]));
-        VecF l2Result = addPs(mulPs(converted, psNorm), *((VecF*) & networkData.l1Biases[bucket][l2 * FLOAT_VEC_SIZE]));
+        VecF converted = cvtepi32Ps(l2NeuronsVec[l2]);
+        VecF l2Result = addPs(mulPs(converted, psNorm), l1Biases[l2]);
         VecF l2Clipped = maxPs(minPs(l2Result, psOne), psZero);
-        *((VecF*) & l2Floats[l2 * FLOAT_VEC_SIZE]) = mulPs(l2Clipped, l2Clipped);
+        l2FloatsVec[l2] = mulPs(l2Clipped, l2Clipped);
     }
 
+    VecF* l3NeuronsVec = reinterpret_cast<VecF*>(l3Neurons);
     for (int l2 = 0; l2 < L2_SIZE; l2++) {
+        VecF l2Vec = set1Ps(l2Floats[l2]);
+        VecF* weights = reinterpret_cast<VecF*>(&networkData.l2Weights[bucket][l2 * L3_SIZE]);
         for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3++) {
-            *((VecF*) & l3Neurons[l3 * FLOAT_VEC_SIZE]) = fmaddPs(set1Ps(l2Floats[l2]), *((VecF*) & networkData.l2Weights[bucket][l2 * L3_SIZE + l3 * FLOAT_VEC_SIZE]), *((VecF*) & l3Neurons[l3 * FLOAT_VEC_SIZE]));
+            l3NeuronsVec[l3] = fmaddPs(l2Vec, weights[l3], l3NeuronsVec[l3]);
         }
     }
 #else
@@ -384,11 +394,12 @@ Eval NNUE::evaluate(Board* board) {
     for (int i = 0; i < chunks; i++)
         resultSums[i] = psZero;
 
+    VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData.l3Weights[bucket]);
     for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
-            VecF l3Clipped = maxPs(minPs(*((VecF*)&l3Neurons[(l3 + chunk) * FLOAT_VEC_SIZE]), psOne), psZero);
+            VecF l3Clipped = maxPs(minPs(l3NeuronsVec[l3 + chunk], psOne), psZero);
             VecF l3Activated = mulPs(l3Clipped, l3Clipped);
-            resultSums[chunk] = fmaddPs(l3Activated, *((VecF*)&networkData.l3Weights[bucket][(l3 + chunk) * FLOAT_VEC_SIZE]), resultSums[chunk]);
+            resultSums[chunk] = fmaddPs(l3Activated, l3WeightsVec[l3 + chunk], resultSums[chunk]);
         }
     }
 
