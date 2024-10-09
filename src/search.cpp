@@ -436,6 +436,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, worsening = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    int iir = 0;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -490,8 +491,10 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // IIR
-    if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
+    if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth) {
         depth--;
+        iir++;
+    }
 
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
@@ -613,8 +616,10 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     assert(board->stack);
 
     // IIR 2: Electric boolagoo
-    if (!ttHit && depth >= iirMinDepth && pvNode)
+    if (!ttHit && depth >= iirMinDepth && pvNode) {
         depth--;
+        iir++;
+    }
 
 movesLoop:
 
@@ -867,6 +872,8 @@ movesLoop:
         }
         return 0; // Stalemate
     }
+
+    depth += iir;
 
     // Insert into TT
     bool failLow = alpha == oldAlpha;
