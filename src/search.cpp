@@ -36,7 +36,7 @@ TUNE_FLOAT(tmNodesFactor, 0.8762573043400358f, 0.1f, 2.5f);
 // Aspiration windows
 TUNE_INT(aspirationWindowMinDepth, 4, 2, 6);
 TUNE_INT(aspirationWindowDelta, 15, 1, 30);
-TUNE_INT(aspirationWindowMaxFailHighs, 3, 1, 10);
+TUNE_INT(aspirationWindowMaxFailHighs, 7, 1, 10);
 TUNE_FLOAT(aspirationWindowDeltaFactor, 1.586604734243168f, 1.0f, 3.0f);
 
 // Reduction / Margin tables
