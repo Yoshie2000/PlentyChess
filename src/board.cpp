@@ -63,6 +63,7 @@ void Board::dfrc(int index) {
         nthFree(pieces, 0, Piece::ROOK);
 
         std::array<char, Piece::TOTAL> pieceChars[2] = { {'P', 'N', 'B', 'R', 'Q', 'K'}, {'p', 'n', 'b', 'r', 'q', 'k'} };
+
         std::string result = "";
 
         for (int i = 0; i < 8; i++) {
@@ -463,9 +464,9 @@ std::string Board::fen() {
         Bitboard whiteRooks = byColor[Color::WHITE] & byPiece[Piece::ROOK] & BB::RANK_1;
         while (whiteRooks) {
             Square whiteRook = popMSB(&whiteRooks);
-            if (whiteRook < whiteKing && (stack->castling & CASTLING_WHITE_KINGSIDE))
+            if (whiteRook > whiteKing && (stack->castling & CASTLING_WHITE_KINGSIDE))
                 result += std::toupper(fileFromSquare(whiteRook));
-            if (whiteRook > whiteKing && (stack->castling & CASTLING_WHITE_QUEENSIDE))
+            if (whiteRook < whiteKing && (stack->castling & CASTLING_WHITE_QUEENSIDE))
                 result += std::toupper(fileFromSquare(whiteRook));
         }
 
@@ -473,9 +474,9 @@ std::string Board::fen() {
         Bitboard blackRooks = byColor[Color::BLACK] & byPiece[Piece::ROOK] & BB::RANK_8;
         while (blackRooks) {
             Square blackRook = popMSB(&blackRooks);
-            if (blackRook < blackKing && (stack->castling & CASTLING_BLACK_KINGSIDE))
+            if (blackRook > blackKing && (stack->castling & CASTLING_BLACK_KINGSIDE))
                 result += std::tolower(fileFromSquare(blackRook));
-            if (blackRook > blackKing && (stack->castling & CASTLING_BLACK_QUEENSIDE))
+            if (blackRook < blackKing && (stack->castling & CASTLING_BLACK_QUEENSIDE))
                 result += std::tolower(fileFromSquare(blackRook));
         }
     }
