@@ -627,6 +627,7 @@ movesLoop:
     MoveGen movegen(board, &history, stack, ttMove, depth);
     Move move;
     int moveCount = 0;
+    int bestMoveDepth = depth;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
         if (move == excludedMove)
@@ -784,6 +785,8 @@ movesLoop:
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
                     history.updateContinuationHistory(stack, flip(board->stm), stack->movedPiece, move, bonus);
                 }
+            } else {
+                newDepth = reducedDepth;
             }
         }
         else if (!pvNode || moveCount > 1) {
@@ -833,6 +836,7 @@ movesLoop:
             if (value > alpha) {
                 bestMove = move;
                 alpha = value;
+                bestMoveDepth = newDepth;
 
                 if (pvNode)
                     updatePv(stack, move);
@@ -873,11 +877,11 @@ movesLoop:
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+        ttEntry->update(board->stack->hash, bestMove, bestMoveDepth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
     if (!board->stack->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
-        int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+        int bonus = std::clamp((int)(bestValue - stack->staticEval) * bestMoveDepth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         history.updateCorrectionHistory(board, stack, bonus);
     }
 
