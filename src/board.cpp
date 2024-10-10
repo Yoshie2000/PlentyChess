@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <cassert>
+#include <array>
 
 #include "move.h"
 #include "types.h"
@@ -16,6 +17,66 @@
 
 void Board::startpos() {
     parseFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", false);
+}
+
+void Board::dfrc(int index) {
+
+    auto backrank = [](int N, Color c) {
+        // https://en.wikipedia.org/wiki/Fischer_random_chess_numbering_scheme#Direct_derivation
+        std::array<Piece, 8> pieces;
+        std::fill(pieces.begin(), pieces.end(), Piece::NONE);
+
+        int N2 = N / 4;
+        int B1 = (N % 4) * 2 + 1;
+        pieces[B1] = Piece::BISHOP;
+
+        int N3 = N2 / 4;
+        int B2 = (N2 % 4) * 2;
+        pieces[B2] = Piece::BISHOP;
+
+        int N4 = N3 / 6;
+        int Q = N3 % 6;
+
+        auto nthFree = [](std::array<Piece, 8>& pieces, int idx, Piece piece) {
+            int free = 0;
+            for (int i = 0; i < 8; i++) {
+                if (free == idx && pieces[i] == Piece::NONE) {
+                    pieces[i] = piece;
+                    return;
+                }
+                if (pieces[i] == Piece::NONE)
+                    free++;
+            }
+            if (pieces[7] == Piece::NONE)
+                pieces[7] = piece;
+        };
+
+        nthFree(pieces, Q, Piece::QUEEN);
+
+        std::pair<int, int> knightTable[] = { std::make_pair(0, 1), std::make_pair(0, 2), std::make_pair(0, 3), std::make_pair(0, 4), std::make_pair(1, 2), std::make_pair(1, 3), std::make_pair(1, 4), std::make_pair(2, 3), std::make_pair(2, 4), std::make_pair(3, 4) }; 
+        auto [knight1, knight2] = knightTable[N4];
+        nthFree(pieces, knight1, Piece::KNIGHT);
+        nthFree(pieces, knight2 - 1, Piece::KNIGHT);
+
+        nthFree(pieces, 0, Piece::ROOK);
+        nthFree(pieces, 0, Piece::KING);
+        nthFree(pieces, 0, Piece::ROOK);
+
+        std::array<char, Piece::TOTAL> pieceChars[2] = { {'P', 'N', 'B', 'R', 'Q', 'K'}, {'p', 'n', 'b', 'r', 'q', 'k'} };
+        std::string result = "";
+
+        for (int i = 0; i < 8; i++) {
+            assert(pieces[i] < Piece::TOTAL);
+            result += pieceChars[c][pieces[i]];
+        }
+
+        return result;
+    };
+
+    std::string blackRank = backrank(index / 960, Color::BLACK);
+    std::string whiteRank = backrank(index % 960, Color::WHITE);
+    std::string fen = blackRank + "/pppppppp/8/8/8/8/PPPPPPPP/" + whiteRank + " w KQkq - 0 1";
+    parseFen(fen, true);
 }
 
 size_t Board::parseFen(std::string fen, bool isChess960) {
@@ -362,8 +423,6 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
 }
 
 std::string Board::fen() {
-    // rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
-    // r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 10
     std::string result;
 
     std::string pieceChars = "pnbrqk ";
@@ -394,10 +453,32 @@ std::string Board::fen() {
     else
         result += " b ";
     
-    if (stack->castling & CASTLING_WHITE_KINGSIDE) result += "K";
-    if (stack->castling & CASTLING_WHITE_QUEENSIDE) result += "Q";
-    if (stack->castling & CASTLING_BLACK_KINGSIDE) result += "k";
-    if (stack->castling & CASTLING_BLACK_QUEENSIDE) result += "q";
+    if (!chess960) {
+        if (stack->castling & CASTLING_WHITE_KINGSIDE) result += "K";
+        if (stack->castling & CASTLING_WHITE_QUEENSIDE) result += "Q";
+        if (stack->castling & CASTLING_BLACK_KINGSIDE) result += "k";
+        if (stack->castling & CASTLING_BLACK_QUEENSIDE) result += "q";
+    } else {
+        Square whiteKing = lsb(byColor[Color::WHITE] & byPiece[Piece::KING]);
+        Bitboard whiteRooks = byColor[Color::WHITE] & byPiece[Piece::ROOK] & BB::RANK_1;
+        while (whiteRooks) {
+            Square whiteRook = popMSB(&whiteRooks);
+            if (whiteRook < whiteKing && (stack->castling & CASTLING_WHITE_KINGSIDE))
+                result += std::toupper(fileFromSquare(whiteRook));
+            if (whiteRook > whiteKing && (stack->castling & CASTLING_WHITE_QUEENSIDE))
+                result += std::toupper(fileFromSquare(whiteRook));
+        }
+
+        Square blackKing = lsb(byColor[Color::BLACK] & byPiece[Piece::KING]);
+        Bitboard blackRooks = byColor[Color::BLACK] & byPiece[Piece::ROOK] & BB::RANK_8;
+        while (blackRooks) {
+            Square blackRook = popMSB(&blackRooks);
+            if (blackRook < blackKing && (stack->castling & CASTLING_BLACK_KINGSIDE))
+                result += std::tolower(fileFromSquare(blackRook));
+            if (blackRook > blackKing && (stack->castling & CASTLING_BLACK_QUEENSIDE))
+                result += std::tolower(fileFromSquare(blackRook));
+        }
+    }
     if (stack->castling)
         result += " ";
     else
@@ -969,6 +1050,10 @@ bool Board::isPseudoLegal(Move move) {
 }
 
 bool Board::isLegal(Move move) {
+    if (!isPseudoLegal(move)) {
+        debugBoard();
+        std::cout << moveToString(move, false) << std::endl;
+    }
     assert(isPseudoLegal(move));
 
     Square origin = moveOrigin(move);

@@ -86,8 +86,8 @@ namespace UCI {
 
         UCIOption<UCI_CHECK> chess960 = {
             "UCI_Chess960",
-            false,
-            false
+            true,
+            true
         };
 
         UCIOption<UCI_SPIN> moveOverhead = {
@@ -110,6 +110,12 @@ namespace UCI {
             false
         };
 
+        UCIOption<UCI_CHECK> datagenDFRC = {
+            "DatagenDFRC",
+            true,
+            true
+        };
+
         UCIOption<UCI_STRING> syzygyPath = {
             "SyzygyPath",
             "",
@@ -118,7 +124,7 @@ namespace UCI {
 
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &syzygyPath);
+            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &datagenDFRC, &syzygyPath);
             for_each_in_tuple(optionsTuple, f);
         }
     };

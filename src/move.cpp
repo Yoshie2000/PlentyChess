@@ -500,7 +500,7 @@ void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) 
     }
 }
 
-inline char fileFromSquare(Square square) {
+char fileFromSquare(Square square) {
     int file = fileOf(square);
     if (file == 0)
         return 'a';

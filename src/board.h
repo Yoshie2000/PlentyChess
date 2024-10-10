@@ -75,6 +75,7 @@ struct Board {
     struct BoardStack* stack;
 
     void startpos();
+    void dfrc(int index);
     size_t parseFen(std::string fen, bool chess960);
     std::string fen();
 

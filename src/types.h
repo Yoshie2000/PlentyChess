@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <iostream>
 
 constexpr int MAX_PLY = 246;
 constexpr int NO_DEPTH = 255;
@@ -58,6 +59,15 @@ inline Square lsb(Bitboard bb) {
 inline Square popLSB(Bitboard* bb) {
     Square l = lsb(*bb);
     *bb &= *bb - 1;
+    return l;
+}
+
+inline Square msb(Bitboard bb) {
+    return 63 - __builtin_clzll(bb);
+}
+inline Square popMSB(Bitboard* bb) {
+    Square l = msb(*bb);
+    *bb &= ~(1ULL << l);
     return l;
 }
 

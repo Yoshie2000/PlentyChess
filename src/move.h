@@ -41,6 +41,7 @@ constexpr Square moveTarget(Move move) {
 
 void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures = false);
 
+char fileFromSquare(Square square);
 std::string moveToString(Move move, bool chess960);
 std::string squareToString(Square square);
 Square stringToSquare(const char* string);

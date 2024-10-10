@@ -530,18 +530,6 @@ void uciLoop(int argc, char* argv[]) {
 
     std::cout << "UCI thread running" << std::endl;
 
-    if (argc > 2 && matchesToken(argv[1], "rescore")) {
-        tb_init("/home/patrick/Syzygy/345:/home/patrick/Syzygy/6");
-        UCI::Options.datagen.value = true;
-        if (TB_LARGEST)
-            std::cout << "info string Syzygy tablebases loaded. Pieces: " << TB_LARGEST << std::endl;
-        else
-            std::cout << "info string Syzygy tablebases failed to load" << std::endl;
-        
-        std::string path(argv[2]);
-        rescore(path, threads);
-        return;
-    }
     if (argc > 1 && matchesToken(argv[1], "genfens")) {
         std::cout << "starting fen generation" << std::endl;
         std::string params(argv[1]);

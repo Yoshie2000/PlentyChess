@@ -67,11 +67,21 @@ void Thread::tgenfens() {
         Board board;
         BoardStack boardStack;
         board.stack = &boardStack;
-        board.startpos();
+        if (UCI::Options.datagenDFRC.value) {
+            board.dfrc(std::rand() % (960 * 960));
+        } else {
+            board.startpos();
+        }
         nnue.reset(&board);
 
         // Play random moves
-        int randomMoves = 8 + std::rand() % 2;
+        int randomMoves;
+        if (UCI::Options.datagenDFRC.value) {
+            randomMoves = 4 + std::rand() % 2;
+        } else {
+            randomMoves = 8 + std::rand() % 2;
+        }
+
         if (playRandomMoves(&board, this, randomMoves)) {
             generatedFens++;
         }
