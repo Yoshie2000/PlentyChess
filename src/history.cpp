@@ -71,7 +71,7 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
 
 int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture) {
     if (isCapture) {
-        return *getCaptureHistory(board, move);
+        return *getCaptureHistory(board, boardStack, move);
     }
     else {
         return getQuietHistory(move, board->stm, board, boardStack) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
@@ -137,7 +137,7 @@ void History::updateContinuationHistory(SearchStack* stack, Color side, Piece pi
         (stack - 4)->contHist[pieceTo] += scaledBonus;
 }
 
-int16_t* History::getCaptureHistory(Board* board, Move move) {
+int16_t* History::getCaptureHistory(Board* board, BoardStack* boardStack, Move move) {
     Piece movedPiece = board->pieces[moveOrigin(move)];
     Piece capturedPiece = board->pieces[moveTarget(move)];
     Square target = moveTarget(move);
@@ -147,11 +147,11 @@ int16_t* History::getCaptureHistory(Board* board, Move move) {
 
     assert(movedPiece != Piece::NONE && capturedPiece != Piece::NONE);
 
-    return &captureHistory[board->stm][movedPiece][target][capturedPiece];
+    return &captureHistory[board->stm][movedPiece][target][board->isSquareThreatened(target, boardStack)][capturedPiece];
 }
 
-void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus) {
-    int16_t* captHistScore = getCaptureHistory(board, move);
+void History::updateSingleCaptureHistory(Board* board, BoardStack* boardStack, Move move, int16_t bonus) {
+    int16_t* captHistScore = getCaptureHistory(board, boardStack, move);
 
     int16_t scaledBonus = bonus - *captHistScore * std::abs(bonus) / 32000;
     *captHistScore += scaledBonus;
@@ -159,13 +159,13 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
 
 void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
     if (board->isCapture(move)) {
-        updateSingleCaptureHistory(board, move, bonus);
+        updateSingleCaptureHistory(board, board->stack, move, bonus);
     }
 
     for (int i = 0; i < captureMoveCount; i++) {
         Move cMove = captureMoves[i];
         if (move == cMove) continue;
-        updateSingleCaptureHistory(board, cMove, -bonus);
+        updateSingleCaptureHistory(board, board->stack, cMove, -bonus);
     }
 }
 
