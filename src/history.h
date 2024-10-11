@@ -28,7 +28,7 @@ public:
     void initHistory();
 
     Eval correctStaticEval(Eval eval, Board* board, SearchStack* searchStack);
-    void updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus);
+    void updateCorrectionHistory(Move bestMove, Board* board, SearchStack* searchStack, int16_t bonus);
 
     int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
 

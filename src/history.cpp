@@ -45,10 +45,14 @@ Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStac
     return adjustedEval;
 }
 
-void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus) {
+void History::updateCorrectionHistory(Move bestMove, Board* board, SearchStack* searchStack, int16_t bonus) {
+    Eval scaledBonus;
+
     // Pawn
-    Eval scaledBonus = bonus - correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    if (bestMove == MOVE_NONE || board->pieces[moveOrigin(bestMove)] != Piece::PAWN) {
+        scaledBonus = bonus - correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+        correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    }
 
     // Non-Pawn
     scaledBonus = bonus - nonPawnCorrectionHistory[board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
