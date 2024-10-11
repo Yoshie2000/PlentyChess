@@ -85,6 +85,16 @@ struct Board {
     void undoNullMove();
 
     void calculateThreats();
+    uint64_t getThreatsHash() {
+        Bitboard key = stack->threats.pawnThreats | stack->threats.knightThreats | stack->threats.bishopThreats | stack->threats.rookThreats | stack->threats.queenThreats | stack->threats.kingThreats;
+        key &= byColor[stm];
+        key ^= key >> 33;
+        key *= 0xff51afd7ed558ccd;
+        key ^= key >> 33;
+        key *= 0xc4ceb9fe1a85ec53;
+        key ^= key >> 33;
+        return key;
+    }
     bool isSquareThreatened(Square square, BoardStack* bs);
 
     constexpr bool isCapture(Move move) {
