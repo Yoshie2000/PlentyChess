@@ -12,6 +12,7 @@ TUNE_INT(nonPawnCorrectionFactor, 839, 10, 5000);
 TUNE_INT(minorCorrectionFactor, 667, 10, 5000);
 TUNE_INT(majorCorrectionFactor, 748, 10, 5000);
 TUNE_INT(continuationCorrectionFactor, 500, 10, 5000);
+TUNE_INT(ttmoveCorrectionFactor, 500, 10, 5000);
 TUNE_INT(correctionHistoryDivisor, 8945, 5000, 20000);
 
 void History::initHistory() {
@@ -28,24 +29,26 @@ void History::initHistory() {
     memset(minorCorrectionHistory, 0, sizeof(minorCorrectionHistory));
     memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
     memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
+    memset(ttmoveCorrectionHistory, 0, sizeof(ttmoveCorrectionHistory));
     memset(pawnHistory, -1000, sizeof(pawnHistory));
 }
 
-Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStack) {
+Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStack, Move ttMove) {
     int64_t pawnEntry = correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t nonPawnEntry = nonPawnCorrectionHistory[board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[board->stm][Color::BLACK][board->stack->nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t minorEntry = minorCorrectionHistory[board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t majorEntry = majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
+    int64_t ttmoveEntry = ttMove != MOVE_NONE ? ttmoveCorrectionHistory[board->stm][board->pieces[moveOrigin(ttMove)]][moveTarget(ttMove)] : 0;
 
-    int64_t history = (pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor) / 1000;
+    int64_t history = (pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor + ttmoveEntry * ttmoveCorrectionFactor) / 1000;
 
     Eval adjustedEval = eval + (history * std::abs(history)) / correctionHistoryDivisor;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
     return adjustedEval;
 }
 
-void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus) {
+void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus, Move ttMove) {
     // Pawn
     Eval scaledBonus = bonus - correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
     correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
@@ -66,6 +69,12 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
         scaledBonus = bonus - *(searchStack - 1)->contCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
         *(searchStack - 1)->contCorrHist += scaledBonus;
+    }
+
+    // TT Move
+    if (ttMove != MOVE_NONE) {
+        scaledBonus = bonus - ttmoveCorrectionHistory[board->stm][board->pieces[moveOrigin(ttMove)]][moveTarget(ttMove)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+        ttmoveCorrectionHistory[board->stm][board->pieces[moveOrigin(ttMove)]][moveTarget(ttMove)] += scaledBonus;
     }
 }
 
