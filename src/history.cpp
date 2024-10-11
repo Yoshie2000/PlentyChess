@@ -39,7 +39,7 @@ Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStac
     int64_t minorEntry = minorCorrectionHistory[board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t majorEntry = majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
-    int64_t ttmoveEntry = ttMove != MOVE_NONE ? ttmoveCorrectionHistory[board->stm][board->pieces[moveOrigin(ttMove)]][moveTarget(ttMove)] : 0;
+    int64_t ttmoveEntry = ttMove != MOVE_NONE && !board->isCapture(ttMove) ? ttmoveCorrectionHistory[board->stm][board->pieces[moveOrigin(ttMove)]][moveTarget(ttMove)] : 0;
 
     int64_t history = (pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor + ttmoveEntry * ttmoveCorrectionFactor) / 1000;
 
