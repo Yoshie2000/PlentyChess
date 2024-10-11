@@ -862,10 +862,10 @@ movesLoop:
     }
 
     if (moveCount == 0) {
-        if (board->stack->checkers) {
-            return excluded ? -EVAL_INFINITE : matedIn(stack->ply); // Checkmate
-        }
-        return 0; // Stalemate
+        if (board->stack->checkers && excluded)
+            return -EVAL_INFINITE;
+        // Mate / Stalemate
+        bestValue = board->stack->checkers ? matedIn(stack->ply) : 0;
     }
 
     // Insert into TT
