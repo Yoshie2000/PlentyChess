@@ -40,7 +40,7 @@ Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStac
 
     int64_t history = (pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor) / 1000;
 
-    Eval adjustedEval = eval + (history * std::abs(history)) / correctionHistoryDivisor;
+    Eval adjustedEval = eval + 150 * history / 10000;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
     return adjustedEval;
 }
