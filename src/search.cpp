@@ -756,6 +756,9 @@ movesLoop:
         if (moveCount > lmrMcBase + lmrMcPv * rootNode && depth >= lmrMinDepth && (!capture || !ttPv || cutNode)) {
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
+            if (pvNode && moveCount <= 3)
+                reducedDepth++;
+
             if (!ttPv)
                 reducedDepth--;
 
