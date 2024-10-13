@@ -672,7 +672,8 @@ movesLoop:
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth)
+            int hpHistory = 2 * history.getContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move);
+            if (!pvNode && lmrDepth < historyPruningDepth && hpHistory < hpFactor * depth)
                 continue;
 
             // SEE Pruning
