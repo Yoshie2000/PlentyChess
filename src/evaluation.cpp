@@ -38,11 +38,31 @@ int getMaterialScale(Board* board) {
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
+int getImbalanceScale(Board* board) {
+    int whiteMaterial = 0;
+    whiteMaterial |= BB::popcount(board->byColor[Color::WHITE] & board->byPiece[Piece::PAWN]) << 0;
+    whiteMaterial |= BB::popcount(board->byColor[Color::WHITE] & board->byPiece[Piece::KNIGHT]) << 6;
+    whiteMaterial |= BB::popcount(board->byColor[Color::WHITE] & board->byPiece[Piece::BISHOP]) << 12;
+    whiteMaterial |= BB::popcount(board->byColor[Color::WHITE] & board->byPiece[Piece::ROOK]) << 18;
+    whiteMaterial |= BB::popcount(board->byColor[Color::WHITE] & board->byPiece[Piece::QUEEN]) << 24;
+
+    int blackMaterial = 0;
+    blackMaterial |= BB::popcount(board->byColor[Color::BLACK] & board->byPiece[Piece::PAWN]) << 0;
+    blackMaterial |= BB::popcount(board->byColor[Color::BLACK] & board->byPiece[Piece::KNIGHT]) << 6;
+    blackMaterial |= BB::popcount(board->byColor[Color::BLACK] & board->byPiece[Piece::BISHOP]) << 12;
+    blackMaterial |= BB::popcount(board->byColor[Color::BLACK] & board->byPiece[Piece::ROOK]) << 18;
+    blackMaterial |= BB::popcount(board->byColor[Color::BLACK] & board->byPiece[Piece::QUEEN]) << 24;
+
+    int imbalanceCount = BB::popcount(whiteMaterial ^ blackMaterial);
+    return 1000 + 75 * imbalanceCount / 25;
+}
+
 Eval evaluate(Board* board, NNUE* nnue) {
     assert(!board->stack->checkers);
 
     Eval eval = nnue->evaluate(board);
     eval = (eval * getMaterialScale(board)) / 1024;
+    eval = (eval * getImbalanceScale(board)) / 1024;
     eval = eval * (300 - board->stack->rule50_ply) / 300;
 
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
