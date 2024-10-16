@@ -695,7 +695,7 @@ movesLoop:
             && std::abs(ttValue) < EVAL_MATE_IN_MAX_PLY
             && ttDepth >= depth - 3
             ) {
-            Eval singularBeta = ttValue - depth;
+            Eval singularBeta = ttValue - 6 * depth / 8;
             int singularDepth = (depth - 1) / 2;
 
             stack->excludedMove = move;
