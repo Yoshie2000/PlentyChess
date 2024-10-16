@@ -163,8 +163,8 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
     *captHistScore += scaledBonus;
 }
 
-void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount) {
-    if (board->isCapture(move)) {
+void History::updateCaptureHistory(Board* board, Move move, bool bmBonus, int16_t bonus, Move* captureMoves, int captureMoveCount) {
+    if (board->isCapture(move) && bmBonus) {
         updateSingleCaptureHistory(board, move, bonus);
     }
 
@@ -175,11 +175,13 @@ void History::updateCaptureHistory(Board* board, Move move, int16_t bonus, Move*
     }
 }
 
-void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount) {
+void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, bool bmBonus, int16_t bonus, Move* quietMoves, int quietMoveCount) {
     // Increase stats for this move
-    updateQuietHistory(move, board->stm, board, boardStack, bonus);
-    updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, bonus);
-    updatePawnHistory(board, move, bonus);
+    if (bmBonus) {
+        updateQuietHistory(move, board->stm, board, boardStack, bonus);
+        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, bonus);
+        updatePawnHistory(board, move, bonus);
+    }
 
     // Decrease stats for all other quiets
     for (int i = 0; i < quietMoveCount; i++) {
