@@ -601,6 +601,9 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
             board->undoMove(move, &nnue);
 
+            if (stopped || exiting)
+                return 0;
+
             if (value >= probCutBeta) {
                 value = std::min(value, EVAL_MATE_IN_MAX_PLY - 1);
                 ttEntry->update(board->stack->hash, move, depth - 3, unadjustedEval, valueToTT(value, stack->ply), ttPv, TT_LOWERBOUND);
