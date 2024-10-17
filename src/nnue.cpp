@@ -31,8 +31,6 @@ inline int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square sq
 void NNUE::reset(Board* board) {
     // Reset accumulator
     currentAccumulator = 0;
-    lastCalculatedAccumulator[Color::WHITE] = 0;
-    lastCalculatedAccumulator[Color::BLACK] = 0;
     resetAccumulator<Color::WHITE>(board, &accumulatorStack[0]);
     resetAccumulator<Color::BLACK>(board, &accumulatorStack[0]);
 
@@ -62,6 +60,7 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
         addPieceToAccumulator<side>(acc->colors, acc->colors, &kingBucket, square, piece, pieceColor);
     }
 
+    acc->updated[side] = true;
     acc->kingBucketInfo[side] = kingBucket;
     memcpy(acc->byColor[side], board->byColor, sizeof(board->byColor));
     memcpy(acc->byPiece[side], board->byPiece, sizeof(board->byPiece));
@@ -91,13 +90,15 @@ void NNUE::movePiece(Square origin, Square target, Piece piece, Color pieceColor
 void NNUE::incrementAccumulator() {
     currentAccumulator++;
     accumulatorStack[currentAccumulator].numDirtyPieces = 0;
+    accumulatorStack[currentAccumulator].updated[Color::WHITE] = false;
+    accumulatorStack[currentAccumulator].updated[Color::BLACK] = false;
 }
 
 void NNUE::decrementAccumulator() {
     accumulatorStack[currentAccumulator].numDirtyPieces = 0;
+    accumulatorStack[currentAccumulator].updated[Color::WHITE] = false;
+    accumulatorStack[currentAccumulator].updated[Color::BLACK] = false;
     currentAccumulator--;
-    lastCalculatedAccumulator[Color::WHITE] = std::min(lastCalculatedAccumulator[Color::WHITE], currentAccumulator);
-    lastCalculatedAccumulator[Color::BLACK] = std::min(lastCalculatedAccumulator[Color::BLACK], currentAccumulator);
 }
 
 void NNUE::finalizeMove(Board* board) {
@@ -112,22 +113,35 @@ void NNUE::finalizeMove(Board* board) {
 
 template<Color side>
 void NNUE::calculateAccumulators() {
-    // Incrementally update all accumulators for this side
-    while (lastCalculatedAccumulator[side] < currentAccumulator) {
 
-        Accumulator* inputAcc = &accumulatorStack[lastCalculatedAccumulator[side]];
-        Accumulator* outputAcc = &accumulatorStack[lastCalculatedAccumulator[side] + 1];
+    Accumulator* current = &accumulatorStack[currentAccumulator];
 
-        KingBucketInfo* inputKingBucket = &inputAcc->kingBucketInfo[side];
-        KingBucketInfo* outputKingBucket = &outputAcc->kingBucketInfo[side];
+    if (current->updated[side])
+        return;
 
-        if (needsRefresh(inputKingBucket, outputKingBucket))
-            refreshAccumulator<side>(outputAcc);
-        else
-            incrementallyUpdateAccumulator<side>(inputAcc, outputAcc, outputKingBucket);
+    Accumulator* previous = current;
+    KingBucketInfo* currentKingBucket = &current->kingBucketInfo[side];
 
-        lastCalculatedAccumulator[side]++;
+    while (true) {
+        previous--;
+        KingBucketInfo* prevKingBucket = &previous->kingBucketInfo[side];
+
+        if (needsRefresh(currentKingBucket, prevKingBucket)) {
+            refreshAccumulator<side>(current);
+            break;
+        }
+
+        if (previous->updated[side]) {
+            while (previous != current) {
+                incrementallyUpdateAccumulator<side>(previous, previous + 1, currentKingBucket);
+                previous++;
+            }
+            break;
+        }
+
     }
+
+    assert(current->updated[side]);
 }
 
 template<Color side>
@@ -158,10 +172,14 @@ void NNUE::refreshAccumulator(Accumulator* acc) {
 
     // Copy result to the current accumulator
     memcpy(acc->colors[side], finnyEntry->colors[side], sizeof(acc->colors[side]));
+
+    acc->updated[side] = true;
 }
 
 template<Color side>
 void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+    assert(inputAcc->updated[side]);
+
     // Incrementally update all the dirty pieces
     // Input and output are the same king bucket so it's all good
     for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
@@ -180,6 +198,7 @@ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* ou
         // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
         inputAcc = outputAcc;
     }
+    outputAcc->updated[side] = true;
 }
 
 template<Color side>
@@ -227,13 +246,10 @@ void NNUE::movePieceInAccumulator(int16_t(*inputData)[HIDDEN_WIDTH], int16_t(*ou
 }
 
 Eval NNUE::evaluate(Board* board) {
-    assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
 
-    // Make sure the current accumulators are up to date
+    // Make sure the accumulators are up to date
     calculateAccumulators<Color::WHITE>();
     calculateAccumulators<Color::BLACK>();
-
-    assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
 
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);

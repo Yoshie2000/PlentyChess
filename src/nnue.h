@@ -222,6 +222,7 @@ struct Accumulator {
   KingBucketInfo kingBucketInfo[2];
   Bitboard byColor[2][2];
   Bitboard byPiece[2][Piece::TOTAL];
+  bool updated[2];
 };
 
 struct FinnyEntry {
@@ -249,7 +250,6 @@ public:
 
   Accumulator accumulatorStack[MAX_PLY];
   int currentAccumulator;
-  int lastCalculatedAccumulator[2];
 
   FinnyEntry finnyTable[2][KING_BUCKETS];
 
