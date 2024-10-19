@@ -1,7 +1,7 @@
 #include "tt.h"
 #include "move.h"
 
-void TTEntry::update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags) {
+void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags) {
     // Update bestMove if not MOVE_NONE
     // Or even clear move for a different position
     if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
