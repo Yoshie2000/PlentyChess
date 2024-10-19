@@ -18,7 +18,7 @@ constexpr int INPUT_QUANT = 362;
 constexpr int L1_QUANT = 32;
 
 struct Network {
-    float inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
+    float inputWeights[KING_BUCKETS + static_cast<int>(KING_BUCKETS_FACTORIZED)][INPUT_SIZE * L1_SIZE];
     float inputBiases [L1_SIZE];
     float l1Weights   [L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
     float l1Biases    [OUTPUT_BUCKETS][L2_SIZE];
@@ -76,35 +76,6 @@ int main(void) {
         std::cout << "Network file could not be found" << std::endl;
         return -1;
     }
-
-    // Transpose L1/L2/L3 weights
-    float transposedL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-    for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
-            for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                transposedL1Weights[b][l2 * L1_SIZE + l1] = network.l1Weights[l1][b][l2];
-            }
-        }
-    }
-    memcpy(network.l1Weights, transposedL1Weights, sizeof(transposedL1Weights));
-
-    float transposedL2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
-    for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-        for (int l2 = 0; l2 < L2_SIZE; l2++) {
-            for (int l3 = 0; l3 < L3_SIZE; l3++) {
-                transposedL2Weights[b][l2 * L3_SIZE + l3] = network.l2Weights[l2][b][l3];
-            }
-        }
-    }
-    memcpy(network.l2Weights, transposedL2Weights, sizeof(transposedL2Weights));
-
-    float transposedL3Weights[OUTPUT_BUCKETS][L3_SIZE];
-    for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-        for (int l3 = 0; l3 < L3_SIZE; l3++) {
-            transposedL3Weights[b][l3] = network.l3Weights[l3][b];
-        }
-    }
-    memcpy(network.l3Weights, transposedL3Weights, sizeof(transposedL3Weights));
 
     // Add factorized input weights to buckets, and quantize
     for (int n = 0; n < KING_BUCKETS; n++) {

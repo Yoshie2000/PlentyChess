@@ -24,6 +24,35 @@ void initNetworkData() {
     memcpy(networkData.l2Biases, incNetwork->l2Biases, sizeof(networkData.l2Biases));
     memcpy(networkData.l3Biases, incNetwork->l3Biases, sizeof(networkData.l3Biases));
 
+//     __m128i* inputWeights = reinterpret_cast<__m128i*>(networkData.inputWeights);
+//     __m128i* inputBiases = reinterpret_cast<__m128i*>(networkData.inputBiases);
+//     constexpr int chunkSize = 16;
+//     // Permute input weights and biases to make packus work
+// #if false && (defined(__AVX512F__) && defined(__AVX512BW__))
+//     constexpr int chunks = 8;
+//     constexpr int permutation[] = {0, 2, 4, 6, 1, 3, 5, 7};
+// #elif false && defined(__AVX2__)
+//     constexpr int chunks = 4;
+//     constexpr int permutation[] = {0, 2, 1, 3};
+// #else
+//     constexpr int chunks = 1;
+//     constexpr int permutation[] = {0};
+// #endif
+//     __m128i registers[chunks];
+
+//     for (size_t l1 = 0; l1 < sizeof(networkData.inputWeights) / chunkSize; l1 += chunks) {
+//         for (int i = 0; i < chunks; i++)
+//             registers[i] = inputWeights[l1 + i];
+//         for (int i = 0; i < chunks; i++)
+//             inputWeights[l1 + i] = registers[permutation[i]];
+//     }
+//     for (size_t l1 = 0; l1 < sizeof(networkData.inputBiases) / chunkSize; l1 += chunks) {
+//         for (int i = 0; i < chunks; i++)
+//             registers[i] = inputBiases[l1 + i];
+//         for (int i = 0; i < chunks; i++)
+//             inputBiases[l1 + i] = registers[permutation[i]];
+//     }
+
     // Transpose L1 / L2 / L3 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
 #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
@@ -272,8 +301,8 @@ Eval NNUE::evaluate(Board* board) {
 
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
-    // constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-    int bucket = std::min((63 - pieceCount) * (32 - pieceCount) / 225, 7);
+    constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
+    int bucket = (pieceCount - 2) / divisor;
     assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
 
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
@@ -412,7 +441,7 @@ Eval NNUE::evaluate(Board* board) {
         for (int chunk = 0; chunk < chunks; chunk++) {
             float l3Activated = std::clamp(l3Neurons[l3 + chunk], 0.0f, 1.0f);
             float l3Squared = l3Activated * l3Activated;
-            resultSums[chunk] += l3Squared * networkData.l3Weights[bucket][l3 + chunk];
+            resultSums[chunk] = std::fma(l3Squared, networkData.l3Weights[bucket][l3 + chunk], resultSums[chunk]);
         }
     }
 
