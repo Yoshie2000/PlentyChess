@@ -2,8 +2,10 @@
 
 #include <stdint.h>
 
+constexpr int DEPTH_SCALING = 100;
+constexpr int NO_DEPTH = 25500;
 constexpr int MAX_PLY = 246;
-constexpr int NO_DEPTH = 255;
+
 constexpr int MAX_MOVES = 218;
 constexpr int MAX_CAPTURES = 74;
 
