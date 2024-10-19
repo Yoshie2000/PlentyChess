@@ -88,15 +88,15 @@ TUNE_INT(probCutBetaOffset, 191, 50, 300);
 TUNE_INT(probCutDepth, 500, 150, 800);
 
 // In-search pruning
-TUNE_INT(earlyLmrHistoryFactorQuiet, 157, 128, 32768);
-TUNE_INT(earlyLmrHistoryFactorCapture, 146, 128, 32768);
+TUNE_INT(earlyLmrHistoryFactorQuiet, 157, 25, 750);
+TUNE_INT(earlyLmrHistoryFactorCapture, 146, 25, 750);
 TUNE_INT(earlyLmrImproving, 100, 50, 200);
 
-TUNE_INT(fpDepth, 1100, 1, 20);
+TUNE_INT(fpDepth, 1100, 600, 1500);
 TUNE_INT(fpBase, 210, 1, 1000);
 TUNE_INT(fpFactor, 74, 1, 500);
 
-TUNE_INT(fpCaptDepth, 900, 1, 20);
+TUNE_INT(fpCaptDepth, 900, 500, 1500);
 TUNE_INT(fpCaptBase, 462, 150, 750);
 TUNE_INT(fpCaptFactor, 340, 100, 600);
 
