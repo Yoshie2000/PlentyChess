@@ -1134,7 +1134,7 @@ Thread* Thread::chooseBestThread() {
                     bestMoveIdx = rmi;
                 }
                 // In case of same move, choose the thread with the highest score
-                else if (thMove == bestMove && thValue > bestValue && rm.pv.size() > 2) {
+                else if (thMove == bestMove && std::abs(thValue) > std::abs(bestValue) && rm.pv.size() > 2) {
                     bestThread = thread;
                     bestMoveIdx = rmi;
                 }
