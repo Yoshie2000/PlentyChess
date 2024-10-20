@@ -56,6 +56,10 @@ ifdef BMI2
 	CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2 -mbmi2
 endif
 
+ifdef PROCESS_NET
+	CXXFLAGS := $(CXXFLAGS) -DPROCESS_NET
+endif
+
 # Windows only flags
 ifeq ($(OS), Windows_NT)
 	CXXFLAGS := $(CXXFLAGS) -lstdc++ -static -Wl,--no-as-needed

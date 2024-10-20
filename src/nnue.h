@@ -48,9 +48,18 @@ inline VecI mulhiEpi16(VecI x, VecI y) {
 inline VecI dpbusdEpi32(VecI sum, VecI u, VecI i) {
   return _mm512_dpbusd_epi32(sum, u, i);
 }
+inline VecI dpbusdEpi32x2(VecI sum, VecI u, VecI i, VecI u2, VecI i2) {
+  return _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(sum, u, i), u2, i2);
+}
 #else
 inline VecI dpbusdEpi32(VecI sum, VecI u, VecI i) {
   VecI sum32 = _mm512_madd_epi16(_mm512_maddubs_epi16(u, i), _mm512_set1_epi16(1));
+  return _mm512_add_epi32(sum32, sum);
+}
+inline VecI dpbusdEpi32x2(VecI sum, VecI u, VecI i, VecI u2, VecI i2) {
+  VecI mul1 = _mm512_maddubs_epi16(u, i);
+  VecI mul2 = _mm512_maddubs_epi16(u2, i2);
+  VecI sum32 = _mm512_madd_epi16(_mm512_add_epi16(mul1, mul2), _mm512_set1_epi16(1));
   return _mm512_add_epi32(sum32, sum);
 }
 #endif
@@ -95,6 +104,10 @@ inline VecF fmaddPs(VecF a, VecF b, VecF c) {
 
 inline float reduceAddPs(VecF* v) {
   return _mm512_reduce_add_ps(v[0]);
+}
+
+inline uint32_t vecNNZ(VecI chunk) {
+  return _mm512_cmpgt_epi32_mask(chunk, _mm512_setzero_si512());
 }
 
 #elif defined(__AVX2__)
@@ -149,6 +162,13 @@ inline VecI dpbusdEpi32(VecI sum, VecI u, VecI i) {
   return _mm256_add_epi32(sum32, sum);
 }
 
+inline VecI dpbusdEpi32x2(VecI sum, VecI u, VecI i, VecI u2, VecI i2) {
+  VecI mul1 = _mm256_maddubs_epi16(u, i);
+  VecI mul2 = _mm256_maddubs_epi16(u2, i2);
+  VecI sum32 = _mm256_madd_epi16(_mm256_add_epi16(mul1, mul2), _mm256_set1_epi16(1));
+  return _mm256_add_epi32(sum32, sum);
+}
+
 inline VecF cvtepi32Ps(VecI x) {
   return _mm256_cvtepi32_ps(x);
 }
@@ -186,6 +206,10 @@ inline float reduceAddPs(VecF* v) {
   __m128 sum64 = _mm_add_ps(sum, high64);
 
   return ((float*)&sum64)[0] + ((float*)&sum64)[1];
+}
+
+inline uint32_t vecNNZ(VecI chunk) {
+  return _mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(chunk, _mm256_setzero_si256())));
 }
 
 #else
@@ -238,6 +262,12 @@ inline VecI dpbusdEpi32(VecI sum, VecI u, VecI i) {
   VecI sum32 = _mm_madd_epi16(_mm_maddubs_epi16(u, i), _mm_set1_epi16(1));
   return _mm_add_epi32(sum32, sum);
 }
+inline VecI dpbusdEpi32x2(VecI sum, VecI u, VecI i, VecI u2, VecI i2) {
+  VecI mul1 = _mm_maddubs_epi16(u, i);
+  VecI mul2 = _mm_maddubs_epi16(u2, i2);
+  VecI sum32 = _mm_madd_epi16(_mm_add_epi16(mul1, mul2), _mm_set1_epi16(1));
+  return _mm_add_epi32(sum32, sum);
+}
 #endif
 
 inline VecF cvtepi32Ps(VecI x) {
@@ -280,6 +310,10 @@ inline float reduceAddPsR(float* sums, int length) {
 
 inline float reduceAddPs(VecF* sums) {
   return reduceAddPsR((float*) sums, 64 / sizeof(float));
+}
+
+inline uint32_t vecNNZ(VecI chunk) {
+  return _mm_movemask_ps(_mm_castsi128_ps(_mm_cmpgt_epi32(chunk, _mm_setzero_si128())));
 }
 
 #endif
@@ -426,3 +460,97 @@ public:
   void movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor);
 
 };
+
+#if defined(PROCESS_NET)
+
+#include <cstring>
+
+class NNZ {
+public:
+  int64_t activations[L1_SIZE / 2] = {};
+
+  void addActivations(uint8_t* neurons) {
+    for (int i = 0; i < L1_SIZE; i++) {
+      activations[i % (L1_SIZE / 2)] += bool(neurons[i]);
+    }
+  }
+
+  int16_t oldInputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
+  int16_t oldInputBiases[L1_SIZE];
+  int8_t oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+  int order[L1_SIZE / 2];
+  UnalignedNetworkData outputNetwork;
+
+  void permuteNetwork() {
+    memcpy(oldInputWeights, networkData.inputWeights, sizeof(networkData.inputWeights));
+    memcpy(oldInputBiases, networkData.inputBiases, sizeof(networkData.inputBiases));
+    memcpy(oldL1Weights, networkData.l1Weights, sizeof(networkData.l1Weights));
+
+    for (int i = 0; i < L1_SIZE / 2; i++) {
+      order[i] = i;
+    }
+    std::stable_sort(order, order + L1_SIZE / 2, [&](const int &a, const int &b) { return activations[a] < activations[b]; });
+  
+    for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
+
+      // Input weights
+      for (int kb = 0; kb < KING_BUCKETS; kb++) {
+        for (int ip = 0; ip < INPUT_SIZE; ip++) {
+          networkData.inputWeights[kb][ip * L1_SIZE + l1] = oldInputWeights[kb][ip * L1_SIZE + order[l1]];
+          networkData.inputWeights[kb][ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[kb][ip * L1_SIZE + order[l1] + L1_SIZE / 2];
+        }
+      }
+
+      // Input biases
+      networkData.inputBiases[l1] = oldInputBiases[order[l1]];
+      networkData.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
+
+      // L1 weights
+      for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
+        for (int l2 = 0; l2 < L2_SIZE; l2++) {
+          networkData.l1Weights[ob][l1 * L2_SIZE + l2] = oldL1Weights[ob][order[l1] * L2_SIZE + l2];
+          networkData.l1Weights[ob][(l1 + L1_SIZE / 2) * L2_SIZE + l2] = oldL1Weights[ob][(order[l1] + L1_SIZE / 2) * L2_SIZE + l2];
+        }
+      }
+    }
+
+    memcpy(outputNetwork.inputWeights, networkData.inputWeights, sizeof(networkData.inputWeights));
+    memcpy(outputNetwork.inputBiases, networkData.inputBiases, sizeof(networkData.inputBiases));
+    memcpy(outputNetwork.l1Weights, networkData.l1Weights, sizeof(networkData.l1Weights));
+    memcpy(outputNetwork.l1Biases, networkData.l1Biases, sizeof(networkData.l1Biases));
+    memcpy(outputNetwork.l2Weights, networkData.l2Weights, sizeof(networkData.l2Weights));
+    memcpy(outputNetwork.l2Biases, networkData.l2Biases, sizeof(networkData.l2Biases));
+    memcpy(outputNetwork.l3Weights, networkData.l3Weights, sizeof(networkData.l3Weights));
+    memcpy(outputNetwork.l3Biases, networkData.l3Biases, sizeof(networkData.l3Biases));
+
+    // Write the network
+    FILE* nn = fopen("./network.bin", "wb");
+    if (nn) {
+        // Read network from file
+        size_t written = 0;
+        size_t objectsExpected = sizeof(outputNetwork);
+
+        written += sizeof(int16_t) * fwrite(outputNetwork.inputWeights, sizeof(int16_t), sizeof(outputNetwork.inputWeights) / sizeof(int16_t), nn);
+        written += sizeof(int16_t) * fwrite(outputNetwork.inputBiases, sizeof(int16_t), sizeof(outputNetwork.inputBiases) / sizeof(int16_t), nn);
+        written += sizeof(int8_t) * fwrite(outputNetwork.l1Weights, sizeof(int8_t), sizeof(outputNetwork.l1Weights) / sizeof(int8_t), nn);
+        written += sizeof(float) * fwrite(outputNetwork.l1Biases, sizeof(float), sizeof(outputNetwork.l1Biases) / sizeof(float), nn);
+        written += sizeof(float) * fwrite(outputNetwork.l2Weights, sizeof(float), sizeof(outputNetwork.l2Weights) / sizeof(float), nn);
+        written += sizeof(float) * fwrite(outputNetwork.l2Biases, sizeof(float), sizeof(outputNetwork.l2Biases) / sizeof(float), nn);
+        written += sizeof(float) * fwrite(outputNetwork.l3Weights, sizeof(float), sizeof(outputNetwork.l3Weights) / sizeof(float), nn);
+        written += sizeof(float) * fwrite(outputNetwork.l3Biases, sizeof(float), sizeof(outputNetwork.l3Biases) / sizeof(float), nn);
+
+        if (std::abs((int64_t)written - (int64_t)objectsExpected) > 0) {
+            std::cout << "Error writing the net, aborting ";
+            std::cout << "Expected " << objectsExpected << " shorts, got " << written << "\n";
+        }
+
+        fclose(nn);
+    }
+    else {
+        std::cout << "Network file could not be created" << std::endl;
+    }
+  }
+};
+
+extern NNZ nnz;
+#endif

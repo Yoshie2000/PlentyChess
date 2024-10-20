@@ -520,6 +520,12 @@ void uciLoop(int argc, char* argv[]) {
 
     std::cout << "UCI thread running" << std::endl;
 
+#if defined(PROCESS_NET)
+    bench(&stackQueue, &board);
+    nnz.permuteNetwork();
+    return;
+#endif
+
     if (argc > 1 && matchesToken(argv[1], "genfens")) {
         std::cout << "starting fen generation" << std::endl;
         std::string params(argv[1]);
