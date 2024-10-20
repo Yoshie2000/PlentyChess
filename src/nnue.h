@@ -519,8 +519,8 @@ public:
       // L1 weights
       for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
-          networkData.l1Weights[ob][l1 * L2_SIZE + l2] = oldL1Weights[ob][order[l1] * L2_SIZE + l2];
-          networkData.l1Weights[ob][(l1 + L1_SIZE / 2) * L2_SIZE + l2] = oldL1Weights[ob][(order[l1] + L1_SIZE / 2) * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(networkData.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(networkData.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
         }
       }
     }

@@ -34,10 +34,12 @@ else ifeq ($(arch), generic)
 else
 	CXXFLAGS := $(CXXFLAGS) -march=native
 	ifeq ($(OS), Windows_NT)
+		HAS_AVX2 := $(shell .\detect_flags.bat $(CXX) __AVX2__)
 		HAS_BMI2 := $(shell .\detect_flags.bat $(CXX) __BMI2__)
 		IS_ZEN1  := $(shell .\detect_flags.bat $(CXX) __znver1)
 		IS_ZEN2  := $(shell .\detect_flags.bat $(CXX) __znver2)
 	else
+		HAS_AVX2 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__AVX2__")
 		HAS_BMI2 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__BMI2__")
 		IS_ZEN1  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver1")
 		IS_ZEN2  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver2")
@@ -85,7 +87,11 @@ $(EVALFILE):
 	curl -sOL https://github.com/Yoshie2000/PlentyNetworks/releases/download/$(NET_ID)/$(EVALFILE)
 endif
 
-all:	pgo
+all:	
+ifneq ($(HAS_AVX2),1)
+	    $(error "I don't want to test this without AVX2")
+endif
+		$(MAKE) pgo
 
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
