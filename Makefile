@@ -19,10 +19,16 @@ ifdef INCLUDE_DEBUG_SYMBOLS
 endif
 
 # CPU Flags
-ifeq ($(arch), avx512)
+ifeq ($(arch), avx512vnni)
+	CXXFLAGS := $(CXXFLAGS) -march=cascadelake
+else ifeq ($(arch), avx512)
 	CXXFLAGS := $(CXXFLAGS) -march=skylake-avx512
 else ifeq ($(arch), avx2)
 	CXXFLAGS := $(CXXFLAGS) -march=haswell
+else ifeq ($(arch), fma)
+	CXXFLAGS := $(CXXFLAGS) -mssse3 -mfma
+else ifeq ($(arch), ssse3)
+	CXXFLAGS := $(CXXFLAGS) -mssse3
 else ifeq ($(arch), generic)
 	CXXFLAGS := $(CXXFLAGS)
 else
@@ -48,6 +54,10 @@ endif
 
 ifdef BMI2
 	CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2 -mbmi2
+endif
+
+ifdef PROCESS_NET
+	CXXFLAGS := $(CXXFLAGS) -DPROCESS_NET
 endif
 
 # Windows only flags
