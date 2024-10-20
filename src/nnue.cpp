@@ -19,6 +19,7 @@ alignas(ALIGNMENT) uint16_t nnzLookup[256][8];
 
 #if defined(PROCESS_NET)
 NNZ nnz;
+UnalignedNetworkData* incNetwork;
 #endif
 
 void initNetworkData() {
@@ -30,7 +31,11 @@ void initNetworkData() {
         }
     }
 
+#if defined(PROCESS_NET)
+    incNetwork = (UnalignedNetworkData*)gNETWORKData;
+#else
     UnalignedNetworkData* incNetwork = (UnalignedNetworkData*)gNETWORKData;
+#endif
     memcpy(networkData.inputWeights, incNetwork->inputWeights, sizeof(networkData.inputWeights));
     memcpy(networkData.inputBiases, incNetwork->inputBiases, sizeof(networkData.inputBiases));
     memcpy(networkData.l1Biases, incNetwork->l1Biases, sizeof(networkData.l1Biases));

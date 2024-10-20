@@ -465,6 +465,8 @@ public:
 
 #include <cstring>
 
+extern UnalignedNetworkData* incNetwork;
+
 class NNZ {
 public:
   int64_t activations[L1_SIZE / 2] = {};
@@ -482,6 +484,15 @@ public:
   UnalignedNetworkData outputNetwork;
 
   void permuteNetwork() {
+    memcpy(networkData.inputWeights, incNetwork->inputWeights, sizeof(networkData.inputWeights));
+    memcpy(networkData.inputBiases, incNetwork->inputBiases, sizeof(networkData.inputBiases));
+    memcpy(networkData.l1Weights, incNetwork->l1Weights, sizeof(networkData.l1Weights));
+    memcpy(networkData.l1Biases, incNetwork->l1Biases, sizeof(networkData.l1Biases));
+    memcpy(networkData.l2Weights, incNetwork->l2Weights, sizeof(networkData.l2Weights));
+    memcpy(networkData.l2Biases, incNetwork->l2Biases, sizeof(networkData.l2Biases));
+    memcpy(networkData.l3Weights, incNetwork->l3Weights, sizeof(networkData.l3Weights));
+    memcpy(networkData.l3Biases, incNetwork->l3Biases, sizeof(networkData.l3Biases));
+
     memcpy(oldInputWeights, networkData.inputWeights, sizeof(networkData.inputWeights));
     memcpy(oldInputBiases, networkData.inputBiases, sizeof(networkData.inputBiases));
     memcpy(oldL1Weights, networkData.l1Weights, sizeof(networkData.l1Weights));
