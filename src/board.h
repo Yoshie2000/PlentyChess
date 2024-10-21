@@ -31,6 +31,10 @@ struct Threats {
     Bitboard rookThreats;
     Bitboard queenThreats;
     Bitboard kingThreats;
+
+    Bitboard all() {
+        return pawnThreats | knightThreats | bishopThreats | rookThreats | queenThreats | kingThreats;
+    }
 };
 
 struct BoardStack {

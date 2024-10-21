@@ -42,7 +42,7 @@ TUNE_FLOAT(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f);
 // Reduction / Margin tables
 TUNE_FLOAT(lmrReductionNoisyBase, -0.4888240580751226f, -2.0f, -0.1f);
 TUNE_FLOAT(lmrReductionNoisyFactor, 3.1133946268983235f, 2.0f, 4.0f);
-TUNE_FLOAT(lmrReductionQuietBase, 0.8818295641170254f, 0.50f, 1.5f);
+TUNE_FLOAT(lmrReductionQuietBase, 1.4818295641170254f, 0.50f, 1.5f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.9415810588232394f, 2.0f, 4.0f);
 
 TUNE_FLOAT(seeMarginNoisy, -22.026705241168507f, -50.0f, -10.0f);
@@ -772,6 +772,9 @@ movesLoop:
 
             if (worsening)
                 reducedDepth--;
+            
+            if (!capture && !worsening && stack->ply > 1 && BB::popcount(board->stack->threats.all()) > BB::popcount(board->stack->previous->threats.all()))
+                reducedDepth++;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
