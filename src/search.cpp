@@ -68,17 +68,17 @@ TUNE_INT(staticHistoryMin, -61, -1000, -1);
 TUNE_INT(staticHistoryMax, 91, 1, 1000);
 
 TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
-TUNE_INT(rfpFactor, 75, 1, 250);
+TUNE_INT(rfpFactor, 66, 1, 250);
 
 TUNE_INT_DISABLED(razoringDepth, 5, 2, 20);
-TUNE_INT(razoringFactor, 204, 1, 1000);
+TUNE_INT(razoringFactor, 196, 1, 1000);
 
 TUNE_INT_DISABLED(nmpRedBase, 4, 1, 5);
 TUNE_INT_DISABLED(nmpDepthDiv, 3, 1, 6);
 TUNE_INT_DISABLED(nmpMin, 4, 1, 10);
-TUNE_INT(nmpDivisor, 60, 10, 1000);
+TUNE_INT(nmpDivisor, 80, 10, 1000);
 
-TUNE_INT(probCutBetaOffset, 191, 1, 500);
+TUNE_INT(probCutBetaOffset, 187, 1, 500);
 TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 
 // In-search pruning
@@ -86,12 +86,12 @@ TUNE_INT(earlyLmrHistoryFactorQuiet, 15797, 128, 32768);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14659, 128, 32768);
 
 TUNE_INT_DISABLED(fpDepth, 11, 1, 20);
-TUNE_INT(fpBase, 210, 1, 1000);
-TUNE_INT(fpFactor, 74, 1, 500);
+TUNE_INT(fpBase, 200, 1, 1000);
+TUNE_INT(fpFactor, 71, 1, 500);
 
 TUNE_INT_DISABLED(fpCaptDepth, 9, 1, 20);
-TUNE_INT(fpCaptBase, 462, 150, 750);
-TUNE_INT(fpCaptFactor, 340, 100, 600);
+TUNE_INT(fpCaptBase, 454, 150, 750);
+TUNE_INT(fpCaptFactor, 333, 100, 600);
 
 TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
 TUNE_INT(historyPruningFactorCapture, -1586, -8192, -128);
