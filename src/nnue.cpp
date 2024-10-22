@@ -17,6 +17,12 @@ NetworkData networkData;
 
 void initNetworkData() {
     memcpy(&networkData, gNETWORKData, sizeof(networkData));
+
+    int16_t transposed[OUTPUT_BUCKETS][2 * HIDDEN_WIDTH];
+    for (int n = 0; n < OUTPUT_BUCKETS * 2 * HIDDEN_WIDTH; n++) {
+        transposed[n % OUTPUT_BUCKETS][n / OUTPUT_BUCKETS] = networkData.outputWeights[n / (2 * HIDDEN_WIDTH)][n % (2 * HIDDEN_WIDTH)];
+    }
+    memcpy(networkData.outputWeights, transposed, sizeof(transposed));
 }
 
 inline int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square square, KingBucketInfo* kingBucket) {
