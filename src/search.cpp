@@ -647,6 +647,9 @@ movesLoop:
         uint64_t nodesBeforeMove = searchData.nodesSearched;
         int moveHistory = history.getHistory(board, board->stack, stack, move, capture);
 
+        if (rootNode && depth >= 6 && moveCount >= LMP_MARGIN[depth][improving])
+            skipQuiets = true;
+
         if (!rootNode
             && bestValue > -EVAL_MATE_IN_MAX_PLY
             && board->hasNonPawns()
