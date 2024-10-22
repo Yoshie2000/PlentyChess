@@ -197,6 +197,11 @@ void NNUE::calculateAccumulators() {
     assert(current->updated[side]);
 }
 
+void NNUE::calculateCurrentAccumulator() {
+    calculateAccumulators<Color::WHITE>();
+    calculateAccumulators<Color::BLACK>();
+}
+
 template<Color side>
 void NNUE::refreshAccumulator(Accumulator* acc) {
     FinnyEntry* finnyEntry = &finnyTable[acc->kingBucketInfo[side].mirrored][acc->kingBucketInfo[side].index];
@@ -301,8 +306,7 @@ void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputD
 Eval NNUE::evaluate(Board* board) {
 
     // Make sure the accumulators are up to date
-    calculateAccumulators<Color::WHITE>();
-    calculateAccumulators<Color::BLACK>();
+    calculateCurrentAccumulator();
 
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);

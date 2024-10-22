@@ -474,6 +474,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
     else if (excluded) {
         unadjustedEval = eval = stack->staticEval;
+        nnue.calculateCurrentAccumulator();
     }
     else if (ttHit) {
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
@@ -487,6 +488,9 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board, stack);
 
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
+
+        if (pvNode)
+            nnue.calculateCurrentAccumulator();
     }
 
     // IIR

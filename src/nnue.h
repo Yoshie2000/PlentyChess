@@ -447,6 +447,7 @@ public:
 
   template<Color side>
   void calculateAccumulators();
+  void calculateCurrentAccumulator();
   template<Color side>
   void refreshAccumulator(Accumulator* acc);
   template<Color side>
