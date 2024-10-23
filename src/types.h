@@ -89,7 +89,7 @@ struct SearchStack {
     int pvLength;
     Move pv[MAX_PLY + 1];
 
-    int ply;
+    int ply, cutoffCount;
 
     Eval staticEval;
 

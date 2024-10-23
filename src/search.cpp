@@ -40,9 +40,9 @@ TUNE_INT(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f);
 
 // Reduction / Margin tables
-TUNE_FLOAT(lmrReductionNoisyBase, -0.4888240580751226f, -2.0f, -0.1f);
+TUNE_FLOAT(lmrReductionNoisyBase, -0.5888240580751226f, -2.0f, -0.1f);
 TUNE_FLOAT(lmrReductionNoisyFactor, 3.1133946268983235f, 2.0f, 4.0f);
-TUNE_FLOAT(lmrReductionQuietBase, 0.8818295641170254f, 0.50f, 1.5f);
+TUNE_FLOAT(lmrReductionQuietBase, 0.4818295641170254f, 0.50f, 1.5f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.9415810588232394f, 2.0f, 4.0f);
 
 TUNE_FLOAT(seeMarginNoisy, -22.026705241168507f, -50.0f, -10.0f);
@@ -371,8 +371,10 @@ movesLoopQsearch:
                 if (pvNode)
                     updatePv(stack, move);
 
-                if (bestValue >= beta)
+                if (bestValue >= beta) {
+                    stack->cutoffCount++;
                     break;
+                }
             }
         }
     }
@@ -439,6 +441,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
+    (stack + 1)->cutoffCount = 0;
     stack->inCheck = board->stack->checkerCount > 0;
 
     // TT Lookup
@@ -772,6 +775,9 @@ movesLoop:
 
             if (worsening)
                 reducedDepth--;
+            
+            if ((stack + 1)->cutoffCount > 4)
+                reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
@@ -841,6 +847,7 @@ movesLoop:
                     updatePv(stack, move);
 
                 if (bestValue >= beta) {
+                    stack->cutoffCount++;
 
                     int bonus = std::min(historyBonusBase + historyBonusFactor * (depth + (eval <= alpha) + (value - historyBonusBetaOffset > beta)), historyBonusMax);
                     if (!capture) {
@@ -959,6 +966,7 @@ void Thread::iterativeDeepening() {
             for (int i = 0; i < MAX_PLY + STACK_OVERHEAD; i++) {
                 stackList[i].pvLength = 0;
                 stackList[i].ply = i - STACK_OVERHEAD;
+                stackList[i].cutoffCount = 0;
                 stackList[i].staticEval = EVAL_NONE;
                 stackList[i].excludedMove = MOVE_NONE;
                 stackList[i].killer = MOVE_NONE;
