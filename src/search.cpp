@@ -621,7 +621,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
 movesLoop:
 
-    probCutBeta = beta + 315;
+    probCutBeta = beta + 400;
     if (!pvNode
         && ttMove != MOVE_NONE
         && board->isCapture(ttMove)
