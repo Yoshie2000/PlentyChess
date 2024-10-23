@@ -898,6 +898,8 @@ void Thread::tsearch() {
     searchData.nodesSearched = 0;
     if (mainThread)
         initTimeManagement(&rootBoard, searchParameters, &searchData);
+    
+    history.newSearch();
 
     iterativeDeepening();
     sortRootMoves();
