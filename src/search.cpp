@@ -120,7 +120,7 @@ TUNE_INT(historyBonusFactor, 201, 1, 500);
 TUNE_INT(historyBonusMax, 2019, 32, 4096);
 TUNE_INT(historyBonusBetaOffset, 270, 1, 500);
 
-TUNE_INT(correctionHistoryFactor, 169, 32, 512);
+TUNE_INT(correctionHistoryFactor, 130, 32, 512);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
