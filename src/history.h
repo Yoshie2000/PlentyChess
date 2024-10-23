@@ -6,6 +6,7 @@
 constexpr int PAWN_HISTORY_SIZE = 8192;
 constexpr int CORRECTION_HISTORY_SIZE = 16384;
 constexpr int CORRECTION_HISTORY_LIMIT = 1024;
+constexpr int LOW_PLY_HISTORY_SIZE = 4;
 
 class History {
 
@@ -19,6 +20,7 @@ class History {
     int16_t majorCorrectionHistory[2][CORRECTION_HISTORY_SIZE];
 
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
+    int16_t lowPlyHistory[LOW_PLY_HISTORY_SIZE][64][64];
 
 public:
 
@@ -26,11 +28,15 @@ public:
     int16_t continuationCorrectionHistory[2][Piece::TOTAL][64];
 
     void initHistory();
+    void newSearch();
 
     Eval correctStaticEval(Eval eval, Board* board, SearchStack* searchStack);
     void updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus);
 
     int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
+
+    int16_t getLowPlyHistory(Move move, SearchStack* searchStack);
+    void updateLowPlyHistory(Move move, SearchStack* searchStack, int16_t bonus);
 
     int16_t getPawnHistory(Board* board, Move move);
     void updatePawnHistory(Board* board, Move move, int16_t bonus);
