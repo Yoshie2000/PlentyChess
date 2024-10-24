@@ -28,7 +28,7 @@ void History::initHistory() {
     memset(minorCorrectionHistory, 0, sizeof(minorCorrectionHistory));
     memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
     memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
-    memset(pawnHistory, -1000, sizeof(pawnHistory));
+    memset(pawnHistory, 0, sizeof(pawnHistory));
 }
 
 Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStack) {
