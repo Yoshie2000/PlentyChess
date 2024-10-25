@@ -332,6 +332,12 @@ movesLoopQsearch:
 
             if (moveTarget(move) != moveTarget((stack - 1)->move) && (moveType(move) != MOVE_PROMOTION) && !board->givesCheck(move) && moveCount > 2)
                 continue;
+            
+            if (!capture) {
+                int moveHistory = history.getHistory(board, board->stack, stack, move, false);
+                if (moveHistory < 10000)
+                    continue;
+            }
         }
 
         if (!board->isLegal(move))
