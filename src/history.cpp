@@ -75,7 +75,7 @@ int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searc
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(move, board->stm, board, boardStack) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move) + getNonPawnHistory(board, move);
+        return getQuietHistory(move, board->stm, board, boardStack) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move) + getNonPawnHistory(board, move) / 2;
     }
 }
 
@@ -104,7 +104,7 @@ int16_t History::getNonPawnHistory(Board* board, Move move) {
 }
 
 void History::updateNonPawnHistory(Board* board, Move move, int16_t bonus) {
-    int16_t scaledBonus = bonus - getNonPawnHistory(board, move) * std::abs(bonus) / 32000;
+    int16_t scaledBonus = bonus - getNonPawnHistory(board, move) * std::abs(bonus) / 16000;
     nonPawnHistory[board->stack->nonPawnHash[board->stm] & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
 }
 
