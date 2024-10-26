@@ -81,7 +81,7 @@ int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searc
 
 int16_t History::getQuietHistory(Move move, Color stm, Board* board, BoardStack* stack) {
     Square origin = moveOrigin(move), target = moveTarget(move);
-    return quietHistory[stm][origin][target] / 2 + quietHistoryThreats[stm][origin][board->isSquareThreatened(origin, stack)][target][board->isSquareThreatened(target, stack)] / 2;
+    return quietHistory[stm][origin][target] + quietHistoryThreats[stm][origin][board->isSquareThreatened(origin, stack)][target][board->isSquareThreatened(target, stack)];
 }
 
 void History::updateQuietHistory(Move move, Color stm, Board* board, BoardStack* stack, int16_t bonus) {
