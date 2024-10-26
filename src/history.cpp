@@ -85,9 +85,11 @@ int16_t History::getQuietHistory(Move move, Color stm, Board* board, BoardStack*
 }
 
 void History::updateQuietHistory(Move move, Color stm, Board* board, BoardStack* stack, int16_t bonus) {
-    int16_t scaledBonus = bonus - getQuietHistory(move, stm, board, stack) * std::abs(bonus) / 32000;
     Square origin = moveOrigin(move), target = moveTarget(move);
+    int16_t scaledBonus = bonus - quietHistory[stm][origin][target] * std::abs(bonus) / 32000;
     quietHistory[stm][origin][target] += scaledBonus;
+
+    scaledBonus = bonus - quietHistoryThreats[stm][origin][board->isSquareThreatened(origin, stack)][target][board->isSquareThreatened(target, stack)] * std::abs(bonus) / 32000;
     quietHistoryThreats[stm][origin][board->isSquareThreatened(origin, stack)][target][board->isSquareThreatened(target, stack)] += scaledBonus;
 }
 
