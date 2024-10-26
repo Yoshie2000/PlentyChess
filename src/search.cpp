@@ -40,9 +40,9 @@ TUNE_INT(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f);
 
 // Reduction / Margin tables
-TUNE_FLOAT(lmrReductionNoisyBase, -0.4888240580751226f, -2.0f, -0.1f);
+TUNE_FLOAT(lmrReductionNoisyBase, -0.2888240580751226f, -2.0f, -0.1f);
 TUNE_FLOAT(lmrReductionNoisyFactor, 3.1133946268983235f, 2.0f, 4.0f);
-TUNE_FLOAT(lmrReductionQuietBase, 0.8818295641170254f, 0.50f, 1.5f);
+TUNE_FLOAT(lmrReductionQuietBase, 1.0818295641170254f, 0.50f, 1.5f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.9415810588232394f, 2.0f, 4.0f);
 
 TUNE_FLOAT(seeMarginNoisy, -22.026705241168507f, -50.0f, -10.0f);
@@ -775,7 +775,7 @@ movesLoop:
             if (worsening)
                 reducedDepth--;
             
-            if (move == stack->killer)
+            if (std::abs(stack->staticEval - unadjustedEval) > 80)
                 reducedDepth++;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
