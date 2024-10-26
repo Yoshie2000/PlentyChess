@@ -33,19 +33,19 @@ public:
     int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
 
     int16_t getPawnHistory(Board* board, Move move);
-    void updatePawnHistory(Board* board, Move move, int16_t bonus);
+    void updatePawnHistory(Board* board, Move move, int history, int16_t bonus);
 
     int16_t getQuietHistory(Move move, Color stm, Board* board, BoardStack* stack);
-    void updateQuietHistory(Move move, Color stm, Board* board, BoardStack* stack, int16_t bonus);
+    void updateQuietHistory(Move move, Color stm, Board* board, BoardStack* stack, int history, int16_t bonus);
 
     int getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move);
-    void updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus);
+    void updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int history, int16_t bonus);
 
     int16_t* getCaptureHistory(Board* board, Move move);
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
     void updateCaptureHistory(Board* board, Move move, int16_t bonus, Move* captureMoves, int captureMoveCount);
 
-    void updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int16_t bonus, Move* quietMoves, int quietMoveCount);
+    void updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int history, int16_t bonus, Move* quietMoves, int quietMoveCount);
 
     Move getCounterMove(Move move);
     void setCounterMove(Move move, Move counter);
