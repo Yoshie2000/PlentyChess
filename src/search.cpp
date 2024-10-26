@@ -774,6 +774,9 @@ movesLoop:
 
             if (worsening)
                 reducedDepth--;
+            
+            if (move == stack->killer)
+                reducedDepth++;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
