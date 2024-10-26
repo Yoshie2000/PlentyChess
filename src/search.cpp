@@ -348,7 +348,7 @@ movesLoopQsearch:
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+        stack->contCorrHist = history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
 
         playedQuiet |= move != ttMove && !capture;
 
@@ -538,7 +538,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         stack->move = MOVE_NULL;
         stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[board->stm][0][0];
-        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0];
+        stack->contCorrHist = history.continuationCorrectionHistory[board->stm][0][0];
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
         board->doNullMove(&boardStack);
@@ -591,7 +591,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
             stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-            stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+            stack->contCorrHist = history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
             board->doMove(&boardStack, move, newHash, &nnue);
 
             Eval value = -qsearch<NON_PV_NODE>(board, stack + 1, -probCutBeta, -probCutBeta + 1);
@@ -744,7 +744,7 @@ movesLoop:
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+        stack->contCorrHist = history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
 
         moveCount++;
         searchData.nodesSearched++;

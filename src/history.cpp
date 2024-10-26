@@ -36,7 +36,7 @@ Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStac
     int64_t nonPawnEntry = nonPawnCorrectionHistory[board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[board->stm][Color::BLACK][board->stack->nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t minorEntry = minorCorrectionHistory[board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t majorEntry = majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
+    int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE && (searchStack - 2)->movedPiece != Piece::NONE ? (searchStack - 2)->contCorrHist[(searchStack - 1)->movedPiece * 64 + moveTarget((searchStack - 1)->move)] : 0;
 
     int64_t history = (pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor) / 1000;
 
@@ -63,9 +63,10 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
     majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 
     // Continuation
-    if ((searchStack - 1)->movedPiece != Piece::NONE) {
-        scaledBonus = bonus - *(searchStack - 1)->contCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-        *(searchStack - 1)->contCorrHist += scaledBonus;
+    if ((searchStack - 1)->movedPiece != Piece::NONE && (searchStack - 2)->movedPiece != Piece::NONE) {
+        int pieceTo = (searchStack - 1)->movedPiece * 64 + moveTarget((searchStack - 1)->move);
+        scaledBonus = bonus - (searchStack - 2)->contCorrHist[pieceTo] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+        (searchStack - 2)->contCorrHist[pieceTo] += scaledBonus;
     }
 }
 
