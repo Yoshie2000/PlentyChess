@@ -626,6 +626,8 @@ movesLoop:
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
+    int singularDiff = 0;
+
     // Moves loop
     MoveGen movegen(board, &history, stack, ttMove, depth);
     Move move;
@@ -700,6 +702,7 @@ movesLoop:
 
             stack->excludedMove = move;
             Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
+            singularDiff = singularBeta - singularValue;
             stack->excludedMove = MOVE_NONE;
 
             if (singularValue < singularBeta) {
@@ -756,7 +759,7 @@ movesLoop:
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode && depth >= lmrMinDepth && (!capture || !ttPv || cutNode)) {
-            int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
+            int reducedDepth = newDepth - REDUCTIONS[!capture][depth + (singularDiff > 0)][moveCount];
 
             if (board->stack->checkers)
                 reducedDepth++;
