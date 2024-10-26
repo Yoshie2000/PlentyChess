@@ -525,6 +525,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Null move pruning
     if (!pvNode
         && eval >= beta
+        && eval >= stack->staticEval
         && stack->staticEval + 30 * depth - 150 >= beta
         && std::abs(beta) < EVAL_MATE_IN_MAX_PLY
         && !excluded
