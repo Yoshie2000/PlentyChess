@@ -16,6 +16,7 @@ TUNE_INT(correctionHistoryDivisor, 9536, 5000, 20000);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
+    memset(quietHistoryThreats, 0, sizeof(quietHistoryThreats));
     for (Square s1 = 0; s1 < 64; s1++) {
         for (Square s2 = 0; s2 < 64; s2++) {
             counterMoves[s1][s2] = MOVE_NONE;
@@ -80,13 +81,14 @@ int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searc
 
 int16_t History::getQuietHistory(Move move, Color stm, Board* board, BoardStack* stack) {
     Square origin = moveOrigin(move), target = moveTarget(move);
-    return quietHistory[stm][origin][board->isSquareThreatened(origin, stack)][target][board->isSquareThreatened(target, stack)];
+    return quietHistory[stm][origin][target] / 2 + quietHistoryThreats[stm][origin][board->isSquareThreatened(origin, stack)][target][board->isSquareThreatened(target, stack)] / 2;
 }
 
 void History::updateQuietHistory(Move move, Color stm, Board* board, BoardStack* stack, int16_t bonus) {
     int16_t scaledBonus = bonus - getQuietHistory(move, stm, board, stack) * std::abs(bonus) / 32000;
     Square origin = moveOrigin(move), target = moveTarget(move);
-    quietHistory[stm][origin][board->isSquareThreatened(origin, stack)][target][board->isSquareThreatened(target, stack)] += scaledBonus;
+    quietHistory[stm][origin][target] += scaledBonus;
+    quietHistoryThreats[stm][origin][board->isSquareThreatened(origin, stack)][target][board->isSquareThreatened(target, stack)] += scaledBonus;
 }
 
 int16_t History::getPawnHistory(Board* board, Move move) {
