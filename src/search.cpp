@@ -350,7 +350,7 @@ movesLoopQsearch:
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
 
-        playedQuiet |= move != ttMove && !capture;
+        playedQuiet |= !capture;
 
         board->doMove(&boardStack, move, newHash, &nnue);
 
