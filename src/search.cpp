@@ -575,6 +575,9 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_MATE_IN_MAX_PLY);
 
+        Move probcutMoves[32];
+        int probcutMoveCount = 0;
+
         Move probcutTtMove = ttMove != MOVE_NONE && board->isCapture(ttMove) && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : MOVE_NONE;
         MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth);
         Move move;
@@ -586,6 +589,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
             uint64_t newHash = board->hashAfter(move);
             TT.prefetch(newHash);
+
+            probcutMoves[probcutMoveCount++] = move;
 
             Square origin = moveOrigin(move);
             Square target = moveTarget(move);
@@ -607,6 +612,9 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
                 return 0;
 
             if (value >= probCutBeta) {
+                int bonus = std::min(historyBonusBase + historyBonusFactor * (depth - 4), historyBonusMax);
+                history.updateCaptureHistory(board, move, bonus, probcutMoves, probcutMoveCount);
+
                 value = std::min(value, EVAL_MATE_IN_MAX_PLY - 1);
                 ttEntry->update(board->stack->hash, move, depth - 3, unadjustedEval, valueToTT(value, stack->ply), ttPv, TT_LOWERBOUND);
                 return value;
