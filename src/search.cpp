@@ -22,21 +22,21 @@
 #include "uci.h"
 
 // Time management
-TUNE_FLOAT(tmInitialAdjustment, 1.0796307320901835f, 0.5f, 1.5f);
-TUNE_INT(tmBestMoveStabilityMax, 18, 10, 30);
-TUNE_FLOAT(tmBestMoveStabilityBase, 1.5114270553993898f, 0.75f, 2.5f);
-TUNE_FLOAT(tmBestMoveStabilityFactor, 0.05192744990530549f, 0.001f, 0.1f);
-TUNE_FLOAT(tmEvalDiffBase, 0.9640137856251421f, 0.5f, 1.5f);
-TUNE_FLOAT(tmEvalDiffFactor, 0.0038870466506728298f, 0.001f, 0.1f);
-TUNE_INT(tmEvalDiffMin, -9, -250, 50);
-TUNE_INT(tmEvalDiffMax, 63, -50, 250);
-TUNE_FLOAT(tmNodesBase, 1.6874618043176948f, 0.5f, 5.0f);
-TUNE_FLOAT(tmNodesFactor, 0.921048521228935f, 0.1f, 2.5f);
+TUNE_FLOAT_DISABLED(tmInitialAdjustment, 1.0796307320901835f, 0.5f, 1.5f);
+TUNE_INT_DISABLED(tmBestMoveStabilityMax, 18, 10, 30);
+TUNE_FLOAT_DISABLED(tmBestMoveStabilityBase, 1.5114270553993898f, 0.75f, 2.5f);
+TUNE_FLOAT_DISABLED(tmBestMoveStabilityFactor, 0.05192744990530549f, 0.001f, 0.1f);
+TUNE_FLOAT_DISABLED(tmEvalDiffBase, 0.9640137856251421f, 0.5f, 1.5f);
+TUNE_FLOAT_DISABLED(tmEvalDiffFactor, 0.0038870466506728298f, 0.001f, 0.1f);
+TUNE_INT_DISABLED(tmEvalDiffMin, -9, -250, 50);
+TUNE_INT_DISABLED(tmEvalDiffMax, 63, -50, 250);
+TUNE_FLOAT_DISABLED(tmNodesBase, 1.6874618043176948f, 0.5f, 5.0f);
+TUNE_FLOAT_DISABLED(tmNodesFactor, 0.921048521228935f, 0.1f, 2.5f);
 
 // Aspiration windows
-TUNE_INT(aspirationWindowMinDepth, 4, 2, 6);
+TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 6);
 TUNE_INT(aspirationWindowDelta, 14, 1, 30);
-TUNE_INT(aspirationWindowMaxFailHighs, 3, 1, 10);
+TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f);
 
 // Reduction / Margin tables
@@ -76,12 +76,16 @@ TUNE_INT(razoringFactor, 204, 1, 1000);
 TUNE_INT_DISABLED(nmpRedBase, 4, 1, 5);
 TUNE_INT_DISABLED(nmpDepthDiv, 3, 1, 6);
 TUNE_INT_DISABLED(nmpMin, 4, 1, 10);
+TUNE_INT(nmpGuardDepthMul, 30, 5, 100);
+TUNE_INT(nmpGuardOffset, 150, 25, 500);
 TUNE_INT(nmpDivisor, 60, 10, 1000);
 
 TUNE_INT(probCutBetaOffset, 191, 1, 500);
 TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 
 // In-search pruning
+TUNE_INT(earlyLmrHistoryOffsetQuiet, 0, -10000, 10000);
+TUNE_INT(earlyLmrHistoryOffsetCapture, 0, -10000, 10000);
 TUNE_INT(earlyLmrHistoryFactorQuiet, 15797, 128, 32768);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14659, 128, 32768);
 
@@ -106,6 +110,13 @@ TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 
+TUNE_INT(lmrCheckExtension, 100, 25, 250);
+TUNE_INT(lmrTtpvReduction, 100, 25, 250);
+TUNE_INT(lmrCutnodeReduction, 200, 50, 500);
+TUNE_INT(lmrWorseningReduction, 100, 25, 250);
+
+TUNE_INT(lmrHistoryOffsetQuiet, 0, -10000, 10000);
+TUNE_INT(lmrHistoryOffsetCapture, 0, -10000, 10000);
 TUNE_INT(lmrHistoryFactorQuiet, 19376, 128, 32768);
 TUNE_INT(lmrHistoryFactorCapture, 19472, 128, 32768);
 TUNE_INT(lmrDeeperBase, 40, 1, 100);
@@ -132,8 +143,8 @@ void initReductions() {
 
     for (int i = 1; i < MAX_PLY; i++) {
         for (int j = 1; j < MAX_MOVES; j++) {
-            REDUCTIONS[0][i][j] = lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor; // non-quiet
-            REDUCTIONS[1][i][j] = lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor; // quiet
+            REDUCTIONS[0][i][j] = 100.0f * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // non-quiet
+            REDUCTIONS[1][i][j] = 100.0f * (lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor); // quiet
         }
     }
 
@@ -526,7 +537,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     if (!pvNode
         && eval >= beta
         && eval >= stack->staticEval
-        && stack->staticEval + 30 * depth - 150 >= beta
+        && stack->staticEval + nmpGuardDepthMul * depth - nmpGuardOffset >= beta
         && std::abs(beta) < EVAL_MATE_IN_MAX_PLY
         && !excluded
         && (stack - 1)->movedPiece != Piece::NONE
@@ -651,8 +662,10 @@ movesLoop:
             && bestValue > -EVAL_MATE_IN_MAX_PLY
             && board->hasNonPawns()
             ) {
-
-            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            
+            int lmrHistoryOffset = capture ? earlyLmrHistoryOffsetCapture : earlyLmrHistoryOffsetQuiet;
+            int lmrHistoryDiv = capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet;
+            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] / 100 - !improving + (moveHistory + lmrHistoryOffset) / lmrHistoryDiv);
 
             if (!pvNode && !skipQuiets) {
 
@@ -756,26 +769,28 @@ movesLoop:
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode && depth >= lmrMinDepth && (!capture || !ttPv || cutNode)) {
-            int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
+            int reduction = REDUCTIONS[!capture][depth][moveCount];
 
             if (board->stack->checkers)
-                reducedDepth++;
+                reduction -= lmrCheckExtension;
 
             if (!ttPv)
-                reducedDepth--;
+                reduction += lmrTtpvReduction;
 
             if (cutNode)
-                reducedDepth -= 2;
+                reduction += lmrCutnodeReduction;
 
-            if (capture)
-                reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
-            else
-                reducedDepth += moveHistory / lmrHistoryFactorQuiet;
+            if (capture) {
+                moveHistory += lmrHistoryOffsetCapture;
+                reduction -= 100 * moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
+            } else {
+                reduction -= 100 * (moveHistory + lmrHistoryOffsetQuiet) / lmrHistoryFactorQuiet;
+            }
 
             if (worsening)
-                reducedDepth--;
+                reduction += lmrWorseningReduction;
 
-            reducedDepth = std::clamp(reducedDepth, 1, newDepth);
+            int reducedDepth = std::clamp(newDepth - reduction / 100, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
 
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
