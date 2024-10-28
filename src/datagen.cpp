@@ -72,19 +72,32 @@ std::string fenFromBook(std::string bookFile, size_t pos) {
     return "";
 }
 
+inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
 void Thread::tgenfens() {
     std::srand(searchParameters->genfensSeed);
 
     size_t bookSize = 0;
     std::vector<size_t> lineOffsets;
-    if (searchParameters->genfensBook.length() > 0) {
+    rtrim(searchParameters->genfensBook);
+    std::string bookPath = std::filesystem::current_path() / searchParameters->genfensBook;
+    if (searchParameters->genfensBook.length() > 0 && searchParameters->genfensBook != "None") {
+        std::ifstream f(bookPath);
+        if (!f.good()) {
+            std::cout << "info string unable to find genfens file" << std::endl;
+            return;
+        }
         {
-            std::ifstream file(searchParameters->genfensBook); 
+            std::ifstream file(bookPath); 
             bookSize = std::count(std::istreambuf_iterator<char>(file), 
                 std::istreambuf_iterator<char>(), '\n');
         }
         {
-            std::ifstream file(searchParameters->genfensBook);
+            std::ifstream file(bookPath);
             std::string line;
             lineOffsets.push_back(file.tellg());
 
@@ -108,7 +121,7 @@ void Thread::tgenfens() {
 
         if (bookSize > 0) {
             size_t bookPosition = std::rand() % bookSize;
-            std::string fen = fenFromBook(searchParameters->genfensBook, lineOffsets[bookPosition]);
+            std::string fen = fenFromBook(bookPath, lineOffsets[bookPosition]);
             randomMoves = 3 + std::rand() % 2;
             board.parseFen(fen, false);
         }

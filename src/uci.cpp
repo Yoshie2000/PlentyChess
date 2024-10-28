@@ -553,6 +553,8 @@ void uciLoop(int argc, char* argv[]) {
 
         if (argc > 2 && matchesToken(argv[2], "quit"))
             return;
+        if (argc > 3 && matchesToken(argv[3], "quit"))
+            return;
     }
     if (argc > 1 && matchesToken(argv[1], "bench")) {
         bench(&stackQueue, &board);
