@@ -1,5 +1,9 @@
 #include "thread.h"
 
+#include <fstream>
+#include <iostream>
+#include <filesystem>
+
 std::vector<Move> generateLegalMoves(Board* board) {
     Move moves[MAX_MOVES] = { MOVE_NONE };
     int m = 0;
@@ -57,8 +61,38 @@ bool playRandomMoves(Board* board, Thread* thread, int remainingMoves) {
     return playRandomMoves(board, thread, remainingMoves - 1);
 }
 
+std::string fenFromBook(std::string bookFile, size_t pos) {
+    std::ifstream file(bookFile);
+    if (file) {
+        file.seekg(pos);
+        std::string line;
+        std::getline(file, line);
+        return line;
+    }
+    return "";
+}
+
 void Thread::tgenfens() {
     std::srand(searchParameters->genfensSeed);
+
+    size_t bookSize = 0;
+    std::vector<size_t> lineOffsets;
+    if (searchParameters->genfensBook.length() > 0) {
+        {
+            std::ifstream file(searchParameters->genfensBook); 
+            bookSize = std::count(std::istreambuf_iterator<char>(file), 
+                std::istreambuf_iterator<char>(), '\n');
+        }
+        {
+            std::ifstream file(searchParameters->genfensBook);
+            std::string line;
+            lineOffsets.push_back(file.tellg());
+
+            while (std::getline(file, line)) {
+                lineOffsets.push_back(file.tellg());
+            }
+        }
+    }
 
     int generatedFens = 0;
     while (generatedFens < searchParameters->genfensFens) {
@@ -70,8 +104,16 @@ void Thread::tgenfens() {
         board.startpos();
         nnue.reset(&board);
 
-        // Play random moves
         int randomMoves = 8 + std::rand() % 2;
+
+        if (bookSize > 0) {
+            size_t bookPosition = std::rand() % bookSize;
+            std::string fen = fenFromBook(searchParameters->genfensBook, lineOffsets[bookPosition]);
+            randomMoves = 3 + std::rand() % 2;
+            board.parseFen(fen, false);
+        }
+
+        // Play random moves
         if (playRandomMoves(&board, this, randomMoves)) {
             generatedFens++;
         }

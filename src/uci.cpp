@@ -499,6 +499,10 @@ void genfens(std::string params, Board* board, std::deque<BoardStack>* stackQueu
             nextToken(&params, &token);
             parameters.genfensSeed = static_cast<unsigned int>(std::stol(token));
         }
+        if (matchesToken(token, "book")) {
+            parameters.genfensBook = params;
+            params = "";
+        }
     }
 
     TT.newSearch();

@@ -24,6 +24,7 @@ struct SearchParameters {
     bool genfens; // Are we running a genfens search
     unsigned int genfensSeed; // Seed for genfens
     int genfensFens; // Number of fens for genfens
+    std::string genfensBook;
 
     std::vector<Move> searchmoves; // TODO: Search only these moves at root
     bool ponder; // Search in pondering mode => after "ponderhit", continue on ponder move
@@ -45,6 +46,7 @@ struct SearchParameters {
         genfens = false;
         genfensSeed = 0;
         genfensFens = 0;
+        genfensBook = "";
 
         searchmoves = std::vector<Move>();
         ponder = false;
