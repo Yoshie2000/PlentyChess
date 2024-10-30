@@ -63,9 +63,9 @@ TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 
 TUNE_INT(worseningOffset, 18, 1, 50);
 
-TUNE_INT(staticHistoryFactor, -46, -500, -1);
-TUNE_INT(staticHistoryMin, -61, -1000, -1);
-TUNE_INT(staticHistoryMax, 91, 1, 1000);
+TUNE_INT(staticHistoryFactor, -50, -500, -1);
+TUNE_INT(staticHistoryMin, -100, -1000, -1);
+TUNE_INT(staticHistoryMax, 100, 1, 1000);
 
 TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
 TUNE_INT(rfpFactor, 75, 1, 250);
