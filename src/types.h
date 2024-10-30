@@ -90,6 +90,7 @@ struct SearchStack {
     Move pv[MAX_PLY + 1];
 
     int ply;
+    int history;
 
     Eval staticEval;
 

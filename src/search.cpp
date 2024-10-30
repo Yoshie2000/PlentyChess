@@ -349,6 +349,7 @@ movesLoopQsearch:
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+        stack->history = 0;
 
         playedQuiet |= move != ttMove && !capture;
 
@@ -510,7 +511,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving) >= beta)
+    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - improving) + (stack - 1)->history / ((stack - 1)->capture ? 1000 : 25000) >= beta)
         return std::min((eval + beta) / 2, EVAL_MATE_IN_MAX_PLY - 1);
 
     // Razoring
@@ -539,6 +540,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[board->stm][0][0];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0];
+        stack->history = 0;
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
         board->doNullMove(&boardStack);
@@ -592,6 +594,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             stack->movedPiece = board->pieces[origin];
             stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
             stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+            stack->history = 0;
             board->doMove(&boardStack, move, newHash, &nnue);
 
             Eval value = -qsearch<NON_PV_NODE>(board, stack + 1, -probCutBeta, -probCutBeta + 1);
@@ -745,6 +748,7 @@ movesLoop:
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+        stack->history = moveHistory;
 
         moveCount++;
         searchData.nodesSearched++;
@@ -961,6 +965,7 @@ void Thread::iterativeDeepening() {
             for (int i = 0; i < MAX_PLY + STACK_OVERHEAD; i++) {
                 stackList[i].pvLength = 0;
                 stackList[i].ply = i - STACK_OVERHEAD;
+                stackList[i].history = 0;
                 stackList[i].staticEval = EVAL_NONE;
                 stackList[i].excludedMove = MOVE_NONE;
                 stackList[i].killer = MOVE_NONE;
