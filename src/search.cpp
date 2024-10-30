@@ -654,17 +654,14 @@ movesLoop:
 
             int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
-            if (!pvNode && !skipQuiets) {
-
-                // Movecount pruning (LMP)
-                if (moveCount >= LMP_MARGIN[depth][improving]) {
-                    skipQuiets = true;
-                }
-
-                // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
-                    skipQuiets = true;
+            // Movecount pruning (LMP)
+            if (moveCount >= (1 + pvNode) * LMP_MARGIN[depth][improving]) {
+                skipQuiets = true;
             }
+
+            // Futility pruning
+            if (!pvNode && !capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                skipQuiets = true;
 
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
