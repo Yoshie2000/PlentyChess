@@ -7,12 +7,12 @@
 #include "evaluation.h"
 #include "spsa.h"
 
-TUNE_INT(pawnCorrectionFactor, 807, 10, 5000);
-TUNE_INT(nonPawnCorrectionFactor, 661, 10, 5000);
-TUNE_INT(minorCorrectionFactor, 478, 10, 5000);
-TUNE_INT(majorCorrectionFactor, 797, 10, 5000);
-TUNE_INT(continuationCorrectionFactor, 843, 10, 5000);
-TUNE_INT(correctionHistoryDivisor, 9572, 5000, 20000);
+TUNE_INT(pawnCorrectionFactor, 849, 10, 5000);
+TUNE_INT(nonPawnCorrectionFactor, 641, 10, 5000);
+TUNE_INT(minorCorrectionFactor, 379, 10, 5000);
+TUNE_INT(majorCorrectionFactor, 702, 10, 5000);
+TUNE_INT(continuationCorrectionFactor, 931, 10, 5000);
+TUNE_INT(correctionHistoryDivisor, 9656, 5000, 20000);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
