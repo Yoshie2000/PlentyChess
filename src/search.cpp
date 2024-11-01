@@ -282,7 +282,7 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         unadjustedEval = ttEval;
         stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board, stack);
 
-        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
+        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < unadjustedEval) || (ttFlag == TT_LOWERBOUND && ttValue > unadjustedEval) || (ttFlag == TT_EXACTBOUND)))
             bestValue = ttValue;
     }
     else {
@@ -479,7 +479,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
         eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board, stack);
 
-        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
+        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < unadjustedEval) || (ttFlag == TT_LOWERBOUND && ttValue > unadjustedEval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
