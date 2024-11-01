@@ -568,6 +568,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     probCutBeta = std::min(beta + probCutBetaOffset, EVAL_MATE_IN_MAX_PLY - 1);
     if (!pvNode
         && !excluded
+        && !cutNode
         && depth > probCutDepth
         && std::abs(beta) < EVAL_MATE_IN_MAX_PLY - 1
         && !(ttDepth >= depth - 3 && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
