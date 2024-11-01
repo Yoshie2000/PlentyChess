@@ -759,29 +759,31 @@ movesLoop:
         Eval value = 0;
         int newDepth = depth - 1 + extension;
 
+        int reduction = REDUCTIONS[!capture][depth][moveCount];
+
+        if (board->stack->checkers)
+            reduction--;
+
+        if (!ttPv)
+            reduction++;
+
+        if (cutNode)
+            reduction += 2;
+
+        if (capture)
+            reduction -= moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
+        else
+            reduction -= moveHistory / lmrHistoryFactorQuiet;
+
+        if (worsening)
+            reduction++;
+
+        bool doLMR = depth >= lmrMinDepth && (!capture || !ttPv || cutNode);
+
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > lmrMcBase + lmrMcPv * rootNode && depth >= lmrMinDepth && (!capture || !ttPv || cutNode)) {
-            int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
-
-            if (board->stack->checkers)
-                reducedDepth++;
-
-            if (!ttPv)
-                reducedDepth--;
-
-            if (cutNode)
-                reducedDepth -= 2;
-
-            if (capture)
-                reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
-            else
-                reducedDepth += moveHistory / lmrHistoryFactorQuiet;
-
-            if (worsening)
-                reducedDepth--;
-
-            reducedDepth = std::clamp(reducedDepth, 1, newDepth);
+        if (doLMR && moveCount > lmrMcBase + lmrMcPv * rootNode) {
+            int reducedDepth = std::clamp(newDepth - reduction, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
 
             if (capture && captureMoveCount < 32)
@@ -808,7 +810,7 @@ movesLoop:
             }
         }
         else if (!pvNode || moveCount > 1) {
-            value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
+            value = -search<NON_PV_NODE>(board, stack + 1, newDepth - (doLMR && reduction > 4), -(alpha + 1), -alpha, !cutNode);
 
             if (capture && captureMoveCount < 32)
                 captureSearchCount[captureMoveCount]++;
