@@ -623,6 +623,8 @@ movesLoop:
 
     Move quietMoves[32];
     Move captureMoves[32];
+    int quietSearchCount[32];
+    int captureSearchCount[32];
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
@@ -729,12 +731,16 @@ movesLoop:
         TT.prefetch(newHash);
 
         if (!capture) {
-            if (quietMoveCount < 32)
-                quietMoves[quietMoveCount++] = move;
+            if (quietMoveCount < 32) {
+                quietMoves[quietMoveCount] = move;
+                quietSearchCount[quietMoveCount] = 0;
+            }
         }
         else {
-            if (captureMoveCount < 32)
-                captureMoves[captureMoveCount++] = move;
+            if (captureMoveCount < 32) {
+                captureMoves[captureMoveCount] = move;
+                captureSearchCount[captureMoveCount] = 0;
+            }
         }
 
         // Some setup stuff
@@ -778,12 +784,22 @@ movesLoop:
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
 
+            if (capture)
+                captureSearchCount[captureMoveCount]++;
+            else
+                quietSearchCount[quietMoveCount]++;
+
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth);
             newDepth += doDeeperSearch - doShallowerSearch;
 
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - 4 >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
+
+                if (capture)
+                    captureSearchCount[captureMoveCount]++;
+                else
+                    quietSearchCount[quietMoveCount]++;
 
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
@@ -793,15 +809,30 @@ movesLoop:
         }
         else if (!pvNode || moveCount > 1) {
             value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
+
+            if (capture)
+                captureSearchCount[captureMoveCount]++;
+            else
+                quietSearchCount[quietMoveCount]++;
         }
 
         // PV moves will be researched at full depth if good enough
         if (pvNode && (moveCount == 1 || value > alpha)) {
             value = -search<PV_NODE>(board, stack + 1, newDepth, -beta, -alpha, false);
+
+            if (capture)
+                captureSearchCount[captureMoveCount]++;
+            else
+                quietSearchCount[quietMoveCount]++;
         }
 
         board->undoMove(move, &nnue);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
+
+        if (capture)
+            captureMoveCount++;
+        else
+            quietMoveCount++;
 
         if (stopped || exiting)
             return 0;
@@ -853,9 +884,9 @@ movesLoop:
                         if (stack->ply > 0)
                             history.setCounterMove((stack - 1)->move, move);
 
-                        history.updateQuietHistories(board, board->stack, stack, move, bonus, quietMoves, quietMoveCount);
+                        history.updateQuietHistories(board, board->stack, stack, move, quietSearchCount[quietMoveCount - 1], bonus, quietMoves, quietSearchCount, quietMoveCount);
                     }
-                    history.updateCaptureHistory(board, move, bonus, captureMoves, captureMoveCount);
+                    history.updateCaptureHistory(board, move, captureSearchCount[captureMoveCount - 1], bonus, captureMoves, captureSearchCount, captureMoveCount);
                     break;
                 }
 
