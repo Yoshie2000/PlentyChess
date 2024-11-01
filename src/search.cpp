@@ -886,7 +886,8 @@ movesLoop:
 
                         history.updateQuietHistories(board, board->stack, stack, move, quietSearchCount[quietMoveCount - 1], bonus, quietMoves, quietSearchCount, quietMoveCount);
                     }
-                    history.updateCaptureHistory(board, move, captureSearchCount[captureMoveCount - 1], bonus, captureMoves, captureSearchCount, captureMoveCount);
+                    if (captureMoveCount > 0)
+                        history.updateCaptureHistory(board, move, captureSearchCount[captureMoveCount - 1], bonus, captureMoves, captureSearchCount, captureMoveCount);
                     break;
                 }
 
