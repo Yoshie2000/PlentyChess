@@ -778,11 +778,8 @@ movesLoop:
         if (worsening)
             reduction++;
 
-        bool doLMR = depth >= lmrMinDepth && (!capture || !ttPv || cutNode);
-
-        // Very basic LMR: Late moves are being searched with less depth
-        // Check if the move can exceed alpha
-        if (doLMR && moveCount > lmrMcBase + lmrMcPv * rootNode) {
+        // LMR
+        if (depth >= lmrMinDepth && moveCount > lmrMcBase + lmrMcPv * rootNode && (!capture || !ttPv || cutNode)) {
             int reducedDepth = std::clamp(newDepth - reduction, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
 
@@ -810,7 +807,7 @@ movesLoop:
             }
         }
         else if (!pvNode || moveCount > 1) {
-            value = -search<NON_PV_NODE>(board, stack + 1, newDepth - (doLMR && reduction > 4), -(alpha + 1), -alpha, !cutNode);
+            value = -search<NON_PV_NODE>(board, stack + 1, newDepth - (reduction > 4), -(alpha + 1), -alpha, !cutNode);
 
             if (capture && captureMoveCount < 32)
                 captureSearchCount[captureMoveCount]++;
