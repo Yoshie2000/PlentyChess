@@ -784,9 +784,9 @@ movesLoop:
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
 
-            if (capture)
+            if (capture && captureMoveCount < 32)
                 captureSearchCount[captureMoveCount]++;
-            else
+            else if (!capture && quietMoveCount < 32)
                 quietSearchCount[quietMoveCount]++;
 
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
@@ -796,9 +796,9 @@ movesLoop:
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - 4 >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
-                if (capture)
+                if (capture && captureMoveCount < 32)
                     captureSearchCount[captureMoveCount]++;
-                else
+                else if (!capture && quietMoveCount < 32)
                     quietSearchCount[quietMoveCount]++;
 
                 if (!capture) {
@@ -810,9 +810,9 @@ movesLoop:
         else if (!pvNode || moveCount > 1) {
             value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
-            if (capture)
+            if (capture && captureMoveCount < 32)
                 captureSearchCount[captureMoveCount]++;
-            else
+            else if (!capture && quietMoveCount < 32)
                 quietSearchCount[quietMoveCount]++;
         }
 
@@ -820,18 +820,18 @@ movesLoop:
         if (pvNode && (moveCount == 1 || value > alpha)) {
             value = -search<PV_NODE>(board, stack + 1, newDepth, -beta, -alpha, false);
 
-            if (capture)
+            if (capture && captureMoveCount < 32)
                 captureSearchCount[captureMoveCount]++;
-            else
+            else if (!capture && quietMoveCount < 32)
                 quietSearchCount[quietMoveCount]++;
         }
 
         board->undoMove(move, &nnue);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
-        if (capture)
+        if (capture && captureMoveCount < 32)
             captureMoveCount++;
-        else
+        else if (!capture && quietMoveCount < 32)
             quietMoveCount++;
 
         if (stopped || exiting)
