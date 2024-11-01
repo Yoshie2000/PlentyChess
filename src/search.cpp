@@ -807,12 +807,17 @@ movesLoop:
             }
         }
         else if (!pvNode || moveCount > 1) {
-            value = -search<NON_PV_NODE>(board, stack + 1, newDepth - (reduction > 4), -(alpha + 1), -alpha, !cutNode);
+            value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
             if (capture && captureMoveCount < 32)
                 captureSearchCount[captureMoveCount]++;
             else if (!capture && quietMoveCount < 32)
                 quietSearchCount[quietMoveCount]++;
+            
+            if (reduction > 3 && value > alpha) {
+                int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
+                history.updateContinuationHistory(stack, flip(board->stm), stack->movedPiece, move, bonus);
+            }
         }
 
         // PV moves will be researched at full depth if good enough
