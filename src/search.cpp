@@ -897,7 +897,7 @@ movesLoop:
 
     }
 
-    if (moveCount == 0) {
+    if (moveCount == 0 && !stopped && !exiting) {
         if (board->stack->checkers && excluded)
             return -EVAL_INFINITE;
         // Mate / Stalemate
