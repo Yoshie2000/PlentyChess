@@ -710,7 +710,7 @@ movesLoop:
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
                     extension = 2;
                     depth += depth < doubleExtensionDepthIncrease;
-                    if (!board->isCapture(move) && singularValue + 100 < singularBeta)
+                    if (!board->isCapture(move) && singularValue + 60 < singularBeta)
                         extension = 3;
                 }
             }
