@@ -664,14 +664,14 @@ movesLoop:
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                if (!capture && lmrDepth < fpDepth && stack->staticEval + fpBase + fpFactor * lmrDepth <= alpha)
                     skipQuiets = true;
             }
 
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
                 Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
+                if (lmrDepth < fpCaptDepth && stack->staticEval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
                     continue;
             }
 
