@@ -280,7 +280,7 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     }
     else if (ttHit && ttEval != EVAL_NONE) {
         unadjustedEval = ttEval;
-        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board, stack);
+        stack->staticEval = bestValue = ttMove != MOVE_NONE && board->isCapture(ttMove) ? unadjustedEval : history.correctStaticEval(unadjustedEval, board, stack);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
             bestValue = ttValue;
@@ -477,7 +477,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
     else if (ttHit) {
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board, stack);
+        eval = stack->staticEval = ttMove != MOVE_NONE && board->isCapture(ttMove) ? unadjustedEval : history.correctStaticEval(unadjustedEval, board, stack);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
