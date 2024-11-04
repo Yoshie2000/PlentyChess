@@ -293,8 +293,10 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     futilityValue = stack->staticEval + qsFutilityOffset;
 
     // Stand pat
-    if (bestValue >= beta)
-        return beta;
+    if (bestValue >= beta) {
+        ttEntry->update(board->stack->hash, MOVE_NONE, ttEntry->depth, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
+        return bestValue;
+    }
     if (alpha < bestValue)
         alpha = bestValue;
 
