@@ -178,6 +178,9 @@ bool nextToken(std::string* line, std::string* token) {
 }
 
 void bench(std::deque<BoardStack>* stackQueue, Board* board) {
+    bool minimal = UCI::Options.minimal.value;
+    UCI::Options.minimal.value = true;
+
     uint64_t nodes = 0;
     int64_t elapsed = 0;
     int position = 1;
@@ -208,6 +211,8 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
         << "\nTotal time (ms) : " << elapsed
         << "\nNodes searched  : " << nodes
         << "\nNodes/second    : " << 1000 * nodes / elapsed << std::endl;
+    
+    UCI::Options.minimal.value = minimal;
 }
 
 void perfttest(std::deque<BoardStack>* stackQueue, Board* board) {
