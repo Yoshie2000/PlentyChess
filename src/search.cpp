@@ -491,7 +491,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // IIR
     if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
-        depth--;
+        depth -= 1 + (pvNode && !ttHit);
 
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
