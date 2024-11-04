@@ -942,7 +942,7 @@ void Thread::tsearch() {
 
         Thread* bestThread = chooseBestThread();
 
-        if (bestThread != this) {
+        if (bestThread != this || UCI::Options.minimal.value) {
             printUCI(bestThread);
         }
 
@@ -1059,7 +1059,8 @@ void Thread::iterativeDeepening() {
         }
 
         if (mainThread) {
-            printUCI(this, multiPvCount);
+            if (!UCI::Options.minimal.value)
+                printUCI(this, multiPvCount);
 
             // Adjust time management
             double tmAdjustment = tmInitialAdjustment;

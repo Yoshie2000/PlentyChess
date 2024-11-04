@@ -110,9 +110,15 @@ namespace UCI {
             false
         };
 
+        UCIOption<UCI_CHECK> minimal = {
+            "Minimal",
+            false,
+            false
+        };
+
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen);
+            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &minimal);
             for_each_in_tuple(optionsTuple, f);
         }
     };

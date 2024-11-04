@@ -85,7 +85,7 @@ $(EVALFILE):
 	curl -sOL https://github.com/Yoshie2000/PlentyNetworks/releases/download/$(NET_ID)/$(EVALFILE)
 endif
 
-all:	pgo
+all:	nopgo
 
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
