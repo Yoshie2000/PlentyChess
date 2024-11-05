@@ -492,7 +492,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // IIR
-    if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
+    if (!excluded && (!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
         depth--;
 
     // Improving
