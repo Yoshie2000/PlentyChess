@@ -555,14 +555,14 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
                 nullValue = beta;
 
             if (searchData.nmpPlies || depth < 15)
-                return nullValue;
+                return (2 * nullValue + beta) / 3;
 
             searchData.nmpPlies = stack->ply + (depth - R) * 2 / 3;
             Eval verificationValue = search<NON_PV_NODE>(board, stack, depth - R, beta - 1, beta, false);
             searchData.nmpPlies = 0;
 
             if (verificationValue >= beta)
-                return nullValue;
+                return (2 * nullValue + beta) / 3;
         }
     }
 
