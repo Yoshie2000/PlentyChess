@@ -532,7 +532,6 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         && std::abs(beta) < EVAL_MATE_IN_MAX_PLY
         && !excluded
         && (stack - 1)->movedPiece != Piece::NONE
-        && depth >= 3
         && stack->ply >= searchData.nmpPlies
         && board->hasNonPawns()
         ) {
