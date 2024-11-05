@@ -8,14 +8,14 @@
 #include "nnue.h"
 #include "spsa.h"
 
-TUNE_INT(pawnValue, 96, 50, 150);
-TUNE_INT(knightValue, 298, 200, 400);
-TUNE_INT(bishopValue, 301, 200, 400);
-TUNE_INT(rookValue, 507, 400, 600);
-TUNE_INT(queenValue, 909, 700, 1100);
+TUNE_INT_DISABLED(pawnValue, 96, 50, 150);
+TUNE_INT_DISABLED(knightValue, 298, 200, 400);
+TUNE_INT_DISABLED(bishopValue, 301, 200, 400);
+TUNE_INT_DISABLED(rookValue, 507, 400, 600);
+TUNE_INT_DISABLED(queenValue, 909, 700, 1100);
 
-TUNE_INT(materialScaleBase, 933, 512, 1536);
-TUNE_INT(materialScaleDivisor, 48, 32, 64);
+TUNE_INT_DISABLED(materialScaleBase, 933, 512, 1536);
+TUNE_INT_DISABLED(materialScaleDivisor, 48, 32, 64);
 
 Eval fakePiece = 0;
 
@@ -26,6 +26,7 @@ Eval PIECE_VALUES[Piece::TOTAL + 1] = {
 constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
     90, 290, 310, 570, 1000, 0, 0
 };
+
 
 int getMaterialScale(Board* board) {
     int knightCount = board->stack->pieceCount[Color::WHITE][Piece::KNIGHT] + board->stack->pieceCount[Color::BLACK][Piece::KNIGHT];
@@ -42,7 +43,7 @@ Eval evaluate(Board* board, NNUE* nnue) {
 
     Eval eval = nnue->evaluate(board);
     eval = (eval * getMaterialScale(board)) / 1024;
-    eval = eval * (220 - board->stack->rule50_ply) / 220;
+    eval = eval * (300 - board->stack->rule50_ply) / 300;
 
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
     return eval;
@@ -57,7 +58,7 @@ std::string formatEval(Eval value) {
         evalString = "mate " + std::to_string(-(EVAL_MATE + value) / 2);
     }
     else {
-        evalString = "cp " + std::to_string(100 * value / 266);
+        evalString = "cp " + std::to_string(100 * value / 194);
     }
     return evalString;
 }

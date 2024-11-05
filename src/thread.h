@@ -26,14 +26,15 @@ class ThreadPool;
 class Thread {
 
     std::thread thread;
-    std::mutex mutex;
 
-    Board rootBoard;
-    BoardStack* rootStack;
     std::deque<BoardStack>* rootStackQueue;
 
 public:
 
+    Board rootBoard;
+    BoardStack* rootStack;
+    
+    std::mutex mutex;
     std::condition_variable cv;
 
     bool searching = false;
@@ -63,10 +64,11 @@ public:
 
     void ucinewgame();
 
+    void tdatagen();
+
 private:
 
     void tgenfens();
-    void tdatagen();
 
     void tsearch();
     void iterativeDeepening();
@@ -100,10 +102,13 @@ public:
         exit();
     }
 
-    void resize(int numThreads) {
+    void resize(size_t numThreads) {
+        if (threads.size() == numThreads)
+            return;
+
         exit();
         threads.clear();
-        for (int i = 0; i < numThreads; i++) {
+        for (size_t i = 0; i < numThreads; i++) {
             threads.push_back(std::make_unique<Thread>(this, i));
         }
     }
@@ -119,6 +124,7 @@ public:
         for (auto& thread : threads) {
             thread.get()->rootMoves.clear();
             thread.get()->stopped = false;
+            std::lock_guard<std::mutex> lock(thread.get()->mutex);
             thread.get()->searching = true;
         }
 

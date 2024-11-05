@@ -14,11 +14,21 @@ else
 	CXXFLAGS := $(CXXFLAGS) -g -ggdb
 endif
 
+ifdef INCLUDE_DEBUG_SYMBOLS
+	CXXFLAGS := $(CXXFLAGS) -g -ggdb
+endif
+
 # CPU Flags
-ifeq ($(arch), avx512)
+ifeq ($(arch), avx512vnni)
+	CXXFLAGS := $(CXXFLAGS) -march=cascadelake
+else ifeq ($(arch), avx512)
 	CXXFLAGS := $(CXXFLAGS) -march=skylake-avx512
 else ifeq ($(arch), avx2)
 	CXXFLAGS := $(CXXFLAGS) -march=haswell
+else ifeq ($(arch), fma)
+	CXXFLAGS := $(CXXFLAGS) -mssse3 -mfma
+else ifeq ($(arch), ssse3)
+	CXXFLAGS := $(CXXFLAGS) -mssse3
 else ifeq ($(arch), generic)
 	CXXFLAGS := $(CXXFLAGS)
 else
@@ -46,19 +56,43 @@ ifdef BMI2
 	CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2 -mbmi2
 endif
 
+ifdef PROCESS_NET
+	CXXFLAGS := $(CXXFLAGS) -DPROCESS_NET
+endif
+
 # Windows only flags
 ifeq ($(OS), Windows_NT)
 	CXXFLAGS := $(CXXFLAGS) -lstdc++ -static -Wl,--no-as-needed
 endif
 
+# Network flags
+ifndef EVALFILE
+	NET_ID := $(file < network.txt)
+	EVALFILE := $(NET_ID).bin
+	EVALFILE_NOT_DEFINED = true
+endif
+
+CXXFLAGS := $(CXXFLAGS) -DEVALFILE=\"$(EVALFILE)\"
+
+# Targets
+
+.PHONY:	all
+.DEFAULT_GOAL := all
+
+ifdef EVALFILE_NOT_DEFINED
+$(EVALFILE):
+	$(info Downloading network $(NET_ID))
+	curl -sOL https://github.com/Yoshie2000/PlentyNetworks/releases/download/$(NET_ID)/$(EVALFILE)
+endif
+
+all:	nopgo
+
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
 
-all:	pgo
-
 pgo:	CXXFLAGS_EXTRA := -fprofile-generate="pgo"
-pgo:	$(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $^ -o $(PROGRAM)
+pgo:	$(EVALFILE) $(OBJS)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE),$^) -o $(PROGRAM)
 		./$(PROGRAM) bench
 		$(MAKE) clean
 		$(MAKE) CXXFLAGS_EXTRA="-fprofile-use="pgo"" nopgo
@@ -68,8 +102,8 @@ else
 		$(RM) -rf pgo
 endif
 
-nopgo:	$(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $^ -o $(PROGRAM)
+nopgo:	$(EVALFILE) $(OBJS)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE),$^) -o $(PROGRAM)
 
 clean:	
 ifeq ($(OS), Windows_NT)

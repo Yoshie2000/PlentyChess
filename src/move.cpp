@@ -13,9 +13,9 @@
 #include "spsa.h"
 #include "history.h"
 
-TUNE_INT(mpPromotionScoreFactor, 22, 10, 10000);
-TUNE_INT(mpMvvLvaScoreFactor, 163, 10, 10000);
-TUNE_INT(mpSeeDivisor, 78, 10, 150);
+TUNE_INT(mpPromotionScoreFactor, 101, 10, 10000);
+TUNE_INT(mpMvvLvaScoreFactor, 147, 10, 10000);
+TUNE_INT(mpSeeDivisor, 83, 10, 150);
 
 void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targetMask) {
     Bitboard pawns = board->byPiece[Piece::PAWN] & board->byColor[board->stm];
@@ -612,13 +612,13 @@ inline int rankFromString(char string) {
         return 7;
 }
 
-Square stringToSquare(char* string) {
+Square stringToSquare(const char* string) {
     int file = fileFromString(string[0]);
     int rank = rankFromString(string[1]);
     return (Square)(8 * rank + file);
 }
 
-Move stringToMove(char* string, Board* board) {
+Move stringToMove(const char* string, Board* board) {
     Square origin = stringToSquare(&string[0]);
     Square target = stringToSquare(&string[2]);
     Move move = createMove(origin, target);

@@ -41,6 +41,9 @@ struct BoardStack {
     uint8_t nullmove_ply;
     uint64_t hash;
     uint64_t pawnHash;
+    uint64_t nonPawnHash[2];
+    uint64_t minorHash;
+    uint64_t majorHash;
 
     Bitboard blockers[2];
     Bitboard checkers;
@@ -75,13 +78,7 @@ struct Board {
     size_t parseFen(std::string fen, bool chess960);
     std::string fen();
 
-    constexpr void movePiece(Piece piece, Square origin, Square target, Bitboard fromTo) {
-        byColor[stm] ^= fromTo;
-        byPiece[piece] ^= fromTo;
-
-        pieces[origin] = Piece::NONE;
-        pieces[target] = piece;
-    };
+    void movePiece(Piece piece, Square origin, Square target, Bitboard fromTo);
     void doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue);
     void undoMove(Move move, NNUE* nnue);
     void doNullMove(BoardStack* newStack);

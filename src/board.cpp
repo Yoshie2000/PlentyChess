@@ -38,6 +38,10 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
     stack->capturedPiece = Piece::NONE;
     stack->hash = 0;
     stack->pawnHash = ZOBRIST_NO_PAWNS;
+    stack->nonPawnHash[Color::WHITE] = 0;
+    stack->nonPawnHash[Color::BLACK] = 0;
+    stack->minorHash = 0;
+    stack->majorHash = 0;
     stack->nullmove_ply = 0;
 
     // Board position and everything
@@ -76,6 +80,8 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
             stack->pieceCount[Color::BLACK][Piece::KNIGHT]++;
             pieces[currentSquare] = Piece::KNIGHT;
             stack->hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KNIGHT][currentSquare];
+            stack->nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KNIGHT][currentSquare];
+            stack->minorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KNIGHT][currentSquare];
             currentSquare++;
             break;
         case 'N':
@@ -84,6 +90,8 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
             stack->pieceCount[Color::WHITE][Piece::KNIGHT]++;
             pieces[currentSquare] = Piece::KNIGHT;
             stack->hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KNIGHT][currentSquare];
+            stack->nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KNIGHT][currentSquare];
+            stack->minorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KNIGHT][currentSquare];
             currentSquare++;
             break;
         case 'b':
@@ -92,6 +100,8 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
             stack->pieceCount[Color::BLACK][Piece::BISHOP]++;
             pieces[currentSquare] = Piece::BISHOP;
             stack->hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::BISHOP][currentSquare];
+            stack->nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::BISHOP][currentSquare];
+            stack->minorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::BISHOP][currentSquare];
             currentSquare++;
             break;
         case 'B':
@@ -100,6 +110,8 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
             stack->pieceCount[Color::WHITE][Piece::BISHOP]++;
             pieces[currentSquare] = Piece::BISHOP;
             stack->hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::BISHOP][currentSquare];
+            stack->nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::BISHOP][currentSquare];
+            stack->minorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::BISHOP][currentSquare];
             currentSquare++;
             break;
         case 'r':
@@ -108,6 +120,8 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
             stack->pieceCount[Color::BLACK][Piece::ROOK]++;
             pieces[currentSquare] = Piece::ROOK;
             stack->hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::ROOK][currentSquare];
+            stack->nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::ROOK][currentSquare];
+            stack->majorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::ROOK][currentSquare];
             currentSquare++;
             break;
         case 'R':
@@ -116,6 +130,8 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
             stack->pieceCount[Color::WHITE][Piece::ROOK]++;
             pieces[currentSquare] = Piece::ROOK;
             stack->hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::ROOK][currentSquare];
+            stack->nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::ROOK][currentSquare];
+            stack->majorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::ROOK][currentSquare];
             currentSquare++;
             break;
         case 'q':
@@ -124,6 +140,8 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
             stack->pieceCount[Color::BLACK][Piece::QUEEN]++;
             pieces[currentSquare] = Piece::QUEEN;
             stack->hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::QUEEN][currentSquare];
+            stack->nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::QUEEN][currentSquare];
+            stack->majorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::QUEEN][currentSquare];
             currentSquare++;
             break;
         case 'Q':
@@ -132,6 +150,8 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
             stack->pieceCount[Color::WHITE][Piece::QUEEN]++;
             pieces[currentSquare] = Piece::QUEEN;
             stack->hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::QUEEN][currentSquare];
+            stack->nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::QUEEN][currentSquare];
+            stack->majorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::QUEEN][currentSquare];
             currentSquare++;
             break;
         case 'k':
@@ -140,6 +160,9 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
             stack->pieceCount[Color::BLACK][Piece::KING]++;
             pieces[currentSquare] = Piece::KING;
             stack->hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
+            stack->nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
+            stack->minorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
+            stack->majorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
             currentSquare++;
             break;
         case 'K':
@@ -148,6 +171,9 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
             stack->pieceCount[Color::WHITE][Piece::KING]++;
             pieces[currentSquare] = Piece::KING;
             stack->hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
+            stack->nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
+            stack->minorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
+            stack->majorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
             currentSquare++;
             break;
         case '/':
@@ -388,6 +414,14 @@ std::string Board::fen() {
     return result;
 }
 
+void Board::movePiece(Piece piece, Square origin, Square target, Bitboard fromTo) {
+    byColor[stm] ^= fromTo;
+    byPiece[piece] ^= fromTo;
+
+    pieces[origin] = Piece::NONE;
+    pieces[target] = piece;
+};
+
 void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling) {
     if (stm == Color::WHITE) {
         int idx = *kingTarget <= kingOrigin;
@@ -413,6 +447,10 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
     newStack->hash = newHash;
     newStack->pawnHash = newStack->previous->pawnHash;
+    newStack->nonPawnHash[Color::WHITE] = newStack->previous->nonPawnHash[Color::WHITE];
+    newStack->nonPawnHash[Color::BLACK] = newStack->previous->nonPawnHash[Color::BLACK];
+    newStack->minorHash = newStack->previous->minorHash;
+    newStack->majorHash = newStack->previous->majorHash;
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
     newStack->nullmove_ply = newStack->previous->nullmove_ply + 1;
     if (stm == Color::BLACK)
@@ -469,13 +507,23 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
                     newStack->castling &= ~CASTLING_BLACK_QUEENSIDE;
                 }
             }
+
+            newStack->nonPawnHash[flip(stm)] ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
+            if (newStack->capturedPiece == Piece::KNIGHT || newStack->capturedPiece == Piece::BISHOP)
+                newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
+            else
+                newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
         }
 
         promotionPiece = PROMOTION_PIECE[promotionType(move)];
         byPiece[piece] ^= targetBB;
         byPiece[promotionPiece] ^= targetBB;
-
         pieces[target] = promotionPiece;
+        newStack->nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][promotionPiece][target];
+        if (promotionPiece == Piece::KNIGHT || promotionPiece == Piece::BISHOP)
+            newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][promotionPiece][captureTarget];
+        else
+            newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][promotionPiece][captureTarget];
 
         // Promotion, we don't move the current piece, instead we remove it from the origin square
         // and place the promotionPiece on the target square. This saves one accumulator update
@@ -503,6 +551,15 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
         byColor[stm] ^= rookFromToBB ^ fromTo;
         byPiece[Piece::ROOK] ^= rookFromToBB;
         byPiece[Piece::KING] ^= fromTo;
+
+        newStack->nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][origin];
+        newStack->nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][target];
+        newStack->nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookOrigin];
+        newStack->nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookTarget];
+        
+        newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::KING][target];
+        newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::KING][target];
+        newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookTarget];
 
         nnue->movePiece(origin, target, Piece::KING, stm);
         nnue->movePiece(rookOrigin, rookTarget, Piece::ROOK, stm);
@@ -558,6 +615,16 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
             newStack->rule50_ply = 0;
             newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][target];
+        } else {
+            newStack->nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
+            if (piece == Piece::KNIGHT || piece == Piece::BISHOP)
+                newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
+            else if (piece == Piece::ROOK || piece == Piece::QUEEN)
+                newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
+            else {
+                newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
+                newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
+            }
         }
 
         if (newStack->capturedPiece != Piece::NONE) {
@@ -566,10 +633,18 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
             if (newStack->capturedPiece == Piece::PAWN)
                 newStack->pawnHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][Piece::PAWN][captureTarget];
+            else {
+                newStack->nonPawnHash[flip(stm)] ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
+                if (newStack->capturedPiece == Piece::KNIGHT || newStack->capturedPiece == Piece::BISHOP)
+                    newStack->minorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
+                else
+                    newStack->majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][newStack->capturedPiece][captureTarget];
+            }
 
             nnue->removePiece(captureTarget, newStack->capturedPiece, flip(stm));
 
             newStack->pieceCount[flip(stm)][newStack->capturedPiece]--;
+
             newStack->rule50_ply = 0;
         }
 
@@ -715,6 +790,10 @@ void Board::doNullMove(BoardStack* newStack) {
 
     newStack->hash = newStack->previous->hash ^ ZOBRIST_STM_BLACK;
     newStack->pawnHash = newStack->previous->pawnHash;
+    newStack->nonPawnHash[Color::WHITE] = newStack->previous->nonPawnHash[Color::WHITE];
+    newStack->nonPawnHash[Color::BLACK] = newStack->previous->nonPawnHash[Color::BLACK];
+    newStack->minorHash = newStack->previous->minorHash;
+    newStack->majorHash = newStack->previous->majorHash;
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
     newStack->nullmove_ply = 0;
 
@@ -810,6 +889,8 @@ bool Board::isPseudoLegal(Move move) {
         Square rookSquare = castlingSquares[castlingIdx];
         Square kingTarget = CASTLING_KING_SQUARES[castlingIdx];
         Square rookTarget = CASTLING_ROOK_SQUARES[castlingIdx];
+
+        if (kingSquare == NO_SQUARE || rookSquare == NO_SQUARE || kingTarget == NO_SQUARE || rookTarget == NO_SQUARE) return false;
 
         Bitboard importantSquares = BB::BETWEEN[rookSquare][rookTarget] | BB::BETWEEN[kingSquare][kingTarget];
         importantSquares &= ~bitboard(rookSquare) & ~bitboard(kingSquare);
@@ -1140,6 +1221,19 @@ bool Board::hasUpcomingRepetition(int ply) {
 
 // Checks for 2-fold repetition and rule50 draw
 bool Board::isDraw() {
+
+    // Check for material draw
+    int pieceCount = BB::popcount(byColor[Color::WHITE] | byColor[Color::BLACK]);
+    if (pieceCount == 2)
+        return true;
+    if (pieceCount == 3 && (byPiece[Piece::KNIGHT] || byPiece[Piece::BISHOP]))
+        return true;
+    if (pieceCount == 4) {
+        if (BB::popcount(byPiece[Piece::KNIGHT]) == 2)
+            return true;
+        if (BB::popcount(byPiece[Piece::BISHOP]) == 2 && (byPiece[Piece::BISHOP] & byColor[Color::WHITE]) && (byPiece[Piece::BISHOP] & byColor[Color::BLACK]))
+            return true;
+    }
 
     // The stack needs to go back far enough
     if (!stack->previous || !stack->previous->previous)

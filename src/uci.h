@@ -27,8 +27,6 @@ void for_each_in_tuple(std::tuple<Ts...> const& t, Func f) {
 
 namespace UCI {
 
-    extern NNUE nnue;
-
     enum UCIOptionType {
         UCI_SPIN,
         UCI_STRING,
@@ -62,6 +60,22 @@ namespace UCI {
     };
 
     struct UCIOptions {
+        UCIOption<UCI_SPIN> hash = {
+            "Hash",
+            16,
+            16,
+            1,
+            98304
+        };
+
+        UCIOption<UCI_SPIN> threads = {
+            "Threads",
+            1,
+            1,
+            1,
+            512
+        };
+
         UCIOption<UCI_SPIN> multiPV = {
             "MultiPV",
             1,
@@ -96,14 +110,21 @@ namespace UCI {
             false
         };
 
+        UCIOption<UCI_CHECK> minimal = {
+            "Minimal",
+            false,
+            false
+        };
+
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&multiPV, &moveOverhead, &chess960, &ponder, &datagen);
+            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &minimal);
             for_each_in_tuple(optionsTuple, f);
         }
     };
 
     extern UCIOptions Options;
+    extern NNUE nnue;
 
 }
 

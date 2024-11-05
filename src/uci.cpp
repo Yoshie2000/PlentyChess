@@ -178,6 +178,9 @@ bool nextToken(std::string* line, std::string* token) {
 }
 
 void bench(std::deque<BoardStack>* stackQueue, Board* board) {
+    bool minimal = UCI::Options.minimal.value;
+    UCI::Options.minimal.value = true;
+
     uint64_t nodes = 0;
     int64_t elapsed = 0;
     int position = 1;
@@ -187,7 +190,7 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
 
     int i = 0;
     for (const std::string& fen : benchPositions) {
-        threads.ucinewgame();
+        //threads.ucinewgame();
         board->parseFen(fen, i++ >= 44);
         SearchParameters parameters;
         parameters.depth = 13;
@@ -208,6 +211,8 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
         << "\nTotal time (ms) : " << elapsed
         << "\nNodes searched  : " << nodes
         << "\nNodes/second    : " << 1000 * nodes / elapsed << std::endl;
+    
+    UCI::Options.minimal.value = minimal;
 }
 
 void perfttest(std::deque<BoardStack>* stackQueue, Board* board) {
@@ -402,19 +407,8 @@ void setoption(std::string line) {
         value = line.find(' ') != std::string::npos ? line.substr(0, line.find(' ')) : line;
     }
 
-    if (name == "Hash") {
-        size_t hashSize = std::stoi(value);
-        TT.resize(hashSize);
-    }
-    else if (name == "Threads") {
-        int numThreads = std::stoi(value);
-        threads.resize(numThreads);
-    }
-    else {
-        // No option found, maybe it's actually an SPSA parameter or one of the other UCI Options?
-        UCI::Options.forEach(setUciOption(name, value));
-        SPSA::trySetParam(name, value);
-    }
+    UCI::Options.forEach(setUciOption(name, value));
+    SPSA::trySetParam(name, value);
 }
 
 void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
@@ -531,6 +525,12 @@ void uciLoop(int argc, char* argv[]) {
 
     std::cout << "UCI thread running" << std::endl;
 
+#if defined(PROCESS_NET)
+    bench(&stackQueue, &board);
+    nnz.permuteNetwork();
+    return;
+#endif
+
     if (argc > 1 && matchesToken(argv[1], "genfens")) {
         std::cout << "starting fen generation" << std::endl;
         std::string params(argv[1]);
@@ -543,7 +543,7 @@ void uciLoop(int argc, char* argv[]) {
         bench(&stackQueue, &board);
         return;
     }
-    for (std::string line;std::getline(std::cin, line);) {
+    for (std::string line = {};std::getline(std::cin, line);) {
 
         if (matchesToken(line, "quit")) {
             threads.exit();
@@ -559,9 +559,13 @@ void uciLoop(int argc, char* argv[]) {
         }
 
         else if (matchesToken(line, "isready")) std::cout << "readyok" << std::endl;
-        else if (matchesToken(line, "ucinewgame")) threads.ucinewgame();
+        else if (matchesToken(line, "ucinewgame")) {
+            threads.resize(UCI::Options.threads.value);
+            TT.resize(UCI::Options.hash.value);
+            threads.ucinewgame();
+        }
         else if (matchesToken(line, "uci")) {
-            std::cout << "id name PlentyChess " << static_cast<std::string>(VERSION) << "\nid author Yoshie2000\n\noption name Hash type spin default 1 min 1 max 32768\noption name Threads type spin default 1 min 1 max 512" << std::endl;
+            std::cout << "id name PlentyChess " << static_cast<std::string>(VERSION) << "\nid author Yoshie2000\n" << std::endl;
             UCI::Options.forEach(printOptions());
             SPSA::printUCI();
             std::cout << std::endl << "uciok" << std::endl;

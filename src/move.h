@@ -43,8 +43,8 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures = 
 
 std::string moveToString(Move move, bool chess960);
 std::string squareToString(Square square);
-Square stringToSquare(char* string);
-Move stringToMove(char* string, Board* board = nullptr);
+Square stringToSquare(const char* string);
+Move stringToMove(const char* string, Board* board = nullptr);
 
 typedef int MoveGenStage;
 constexpr MoveGenStage STAGE_TTMOVE = 0;

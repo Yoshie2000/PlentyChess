@@ -7,5 +7,5 @@ perf*
 stuff/
 tools/*.o
 tools/process_net
-params.bin
+*.bin
 datagen_scrape/
