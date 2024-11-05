@@ -23,12 +23,12 @@ class History {
 public:
 
     int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2];
-    int16_t continuationCorrectionHistory[2][Piece::TOTAL][64];
+    int16_t continuationCorrectionHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64];
 
     void initHistory();
 
-    Eval correctStaticEval(Eval eval, Board* board, SearchStack* searchStack);
-    void updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus);
+    Eval correctStaticEval(Eval eval, Board* board, SearchStack* searchStack, Move ttMove);
+    void updateCorrectionHistory(Board* board, SearchStack* searchStack, Move bestMove, int16_t bonus);
 
     int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
 
