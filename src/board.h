@@ -84,6 +84,8 @@ struct Board {
     void doNullMove(BoardStack* newStack);
     void undoNullMove();
 
+    uint64_t materialKey();
+
     void calculateThreats();
     bool isSquareThreatened(Square square, BoardStack* bs);
 
