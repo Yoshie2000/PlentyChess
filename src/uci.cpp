@@ -546,6 +546,7 @@ void uciLoop(int argc, char* argv[]) {
     for (std::string line = {};std::getline(std::cin, line);) {
 
         if (matchesToken(line, "quit")) {
+            threads.stopSearching();
             threads.exit();
             break;
         }
