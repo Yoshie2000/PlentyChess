@@ -134,7 +134,7 @@ void History::updateContinuationHistory(SearchStack* stack, Color side, Piece pi
         (stack - 2)->contHist[pieceTo] += scaledBonus;
 
     if ((stack - 3)->movedPiece != Piece::NONE)
-        (stack - 3)->contHist[pieceTo] += scaledBonus / 4;
+        (stack - 3)->contHist[pieceTo] += scaledBonus / 2;
 
     if ((stack - 4)->movedPiece != Piece::NONE)
         (stack - 4)->contHist[pieceTo] += scaledBonus;
