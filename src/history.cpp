@@ -175,11 +175,13 @@ void History::updateCaptureHistory(Board* board, Move move, int moveSearchCount,
     }
 }
 
-void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int moveSearchCount, int16_t bonus, Move* quietMoves, int* quietSearchCount, int quietMoveCount) {
-    // Increase stats for this move
-    updateQuietHistory(move, board->stm, board, boardStack, bonus * moveSearchCount);
-    updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, bonus * moveSearchCount);
-    updatePawnHistory(board, move, bonus * moveSearchCount);
+void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int depth, int moveSearchCount, int16_t bonus, Move* quietMoves, int* quietSearchCount, int quietMoveCount) {
+    if (quietMoveCount > 1 || depth >= 3) {
+        // Increase stats for this move
+        updateQuietHistory(move, board->stm, board, boardStack, bonus * moveSearchCount);
+        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, bonus * moveSearchCount);
+        updatePawnHistory(board, move, bonus * moveSearchCount);
+    }
 
     // Decrease stats for all other quiets
     for (int i = 0; i < quietMoveCount; i++) {

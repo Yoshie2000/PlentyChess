@@ -45,7 +45,7 @@ public:
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
     void updateCaptureHistory(Board* board, Move move, int moveSearchCount, int16_t bonus, Move* captureMoves, int* captureSearchCount, int captureMoveCount);
 
-    void updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int moveSearchCount, int16_t bonus, Move* quietMoves, int* quietSearchCount, int quietMoveCount);
+    void updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int depth, int moveSearchCount, int16_t bonus, Move* quietMoves, int* quietSearchCount, int quietMoveCount);
 
     Move getCounterMove(Move move);
     void setCounterMove(Move move, Move counter);
