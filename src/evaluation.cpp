@@ -66,7 +66,7 @@ std::string formatEval(Eval value) {
 bool SEE(Board* board, Move move, Eval threshold) {
     assert(board->isPseudoLegal(move));
 
-    if (move >> 12 == MOVE_PROMOTION)
+    if ((move >> 12) == MOVE_PROMOTION)
         return PROMOTION_PIECE[move >> 14] == Piece::QUEEN;
 
     // Other "Special" moves pass SEE
