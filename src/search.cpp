@@ -717,8 +717,11 @@ movesLoop:
                 }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
-            else if (singularBeta >= beta)
+            else if (singularBeta >= beta) {
+                if (capture)
+                    history.updateCaptureHistory(board, move, 1, -1 * std::max(25 * depth, 500), captureMoves, captureSearchCount, captureMoveCount);
                 return std::min(singularBeta, EVAL_MATE_IN_MAX_PLY - 1);
+            }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
                 extension = -2 + pvNode;
