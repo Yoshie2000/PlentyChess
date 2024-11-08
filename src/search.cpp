@@ -853,6 +853,8 @@ movesLoop:
                 }
             }
 
+            rootMove->meanScore = rootMove->meanScore == EVAL_NONE ? value : (rootMove->meanScore + value) / 2;
+
             if (moveCount == 1 || value > alpha) {
                 rootMove->value = value;
                 rootMove->depth = searchData.rootDepth;
@@ -1015,7 +1017,10 @@ void Thread::iterativeDeepening() {
 
             if (depth >= aspirationWindowMinDepth) {
                 // Set up interval for the start of this aspiration window
-                delta = aspirationWindowDelta;
+                if (rootMoves[0].meanScore == EVAL_NONE)
+                    delta = aspirationWindowDelta;
+                else
+                    delta = 10 + rootMoves[0].meanScore * rootMoves[0].meanScore / 12000;
                 alpha = std::max(previousValue - delta, -EVAL_INFINITE);
                 beta = std::min(previousValue + delta, (int)EVAL_INFINITE);
             }
