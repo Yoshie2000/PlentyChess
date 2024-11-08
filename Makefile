@@ -96,18 +96,10 @@ pgo:	$(EVALFILE) $(OBJS)
 		./$(PROGRAM) bench
 		$(MAKE) clean
 		$(MAKE) CXXFLAGS_EXTRA="-fprofile-use="pgo"" nopgo
-ifeq ($(OS), Windows_NT)
-		$(shell .\clean.bat pgo)
-else
 		$(RM) -rf pgo
-endif
 
 nopgo:	$(EVALFILE) $(OBJS)
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE),$^) -o $(PROGRAM)
 
 clean:	
-ifeq ($(OS), Windows_NT)
-		$(shell .\clean.bat)
-else
 		$(RM) src/*.o *~ engine
-endif
