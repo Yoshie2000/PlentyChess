@@ -309,7 +309,7 @@ inline float reduceAddPsR(float* sums, int length) {
 }
 
 inline float reduceAddPs(VecF* sums) {
-  return reduceAddPsR((float*) sums, 64 / sizeof(float));
+  return reduceAddPsR((float*)sums, 64 / sizeof(float));
 }
 
 inline uint32_t vecNNZ(VecI chunk) {
@@ -319,21 +319,21 @@ inline uint32_t vecNNZ(VecI chunk) {
 #endif
 
 constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 1536;
+constexpr int L1_SIZE = 2048;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
-    0, 0, 1, 1, 1, 1, 0, 0,
-    2, 2, 3, 3, 3, 3, 2, 2,
-    4, 4, 4, 4, 4, 4, 4, 4,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
+  0, 1, 2, 3, 3, 2, 1, 0,
+  4, 4, 5, 5, 5, 5, 4, 4,
+  6, 6, 6, 6, 6, 6, 6, 6,
+  7, 7, 7, 7, 7, 7, 7, 7,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8,
 };
-constexpr int KING_BUCKETS = 7;
+constexpr int KING_BUCKETS = 9;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
@@ -500,8 +500,8 @@ public:
     for (int i = 0; i < L1_SIZE / 2; i++) {
       order[i] = i;
     }
-    std::stable_sort(order, order + L1_SIZE / 2, [&](const int &a, const int &b) { return activations[a] < activations[b]; });
-  
+    std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
+
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
 
       // Input weights
@@ -537,28 +537,28 @@ public:
     // Write the network
     FILE* nn = fopen("./network.bin", "wb");
     if (nn) {
-        // Read network from file
-        size_t written = 0;
-        size_t objectsExpected = sizeof(outputNetwork);
+      // Read network from file
+      size_t written = 0;
+      size_t objectsExpected = sizeof(outputNetwork);
 
-        written += sizeof(int16_t) * fwrite(outputNetwork.inputWeights, sizeof(int16_t), sizeof(outputNetwork.inputWeights) / sizeof(int16_t), nn);
-        written += sizeof(int16_t) * fwrite(outputNetwork.inputBiases, sizeof(int16_t), sizeof(outputNetwork.inputBiases) / sizeof(int16_t), nn);
-        written += sizeof(int8_t) * fwrite(outputNetwork.l1Weights, sizeof(int8_t), sizeof(outputNetwork.l1Weights) / sizeof(int8_t), nn);
-        written += sizeof(float) * fwrite(outputNetwork.l1Biases, sizeof(float), sizeof(outputNetwork.l1Biases) / sizeof(float), nn);
-        written += sizeof(float) * fwrite(outputNetwork.l2Weights, sizeof(float), sizeof(outputNetwork.l2Weights) / sizeof(float), nn);
-        written += sizeof(float) * fwrite(outputNetwork.l2Biases, sizeof(float), sizeof(outputNetwork.l2Biases) / sizeof(float), nn);
-        written += sizeof(float) * fwrite(outputNetwork.l3Weights, sizeof(float), sizeof(outputNetwork.l3Weights) / sizeof(float), nn);
-        written += sizeof(float) * fwrite(outputNetwork.l3Biases, sizeof(float), sizeof(outputNetwork.l3Biases) / sizeof(float), nn);
+      written += sizeof(int16_t) * fwrite(outputNetwork.inputWeights, sizeof(int16_t), sizeof(outputNetwork.inputWeights) / sizeof(int16_t), nn);
+      written += sizeof(int16_t) * fwrite(outputNetwork.inputBiases, sizeof(int16_t), sizeof(outputNetwork.inputBiases) / sizeof(int16_t), nn);
+      written += sizeof(int8_t) * fwrite(outputNetwork.l1Weights, sizeof(int8_t), sizeof(outputNetwork.l1Weights) / sizeof(int8_t), nn);
+      written += sizeof(float) * fwrite(outputNetwork.l1Biases, sizeof(float), sizeof(outputNetwork.l1Biases) / sizeof(float), nn);
+      written += sizeof(float) * fwrite(outputNetwork.l2Weights, sizeof(float), sizeof(outputNetwork.l2Weights) / sizeof(float), nn);
+      written += sizeof(float) * fwrite(outputNetwork.l2Biases, sizeof(float), sizeof(outputNetwork.l2Biases) / sizeof(float), nn);
+      written += sizeof(float) * fwrite(outputNetwork.l3Weights, sizeof(float), sizeof(outputNetwork.l3Weights) / sizeof(float), nn);
+      written += sizeof(float) * fwrite(outputNetwork.l3Biases, sizeof(float), sizeof(outputNetwork.l3Biases) / sizeof(float), nn);
 
-        if (std::abs((int64_t)written - (int64_t)objectsExpected) > 0) {
-            std::cout << "Error writing the net, aborting ";
-            std::cout << "Expected " << objectsExpected << " shorts, got " << written << "\n";
-        }
+      if (std::abs((int64_t)written - (int64_t)objectsExpected) > 0) {
+        std::cout << "Error writing the net, aborting ";
+        std::cout << "Expected " << objectsExpected << " shorts, got " << written << "\n";
+      }
 
-        fclose(nn);
+      fclose(nn);
     }
     else {
-        std::cout << "Network file could not be created" << std::endl;
+      std::cout << "Network file could not be created" << std::endl;
     }
   }
 };

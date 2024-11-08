@@ -5,12 +5,12 @@
 #include <cmath>
 
 constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 1536;
+constexpr int L1_SIZE = 2048;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
 constexpr bool KING_BUCKETS_FACTORIZED = true;
-constexpr int KING_BUCKETS = 7;
+constexpr int KING_BUCKETS = 9;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
