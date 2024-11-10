@@ -163,7 +163,7 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
     *captHistScore += scaledBonus;
 }
 
-void History::updateCaptureHistory(Board* board, Move move, int moveSearchCount, int16_t bonus, Move* captureMoves, int* captureSearchCount, int captureMoveCount) {
+void History::updateCaptureHistory(Board* board, Move move, int moveSearchCount, int16_t bonus, int16_t malus, Move* captureMoves, int* captureSearchCount, int captureMoveCount) {
     if (board->isCapture(move)) {
         updateSingleCaptureHistory(board, move, bonus * moveSearchCount);
     }
@@ -171,11 +171,11 @@ void History::updateCaptureHistory(Board* board, Move move, int moveSearchCount,
     for (int i = 0; i < captureMoveCount; i++) {
         Move cMove = captureMoves[i];
         if (move == cMove) continue;
-        updateSingleCaptureHistory(board, cMove, -bonus * captureSearchCount[i]);
+        updateSingleCaptureHistory(board, cMove, -malus * captureSearchCount[i]);
     }
 }
 
-void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int moveSearchCount, int16_t bonus, Move* quietMoves, int* quietSearchCount, int quietMoveCount) {
+void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int moveSearchCount, int16_t bonus, int16_t malus, Move* quietMoves, int* quietSearchCount, int quietMoveCount) {
     // Increase stats for this move
     updateQuietHistory(move, board->stm, board, boardStack, bonus * moveSearchCount);
     updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, bonus * moveSearchCount);
@@ -185,9 +185,9 @@ void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchS
     for (int i = 0; i < quietMoveCount; i++) {
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
-        updateQuietHistory(qMove, board->stm, board, boardStack, -bonus * quietSearchCount[i]);
-        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -bonus * quietSearchCount[i]);
-        updatePawnHistory(board, qMove, -bonus * quietSearchCount[i]);
+        updateQuietHistory(qMove, board->stm, board, boardStack, -malus * quietSearchCount[i]);
+        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -malus * quietSearchCount[i]);
+        updatePawnHistory(board, qMove, -malus * quietSearchCount[i]);
     }
 }
 
