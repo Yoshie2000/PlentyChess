@@ -764,6 +764,8 @@ movesLoop:
         Eval value = 0;
         int newDepth = depth - 1 + extension;
 
+        bool lmrPassCapture = false;
+
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode && depth >= lmrMinDepth && (!capture || !ttPv || cutNode)) {
@@ -809,6 +811,8 @@ movesLoop:
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
                     history.updateContinuationHistory(stack, flip(board->stm), stack->movedPiece, move, bonus);
+                } else if (value > alpha) {
+                    lmrPassCapture = true;
                 }
             }
         }
@@ -833,6 +837,11 @@ movesLoop:
 
         board->undoMove(move, &nnue);
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
+
+        if (lmrPassCapture) {
+            int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
+            history.updateSingleCaptureHistory(board, move, bonus);
+        }
 
         if (capture && captureMoveCount < 32)
             captureMoveCount++;
