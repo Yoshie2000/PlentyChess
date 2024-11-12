@@ -12,6 +12,7 @@ const Eval EVAL_INFINITE = 31000;
 const Eval EVAL_NONE = 31010;
 
 extern Eval PIECE_VALUES[Piece::TOTAL + 1];
+extern Eval SEE_VALUES[Piece::TOTAL + 1];
 
 Eval evaluate(Board* board, NNUE* nnue);
 

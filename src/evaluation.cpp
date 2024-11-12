@@ -23,7 +23,7 @@ Eval PIECE_VALUES[Piece::TOTAL + 1] = {
     pawnValue, knightValue, bishopValue, rookValue, queenValue, fakePiece, fakePiece
 };
 
-constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
+Eval SEE_VALUES[Piece::TOTAL + 1] = {
     90, 290, 310, 570, 1000, 0, 0
 };
 
