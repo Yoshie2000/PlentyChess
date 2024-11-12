@@ -661,7 +661,7 @@ movesLoop:
             if (!pvNode && !skipQuiets) {
 
                 // Movecount pruning (LMP)
-                if (moveCount >= LMP_MARGIN[depth][improving]) {
+                if (moveCount >= LMP_MARGIN[lmrDepth][improving]) {
                     skipQuiets = true;
                 }
 
@@ -679,7 +679,7 @@ movesLoop:
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth)
+            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * lmrDepth)
                 continue;
 
             // SEE Pruning
