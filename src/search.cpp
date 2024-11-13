@@ -1075,6 +1075,9 @@ void Thread::iterativeDeepening() {
             // Adjust time management
             double tmAdjustment = tmInitialAdjustment;
 
+            // Adjust by movecount of this game (more time early)
+            tmAdjustment *= 1.0f + 1.0f / static_cast<float>(moveCount);
+
             // Based on best move stability
             if (rootMoves[0].move == previousMove)
                 bestMoveStability = std::min(bestMoveStability + 1, tmBestMoveStabilityMax);

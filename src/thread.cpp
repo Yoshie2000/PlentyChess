@@ -23,6 +23,8 @@ void Thread::startSearching() {
     rootStack = &rootStackQueue->back();
     rootBoard.stack = rootStack;
 
+    moveCount++;
+
     if (searchParameters->perft)
         searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
     else if (searchParameters->genfens)
@@ -66,4 +68,5 @@ void Thread::exit() {
 
 void Thread::ucinewgame() {
     history.initHistory();
+    moveCount = 0;
 }

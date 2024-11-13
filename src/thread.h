@@ -56,6 +56,8 @@ public:
     std::map<Move, uint64_t> rootMoveNodes;
     std::vector<Move> excludedRootMoves;
 
+    int moveCount;
+
     Thread(ThreadPool* threadPool, int threadId);
 
     void startSearching();
