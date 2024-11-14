@@ -36,15 +36,15 @@ TUNE_FLOAT_DISABLED(tmNodesFactor, 0.921048521228935f, 0.1f, 2.5f);
 // Aspiration windows
 TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 6);
 TUNE_INT_DISABLED(aspirationWindowDelta, 14, 1, 30);
-TUNE_INT(aspirationWindowDeltaBase, 10, 1, 30);
+TUNE_INT_DISABLED(aspirationWindowDeltaBase, 10, 1, 30);
 TUNE_INT(aspirationWindowDeltaDivisor, 12000, 5000, 20000);
 TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT_DISABLED(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f);
 
 // Reduction / Margin tables
-TUNE_FLOAT(lmrReductionNoisyBase, -0.4888240580751226f, -2.0f, -0.1f);
+TUNE_FLOAT(lmrReductionNoisyBase, -0.1888240580751226f, -2.0f, -0.1f);
 TUNE_FLOAT(lmrReductionNoisyFactor, 3.1133946268983235f, 2.0f, 4.0f);
-TUNE_FLOAT(lmrReductionQuietBase, 0.8818295641170254f, 0.50f, 1.5f);
+TUNE_FLOAT(lmrReductionQuietBase, 1.1818295641170254f, 0.50f, 1.5f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.9415810588232394f, 2.0f, 4.0f);
 
 TUNE_FLOAT(seeMarginNoisy, -22.026705241168507f, -50.0f, -10.0f);
@@ -57,13 +57,11 @@ TUNE_FLOAT(lmpMarginImprovingFactor, 0.9446466370252397f, 0.5f, 2.0f);
 TUNE_FLOAT(lmpMarginImprovingPower, 1.939830241988493f, 1.0f, 3.0f);
 
 // Search values
-TUNE_INT(qsFutilityOffset, 67, 1, 125);
-TUNE_INT(qsSeeMargin, -101, -200, 50);
+TUNE_INT_DISABLED(qsFutilityOffset, 67, 1, 125);
+TUNE_INT_DISABLED(qsSeeMargin, -101, -200, 50);
 
 // Pre-search pruning
 TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
-
-TUNE_INT(worseningOffset, 18, 1, 50);
 
 TUNE_INT(staticHistoryFactor, -46, -500, -1);
 TUNE_INT(staticHistoryMin, -61, -1000, -1);
@@ -83,7 +81,6 @@ TUNE_INT(nmpEvalDepth, 30, 1, 100);
 TUNE_INT(nmpEvalBase, 150, 50, 300);
 
 TUNE_INT(probCutBetaOffset, 191, 1, 500);
-TUNE_INT(probCutImprovingOffset, 0, -25, 100);
 TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 
 // In-search pruning
@@ -112,7 +109,7 @@ TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 
 TUNE_INT(lmrHistoryFactorQuiet, 19376, 128, 32768);
 TUNE_INT(lmrHistoryFactorCapture, 19472, 128, 32768);
-TUNE_INT(lmrDeeperBase, 40, 1, 100);
+TUNE_INT_DISABLED(lmrDeeperBase, 40, 1, 100);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
 
 TUNE_INT(lmrPassBonusBase, -182, -500, 500);
@@ -451,7 +448,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
-    bool improving = false, worsening = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -512,11 +509,9 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
-        worsening = stack->staticEval + worseningOffset < (stack - 2)->staticEval;
     }
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
-        worsening = stack->staticEval + worseningOffset < (stack - 4)->staticEval;
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
@@ -581,7 +576,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // ProbCut
-    probCutBeta = std::min(beta + probCutBetaOffset - probCutImprovingOffset * improving, EVAL_MATE_IN_MAX_PLY - 1);
+    probCutBeta = std::min(beta + probCutBetaOffset, EVAL_MATE_IN_MAX_PLY - 1);
     if (!pvNode
         && !excluded
         && depth > probCutDepth
@@ -796,9 +791,6 @@ movesLoop:
                 reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
-
-            if (worsening)
-                reducedDepth--;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
