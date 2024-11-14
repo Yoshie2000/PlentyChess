@@ -42,7 +42,7 @@ TUNE_FLOAT(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f);
 // Reduction / Margin tables
 TUNE_FLOAT(lmrReductionNoisyBase, -0.4888240580751226f, -2.0f, -0.1f);
 TUNE_FLOAT(lmrReductionNoisyFactor, 3.1133946268983235f, 2.0f, 4.0f);
-TUNE_FLOAT(lmrReductionQuietBase, 0.8818295641170254f, 0.50f, 1.5f);
+TUNE_FLOAT(lmrReductionQuietBase, 1.1818295641170254f, 0.50f, 1.5f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.9415810588232394f, 2.0f, 4.0f);
 
 TUNE_FLOAT(seeMarginNoisy, -22.026705241168507f, -50.0f, -10.0f);
@@ -757,6 +757,12 @@ movesLoop:
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
 
+        int pawnHist = 0, quietHist = 0;
+        if (!capture) {
+            pawnHist = history.getPawnHistory(board, move);
+            quietHist = history.getQuietHistory(move, board->stm, board, board->stack);
+        }
+
         moveCount++;
         searchData.nodesSearched++;
         board->doMove(&boardStack, move, newHash, &nnue);
@@ -780,8 +786,12 @@ movesLoop:
 
             if (capture)
                 reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
-            else
+            else {
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
+
+                if (pawnHist > 0 && quietHist < 0 && std::abs(pawnHist - quietHist) > 10000)
+                    reducedDepth++;
+            }
 
             if (worsening)
                 reducedDepth--;
