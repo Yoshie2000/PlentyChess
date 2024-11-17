@@ -67,10 +67,10 @@ TUNE_INT(staticHistoryFactor, -36, -500, -1);
 TUNE_INT(staticHistoryMin, -79, -1000, -1);
 TUNE_INT(staticHistoryMax, 123, 1, 1000);
 
-TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
+TUNE_INT_DISABLED(rfpDepth, 9, 2, 20);
 TUNE_INT(rfpFactor, 77, 1, 250);
 
-TUNE_INT_DISABLED(razoringDepth, 5, 2, 20);
+TUNE_INT_DISABLED(razoringDepth, 6, 2, 20);
 TUNE_INT(razoringFactor, 204, 1, 1000);
 
 TUNE_INT_DISABLED(nmpRedBase, 4, 1, 5);
@@ -87,15 +87,15 @@ TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 TUNE_INT(earlyLmrHistoryFactorQuiet, 15817, 128, 32768);
 TUNE_INT(earlyLmrHistoryFactorCapture, 15004, 128, 32768);
 
-TUNE_INT_DISABLED(fpDepth, 11, 1, 20);
+TUNE_INT_DISABLED(fpDepth, 12, 1, 20);
 TUNE_INT(fpBase, 221, 1, 1000);
 TUNE_INT(fpFactor, 82, 1, 500);
 
-TUNE_INT_DISABLED(fpCaptDepth, 9, 1, 20);
+TUNE_INT_DISABLED(fpCaptDepth, 10, 1, 20);
 TUNE_INT(fpCaptBase, 458, 150, 750);
 TUNE_INT(fpCaptFactor, 359, 100, 600);
 
-TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
+TUNE_INT_DISABLED(historyPruningDepth, 5, 1, 15);
 TUNE_INT(historyPruningFactorCapture, -1528, -8192, -128);
 TUNE_INT(historyPruningFactorQuiet, -5833, -8192, -128);
 
