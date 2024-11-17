@@ -448,7 +448,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
-    bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    bool improving = false, opponentWorsening = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -507,6 +507,9 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         depth--;
 
     // Improving
+    if ((stack - 1)->staticEval != EVAL_NONE) {
+        opponentWorsening = stack->staticEval + (stack - 1)->staticEval > 1;
+    }
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
     }
@@ -521,7 +524,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
+    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth + opponentWorsening - (improving && !board->opponentHasGoodCapture())) >= beta)
         return std::min((eval + beta) / 2, EVAL_MATE_IN_MAX_PLY - 1);
 
     // Razoring
