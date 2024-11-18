@@ -475,9 +475,16 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         }
     }
 
+    bool wouldTtPrune = false;
+
     // TT cutoff
-    if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
-        return ttValue;
+    if (!rootNode && ttDepth >= depth + 2 * pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND))) {
+        wouldTtPrune = true;
+        if (pvNode)
+            depth--;
+        else
+            return ttValue;
+    }
 
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
@@ -928,7 +935,7 @@ movesLoop:
     bool failLow = alpha == oldAlpha;
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
-    if (!excluded)
+    if (!excluded && !wouldTtPrune)
         ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
