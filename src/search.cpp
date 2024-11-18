@@ -675,7 +675,7 @@ movesLoop:
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth + (moveHistory - 10000) / 480 <= alpha)
                     skipQuiets = true;
             }
 
