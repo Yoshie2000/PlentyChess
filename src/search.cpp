@@ -480,9 +480,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // TT cutoff
     if (!rootNode && ttDepth >= depth + 2 * pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND))) {
         wouldTtPrune = true;
-        if (pvNode)
-            depth--;
-        else
+        if (!pvNode)
             return ttValue;
     }
 
@@ -674,7 +672,7 @@ movesLoop:
 
             int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
-            if (!pvNode && !skipQuiets) {
+            if ((!pvNode || wouldTtPrune) && !skipQuiets) {
 
                 // Movecount pruning (LMP)
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
@@ -687,7 +685,7 @@ movesLoop:
             }
 
             // Futility pruning for captures
-            if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
+            if ((!pvNode || wouldTtPrune) && capture && moveType(move) != MOVE_PROMOTION) {
                 Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
                 if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
                     continue;
@@ -935,7 +933,7 @@ movesLoop:
     bool failLow = alpha == oldAlpha;
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
-    if (!excluded && !wouldTtPrune)
+    if (!excluded)
         ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     // Adjust correction history
