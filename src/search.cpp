@@ -525,7 +525,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         return std::min((eval + beta) / 2, EVAL_MATE_IN_MAX_PLY - 1);
 
     // Razoring
-    if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha && alpha < EVAL_MATE_IN_MAX_PLY) {
+    if (!pvNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha && alpha < EVAL_MATE_IN_MAX_PLY) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
         if (razorValue <= alpha && razorValue > -EVAL_MATE_IN_MAX_PLY)
             return razorValue;
