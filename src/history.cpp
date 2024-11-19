@@ -29,6 +29,7 @@ void History::initHistory() {
     memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
     memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
     memset(pawnHistory, -1000, sizeof(pawnHistory));
+    memset(lowplyHistory, 0, sizeof(lowplyHistory));
 }
 
 Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStack) {
@@ -74,8 +75,22 @@ int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searc
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(move, board->stm, board, boardStack) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
+        return getQuietHistory(move, board->stm, board, boardStack) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move) + (2 * LOWPLY_HIST_PLIES + 1) * getLowPlyHist(board, searchStack->ply, move) / (2 * searchStack->ply + 1);
     }
+}
+
+int16_t History::getLowPlyHist(Board* board, int ply, Move move) {
+    if (ply >= LOWPLY_HIST_PLIES)
+        return 0;
+    return lowplyHistory[ply][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)];
+}
+
+void History::updateLowPlyHist(Board* board, int ply, Move move, int16_t bonus) {
+    if (ply >= LOWPLY_HIST_PLIES)
+        return;
+
+    int16_t scaledBonus = bonus - getLowPlyHist(board, ply, move) * std::abs(bonus) / 32000;
+    lowplyHistory[ply][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
 }
 
 int16_t History::getQuietHistory(Move move, Color stm, Board* board, BoardStack* stack) {
@@ -180,6 +195,7 @@ void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchS
     updateQuietHistory(move, board->stm, board, boardStack, bonus * moveSearchCount);
     updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, bonus * moveSearchCount);
     updatePawnHistory(board, move, bonus * moveSearchCount);
+    updateLowPlyHist(board, stack->ply, move, bonus * moveSearchCount);
 
     // Decrease stats for all other quiets
     for (int i = 0; i < quietMoveCount; i++) {
@@ -188,6 +204,7 @@ void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchS
         updateQuietHistory(qMove, board->stm, board, boardStack, -malus * quietSearchCount[i]);
         updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -malus * quietSearchCount[i]);
         updatePawnHistory(board, qMove, -malus * quietSearchCount[i]);
+        updateLowPlyHist(board, stack->ply, qMove, -malus * quietSearchCount[i]);
     }
 }
 
