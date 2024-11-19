@@ -324,22 +324,22 @@ constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
-    0, 0, 1, 1, 1, 1, 0, 0,
-    2, 2, 3, 3, 3, 3, 2, 2,
-    4, 4, 4, 4, 4, 4, 4, 4,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
-    6, 6, 6, 6, 6, 6, 6, 6,
+  0, 1, 2, 3, 3, 2, 1, 0,
+  4, 4, 5, 5, 5, 5, 4, 4,
+  6, 6, 6, 6, 6, 6, 6, 6,
+  7, 7, 7, 7, 7, 7, 7, 7,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8
 };
-constexpr int KING_BUCKETS = 7;
+constexpr int KING_BUCKETS = 9;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
 constexpr int INPUT_QUANT = 362;
 constexpr int INPUT_SHIFT = 10;
-constexpr int L1_QUANT = 32;
+constexpr int L1_QUANT = 64;
 
 constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
 
