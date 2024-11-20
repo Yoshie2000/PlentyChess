@@ -10,12 +10,12 @@ constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
 constexpr bool KING_BUCKETS_FACTORIZED = true;
-constexpr int KING_BUCKETS = 7;
+constexpr int KING_BUCKETS = 9;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
 constexpr int INPUT_QUANT = 362;
-constexpr int L1_QUANT = 32;
+constexpr int L1_QUANT = 64;
 
 struct Network {
     float inputWeights[KING_BUCKETS + static_cast<int>(KING_BUCKETS_FACTORIZED)][INPUT_SIZE * L1_SIZE];
