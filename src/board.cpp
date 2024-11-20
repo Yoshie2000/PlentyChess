@@ -1014,7 +1014,7 @@ bool Board::isLegal(Move move) {
             }
         }
         // Check for castling flags
-        return stack->castling & CASTLING_FLAGS[castlingIdx];
+        return (stack->castling & CASTLING_FLAGS[castlingIdx]) && !(stack->blockers[stm] & bitboard(target));
     }
 
     if (pieces[origin] == Piece::KING) {
