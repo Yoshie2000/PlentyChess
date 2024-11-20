@@ -202,7 +202,7 @@ uint64_t perft(Board* board, int depth) {
         uint64_t subNodes = perftInternal(board, &UCI::nnue, depth - 1);
         board->undoMove(move, &UCI::nnue);
 
-        std::cout << moveToString(move, UCI::Options.chess960.value) << ": " << subNodes << std::endl;
+        // std::cout << moveToString(move, UCI::Options.chess960.value) << ": " << subNodes << std::endl;
 
         nodes += subNodes;
     }
@@ -210,7 +210,7 @@ uint64_t perft(Board* board, int depth) {
     clock_t end = clock();
     double time = (double)(end - begin) / CLOCKS_PER_SEC;
     uint64_t nps = nodes / time;
-    std::cout << "Perft: " << nodes << " nodes in " << time << "s => " << nps << "nps" << std::endl;
+    std::cout << nodes << std::endl;
 
     return nodes;
 }

@@ -523,7 +523,7 @@ void uciLoop(int argc, char* argv[]) {
     board.stack = &stackQueue.back();
     board.startpos();
 
-    std::cout << "UCI thread running" << std::endl;
+    // std::cout << "UCI thread running" << std::endl;
 
 #if defined(PROCESS_NET)
     bench(&stackQueue, &board);

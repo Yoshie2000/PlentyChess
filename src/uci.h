@@ -112,8 +112,8 @@ namespace UCI {
 
         UCIOption<UCI_CHECK> minimal = {
             "Minimal",
-            false,
-            false
+            true,
+            true
         };
 
         template <typename Func>
