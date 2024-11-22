@@ -4,7 +4,7 @@
 
 #include "nnue.h"
 
-constexpr auto VERSION = "3.0.0";
+constexpr auto VERSION = "3.0.1";
 
 template<int... Is>
 struct seq { };
@@ -26,6 +26,8 @@ void for_each_in_tuple(std::tuple<Ts...> const& t, Func f) {
 }
 
 namespace UCI {
+
+    extern bool optionsDirty;
 
     enum UCIOptionType {
         UCI_SPIN,
