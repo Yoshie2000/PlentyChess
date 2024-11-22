@@ -4,7 +4,7 @@
 
 #include "nnue.h"
 
-constexpr auto VERSION = "selfgen-dev";
+constexpr auto VERSION = "3.0.0";
 
 template<int... Is>
 struct seq { };
@@ -115,10 +115,16 @@ namespace UCI {
             "",
             ""
         };
+        
+        UCIOption<UCI_CHECK> minimal = {
+            "Minimal",
+            false,
+            false
+        };
 
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &syzygyPath);
+            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &syzygyPath, &minimal);
             for_each_in_tuple(optionsTuple, f);
         }
     };

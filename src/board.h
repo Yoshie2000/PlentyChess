@@ -110,6 +110,19 @@ struct Board {
         return stack->pieceCount[stm][Piece::KNIGHT] > 0 || stack->pieceCount[stm][Piece::BISHOP] > 0 || stack->pieceCount[stm][Piece::ROOK] > 0 || stack->pieceCount[stm][Piece::QUEEN] > 0;
     }
 
+    constexpr bool opponentHasGoodCapture() {
+        Bitboard queens = byColor[stm] & byPiece[Piece::QUEEN];
+        Bitboard rooks = byColor[stm] & byPiece[Piece::ROOK];
+        rooks |= queens;
+        Bitboard minors = byColor[stm] & (byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP]);
+        minors |= rooks;
+
+        Bitboard minorThreats = stack->threats.knightThreats | stack->threats.bishopThreats | stack->threats.pawnThreats;
+        Bitboard rookThreats = minorThreats | stack->threats.rookThreats;
+
+        return (queens & rookThreats) | (rooks & minorThreats) | (minors & stack->threats.pawnThreats);
+    }
+
     Bitboard attackersTo(Square square, Bitboard occupied);
 
     void debugBoard();

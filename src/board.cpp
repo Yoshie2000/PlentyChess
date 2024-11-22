@@ -890,6 +890,8 @@ bool Board::isPseudoLegal(Move move) {
         Square kingTarget = CASTLING_KING_SQUARES[castlingIdx];
         Square rookTarget = CASTLING_ROOK_SQUARES[castlingIdx];
 
+        if (kingSquare == NO_SQUARE || rookSquare == NO_SQUARE || kingTarget == NO_SQUARE || rookTarget == NO_SQUARE) return false;
+
         Bitboard importantSquares = BB::BETWEEN[rookSquare][rookTarget] | BB::BETWEEN[kingSquare][kingTarget];
         importantSquares &= ~bitboard(rookSquare) & ~bitboard(kingSquare);
         if ((byColor[Color::WHITE] | byColor[Color::BLACK]) & importantSquares) return false;
@@ -1012,7 +1014,7 @@ bool Board::isLegal(Move move) {
             }
         }
         // Check for castling flags
-        return stack->castling & CASTLING_FLAGS[castlingIdx];
+        return (stack->castling & CASTLING_FLAGS[castlingIdx]) && !(stack->blockers[stm] & bitboard(target));
     }
 
     if (pieces[origin] == Piece::KING) {

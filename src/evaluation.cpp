@@ -64,7 +64,7 @@ std::string formatEval(Eval value) {
     else {
         Eval outputEval = value;
         if (!UCI::Options.datagen.value)
-            outputEval = 100 * outputEval / 266;
+            outputEval = 100 * outputEval / 220;
         evalString = "cp " + std::to_string(outputEval);
     }
     return evalString;

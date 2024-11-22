@@ -19,10 +19,16 @@ ifdef INCLUDE_DEBUG_SYMBOLS
 endif
 
 # CPU Flags
-ifeq ($(arch), avx512)
+ifeq ($(arch), avx512vnni)
+	CXXFLAGS := $(CXXFLAGS) -march=cascadelake
+else ifeq ($(arch), avx512)
 	CXXFLAGS := $(CXXFLAGS) -march=skylake-avx512
 else ifeq ($(arch), avx2)
 	CXXFLAGS := $(CXXFLAGS) -march=haswell
+else ifeq ($(arch), fma)
+	CXXFLAGS := $(CXXFLAGS) -mssse3 -mfma
+else ifeq ($(arch), ssse3)
+	CXXFLAGS := $(CXXFLAGS) -mssse3
 else ifeq ($(arch), generic)
 	CXXFLAGS := $(CXXFLAGS)
 else
@@ -50,6 +56,10 @@ ifdef BMI2
 	CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2 -mbmi2
 endif
 
+ifdef PROCESS_NET
+	CXXFLAGS := $(CXXFLAGS) -DPROCESS_NET
+endif
+
 # Windows only flags
 ifeq ($(OS), Windows_NT)
 	CXXFLAGS := $(CXXFLAGS) -lstdc++ -static -Wl,--no-as-needed
@@ -75,7 +85,7 @@ $(EVALFILE):
 	curl -sOL https://github.com/Yoshie2000/PlentyNetworks/releases/download/$(NET_ID)/$(EVALFILE)
 endif
 
-all:	pgo
+all:	nopgo
 
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
@@ -86,18 +96,10 @@ pgo:	$(EVALFILE) $(OBJS)
 		./$(PROGRAM) bench
 		$(MAKE) clean
 		$(MAKE) CXXFLAGS_EXTRA="-fprofile-use="pgo"" nopgo
-ifeq ($(OS), Windows_NT)
-		$(shell .\clean.bat pgo)
-else
 		$(RM) -rf pgo
-endif
 
 nopgo:	$(EVALFILE) $(OBJS)
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE),$^) -o $(PROGRAM)
 
 clean:	
-ifeq ($(OS), Windows_NT)
-		$(shell .\clean.bat)
-else
 		$(RM) src/*.o *~ engine
-endif

@@ -4,11 +4,11 @@
 #include "uci.h"
 #include "spsa.h"
 
-TUNE_INT(maxTimeFactor, 763, 500, 1000);
-TUNE_INT(totalTimeDivisor, 152, 50, 500);
-TUNE_INT(totalTimeIncrementDivisor, 15, 5, 50);
-TUNE_FLOAT(optTimeFactor, 0.8374801351760048f, 0.5f, 1.5f);
-TUNE_FLOAT(maxTimeFactor2, 2.7035264767468328f, 1.5f, 3.5f);
+TUNE_INT_DISABLED(maxTimeFactor, 751, 500, 1000);
+TUNE_INT_DISABLED(totalTimeDivisor, 141, 50, 500);
+TUNE_INT_DISABLED(totalTimeIncrementDivisor, 15, 5, 50);
+TUNE_FLOAT_DISABLED(optTimeFactor, 0.8399453763852353f, 0.5f, 1.5f);
+TUNE_FLOAT_DISABLED(maxTimeFactor2, 2.745510930271531f, 1.5f, 3.5f);
 
 int64_t getTime() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -17,7 +17,7 @@ int64_t getTime() {
 bool timeOver(SearchParameters* parameters, SearchData* data) {
     if (parameters->ponder)
         return false;
-    return (data->maxTime && (data->nodesSearched % 1024) == 0 && getTime() >= data->maxTime) || (parameters->nodes && data->nodesSearched >= parameters->nodes * (1 + 9 * UCI::Options.datagen.value));
+    return (data->maxTime && (data->nodesSearched % 1024) == 0 && getTime() >= data->maxTime) || (parameters->nodes && data->nodesSearched >= parameters->nodes * (1 + 99 * UCI::Options.datagen.value));
 }
 
 bool timeOverDepthCleared(SearchParameters* parameters, SearchData* data, double factor) {
@@ -25,7 +25,7 @@ bool timeOverDepthCleared(SearchParameters* parameters, SearchData* data, double
         return false;
     int64_t adjustedOptTime = (int64_t)(data->startTime + (double)(data->optTime - data->startTime) * factor);
     int64_t currentTime = getTime();
-    return (data->maxTime && (currentTime >= adjustedOptTime || currentTime >= data->maxTime)) || (parameters->nodes && data->nodesSearched >= parameters->nodes * (1 + 9 * UCI::Options.datagen.value));
+    return (data->maxTime && (currentTime >= adjustedOptTime || currentTime >= data->maxTime)) || (parameters->nodes && data->nodesSearched >= parameters->nodes * (1 + 99 * UCI::Options.datagen.value));
 }
 
 void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchData* data) {

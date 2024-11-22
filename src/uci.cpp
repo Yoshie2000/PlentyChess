@@ -180,6 +180,9 @@ bool nextToken(std::string* line, std::string* token) {
 }
 
 void bench(std::deque<BoardStack>* stackQueue, Board* board) {
+    bool minimal = UCI::Options.minimal.value;
+    UCI::Options.minimal.value = true;
+
     uint64_t nodes = 0;
     int64_t elapsed = 0;
     int position = 1;
@@ -189,7 +192,7 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
 
     int i = 0;
     for (const std::string& fen : benchPositions) {
-        threads.ucinewgame();
+        //threads.ucinewgame();
         board->parseFen(fen, i++ >= 44);
         SearchParameters parameters;
         parameters.depth = 13;
@@ -210,6 +213,8 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
         << "\nTotal time (ms) : " << elapsed
         << "\nNodes searched  : " << nodes
         << "\nNodes/second    : " << 1000 * nodes / elapsed << std::endl;
+    
+    UCI::Options.minimal.value = minimal;
 }
 
 void perfttest(std::deque<BoardStack>* stackQueue, Board* board) {
@@ -546,6 +551,12 @@ void uciLoop(int argc, char* argv[]) {
         rescore(path, threads);
         return;
     }
+#if defined(PROCESS_NET)
+    bench(&stackQueue, &board);
+    nnz.permuteNetwork();
+    return;
+#endif
+
     if (argc > 1 && matchesToken(argv[1], "genfens")) {
         std::cout << "starting fen generation" << std::endl;
         std::string params(argv[1]);
@@ -560,9 +571,10 @@ void uciLoop(int argc, char* argv[]) {
         bench(&stackQueue, &board);
         return;
     }
-    for (std::string line;std::getline(std::cin, line);) {
+    for (std::string line = {};std::getline(std::cin, line);) {
 
         if (matchesToken(line, "quit")) {
+            threads.stopSearching();
             threads.exit();
             break;
         }
