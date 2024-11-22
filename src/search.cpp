@@ -340,7 +340,7 @@ movesLoopQsearch:
                 continue;
             }
 
-            if (!SEE(board, move, qsSeeMargin))
+            if (!SEE(board, move, capture ? qsSeeMargin : 1))
                 break;
 
             if (moveTarget(move) != moveTarget((stack - 1)->move) && (moveType(move) != MOVE_PROMOTION) && !board->givesCheck(move) && moveCount > 2)
