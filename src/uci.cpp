@@ -22,6 +22,7 @@
 namespace UCI {
     UCIOptions Options;
     NNUE nnue;
+    bool optionsDirty = false;
 }
 
 ThreadPool threads;
@@ -407,6 +408,10 @@ void setoption(std::string line) {
         value = line.find(' ') != std::string::npos ? line.substr(0, line.find(' ')) : line;
     }
 
+    if (name == "Hash" || name == "Threads") {
+        UCI::optionsDirty = true;
+    }
+
     UCI::Options.forEach(setUciOption(name, value));
     SPSA::trySetParam(name, value);
 }
@@ -564,6 +569,7 @@ void uciLoop(int argc, char* argv[]) {
             threads.resize(UCI::Options.threads.value);
             TT.resize(UCI::Options.hash.value);
             threads.ucinewgame();
+            UCI::optionsDirty = false;
         }
         else if (matchesToken(line, "uci")) {
             std::cout << "id name PlentyChess " << static_cast<std::string>(VERSION) << "\nid author Yoshie2000\n" << std::endl;
@@ -571,8 +577,14 @@ void uciLoop(int argc, char* argv[]) {
             SPSA::printUCI();
             std::cout << std::endl << "uciok" << std::endl;
         }
-        else if (matchesToken(line, "go")) go(line, &board, &stackQueue);
-        else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
+        else if (matchesToken(line, "go")) {
+            if (UCI::optionsDirty) {
+                threads.resize(UCI::Options.threads.value);
+                TT.resize(UCI::Options.hash.value);
+                UCI::optionsDirty = false;
+            }
+            go(line, &board, &stackQueue);
+        } else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
         else if (matchesToken(line, "setoption")) setoption(line.substr(10));
 
         /* NON UCI COMMANDS */
