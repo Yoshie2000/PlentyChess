@@ -1,11 +1,12 @@
 #pragma once
 
 #include <cstddef>
-#include <immintrin.h>
 
 #include "types.h"
 
 #if defined(USE_BMI2)
+
+#include <immintrin.h>
 
 struct MagicEntry {
     Bitboard mask;

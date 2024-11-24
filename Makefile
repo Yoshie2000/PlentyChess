@@ -5,6 +5,19 @@ CXXFLAGS_EXTRA =
 SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp
 OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
 
+ifneq ($(OS), Windows_NT)
+    ARCH_CMD := $(shell uname -m)
+    ifeq ($(ARCH_CMD), x86_64)
+    	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
+    else ifeq ($(ARCH_CMD), aarch64)
+    	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
+    else
+    	$(error Architecture not supported: $(ARCH_CMD))
+    endif
+else
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
+endif
+
 # Debug vs. Production flags
 PROGRAM = engine
 ifdef EXE
