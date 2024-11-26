@@ -8,6 +8,10 @@
 #include "board.h"
 #include "incbin/incbin.h"
 
+#if defined(ARCH_ARM)
+#include <arm_neon.h>
+#endif
+
 // This will define the following variables:
 // const unsigned char        gNETWORKData[];
 // const unsigned char *const gNETWORKEnd;
@@ -395,8 +399,8 @@ Eval NNUE::evaluate(Board* board) {
         VecI16 u8_1 = set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]);
         VecI16 u8_2 = set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]);
 #else
-        VecI16 u8_1 = vreinterpret_s16_s32(set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]));
-        VecI16 u8_2 = vreinterpret_s16_s32(set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]));
+        VecI16 u8_1 = reinterpretS16S32(set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]));
+        VecI16 u8_2 = reinterpretS16S32(set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]));
 #endif
         VecI16* weights_1 = reinterpret_cast<VecI16*>(&networkData.l1Weights[bucket][l1_1 * L2_SIZE]);
         VecI16* weights_2 = reinterpret_cast<VecI16*>(&networkData.l1Weights[bucket][l1_2 * L2_SIZE]);

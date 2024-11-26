@@ -330,6 +330,14 @@ using VecIu16 = uint16x8_t;
 using VecI32 = int32x4_t;
 using VecF = float32x4_t;
 
+inline VecI16 reinterpretS16S32(VecI32 x) {
+  int32x2_t low32 = vget_low_s32(input);
+  int32x2_t high32 = vget_high_s32(input);
+  int16x4_t low16 = vreinterpret_s16_s32(low32);
+  int16x4_t high16 = vreinterpret_s16_s32(high32);
+  return vcombine_s16(low16, high16);
+}
+
 // Integer operations
 inline VecI16 addEpi16(VecI16 x, VecI16 y) {
     return vaddq_s16(x, y);
