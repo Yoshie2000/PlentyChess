@@ -418,8 +418,12 @@ inline VecF fmaddPs(VecF a, VecF b, VecF c) {
 }
 
 inline float reduceAddPs(VecF v) {
-    float32x2_t pairwise_sum = vpadd_f32(vget_low_f32(v), vget_high_f32(v));
-    return vget_lane_f32(vpadd_f32(pairwise_sum, pairwise_sum), 0);
+    VecF sumVec = vaddq_f32(v->val[0], v->val[1]);
+    VecF high = vget_high_f32(sumVec);
+    VecF low = vget_low_f32(sumVec);
+    VecF sum = vadd_f32(high, low);
+    float result = vget_lane_f32(sum, 0) + vget_lane_f32(sum, 1);
+    return result;
 }
 
 inline uint32_t vecNNZ(VecI16 chunk) {

@@ -343,6 +343,8 @@ Eval NNUE::evaluate(Board* board) {
 #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     int nnzCount = 0;
     alignas(ALIGNMENT) uint16_t nnzIndices[L1_SIZE / INT8_PER_INT32];
+    
+#if defined(ARCH_X86)
     __m128i nnzZero = _mm_setzero_si128();
     __m128i nnzIncrement = _mm_set1_epi16(8);
     for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
@@ -360,9 +362,29 @@ Eval NNUE::evaluate(Board* board) {
             nnzZero = _mm_add_epi16(nnzZero, nnzIncrement);
         }
     }
+#else
+    uint16x8_t nnzZero = vdupq_n_u16(0);
+    uint16x8_t nnzIncrement = vdupq_n_u16(8);
+
+    for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
+        uint32_t nnz = 0;
+
+        for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
+            nnz |= vecNNZ(l1NeuronsVec[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
+        }
+
+        for (int j = 0; j < 16 / 8; j++) {
+            uint16_t lookup = (nnz >> (j * 8)) & 0xFF;
+            uint16x8_t offsets = vld1q_u16(&nnzLookup[lookup]);
+            vst1q_u16(&nnzIndices[nnzCount], vaddq_u16(nnzZero, offsets));
+            nnzCount += BB::popcount(lookup);
+            nnzZero = vaddq_u16(nnzZero, nnzIncrement);
+        }
+    }
+#endif
 
     int* l1Packs = reinterpret_cast<int*>(l1Neurons);
-    VecI32* l2NeuronsVec = reinterpret_cast<VecI*>(l2Neurons);
+    VecI32* l2NeuronsVec = reinterpret_cast<VecI32*>(l2Neurons);
 
     int i = 0;
     for (; i < nnzCount - 1; i += 2) {
@@ -370,8 +392,8 @@ Eval NNUE::evaluate(Board* board) {
         int l1_2 = nnzIndices[i + 1] * INT8_PER_INT32;
         VecI16 u8_1 = set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]);
         VecI16 u8_2 = set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]);
-        VecI16* weights_1 = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1_1 * L2_SIZE]);
-        VecI16* weights_2 = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1_2 * L2_SIZE]);
+        VecI16* weights_1 = reinterpret_cast<VecI16*>(&networkData.l1Weights[bucket][l1_1 * L2_SIZE]);
+        VecI16* weights_2 = reinterpret_cast<VecI16*>(&networkData.l1Weights[bucket][l1_2 * L2_SIZE]);
 
         for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
             l2NeuronsVec[l2] = dpbusdEpi32x2(l2NeuronsVec[l2], u8_1, weights_1[l2], u8_2, weights_2[l2]);
@@ -381,7 +403,7 @@ Eval NNUE::evaluate(Board* board) {
     for (; i < nnzCount; i++) {
         int l1 = nnzIndices[i] * INT8_PER_INT32;
         VecI16 u8 = set1Epi32(l1Packs[l1 / INT8_PER_INT32]);
-        VecI* weights = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1 * L2_SIZE]);
+        VecI16* weights = reinterpret_cast<VecI16*>(&networkData.l1Weights[bucket][l1 * L2_SIZE]);
         
         for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
             l2NeuronsVec[l2] = dpbusdEpi32(l2NeuronsVec[l2], u8, weights[l2]);
