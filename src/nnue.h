@@ -417,7 +417,7 @@ inline VecF fmaddPs(VecF a, VecF b, VecF c) {
     return vfmaq_f32(c, a, b);
 }
 
-inline float reduceAddPs(VecF v) {
+inline float reduceAddPs(VecF* v) {
     VecF sumVec = vaddq_f32(v[0], v[1]);
     VecF high = vget_high_f32(sumVec);
     VecF low = vget_low_f32(sumVec);
