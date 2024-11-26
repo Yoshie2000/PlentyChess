@@ -240,9 +240,9 @@ void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputDa
     // Get the index of the piece for this color in the input layer
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
-    VecI* inputVec = (VecI*)inputData[side];
-    VecI* outputVec = (VecI*)outputData[side];
-    VecI* weightsVec = (VecI*)networkData.inputWeights[kingBucket->index];
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+    VecI16* weightsVec = (VecI16*)networkData.inputWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
     for (int i = 0; i < L1_ITERATIONS; ++i)
@@ -254,9 +254,9 @@ void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*out
     // Get the index of the piece for this color in the input layer
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
-    VecI* inputVec = (VecI*)inputData[side];
-    VecI* outputVec = (VecI*)outputData[side];
-    VecI* weightsVec = (VecI*)networkData.inputWeights[kingBucket->index];
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+    VecI16* weightsVec = (VecI16*)networkData.inputWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
     for (int i = 0; i < L1_ITERATIONS; ++i)
@@ -269,9 +269,9 @@ void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputD
     int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin, kingBucket);
     int addWeightOffset = getFeatureOffset(side, piece, pieceColor, target, kingBucket);
 
-    VecI* inputVec = (VecI*)inputData[side];
-    VecI* outputVec = (VecI*)outputData[side];
-    VecI* weightsVec = (VecI*)networkData.inputWeights[kingBucket->index];
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+    VecI16* weightsVec = (VecI16*)networkData.inputWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
     for (int i = 0; i < L1_ITERATIONS; ++i) {
@@ -296,28 +296,28 @@ Eval NNUE::evaluate(Board* board) {
 
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
-    VecI* stmAcc = reinterpret_cast<VecI*>(accumulator->colors[board->stm]);
-    VecI* oppAcc = reinterpret_cast<VecI*>(accumulator->colors[1 - board->stm]);
+    VecI16* stmAcc = reinterpret_cast<VecI16*>(accumulator->colors[board->stm]);
+    VecI16* oppAcc = reinterpret_cast<VecI16*>(accumulator->colors[1 - board->stm]);
 
     alignas(ALIGNMENT) uint8_t l1Neurons[L1_SIZE];
-    VecI i16Zero = set1Epi16(0);
-    VecI i16Quant = set1Epi16(INPUT_QUANT);
+    VecI16 i16Zero = set1Epi16(0);
+    VecI16 i16Quant = set1Epi16(INPUT_QUANT);
 
-    VecI* l1NeuronsVec = reinterpret_cast<VecI*>(l1Neurons);
+    VecIu8* l1NeuronsVec = reinterpret_cast<VecIu8*>(l1Neurons);
 
     constexpr int inverseShift = 16 - INPUT_SHIFT;
     constexpr int pairwiseOffset = L1_SIZE / I16_VEC_SIZE / 2;
     for (int l1 = 0; l1 < pairwiseOffset; l1 += 2) {
         // STM
-        VecI clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
-        VecI clipped2 = minEpi16(stmAcc[l1 + pairwiseOffset], i16Quant);
-        VecI shift = slliEpi16(clipped1, inverseShift);
-        VecI mul1 = mulhiEpi16(shift, clipped2);
+        VecI16 clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
+        VecI16 clipped2 = minEpi16(stmAcc[l1 + pairwiseOffset], i16Quant);
+        VecI16 shift = slliEpi16(clipped1, inverseShift);
+        VecI16 mul1 = mulhiEpi16(shift, clipped2);
 
         clipped1 = minEpi16(maxEpi16(stmAcc[l1 + 1], i16Zero), i16Quant);
         clipped2 = minEpi16(stmAcc[l1 + 1 + pairwiseOffset], i16Quant);
         shift = slliEpi16(clipped1, inverseShift);
-        VecI mul2 = mulhiEpi16(shift, clipped2);
+        VecI16 mul2 = mulhiEpi16(shift, clipped2);
 
         l1NeuronsVec[l1 / 2] = packusEpi16(mul1, mul2);
 
@@ -362,16 +362,16 @@ Eval NNUE::evaluate(Board* board) {
     }
 
     int* l1Packs = reinterpret_cast<int*>(l1Neurons);
-    VecI* l2NeuronsVec = reinterpret_cast<VecI*>(l2Neurons);
+    VecI32* l2NeuronsVec = reinterpret_cast<VecI*>(l2Neurons);
 
     int i = 0;
     for (; i < nnzCount - 1; i += 2) {
         int l1_1 = nnzIndices[i] * INT8_PER_INT32;
         int l1_2 = nnzIndices[i + 1] * INT8_PER_INT32;
-        VecI u8_1 = set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]);
-        VecI u8_2 = set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]);
-        VecI* weights_1 = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1_1 * L2_SIZE]);
-        VecI* weights_2 = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1_2 * L2_SIZE]);
+        VecI16 u8_1 = set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]);
+        VecI16 u8_2 = set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]);
+        VecI16* weights_1 = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1_1 * L2_SIZE]);
+        VecI16* weights_2 = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1_2 * L2_SIZE]);
 
         for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
             l2NeuronsVec[l2] = dpbusdEpi32x2(l2NeuronsVec[l2], u8_1, weights_1[l2], u8_2, weights_2[l2]);
@@ -380,8 +380,8 @@ Eval NNUE::evaluate(Board* board) {
 
     for (; i < nnzCount; i++) {
         int l1 = nnzIndices[i] * INT8_PER_INT32;
-        VecI u8 = set1Epi32(l1Packs[l1 / INT8_PER_INT32]);
-        VecI* weights = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1 * L2_SIZE]);
+        VecI16 u8 = set1Epi32(l1Packs[l1 / INT8_PER_INT32]);
+        VecI16* weights = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1 * L2_SIZE]);
         
         for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
             l2NeuronsVec[l2] = dpbusdEpi32(l2NeuronsVec[l2], u8, weights[l2]);
