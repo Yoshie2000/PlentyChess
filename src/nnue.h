@@ -323,64 +323,66 @@ inline uint32_t vecNNZ(VecI chunk) {
 
 #else
 
-using VecI = int16x8_t;
+using VecI8 = int8x16_t;
+using VecI16 = int16x8_t;
+using VecI32 = int32x4_t;
 using VecF = float32x4_t;
 
 // Integer operations
-inline VecI addEpi16(VecI x, VecI y) {
+inline VecI16 addEpi16(VecI16 x, VecI16 y) {
     return vaddq_s16(x, y);
 }
 
-inline VecI subEpi16(VecI x, VecI y) {
+inline VecI16 subEpi16(VecI16 x, VecI16 y) {
     return vsubq_s16(x, y);
 }
 
-inline VecI minEpi16(VecI x, VecI y) {
+inline VecI16 minEpi16(VecI16 x, VecI16 y) {
     return vminq_s16(x, y);
 }
 
-inline VecI maxEpi16(VecI x, VecI y) {
+inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
     return vmaxq_s16(x, y);
 }
 
-inline VecI set1Epi16(int i) {
+inline VecI16 set1Epi16(int i) {
     return vdupq_n_s16(i);
 }
 
-inline VecI set1Epi32(int i) {
+inline VecI32 set1Epi32(int i) {
     return vdupq_n_s32(i);
 }
 
-inline VecI slliEpi16(VecI x, int shift) {
+inline VecI16 slliEpi16(VecI16 x, int shift) {
     return vshlq_s16(x, vdupq_n_s16(shift));
 }
 
-inline VecI mulhiEpi16(VecI x, VecI y) {
+inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
     // Multiply to 32-bit intermediate result, then extract high 16 bits.
-    int32x4_t lo = vmull_s16(vget_low_s16(x), vget_low_s16(y));
-    int32x4_t hi = vmull_s16(vget_high_s16(x), vget_high_s16(y));
+    VecI32 lo = vmull_s16(vget_low_s16(x), vget_low_s16(y));
+    VecI32 hi = vmull_s16(vget_high_s16(x), vget_high_s16(y));
     return vcombine_s16(vshrn_n_s32(lo, 16), vshrn_n_s32(hi, 16));
 }
 
 // SIMD dot-product
-inline VecI dpbusdEpi32(VecI sum, VecI u, VecI i) {
+inline VecI32 dpbusdEpi32(VecI32 sum, VecI8 u, VecI8 i) {
     // Neon equivalent for DPBUSD is vdotq_s32 (introduced in ARMv8.4-A).
     // Fallback: manually calculate dot-product using vmul + vadd.
-    int32x4_t lo = vmlal_s16(vdupq_n_s32(0), vget_low_s16(u), vget_low_s16(i));
-    int32x4_t hi = vmlal_s16(vdupq_n_s32(0), vget_high_s16(u), vget_high_s16(i));
+    VecI32 lo = vmlal_s16(vdupq_n_s32(0), vget_low_s16(u), vget_low_s16(i));
+    VecI32 hi = vmlal_s16(vdupq_n_s32(0), vget_high_s16(u), vget_high_s16(i));
     return vaddq_s32(sum, vaddq_s32(lo, hi));
 }
 
-inline VecI dpbusdEpi32x2(VecI sum, VecI u, VecI i, VecI u2, VecI i2) {
+inline VecI32 dpbusdEpi32x2(VecI32 sum, VecI8 u, VecI8 i, VecI8 u2, VecI8 i2) {
     return dpbusdEpi32(dpbusdEpi32(sum, u, i), u2, i2);
 }
 
 // Pack and store
-inline VecI packusEpi16(VecI x, VecI y) {
+inline VecI8 packusEpi16(VecI16 x, VecI16 y) {
     return vcombine_u8(vqmovun_s16(x), vqmovun_s16(y));
 }
 
-inline void vecStoreI(VecI* dest, VecI x) {
+inline void vecStoreI(VecI16* dest, VecI16 x) {
     vst1q_s16(reinterpret_cast<int16_t*>(dest), x);
 }
 
@@ -418,9 +420,9 @@ inline float reduceAddPs(VecF v) {
     return vget_lane_f32(vpadd_f32(pairwise_sum, pairwise_sum), 0);
 }
 
-inline uint32_t vecNNZ(VecI chunk) {
+inline uint32_t vecNNZ(VecI16 chunk) {
     // Compare greater-than-zero and count set bits.
-    uint16x8_t mask = vcgtq_s16(chunk, vdupq_n_s16(0));
+    VecI16 mask = vcgtq_s16(chunk, vdupq_n_s16(0));
     return vaddvq_u16(vreinterpretq_u16_u8(mask));
 }
 
