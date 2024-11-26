@@ -5,19 +5,6 @@ CXXFLAGS_EXTRA =
 SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp
 OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
 
-ifneq ($(OS), Windows_NT)
-    ARCH_CMD := $(shell uname -m)
-    ifeq ($(ARCH_CMD), x86_64)
-    	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
-    else ifeq ($(ARCH_CMD), aarch64)
-    	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
-    else
-    	$(error Architecture not supported: $(ARCH_CMD))
-    endif
-else
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
-endif
-
 # Debug vs. Production flags
 PROGRAM = engine
 ifdef EXE
@@ -32,19 +19,36 @@ ifdef INCLUDE_DEBUG_SYMBOLS
 endif
 
 # CPU Flags
-ifeq ($(arch), avx512vnni)
-	CXXFLAGS := $(CXXFLAGS) -march=cascadelake
+ifeq ($(arch), arm64)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
+else ifeq ($(arch), avx512vnni)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=cascadelake
 else ifeq ($(arch), avx512)
-	CXXFLAGS := $(CXXFLAGS) -march=skylake-avx512
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=skylake-avx512
 else ifeq ($(arch), avx2)
-	CXXFLAGS := $(CXXFLAGS) -march=haswell
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=haswell
 else ifeq ($(arch), fma)
-	CXXFLAGS := $(CXXFLAGS) -mssse3 -mfma
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -mfma
 else ifeq ($(arch), ssse3)
-	CXXFLAGS := $(CXXFLAGS) -mssse3
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3
 else ifeq ($(arch), generic)
-	CXXFLAGS := $(CXXFLAGS)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
+else ifneq ($(origin arch), undefined)
+$(error Architecture not supported: $(arch))
 else
+	ifneq ($(OS), Windows_NT)
+		ARCH_CMD := $(shell uname -m)
+		ifeq ($(ARCH_CMD), x86_64)
+			CXXFLAGS := $(CXXFLAGS) -DARCH_X86
+		else ifeq ($(ARCH_CMD), aarch64)
+			CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
+		else
+$(error Architecture not supported: $(ARCH_CMD))
+		endif
+	else
+		CXXFLAGS := $(CXXFLAGS) -DARCH_X86
+	endif
+
 	CXXFLAGS := $(CXXFLAGS) -march=native
 	ifeq ($(OS), Windows_NT)
 		HAS_BMI2 := $(shell .\detect_flags.bat $(CXX) __BMI2__)
