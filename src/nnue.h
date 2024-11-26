@@ -422,9 +422,9 @@ inline float reduceAddPs(VecF v) {
     return vget_lane_f32(vpadd_f32(pairwise_sum, pairwise_sum), 0);
 }
 
-inline uint32_t vecNNZ(VecIu16 chunk) {
+inline uint32_t vecNNZ(VecI16 chunk) {
     // Compare greater-than-zero and count set bits.
-    VecIu16 mask = vcgtq_s16(chunk, vdupq_n_s16(0));
+    VecIu8 mask = vcgtq_s16(chunk, vdupq_n_s16(0));
     return vaddvq_u16(vreinterpretq_u16_u8(mask));
 }
 
