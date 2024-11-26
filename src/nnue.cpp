@@ -340,7 +340,7 @@ Eval NNUE::evaluate(Board* board) {
 #endif
 
     alignas(ALIGNMENT) int l2Neurons[L2_SIZE] = {};
-#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
+#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     int nnzCount = 0;
     alignas(ALIGNMENT) uint16_t nnzIndices[L1_SIZE / INT8_PER_INT32];
     __m128i nnzZero = _mm_setzero_si128();
@@ -381,7 +381,7 @@ Eval NNUE::evaluate(Board* board) {
     for (; i < nnzCount; i++) {
         int l1 = nnzIndices[i] * INT8_PER_INT32;
         VecI16 u8 = set1Epi32(l1Packs[l1 / INT8_PER_INT32]);
-        VecI16* weights = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1 * L2_SIZE]);
+        VecI* weights = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1 * L2_SIZE]);
         
         for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
             l2NeuronsVec[l2] = dpbusdEpi32(l2NeuronsVec[l2], u8, weights[l2]);
@@ -398,7 +398,7 @@ Eval NNUE::evaluate(Board* board) {
     alignas(ALIGNMENT) float l3Neurons[L3_SIZE];
     memcpy(l3Neurons, networkData.l2Biases[bucket], sizeof(l3Neurons));
 
-#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
+#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     alignas(ALIGNMENT) float l2Floats[L2_SIZE];
 
     VecF psNorm = set1Ps(L1_NORMALISATION);
@@ -435,7 +435,7 @@ Eval NNUE::evaluate(Board* board) {
     }
 #endif
 
-#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
+#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     constexpr int chunks = 64 / sizeof(VecF);
 
     VecF resultSums[chunks];
