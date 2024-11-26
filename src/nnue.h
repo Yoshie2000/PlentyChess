@@ -425,7 +425,7 @@ inline float reduceAddPs(VecF v) {
 inline uint32_t vecNNZ(VecI16 chunk) {
     // Compare greater-than-zero and count set bits.
     VecIu16 mask = vcgtq_s16(chunk, vdupq_n_s16(0));
-    return vaddvq_u16(vreinterpretq_s16_u16(mask));
+    return vaddvq_u16(mask);
 }
 
 #endif
