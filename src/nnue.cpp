@@ -363,6 +363,7 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
 #else
+    VecI16* l1NeuronsVecI16 = reinterpret_cast<VecI16*>(l1Neurons);
     uint16x8_t nnzZero = vdupq_n_u16(0);
     uint16x8_t nnzIncrement = vdupq_n_u16(8);
 
@@ -370,12 +371,12 @@ Eval NNUE::evaluate(Board* board) {
         uint32_t nnz = 0;
 
         for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
-            nnz |= vecNNZ(l1NeuronsVec[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
+            nnz |= vecNNZ(l1NeuronsVecI16[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
         }
 
         for (int j = 0; j < 16 / 8; j++) {
             uint16_t lookup = (nnz >> (j * 8)) & 0xFF;
-            uint16x8_t offsets = vld1q_u16(&nnzLookup[lookup]);
+            uint16x8_t offsets = vld1q_u16(nnzLookup[lookup]);
             vst1q_u16(&nnzIndices[nnzCount], vaddq_u16(nnzZero, offsets));
             nnzCount += BB::popcount(lookup);
             nnzZero = vaddq_u16(nnzZero, nnzIncrement);
@@ -390,8 +391,8 @@ Eval NNUE::evaluate(Board* board) {
     for (; i < nnzCount - 1; i += 2) {
         int l1_1 = nnzIndices[i] * INT8_PER_INT32;
         int l1_2 = nnzIndices[i + 1] * INT8_PER_INT32;
-        VecI16 u8_1 = set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]);
-        VecI16 u8_2 = set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]);
+        VecI16 u8_1 = static_cast<VecI16>(set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]));
+        VecI16 u8_2 = static_cast<VecI16>(set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]));
         VecI16* weights_1 = reinterpret_cast<VecI16*>(&networkData.l1Weights[bucket][l1_1 * L2_SIZE]);
         VecI16* weights_2 = reinterpret_cast<VecI16*>(&networkData.l1Weights[bucket][l1_2 * L2_SIZE]);
 
