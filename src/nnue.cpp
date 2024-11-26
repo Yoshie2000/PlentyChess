@@ -8,6 +8,10 @@
 #include "board.h"
 #include "incbin/incbin.h"
 
+#if defined(ARCH_ARM)
+#include <arm_neon.h>
+#endif
+
 // This will define the following variables:
 // const unsigned char        gNETWORKData[];
 // const unsigned char *const gNETWORKEnd;
@@ -44,7 +48,7 @@ void initNetworkData() {
 
     // Transpose L1 / L2 / L3 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
+#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
         for (int l1 = 0; l1 < L1_SIZE / INT8_PER_INT32; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
                 for (int c = 0; c < INT8_PER_INT32; c++) {
@@ -240,9 +244,9 @@ void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputDa
     // Get the index of the piece for this color in the input layer
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
-    VecI* inputVec = (VecI*)inputData[side];
-    VecI* outputVec = (VecI*)outputData[side];
-    VecI* weightsVec = (VecI*)networkData.inputWeights[kingBucket->index];
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+    VecI16* weightsVec = (VecI16*)networkData.inputWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
     for (int i = 0; i < L1_ITERATIONS; ++i)
@@ -254,9 +258,9 @@ void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*out
     // Get the index of the piece for this color in the input layer
     int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
 
-    VecI* inputVec = (VecI*)inputData[side];
-    VecI* outputVec = (VecI*)outputData[side];
-    VecI* weightsVec = (VecI*)networkData.inputWeights[kingBucket->index];
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+    VecI16* weightsVec = (VecI16*)networkData.inputWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
     for (int i = 0; i < L1_ITERATIONS; ++i)
@@ -269,9 +273,9 @@ void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputD
     int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin, kingBucket);
     int addWeightOffset = getFeatureOffset(side, piece, pieceColor, target, kingBucket);
 
-    VecI* inputVec = (VecI*)inputData[side];
-    VecI* outputVec = (VecI*)outputData[side];
-    VecI* weightsVec = (VecI*)networkData.inputWeights[kingBucket->index];
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+    VecI16* weightsVec = (VecI16*)networkData.inputWeights[kingBucket->index];
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
     for (int i = 0; i < L1_ITERATIONS; ++i) {
@@ -296,28 +300,28 @@ Eval NNUE::evaluate(Board* board) {
 
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
-    VecI* stmAcc = reinterpret_cast<VecI*>(accumulator->colors[board->stm]);
-    VecI* oppAcc = reinterpret_cast<VecI*>(accumulator->colors[1 - board->stm]);
+    VecI16* stmAcc = reinterpret_cast<VecI16*>(accumulator->colors[board->stm]);
+    VecI16* oppAcc = reinterpret_cast<VecI16*>(accumulator->colors[1 - board->stm]);
 
     alignas(ALIGNMENT) uint8_t l1Neurons[L1_SIZE];
-    VecI i16Zero = set1Epi16(0);
-    VecI i16Quant = set1Epi16(INPUT_QUANT);
+    VecI16 i16Zero = set1Epi16(0);
+    VecI16 i16Quant = set1Epi16(INPUT_QUANT);
 
-    VecI* l1NeuronsVec = reinterpret_cast<VecI*>(l1Neurons);
+    VecIu8* l1NeuronsVec = reinterpret_cast<VecIu8*>(l1Neurons);
 
     constexpr int inverseShift = 16 - INPUT_SHIFT;
     constexpr int pairwiseOffset = L1_SIZE / I16_VEC_SIZE / 2;
     for (int l1 = 0; l1 < pairwiseOffset; l1 += 2) {
         // STM
-        VecI clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
-        VecI clipped2 = minEpi16(stmAcc[l1 + pairwiseOffset], i16Quant);
-        VecI shift = slliEpi16(clipped1, inverseShift);
-        VecI mul1 = mulhiEpi16(shift, clipped2);
+        VecI16 clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
+        VecI16 clipped2 = minEpi16(stmAcc[l1 + pairwiseOffset], i16Quant);
+        VecI16 shift = slliEpi16(clipped1, inverseShift);
+        VecI16 mul1 = mulhiEpi16(shift, clipped2);
 
         clipped1 = minEpi16(maxEpi16(stmAcc[l1 + 1], i16Zero), i16Quant);
         clipped2 = minEpi16(stmAcc[l1 + 1 + pairwiseOffset], i16Quant);
         shift = slliEpi16(clipped1, inverseShift);
-        VecI mul2 = mulhiEpi16(shift, clipped2);
+        VecI16 mul2 = mulhiEpi16(shift, clipped2);
 
         l1NeuronsVec[l1 / 2] = packusEpi16(mul1, mul2);
 
@@ -340,9 +344,11 @@ Eval NNUE::evaluate(Board* board) {
 #endif
 
     alignas(ALIGNMENT) int l2Neurons[L2_SIZE] = {};
-#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
+#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     int nnzCount = 0;
     alignas(ALIGNMENT) uint16_t nnzIndices[L1_SIZE / INT8_PER_INT32];
+
+#if defined(ARCH_X86)
     __m128i nnzZero = _mm_setzero_si128();
     __m128i nnzIncrement = _mm_set1_epi16(8);
     for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
@@ -360,18 +366,45 @@ Eval NNUE::evaluate(Board* board) {
             nnzZero = _mm_add_epi16(nnzZero, nnzIncrement);
         }
     }
+#else
+    VecI32* l1NeuronsVecI32 = reinterpret_cast<VecI32*>(l1Neurons);
+    uint16x8_t nnzZero = vdupq_n_u16(0);
+    uint16x8_t nnzIncrement = vdupq_n_u16(8);
+
+    for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
+        uint32_t nnz = 0;
+
+        for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
+            nnz |= vecNNZ(l1NeuronsVecI32[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
+        }
+
+        for (int j = 0; j < 16 / 8; j++) {
+            uint16_t lookup = (nnz >> (j * 8)) & 0xFF;
+            uint16x8_t offsets = vld1q_u16(nnzLookup[lookup]);
+            vst1q_u16(nnzIndices + nnzCount, vaddq_u16(nnzZero, offsets));
+            nnzCount += BB::popcount(lookup);
+            nnzZero = vaddq_u16(nnzZero, nnzIncrement);
+        }
+    }
+
+#endif
 
     int* l1Packs = reinterpret_cast<int*>(l1Neurons);
-    VecI* l2NeuronsVec = reinterpret_cast<VecI*>(l2Neurons);
+    VecI32* l2NeuronsVec = reinterpret_cast<VecI32*>(l2Neurons);
 
     int i = 0;
     for (; i < nnzCount - 1; i += 2) {
         int l1_1 = nnzIndices[i] * INT8_PER_INT32;
         int l1_2 = nnzIndices[i + 1] * INT8_PER_INT32;
-        VecI u8_1 = set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]);
-        VecI u8_2 = set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]);
-        VecI* weights_1 = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1_1 * L2_SIZE]);
-        VecI* weights_2 = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1_2 * L2_SIZE]);
+#if defined(ARCH_X86)
+        VecIu8 u8_1 = set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]);
+        VecIu8 u8_2 = set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]);
+#else
+        VecIu8 u8_1 = vreinterpretq_u8_s32(set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]));
+        VecIu8 u8_2 = vreinterpretq_u8_s32(set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]));
+#endif
+        VecI8* weights_1 = reinterpret_cast<VecI8*>(&networkData.l1Weights[bucket][l1_1 * L2_SIZE]);
+        VecI8* weights_2 = reinterpret_cast<VecI8*>(&networkData.l1Weights[bucket][l1_2 * L2_SIZE]);
 
         for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
             l2NeuronsVec[l2] = dpbusdEpi32x2(l2NeuronsVec[l2], u8_1, weights_1[l2], u8_2, weights_2[l2]);
@@ -380,9 +413,13 @@ Eval NNUE::evaluate(Board* board) {
 
     for (; i < nnzCount; i++) {
         int l1 = nnzIndices[i] * INT8_PER_INT32;
-        VecI u8 = set1Epi32(l1Packs[l1 / INT8_PER_INT32]);
-        VecI* weights = reinterpret_cast<VecI*>(&networkData.l1Weights[bucket][l1 * L2_SIZE]);
-        
+#if defined(ARCH_X86)
+        VecIu8 u8 = set1Epi32(l1Packs[l1 / INT8_PER_INT32]);
+#else
+        VecIu8 u8 = vreinterpretq_u8_s32(set1Epi32(l1Packs[l1 / INT8_PER_INT32]));
+#endif
+        VecI8* weights = reinterpret_cast<VecI8*>(&networkData.l1Weights[bucket][l1 * L2_SIZE]);
+
         for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
             l2NeuronsVec[l2] = dpbusdEpi32(l2NeuronsVec[l2], u8, weights[l2]);
         }
@@ -398,7 +435,7 @@ Eval NNUE::evaluate(Board* board) {
     alignas(ALIGNMENT) float l3Neurons[L3_SIZE];
     memcpy(l3Neurons, networkData.l2Biases[bucket], sizeof(l3Neurons));
 
-#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
+#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     alignas(ALIGNMENT) float l2Floats[L2_SIZE];
 
     VecF psNorm = set1Ps(L1_NORMALISATION);
@@ -435,7 +472,7 @@ Eval NNUE::evaluate(Board* board) {
     }
 #endif
 
-#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
+#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     constexpr int chunks = 64 / sizeof(VecF);
 
     VecF resultSums[chunks];
