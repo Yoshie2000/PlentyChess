@@ -391,8 +391,13 @@ Eval NNUE::evaluate(Board* board) {
     for (; i < nnzCount - 1; i += 2) {
         int l1_1 = nnzIndices[i] * INT8_PER_INT32;
         int l1_2 = nnzIndices[i + 1] * INT8_PER_INT32;
-        VecI16 u8_1 = static_cast<VecI16>(set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]));
-        VecI16 u8_2 = static_cast<VecI16>(set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]));
+#if defined(ARCH_X86)
+        VecI16 u8_1 = set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]);
+        VecI16 u8_2 = set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]);
+#else
+        VecI16 u8_1 = vreinterpret_s16_s32(set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]));
+        VecI16 u8_2 = vreinterpret_s16_s32(set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]));
+#endif
         VecI16* weights_1 = reinterpret_cast<VecI16*>(&networkData.l1Weights[bucket][l1_1 * L2_SIZE]);
         VecI16* weights_2 = reinterpret_cast<VecI16*>(&networkData.l1Weights[bucket][l1_2 * L2_SIZE]);
 
