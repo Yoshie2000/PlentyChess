@@ -396,7 +396,10 @@ inline VecI32 dpbusdEpi32(VecI32 sum, VecIu8 u, VecI8 i) {
 }
 
 inline VecI32 dpbusdEpi32x2(VecI32 sum, VecIu8 u, VecI8 i, VecIu8 u2, VecI8 i2) {
-  return dpbusdEpi32(dpbusdEpi32(sum, u, i), u2, i2);
+  int16x8_t mul1 = maddubs(u, i);
+  int16x8_t mul2 = maddubs(u2, i2);
+  VecI32 sum32 = madd(vaddq_s16(mul1, mul2), vdupq_n_s16(1));
+  return vaddq_s32(sum32, sum);
 }
 
 // Pack and store

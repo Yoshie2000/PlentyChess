@@ -84,7 +84,7 @@ endif
 
 # Network flags
 ifndef EVALFILE
-	NET_ID := $(file < network.txt)
+	NET_ID := $(shell cat network.txt)
 	EVALFILE := $(NET_ID).bin
 	EVALFILE_NOT_DEFINED = true
 endif
