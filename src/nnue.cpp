@@ -412,7 +412,11 @@ Eval NNUE::evaluate(Board* board) {
 
     for (; i < nnzCount; i++) {
         int l1 = nnzIndices[i] * INT8_PER_INT32;
+#if defined(ARCH_X86)
         VecI16 u8 = set1Epi32(l1Packs[l1 / INT8_PER_INT32]);
+#else
+        VecI16 u8 = reinterpretS16S32(set1Epi32(l1Packs[l1 / INT8_PER_INT32]));
+#endif
         VecI16* weights = reinterpret_cast<VecI16*>(&networkData.l1Weights[bucket][l1 * L2_SIZE]);
         
         for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
