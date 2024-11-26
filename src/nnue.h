@@ -324,7 +324,9 @@ inline uint32_t vecNNZ(VecI chunk) {
 #else
 
 using VecI8 = int8x16_t;
+using VecIu8 = uint8x16_t;
 using VecI16 = int16x8_t;
+using VecIu16 = uint16x8_t;
 using VecI32 = int32x4_t;
 using VecF = float32x4_t;
 
@@ -365,7 +367,7 @@ inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
 }
 
 // SIMD dot-product
-inline VecI32 dpbusdEpi32(VecI32 sum, VecI8 u, VecI8 i) {
+inline VecI32 dpbusdEpi32(VecI32 sum, VecI16 u, VecI16 i) {
     // Neon equivalent for DPBUSD is vdotq_s32 (introduced in ARMv8.4-A).
     // Fallback: manually calculate dot-product using vmul + vadd.
     VecI32 lo = vmlal_s16(vdupq_n_s32(0), vget_low_s16(u), vget_low_s16(i));
@@ -373,12 +375,12 @@ inline VecI32 dpbusdEpi32(VecI32 sum, VecI8 u, VecI8 i) {
     return vaddq_s32(sum, vaddq_s32(lo, hi));
 }
 
-inline VecI32 dpbusdEpi32x2(VecI32 sum, VecI8 u, VecI8 i, VecI8 u2, VecI8 i2) {
+inline VecI32 dpbusdEpi32x2(VecI32 sum, VecI16 u, VecI16 i, VecI16 u2, VecI16 i2) {
     return dpbusdEpi32(dpbusdEpi32(sum, u, i), u2, i2);
 }
 
 // Pack and store
-inline VecI8 packusEpi16(VecI16 x, VecI16 y) {
+inline VecIu8 packusEpi16(VecI16 x, VecI16 y) {
     return vcombine_u8(vqmovun_s16(x), vqmovun_s16(y));
 }
 
@@ -387,7 +389,7 @@ inline void vecStoreI(VecI16* dest, VecI16 x) {
 }
 
 // Floating-point operations
-inline VecF cvtepi32Ps(VecI x) {
+inline VecF cvtepi32Ps(VecI32 x) {
     return vcvtq_f32_s32(x);
 }
 
@@ -420,9 +422,9 @@ inline float reduceAddPs(VecF v) {
     return vget_lane_f32(vpadd_f32(pairwise_sum, pairwise_sum), 0);
 }
 
-inline uint32_t vecNNZ(VecI16 chunk) {
+inline uint32_t vecNNZ(VecIu16 chunk) {
     // Compare greater-than-zero and count set bits.
-    VecI16 mask = vcgtq_s16(chunk, vdupq_n_s16(0));
+    VecIu16 mask = vcgtq_s16(chunk, vdupq_n_s16(0));
     return vaddvq_u16(vreinterpretq_u16_u8(mask));
 }
 
@@ -455,8 +457,8 @@ constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static
 
 constexpr int ALIGNMENT = 64;
 
-constexpr int I16_VEC_SIZE = sizeof(VecI) / sizeof(int16_t);
-constexpr int I32_VEC_SIZE = sizeof(VecI) / sizeof(int32_t);
+constexpr int I16_VEC_SIZE = sizeof(VecI16) / sizeof(int16_t);
+constexpr int I32_VEC_SIZE = sizeof(VecI32) / sizeof(int32_t);
 constexpr int FLOAT_VEC_SIZE = sizeof(VecF) / sizeof(float);
 
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
