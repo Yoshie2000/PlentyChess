@@ -448,6 +448,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE;
     Eval oldAlpha = alpha;
+    int prevQuietHist = 0;
     bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
     (stack + 1)->killer = MOVE_NONE;
@@ -520,8 +521,9 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
 
-    // Reverse futility pruning
-    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
+    // Reverse futility 
+    prevQuietHist = (stack - 1)->capture || (stack - 1)->movedPiece == Piece::NONE ? 0 : history.getQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous);
+    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - std::max(rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) - prevQuietHist / 1024, 0) >= beta)
         return std::min((eval + beta) / 2, EVAL_MATE_IN_MAX_PLY - 1);
 
     // Razoring
