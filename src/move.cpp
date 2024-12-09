@@ -345,23 +345,6 @@ Move MoveGen::nextMove() {
         stage++;
         [[fallthrough]];
 
-    case STAGE_KILLER:
-
-        stage++;
-
-        if (killer != MOVE_NONE && killer != ttMove && board->isPseudoLegal(killer))
-            return killer;
-        
-        [[fallthrough]];
-
-    case STAGE_COUNTERS:
-
-        stage++;
-        if (counterMove != MOVE_NONE && counterMove != ttMove && counterMove != killer && !board->isCapture(counterMove) && board->isPseudoLegal(counterMove))
-            return counterMove;
-
-        [[fallthrough]];
-
     case STAGE_GEN_QUIETS:
         beginIndex = generatedMoves;
         moves = moveList + generatedMoves;
@@ -443,7 +426,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
         Move move = moveList[i];
 
         // Skip all previously searched moves
-        if (move == ttMove || move == killer || move == counterMove) {
+        if (move == ttMove) {
             moveList[i] = moveList[endIndex - 1];
             moveList[endIndex - 1] = MOVE_NONE;
             endIndex--;
@@ -474,6 +457,11 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
             if (toBB & threats->pawnThreats)
                 threatScore -= 7500;
         }
+
+        if (move == killer)
+            threatScore += 50000;
+        else if (move == counterMove)
+            threatScore += 30000;
 
         moveListScores[i] = history->getHistory(board, board->stack, searchStack, move, false) + threatScore;
     }
