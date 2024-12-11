@@ -40,11 +40,6 @@ void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targe
         Move move = createMove(target - UP[board->stm], target);
 
         if (bitboard(target) & enemyBackrank) {
-            // Promotion: Queen promotions are considered captures
-            for (uint8_t promotion = 1; promotion <= 3; promotion++) {
-                *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
-                (*counter)++;
-            }
             continue;
         }
 
@@ -77,10 +72,16 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
     else {
         pushedPawns = (pawns >> 8) & free & targetMask & BB::RANK_1;
     }
+
     while (pushedPawns) {
         Square target = popLSB(&pushedPawns);
-        *(*moves)++ = createMove(target - UP[board->stm], target) | PROMOTION_QUEEN | MOVE_PROMOTION;
-        (*counter)++;
+        Move move = createMove(target - UP[board->stm], target);
+
+        // Promotion: Queen promotions are considered captures
+        for (uint8_t promotion = 0; promotion <= 3; promotion++) {
+            *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
+            (*counter)++;
+        }
     }
 
     // Capture promotions
@@ -330,8 +331,9 @@ Move MoveGen::nextMove() {
             Move move = moveList[returnedMoves];
             int score = moveListScores[returnedMoves++];
 
+            bool badPromo = moveType(move) == MOVE_PROMOTION && PromotionType(move) != PROMOTION_QUEEN;
             bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : SEE(board, move, -score / mpSeeDivisor);
-            if (!goodCapture) {
+            if (!goodCapture || badPromo) {
                 badCaptureList[generatedBadCaptures++] = move;
                 continue;
             }
