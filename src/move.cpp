@@ -452,6 +452,16 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
             continue;
         }
 
+        if (moveType(move) == MOVE_PROMOTION) {
+            badCaptureList[generatedBadCaptures++] = move;
+            moveList[i] = moveList[endIndex - 1];
+            moveList[endIndex - 1] = MOVE_NONE;
+            endIndex--;
+            generatedMoves--;
+            i--;
+            continue;
+        }
+
         int threatScore = 0;
         Piece piece = board->pieces[moveOrigin(move)];
         Bitboard fromBB = bitboard(moveOrigin(move));
@@ -475,10 +485,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
                 threatScore -= 7500;
         }
 
-        if (moveType(move) == MOVE_PROMOTION)
-            moveListScores[i] = -10000000;
-        else
-            moveListScores[i] = history->getHistory(board, board->stack, searchStack, move, false) + threatScore;
+        moveListScores[i] = history->getHistory(board, board->stack, searchStack, move, false) + threatScore;
     }
     return endIndex;
 }
