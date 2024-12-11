@@ -475,7 +475,10 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
                 threatScore -= 7500;
         }
 
-        moveListScores[i] = history->getHistory(board, board->stack, searchStack, move, false) + threatScore;
+        if (moveType(move) == MOVE_PROMOTION)
+            moveListScores[i] = -10000000;
+        else
+            moveListScores[i] = history->getHistory(board, board->stack, searchStack, move, false) + threatScore;
     }
     return endIndex;
 }
