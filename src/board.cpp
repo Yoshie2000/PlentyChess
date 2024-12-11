@@ -971,15 +971,6 @@ bool Board::isPseudoLegal(Move move) {
 }
 
 bool Board::isLegal(Move move) {
-    if (!isPseudoLegal(move)) {
-        debugBoard();
-        std::cout << moveToString(move, false) << std::endl;
-        BoardStack* s = stack->previous;
-        while (s) {
-            std::cout << moveToString(s->move, false) << std::endl;
-            s = s->previous;
-        }
-    }
     assert(isPseudoLegal(move));
 
     Square origin = moveOrigin(move);
