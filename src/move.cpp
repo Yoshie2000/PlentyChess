@@ -428,8 +428,12 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
         int score = *history->getCaptureHistory(board, move);
         if (moveType(move) == MOVE_ENPASSANT)
             score += 0;
-        else if (moveType(move) == MOVE_PROMOTION)
-            score += PIECE_VALUES[PROMOTION_PIECE[promotionType(move)]] * mpPromotionScoreFactor / 100;
+        else if (moveType(move) == MOVE_PROMOTION) {
+            if (promotionType(move) == PROMOTION_QUEEN)
+                score += PIECE_VALUES[PROMOTION_PIECE[promotionType(move)]] * mpPromotionScoreFactor / 100;
+            else
+                score = -1000000;
+        }
         else
             score += (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
 
