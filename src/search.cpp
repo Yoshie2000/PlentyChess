@@ -531,6 +531,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             return razorValue;
     }
 
+    improving |= stack->staticEval >= beta + 150;
+
     BoardStack boardStack;
 
     // Null move pruning
