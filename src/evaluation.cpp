@@ -46,7 +46,7 @@ Eval evaluate(Board* board, NNUE* nnue) {
     eval = eval * (300 - board->stack->rule50_ply) / 300;
 
     eval = std::clamp((int) eval, (int) -EVAL_MATE_IN_MAX_PLY + 1, (int) EVAL_MATE_IN_MAX_PLY - 1);
-    return eval;
+    return (eval / 16) * 16;
 }
 
 std::string formatEval(Eval value) {
