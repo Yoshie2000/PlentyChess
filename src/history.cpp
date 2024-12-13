@@ -7,11 +7,11 @@
 #include "evaluation.h"
 #include "spsa.h"
 
-TUNE_INT(pawnCorrectionFactor, 2530, 10, 5000);
-TUNE_INT(nonPawnCorrectionFactor, 2500, 10, 5000);
-TUNE_INT(minorCorrectionFactor, 1690, 10, 5000);
-TUNE_INT(majorCorrectionFactor, 1360, 10, 5000);
-TUNE_INT(continuationCorrectionFactor, 2440, 10, 5000);
+TUNE_INT(pawnCorrectionFactor, 5060, 10, 5000);
+TUNE_INT(nonPawnCorrectionFactor, 5000, 10, 5000);
+TUNE_INT(minorCorrectionFactor, 3380, 10, 5000);
+TUNE_INT(majorCorrectionFactor, 2720, 10, 5000);
+TUNE_INT(continuationCorrectionFactor, 4880, 10, 5000);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
@@ -39,7 +39,7 @@ Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStac
 
     int64_t history = pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
 
-    Eval adjustedEval = eval + history / 131072;
+    Eval adjustedEval = eval + history / 65536;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
     return adjustedEval;
 }
