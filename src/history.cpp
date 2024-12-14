@@ -7,12 +7,11 @@
 #include "evaluation.h"
 #include "spsa.h"
 
-TUNE_INT(pawnCorrectionFactor, 843, 10, 5000);
-TUNE_INT(nonPawnCorrectionFactor, 833, 10, 5000);
-TUNE_INT(minorCorrectionFactor, 563, 10, 5000);
-TUNE_INT(majorCorrectionFactor, 454, 10, 5000);
-TUNE_INT(continuationCorrectionFactor, 814, 10, 5000);
-TUNE_INT(correctionHistoryDivisor, 11016, 5000, 20000);
+TUNE_INT(pawnCorrectionFactor, 5060, 10, 5000);
+TUNE_INT(nonPawnCorrectionFactor, 5000, 10, 5000);
+TUNE_INT(minorCorrectionFactor, 3380, 10, 5000);
+TUNE_INT(majorCorrectionFactor, 2720, 10, 5000);
+TUNE_INT(continuationCorrectionFactor, 4880, 10, 5000);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
@@ -38,9 +37,9 @@ Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStac
     int64_t majorEntry = majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
 
-    int64_t history = (pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor) / 1000;
+    int64_t history = pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
 
-    Eval adjustedEval = eval + (history * std::abs(history)) / correctionHistoryDivisor;
+    Eval adjustedEval = eval + history / 65536;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_MATE_IN_MAX_PLY + 1, (int)EVAL_MATE_IN_MAX_PLY - 1);
     return adjustedEval;
 }
