@@ -1,0 +1,34 @@
+name: PlentyChess Build & Bench
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  engine:
+    name: PlentyChess Build & Bench
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+        architecture: [arm64]
+    
+    steps:
+
+    - name: Clone
+      uses: actions/checkout@v2
+
+    - name: Compile
+      run: make -j EXE=PlentyChess
+
+    - name: Bench
+      run: |
+        bench=$(git show --summary | grep -oE 'Bench: [0-9]+' | awk '{print $2}')
+        ./PlentyChess bench 2> output
+        real=$(grep 'Nodes searched' output | awk '{print $4}')
+        if [[ "$bench" != "$real" ]]; then echo "got $real, expected $bench" && exit 1; fi
+    
+    - name: Upload binary
+      uses: actions/upload-artifact@v3
+      with:
+        name: PlentyChess-${{github.sha}}-neon-${{matrix.os}}
+        path: ./PlentyChess

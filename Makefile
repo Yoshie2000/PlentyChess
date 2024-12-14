@@ -42,6 +42,8 @@ else
 			CXXFLAGS := $(CXXFLAGS) -DARCH_X86
 		else ifeq ($(ARCH_CMD), aarch64)
 			CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
+		else ifeq ($(ARCH_CMD), arm64)
+			CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
 		else
 $(error Architecture not supported: $(ARCH_CMD))
 		endif
