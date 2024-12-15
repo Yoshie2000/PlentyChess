@@ -481,6 +481,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
+    int corrplexity = 0;
     if (board->stack->checkers) {
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
@@ -501,6 +502,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
+    corrplexity = std::abs(stack->staticEval - unadjustedEval);
 
     // IIR
     if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
@@ -779,6 +781,8 @@ movesLoop:
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
             if (board->stack->checkers)
+                reducedDepth++;
+            else if (corrplexity > 90)
                 reducedDepth++;
 
             if (!ttPv)
