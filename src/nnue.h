@@ -562,7 +562,7 @@ struct NetworkData {
   alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
 };
 
-extern NetworkData networkData;
+extern NetworkData* networkData;
 
 void initNetworkData();
 
@@ -611,8 +611,6 @@ public:
 
 #include <cstring>
 
-extern UnalignedNetworkData* incNetwork;
-
 class NNZ {
 public:
   int64_t activations[L1_SIZE / 2] = {};
@@ -627,21 +625,22 @@ public:
   int16_t oldInputBiases[L1_SIZE];
   int8_t oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   int order[L1_SIZE / 2];
+  NetworkData tmpNetwork;
   UnalignedNetworkData outputNetwork;
 
   void permuteNetwork() {
-    memcpy(networkData.inputWeights, incNetwork->inputWeights, sizeof(networkData.inputWeights));
-    memcpy(networkData.inputBiases, incNetwork->inputBiases, sizeof(networkData.inputBiases));
-    memcpy(networkData.l1Weights, incNetwork->l1Weights, sizeof(networkData.l1Weights));
-    memcpy(networkData.l1Biases, incNetwork->l1Biases, sizeof(networkData.l1Biases));
-    memcpy(networkData.l2Weights, incNetwork->l2Weights, sizeof(networkData.l2Weights));
-    memcpy(networkData.l2Biases, incNetwork->l2Biases, sizeof(networkData.l2Biases));
-    memcpy(networkData.l3Weights, incNetwork->l3Weights, sizeof(networkData.l3Weights));
-    memcpy(networkData.l3Biases, incNetwork->l3Biases, sizeof(networkData.l3Biases));
+    memcpy(tmpNetwork.inputWeights, networkData->inputWeights, sizeof(tmpNetwork.inputWeights));
+    memcpy(tmpNetwork.inputBiases, networkData->inputBiases, sizeof(tmpNetwork.inputBiases));
+    memcpy(tmpNetwork.l1Weights, networkData->l1Weights, sizeof(tmpNetwork.l1Weights));
+    memcpy(tmpNetwork.l1Biases, networkData->l1Biases, sizeof(tmpNetwork.l1Biases));
+    memcpy(tmpNetwork.l2Weights, networkData->l2Weights, sizeof(tmpNetwork.l2Weights));
+    memcpy(tmpNetwork.l2Biases, networkData->l2Biases, sizeof(tmpNetwork.l2Biases));
+    memcpy(tmpNetwork.l3Weights, networkData->l3Weights, sizeof(tmpNetwork.l3Weights));
+    memcpy(tmpNetwork.l3Biases, networkData->l3Biases, sizeof(tmpNetwork.l3Biases));
 
-    memcpy(oldInputWeights, networkData.inputWeights, sizeof(networkData.inputWeights));
-    memcpy(oldInputBiases, networkData.inputBiases, sizeof(networkData.inputBiases));
-    memcpy(oldL1Weights, networkData.l1Weights, sizeof(networkData.l1Weights));
+    memcpy(oldInputWeights, tmpNetwork.inputWeights, sizeof(tmpNetwork.inputWeights));
+    memcpy(oldInputBiases, tmpNetwork.inputBiases, sizeof(tmpNetwork.inputBiases));
+    memcpy(oldL1Weights, tmpNetwork.l1Weights, sizeof(tmpNetwork.l1Weights));
 
     for (int i = 0; i < L1_SIZE / 2; i++) {
       order[i] = i;
@@ -653,32 +652,32 @@ public:
       // Input weights
       for (int kb = 0; kb < KING_BUCKETS; kb++) {
         for (int ip = 0; ip < INPUT_SIZE; ip++) {
-          networkData.inputWeights[kb][ip * L1_SIZE + l1] = oldInputWeights[kb][ip * L1_SIZE + order[l1]];
-          networkData.inputWeights[kb][ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[kb][ip * L1_SIZE + order[l1] + L1_SIZE / 2];
+          tmpNetwork.inputWeights[kb][ip * L1_SIZE + l1] = oldInputWeights[kb][ip * L1_SIZE + order[l1]];
+          tmpNetwork.inputWeights[kb][ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[kb][ip * L1_SIZE + order[l1] + L1_SIZE / 2];
         }
       }
 
       // Input biases
-      networkData.inputBiases[l1] = oldInputBiases[order[l1]];
-      networkData.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
+      tmpNetwork.inputBiases[l1] = oldInputBiases[order[l1]];
+      tmpNetwork.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
 
       // L1 weights
       for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
-          reinterpret_cast<int8_t*>(networkData.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-          reinterpret_cast<int8_t*>(networkData.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(tmpNetwork.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(tmpNetwork.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
         }
       }
     }
 
-    memcpy(outputNetwork.inputWeights, networkData.inputWeights, sizeof(networkData.inputWeights));
-    memcpy(outputNetwork.inputBiases, networkData.inputBiases, sizeof(networkData.inputBiases));
-    memcpy(outputNetwork.l1Weights, networkData.l1Weights, sizeof(networkData.l1Weights));
-    memcpy(outputNetwork.l1Biases, networkData.l1Biases, sizeof(networkData.l1Biases));
-    memcpy(outputNetwork.l2Weights, networkData.l2Weights, sizeof(networkData.l2Weights));
-    memcpy(outputNetwork.l2Biases, networkData.l2Biases, sizeof(networkData.l2Biases));
-    memcpy(outputNetwork.l3Weights, networkData.l3Weights, sizeof(networkData.l3Weights));
-    memcpy(outputNetwork.l3Biases, networkData.l3Biases, sizeof(networkData.l3Biases));
+    memcpy(outputNetwork.inputWeights, tmpNetwork.inputWeights, sizeof(tmpNetwork.inputWeights));
+    memcpy(outputNetwork.inputBiases, tmpNetwork.inputBiases, sizeof(tmpNetwork.inputBiases));
+    memcpy(outputNetwork.l1Weights, tmpNetwork.l1Weights, sizeof(tmpNetwork.l1Weights));
+    memcpy(outputNetwork.l1Biases, tmpNetwork.l1Biases, sizeof(tmpNetwork.l1Biases));
+    memcpy(outputNetwork.l2Weights, tmpNetwork.l2Weights, sizeof(tmpNetwork.l2Weights));
+    memcpy(outputNetwork.l2Biases, tmpNetwork.l2Biases, sizeof(tmpNetwork.l2Biases));
+    memcpy(outputNetwork.l3Weights, tmpNetwork.l3Weights, sizeof(tmpNetwork.l3Weights));
+    memcpy(outputNetwork.l3Biases, tmpNetwork.l3Biases, sizeof(tmpNetwork.l3Biases));
 
     // Write the network
     FILE* nn = fopen("./network.bin", "wb");
