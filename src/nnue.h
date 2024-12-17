@@ -334,6 +334,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
   8, 8, 8, 8, 8, 8, 8, 8
 };
 constexpr int KING_BUCKETS = 9;
+constexpr bool KING_BUCKETS_FACTORIZED = true;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
@@ -394,17 +395,6 @@ struct FinnyEntry {
   Bitboard byPiece[2][Piece::TOTAL];
 };
 
-struct UnalignedNetworkData {
-  int16_t inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
-  int16_t inputBiases[L1_SIZE];
-  int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-  float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-  float   l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
-  float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-  float   l3Weights[OUTPUT_BUCKETS][L3_SIZE];
-  float   l3Biases[OUTPUT_BUCKETS];
-};
-
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
@@ -416,7 +406,7 @@ struct NetworkData {
   alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
 };
 
-extern NetworkData networkData;
+extern NetworkData* networkData;
 
 void initNetworkData();
 
@@ -464,8 +454,7 @@ public:
 #if defined(PROCESS_NET)
 
 #include <cstring>
-
-extern UnalignedNetworkData* incNetwork;
+#include <fstream>
 
 class NNZ {
 public:
@@ -479,23 +468,23 @@ public:
 
   int16_t oldInputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
-  int8_t oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+  int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+  NetworkData nnzOutNet;
+
   int order[L1_SIZE / 2];
-  UnalignedNetworkData outputNetwork;
 
   void permuteNetwork() {
-    memcpy(networkData.inputWeights, incNetwork->inputWeights, sizeof(networkData.inputWeights));
-    memcpy(networkData.inputBiases, incNetwork->inputBiases, sizeof(networkData.inputBiases));
-    memcpy(networkData.l1Weights, incNetwork->l1Weights, sizeof(networkData.l1Weights));
-    memcpy(networkData.l1Biases, incNetwork->l1Biases, sizeof(networkData.l1Biases));
-    memcpy(networkData.l2Weights, incNetwork->l2Weights, sizeof(networkData.l2Weights));
-    memcpy(networkData.l2Biases, incNetwork->l2Biases, sizeof(networkData.l2Biases));
-    memcpy(networkData.l3Weights, incNetwork->l3Weights, sizeof(networkData.l3Weights));
-    memcpy(networkData.l3Biases, incNetwork->l3Biases, sizeof(networkData.l3Biases));
+    std::ifstream infile("./quantised.bin", std::ios::binary);
+    if (!infile) {
+        std::cerr << "Error opening file for reading" << std::endl;
+        return;
+    }
+    infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
+    infile.close();
 
-    memcpy(oldInputWeights, networkData.inputWeights, sizeof(networkData.inputWeights));
-    memcpy(oldInputBiases, networkData.inputBiases, sizeof(networkData.inputBiases));
-    memcpy(oldL1Weights, networkData.l1Weights, sizeof(networkData.l1Weights));
+    memcpy(oldInputWeights, nnzOutNet.inputWeights, sizeof(nnzOutNet.inputWeights));
+    memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
+    memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
     for (int i = 0; i < L1_SIZE / 2; i++) {
       order[i] = i;
@@ -507,59 +496,33 @@ public:
       // Input weights
       for (int kb = 0; kb < KING_BUCKETS; kb++) {
         for (int ip = 0; ip < INPUT_SIZE; ip++) {
-          networkData.inputWeights[kb][ip * L1_SIZE + l1] = oldInputWeights[kb][ip * L1_SIZE + order[l1]];
-          networkData.inputWeights[kb][ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[kb][ip * L1_SIZE + order[l1] + L1_SIZE / 2];
+          nnzOutNet.inputWeights[kb][ip * L1_SIZE + l1] = oldInputWeights[kb][ip * L1_SIZE + order[l1]];
+          nnzOutNet.inputWeights[kb][ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[kb][ip * L1_SIZE + order[l1] + L1_SIZE / 2];
         }
       }
 
       // Input biases
-      networkData.inputBiases[l1] = oldInputBiases[order[l1]];
-      networkData.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
+      nnzOutNet.inputBiases[l1] = oldInputBiases[order[l1]];
+      nnzOutNet.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
 
       // L1 weights
       for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
-          reinterpret_cast<int8_t*>(networkData.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-          reinterpret_cast<int8_t*>(networkData.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
         }
       }
     }
 
-    memcpy(outputNetwork.inputWeights, networkData.inputWeights, sizeof(networkData.inputWeights));
-    memcpy(outputNetwork.inputBiases, networkData.inputBiases, sizeof(networkData.inputBiases));
-    memcpy(outputNetwork.l1Weights, networkData.l1Weights, sizeof(networkData.l1Weights));
-    memcpy(outputNetwork.l1Biases, networkData.l1Biases, sizeof(networkData.l1Biases));
-    memcpy(outputNetwork.l2Weights, networkData.l2Weights, sizeof(networkData.l2Weights));
-    memcpy(outputNetwork.l2Biases, networkData.l2Biases, sizeof(networkData.l2Biases));
-    memcpy(outputNetwork.l3Weights, networkData.l3Weights, sizeof(networkData.l3Weights));
-    memcpy(outputNetwork.l3Biases, networkData.l3Biases, sizeof(networkData.l3Biases));
-
     // Write the network
-    FILE* nn = fopen("./network.bin", "wb");
-    if (nn) {
-        // Read network from file
-        size_t written = 0;
-        size_t objectsExpected = sizeof(outputNetwork);
-
-        written += sizeof(int16_t) * fwrite(outputNetwork.inputWeights, sizeof(int16_t), sizeof(outputNetwork.inputWeights) / sizeof(int16_t), nn);
-        written += sizeof(int16_t) * fwrite(outputNetwork.inputBiases, sizeof(int16_t), sizeof(outputNetwork.inputBiases) / sizeof(int16_t), nn);
-        written += sizeof(int8_t) * fwrite(outputNetwork.l1Weights, sizeof(int8_t), sizeof(outputNetwork.l1Weights) / sizeof(int8_t), nn);
-        written += sizeof(float) * fwrite(outputNetwork.l1Biases, sizeof(float), sizeof(outputNetwork.l1Biases) / sizeof(float), nn);
-        written += sizeof(float) * fwrite(outputNetwork.l2Weights, sizeof(float), sizeof(outputNetwork.l2Weights) / sizeof(float), nn);
-        written += sizeof(float) * fwrite(outputNetwork.l2Biases, sizeof(float), sizeof(outputNetwork.l2Biases) / sizeof(float), nn);
-        written += sizeof(float) * fwrite(outputNetwork.l3Weights, sizeof(float), sizeof(outputNetwork.l3Weights) / sizeof(float), nn);
-        written += sizeof(float) * fwrite(outputNetwork.l3Biases, sizeof(float), sizeof(outputNetwork.l3Biases) / sizeof(float), nn);
-
-        if (std::abs((int64_t)written - (int64_t)objectsExpected) > 0) {
-            std::cout << "Error writing the net, aborting ";
-            std::cout << "Expected " << objectsExpected << " shorts, got " << written << "\n";
-        }
-
-        fclose(nn);
+    std::ofstream outfile("./quantised.bin", std::ios::binary);
+    if (!outfile) {
+        std::cerr << "Error opening file for writing" << std::endl;
+        return;
     }
-    else {
-        std::cout << "Network file could not be created" << std::endl;
-    }
+    outfile.write(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
+    outfile.close();
+    std::cout << "NNZ permuted net written to ./quantised.bin" << std::endl;
   }
 };
 

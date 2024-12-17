@@ -58,6 +58,9 @@ endif
 
 ifdef PROCESS_NET
 	CXXFLAGS := $(CXXFLAGS) -DPROCESS_NET
+	PROCESS_NET := true
+else
+	PROCESS_NET := false
 endif
 
 # Windows only flags
@@ -72,34 +75,45 @@ ifndef EVALFILE
 	EVALFILE_NOT_DEFINED = true
 endif
 
-CXXFLAGS := $(CXXFLAGS) -DEVALFILE=\"$(EVALFILE)\"
+CXXFLAGS := $(CXXFLAGS) -DEVALFILE=\"processed.bin\"
 
 # Targets
 
 .PHONY:	all
 .DEFAULT_GOAL := all
 
+process-net:
+ifndef SKIP_PROCESS_NET
+	$(info Using network $(EVALFILE))
 ifdef EVALFILE_NOT_DEFINED
-$(EVALFILE):
-	$(info Downloading network $(NET_ID))
+ifeq ($(wildcard $(EVALFILE)),)
+	$(info Downloading network $(NET_ID).bin)
 	curl -sOL https://github.com/Yoshie2000/PlentyNetworks/releases/download/$(NET_ID)/$(EVALFILE)
 endif
+endif
+	$(info Processing network)
+	$(MAKE) -C tools clean
+	$(MAKE) -C tools arch=$(arch)
+	./tools/process_net $(PROCESS_NET) $(EVALFILE) ./processed.bin
+endif
 
-all:	nopgo
+all:
+		$(MAKE) process-net
+		$(MAKE) nopgo SKIP_PROCESS_NET=true
 
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
 
 pgo:	CXXFLAGS_EXTRA := -fprofile-generate="pgo"
-pgo:	$(EVALFILE) $(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE),$^) -o $(PROGRAM)
+pgo:	process-net $(OBJS)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 		./$(PROGRAM) bench
 		$(MAKE) clean
 		$(MAKE) CXXFLAGS_EXTRA="-fprofile-use="pgo"" nopgo
 		$(RM) -rf pgo
 
-nopgo:	$(EVALFILE) $(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE),$^) -o $(PROGRAM)
+nopgo:	process-net $(OBJS)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 
 clean:	
-		$(RM) src/*.o *~ engine
+		$(RM) src/*.o *~ engine processed.bin
