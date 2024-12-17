@@ -21,6 +21,14 @@ using VecIu16 = __m512i;
 using VecI32 = __m512i;
 using VecF = __m512;
 
+inline VecI16 loadEpi16(VecI16* x) {
+  return _mm512_load_si512(x);
+}
+
+inline void storeEpi16(VecI16* x, VecI16 y) {
+  return _mm512_store_si512(x, y);
+}
+
 inline VecI16 addEpi16(VecI16 x, VecI16 y) {
   return _mm512_add_epi16(x, y);
 }
@@ -128,6 +136,14 @@ using VecIu16 = __m256i;
 using VecI32 = __m256i;
 using VecF = __m256;
 
+inline VecI16 loadEpi16(VecI16* x) {
+  return _mm256_load_si256(x);
+}
+
+inline void storeEpi16(VecI16* x, VecI16 y) {
+  return _mm256_store_si256(x, y);
+}
+
 inline VecI16 addEpi16(VecI16 x, VecI16 y) {
   return _mm256_add_epi16(x, y);
 }
@@ -233,6 +249,14 @@ using VecI16 = __m128i;
 using VecIu16 = __m128i;
 using VecI32 = __m128i;
 using VecF = __m128;
+
+inline VecI16 loadEpi16(VecI16* x) {
+  return _mm_load_si128(x);
+}
+
+inline void storeEpi16(VecI16* x, VecI16 y) {
+  return _mm_store_si128(x, y);
+}
 
 inline VecI16 addEpi16(VecI16 x, VecI16 y) {
   return _mm_add_epi16(x, y);
@@ -343,6 +367,14 @@ using VecI32 = int32x4_t;
 using VecF = float32x4_t;
 
 // Integer operations
+inline VecI16 loadEpi16(VecI16* x) {
+  return vld1q_s16(x);
+}
+
+inline void storeEpi16(VecI16* x, VecI16 y) {
+  return vst1q_s16(x, y);
+}
+
 inline VecI16 addEpi16(VecI16 x, VecI16 y) {
   return vaddq_s16(x, y);
 }

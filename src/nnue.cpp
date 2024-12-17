@@ -219,13 +219,13 @@ void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputDa
         VecI16* weights = &weightsVec[weightOffset + unrollOffset];
 
         for (int j = 0; j < UNROLL_REGISTERS; j++)
-            registers[j] = inputs[j];
+            registers[j] = loadEpi16(&inputs[j]);
         
         for (int j = 0; j < UNROLL_REGISTERS; j++)
             registers[j] = addEpi16(registers[j], weights[j]);
         
         for (int j = 0; j < UNROLL_REGISTERS; j++)
-            outputs[j] = registers[j];
+            storeEpi16(&outputs[j], registers[j]);
     }
 }
 
@@ -248,13 +248,13 @@ void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*out
         VecI16* weights = &weightsVec[weightOffset + unrollOffset];
 
         for (int j = 0; j < UNROLL_REGISTERS; j++)
-            registers[j] = inputs[j];
+            registers[j] = loadEpi16(&inputs[j]);
         
         for (int j = 0; j < UNROLL_REGISTERS; j++)
             registers[j] = subEpi16(registers[j], weights[j]);
         
         for (int j = 0; j < UNROLL_REGISTERS; j++)
-            outputs[j] = registers[j];
+            storeEpi16(&outputs[j], registers[j]);
     }
 }
 
@@ -279,7 +279,7 @@ void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputD
         VecI16* subtractWeights = &weightsVec[subtractWeightOffset + unrollOffset];
 
         for (int j = 0; j < UNROLL_REGISTERS; j++)
-            registers[j] = inputs[j];
+            registers[j] = loadEpi16(&inputs[j]);
         
         for (int j = 0; j < UNROLL_REGISTERS; j++)
             registers[j] = addEpi16(registers[j], addWeights[j]);
@@ -288,7 +288,7 @@ void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputD
             registers[j] = subEpi16(registers[j], subtractWeights[j]);
         
         for (int j = 0; j < UNROLL_REGISTERS; j++)
-            outputs[j] = registers[j];
+            storeEpi16(&outputs[j], registers[j]);
     }
 }
 
