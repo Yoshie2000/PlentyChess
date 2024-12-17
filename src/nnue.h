@@ -602,17 +602,6 @@ public:
 #include <cstring>
 #include <fstream>
 
-struct RawNetworkData {
-    float inputWeights[KING_BUCKETS + static_cast<int>(KING_BUCKETS_FACTORIZED)][INPUT_SIZE * L1_SIZE];
-    float inputBiases[L1_SIZE];
-    float l1Weights[L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
-    float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    float l2Weights[L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
-    float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-    float l3Weights[L3_SIZE][OUTPUT_BUCKETS];
-    float l3Biases[OUTPUT_BUCKETS];
-};
-
 class NNZ {
 public:
   int64_t activations[L1_SIZE / 2] = {};
@@ -623,25 +612,25 @@ public:
     }
   }
 
-  float oldInputWeights[KING_BUCKETS + static_cast<int>(KING_BUCKETS_FACTORIZED)][INPUT_SIZE * L1_SIZE];
-  float oldInputBiases[L1_SIZE];
-  float oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-  RawNetworkData raw;
+  int16_t oldInputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
+  int16_t oldInputBiases[L1_SIZE];
+  int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+  NetworkData nnzOutNet;
 
   int order[L1_SIZE / 2];
 
   void permuteNetwork() {
-    std::ifstream infile("./params.bin", std::ios::binary);
+    std::ifstream infile("./quantised.bin", std::ios::binary);
     if (!infile) {
         std::cerr << "Error opening file for reading" << std::endl;
         return;
     }
-    infile.read(reinterpret_cast<char*>(&raw), sizeof(raw));
+    infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
     infile.close();
 
-    memcpy(oldInputWeights, raw.inputWeights, sizeof(raw.inputWeights));
-    memcpy(oldInputBiases, raw.inputBiases, sizeof(raw.inputBiases));
-    memcpy(oldL1Weights, raw.l1Weights, sizeof(raw.l1Weights));
+    memcpy(oldInputWeights, nnzOutNet.inputWeights, sizeof(nnzOutNet.inputWeights));
+    memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
+    memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
     for (int i = 0; i < L1_SIZE / 2; i++) {
       order[i] = i;
@@ -651,34 +640,35 @@ public:
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
 
       // Input weights
-      for (int kb = 0; kb < KING_BUCKETS + static_cast<int>(KING_BUCKETS_FACTORIZED); kb++) {
+      for (int kb = 0; kb < KING_BUCKETS; kb++) {
         for (int ip = 0; ip < INPUT_SIZE; ip++) {
-          raw.inputWeights[kb][ip * L1_SIZE + l1] = oldInputWeights[kb][ip * L1_SIZE + order[l1]];
-          raw.inputWeights[kb][ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[kb][ip * L1_SIZE + order[l1] + L1_SIZE / 2];
+          nnzOutNet.inputWeights[kb][ip * L1_SIZE + l1] = oldInputWeights[kb][ip * L1_SIZE + order[l1]];
+          nnzOutNet.inputWeights[kb][ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[kb][ip * L1_SIZE + order[l1] + L1_SIZE / 2];
         }
       }
 
       // Input biases
-      raw.inputBiases[l1] = oldInputBiases[order[l1]];
-      raw.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
+      nnzOutNet.inputBiases[l1] = oldInputBiases[order[l1]];
+      nnzOutNet.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
 
       // L1 weights
       for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
-          reinterpret_cast<float*>(raw.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<float*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-          reinterpret_cast<float*>(raw.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<float*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
         }
       }
     }
 
     // Write the network
-    std::ofstream outfile("./params.bin", std::ios::binary);
+    std::ofstream outfile("./quantised.bin", std::ios::binary);
     if (!outfile) {
         std::cerr << "Error opening file for writing" << std::endl;
         return;
     }
-    outfile.write(reinterpret_cast<char*>(&raw), sizeof(raw));
+    outfile.write(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
     outfile.close();
+    std::cout << "NNZ permuted net written to ./quantised.bin" << std::endl;
   }
 };
 

@@ -51,22 +51,7 @@ int16_t quantize(float number) {
     return static_cast<int16_t>(std::round(number * static_cast<float>(Q)));
 }
 
-int main(int argc, char* argv[]) {
-    if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <infile> <outfile>\n";
-        return -1;
-    }
-    std::string infile_name = argv[1];
-    std::string outfilefile_name = argv[2];
-
-    std::ifstream infile(infile_name, std::ios::binary);
-    if (!infile) {
-        std::cerr << "Error opening file for reading (" << infile_name << ")" << std::endl;
-        return -1;
-    }
-    infile.read(reinterpret_cast<char*>(&raw), sizeof(raw));
-    infile.close();
-
+void quantizeNetwork() {
     // Add factorized input weights to buckets, and quantize
     for (int n = 0; n < KING_BUCKETS; n++) {
         for (int w = 0; w < INPUT_SIZE * L1_SIZE; w++) {
@@ -99,7 +84,9 @@ int main(int argc, char* argv[]) {
     std::memcpy(tmp.l2Biases, raw.l2Biases, sizeof(raw.l2Biases));
     std::memcpy(tmp.l3Weights, raw.l3Weights, sizeof(raw.l3Weights));
     std::memcpy(tmp.l3Biases, raw.l3Biases, sizeof(raw.l3Biases));
+}
 
+void transposePermuteNetwork() {
     // Transpose L1 / L2 / L3 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
 #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
@@ -135,6 +122,50 @@ int main(int argc, char* argv[]) {
     std::memcpy(out.l1Biases, tmp.l1Biases, sizeof(tmp.l1Biases));
     std::memcpy(out.l2Biases, tmp.l2Biases, sizeof(tmp.l2Biases));
     std::memcpy(out.l3Biases, tmp.l3Biases, sizeof(tmp.l3Biases));
+}
+
+int main(int argc, char* argv[]) {
+    if (argc < 4) {
+        std::cerr << "Usage: " << argv[0] << " <infile_is_floats> <infile> <outfile>\n";
+        return -1;
+    }
+    std::string infile_is_floats = argv[1];
+    bool in_is_floats = infile_is_floats == "true";
+    std::string infile_name = argv[2];
+    std::string outfilefile_name = argv[3];
+
+    if (in_is_floats) {
+        // Read the network
+        std::ifstream infile(infile_name, std::ios::binary);
+        if (!infile) {
+            std::cerr << "Error opening float file for reading (" << infile_name << ")" << std::endl;
+            return -1;
+        }
+        infile.read(reinterpret_cast<char*>(&raw), sizeof(raw));
+        infile.close();
+
+        quantizeNetwork();
+
+        // Write the network
+        std::ofstream outfile("quantised.bin", std::ios::binary);
+        if (!outfile) {
+            std::cerr << "Error opening quantised file for writing" << std::endl;
+            return -1;
+        }
+        outfile.write(reinterpret_cast<char*>(&tmp), sizeof(tmp));
+        outfile.close();
+    } else {
+        // Read the network
+        std::ifstream infile(infile_name, std::ios::binary);
+        if (!infile) {
+            std::cerr << "Error opening quantised file for reading (" << infile_name << ")" << std::endl;
+            return -1;
+        }
+        infile.read(reinterpret_cast<char*>(&tmp), sizeof(tmp));
+        infile.close();
+    }
+
+    transposePermuteNetwork();
 
     // Write the network
     std::ofstream outfile(outfilefile_name, std::ios::binary);
