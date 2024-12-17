@@ -99,6 +99,7 @@ CXXFLAGS := $(CXXFLAGS) -DEVALFILE=\"processed.bin\"
 .DEFAULT_GOAL := all
 
 process-net:
+ifndef SKIP_PROCESS_NET
 	$(info Using network $(EVALFILE))
 ifdef EVALFILE_NOT_DEFINED
 ifeq ($(wildcard $(EVALFILE)),)
@@ -109,9 +110,12 @@ endif
 	$(info Processing network)
 	$(MAKE) -C tools clean
 	$(MAKE) -C tools arch=$(arch)
-	@./tools/process_net ./$(EVALFILE) ./processed.bin
+	@./tools/process_net $(EVALFILE) ./processed.bin
+endif
 
-all:	nopgo
+all:
+		$(MAKE) process-net
+		$(MAKE) nopgo SKIP_PROCESS_NET=true
 
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@

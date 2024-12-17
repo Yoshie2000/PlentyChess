@@ -600,6 +600,7 @@ public:
 #if defined(PROCESS_NET)
 
 #include <cstring>
+#include <fstream>
 
 struct RawNetworkData {
     float inputWeights[KING_BUCKETS + static_cast<int>(KING_BUCKETS_FACTORIZED)][INPUT_SIZE * L1_SIZE];
@@ -622,7 +623,7 @@ public:
     }
   }
 
-  float oldInputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
+  float oldInputWeights[KING_BUCKETS + static_cast<int>(KING_BUCKETS_FACTORIZED)][INPUT_SIZE * L1_SIZE];
   float oldInputBiases[L1_SIZE];
   float oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   RawNetworkData raw;
@@ -633,7 +634,7 @@ public:
     std::ifstream infile("./params.bin", std::ios::binary);
     if (!infile) {
         std::cerr << "Error opening file for reading" << std::endl;
-        return -1;
+        return;
     }
     infile.read(reinterpret_cast<char*>(&raw), sizeof(raw));
     infile.close();
@@ -650,7 +651,7 @@ public:
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
 
       // Input weights
-      for (int kb = 0; kb < KING_BUCKETS; kb++) {
+      for (int kb = 0; kb < KING_BUCKETS + static_cast<int>(KING_BUCKETS_FACTORIZED); kb++) {
         for (int ip = 0; ip < INPUT_SIZE; ip++) {
           raw.inputWeights[kb][ip * L1_SIZE + l1] = oldInputWeights[kb][ip * L1_SIZE + order[l1]];
           raw.inputWeights[kb][ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[kb][ip * L1_SIZE + order[l1] + L1_SIZE / 2];
@@ -674,7 +675,7 @@ public:
     std::ofstream outfile("./params.bin", std::ios::binary);
     if (!outfile) {
         std::cerr << "Error opening file for writing" << std::endl;
-        return -1;
+        return;
     }
     outfile.write(reinterpret_cast<char*>(&raw), sizeof(raw));
     outfile.close();
