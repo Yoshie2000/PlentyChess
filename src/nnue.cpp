@@ -34,41 +34,7 @@ void initNetworkData() {
         }
     }
 
-    UnalignedNetworkData* incNetwork = (UnalignedNetworkData*)gNETWORKData;
-    memcpy(networkData->inputWeights, incNetwork->inputWeights, sizeof(networkData->inputWeights));
-    memcpy(networkData->inputBiases, incNetwork->inputBiases, sizeof(networkData->inputBiases));
-    memcpy(networkData->l1Biases, incNetwork->l1Biases, sizeof(networkData->l1Biases));
-    memcpy(networkData->l2Biases, incNetwork->l2Biases, sizeof(networkData->l2Biases));
-    memcpy(networkData->l3Biases, incNetwork->l3Biases, sizeof(networkData->l3Biases));
-
-    // Transpose L1 / L2 / L3 weights
-    for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-        for (int l1 = 0; l1 < L1_SIZE / INT8_PER_INT32; l1++) {
-            for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                for (int c = 0; c < INT8_PER_INT32; c++) {
-                    networkData->l1Weights[b][l1 * INT8_PER_INT32 * L2_SIZE + l2 * INT8_PER_INT32 + c] = reinterpret_cast<int8_t*>(incNetwork->l1Weights)[(l1 * INT8_PER_INT32 + c) * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
-                }
-            }
-        }
-#else
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
-            for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                networkData->l1Weights[b][l1 * L2_SIZE + l2] = reinterpret_cast<int8_t*>(incNetwork->l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
-            }
-        }
-#endif
-
-        for (int l2 = 0; l2 < L2_SIZE; l2++) {
-            for (int l3 = 0; l3 < L3_SIZE; l3++) {
-                networkData->l2Weights[b][l2 * L3_SIZE + l3] = reinterpret_cast<float*>(incNetwork->l2Weights)[l2 * OUTPUT_BUCKETS * L3_SIZE + b * L3_SIZE + l3];
-            }
-        }
-
-        for (int l3 = 0; l3 < L3_SIZE; l3++) {
-            networkData->l3Weights[b][l3] = reinterpret_cast<float*>(incNetwork->l3Weights)[l3 * OUTPUT_BUCKETS + b];
-        }
-    }
+    networkData = (NetworkData*)gNETWORKData;
 }
 
 inline int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square square, KingBucketInfo* kingBucket) {
