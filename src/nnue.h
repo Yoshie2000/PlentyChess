@@ -491,6 +491,7 @@ constexpr int L1_QUANT = 64;
 constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
 
 constexpr int ALIGNMENT = 64;
+constexpr int UNROLL_REGISTERS = 16;
 
 constexpr int I16_VEC_SIZE = sizeof(VecI16) / sizeof(int16_t);
 constexpr int I32_VEC_SIZE = sizeof(VecI32) / sizeof(int32_t);

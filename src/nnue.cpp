@@ -209,9 +209,24 @@ void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputDa
     VecI16* outputVec = (VecI16*)outputData[side];
     VecI16* weightsVec = (VecI16*)networkData->inputWeights[kingBucket->index];
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < L1_ITERATIONS; ++i)
-        outputVec[i] = addEpi16(inputVec[i], weightsVec[weightOffset + i]);
+    VecI16 registers[UNROLL_REGISTERS];
+
+    for (int i = 0; i < L1_ITERATIONS / UNROLL_REGISTERS; i++) {
+        int unrollOffset = i * UNROLL_REGISTERS;
+
+        VecI16* inputs = &inputVec[unrollOffset];
+        VecI16* outputs = &outputVec[unrollOffset];
+        VecI16* weights = &weightsVec[weightOffset + unrollOffset];
+
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            registers[j] = inputs[j];
+        
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            registers[j] = addEpi16(registers[j], weights[j]);
+        
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            outputs[j] = registers[j];
+    }
 }
 
 template<Color side>
@@ -223,9 +238,24 @@ void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*out
     VecI16* outputVec = (VecI16*)outputData[side];
     VecI16* weightsVec = (VecI16*)networkData->inputWeights[kingBucket->index];
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < L1_ITERATIONS; ++i)
-        outputVec[i] = subEpi16(inputVec[i], weightsVec[weightOffset + i]);
+    VecI16 registers[UNROLL_REGISTERS];
+
+    for (int i = 0; i < L1_ITERATIONS / UNROLL_REGISTERS; i++) {
+        int unrollOffset = i * UNROLL_REGISTERS;
+
+        VecI16* inputs = &inputVec[unrollOffset];
+        VecI16* outputs = &outputVec[unrollOffset];
+        VecI16* weights = &weightsVec[weightOffset + unrollOffset];
+
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            registers[j] = inputs[j];
+        
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            registers[j] = subEpi16(registers[j], weights[j]);
+        
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            outputs[j] = registers[j];
+    }
 }
 
 template<Color side>
@@ -238,9 +268,27 @@ void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputD
     VecI16* outputVec = (VecI16*)outputData[side];
     VecI16* weightsVec = (VecI16*)networkData->inputWeights[kingBucket->index];
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < L1_ITERATIONS; ++i) {
-        outputVec[i] = subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]);
+    VecI16 registers[UNROLL_REGISTERS];
+
+    for (int i = 0; i < L1_ITERATIONS / UNROLL_REGISTERS; i++) {
+        int unrollOffset = i * UNROLL_REGISTERS;
+
+        VecI16* inputs = &inputVec[unrollOffset];
+        VecI16* outputs = &outputVec[unrollOffset];
+        VecI16* addWeights = &weightsVec[addWeightOffset + unrollOffset];
+        VecI16* subtractWeights = &weightsVec[subtractWeightOffset + unrollOffset];
+
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            registers[j] = inputs[j];
+        
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            registers[j] = addEpi16(registers[j], addWeights[j]);
+        
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            registers[j] = subEpi16(registers[j], subtractWeights[j]);
+        
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            outputs[j] = registers[j];
     }
 }
 
