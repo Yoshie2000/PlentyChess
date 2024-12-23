@@ -792,7 +792,7 @@ movesLoop:
             else
                 reducedDepth += moveHistory / lmrHistoryFactorQuiet;
 
-            reducedDepth = std::clamp(reducedDepth, 1, newDepth + pvNode);
+            reducedDepth = std::clamp(reducedDepth, 1, newDepth + (pvNode || cutNode));
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
 
             if (capture && captureMoveCount < 32)
