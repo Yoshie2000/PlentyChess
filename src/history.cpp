@@ -73,7 +73,7 @@ int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searc
         return *getCaptureHistory(board, move);
     }
     else {
-        return 5 * getQuietHistory(move, board->stm, board, boardStack) / 4 + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
+        return 3 * getQuietHistory(move, board->stm, board, boardStack) / 4 + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
     }
 }
 
