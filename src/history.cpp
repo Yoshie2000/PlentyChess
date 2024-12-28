@@ -32,7 +32,8 @@ void History::initHistory() {
 }
 
 Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStack) {
-    int64_t pawnEntry = correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
+    size_t pawnHash = board->stack->pawnHash ^ ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][lsb(board->byColor[Color::WHITE] & board->byPiece[Piece::KING])] ^ ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][lsb(board->byColor[Color::BLACK] & board->byPiece[Piece::KING])];
+    int64_t pawnEntry = correctionHistory[board->stm][pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t nonPawnEntry = nonPawnCorrectionHistory[board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[board->stm][Color::BLACK][board->stack->nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t minorEntry = minorCorrectionHistory[board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t majorEntry = majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)];
@@ -47,8 +48,9 @@ Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStac
 
 void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus) {
     // Pawn
-    Eval scaledBonus = bonus - correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    size_t pawnHash = board->stack->pawnHash ^ ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][lsb(board->byColor[Color::WHITE] & board->byPiece[Piece::KING])] ^ ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][lsb(board->byColor[Color::BLACK] & board->byPiece[Piece::KING])];
+    Eval scaledBonus = bonus - correctionHistory[board->stm][pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    correctionHistory[board->stm][pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 
     // Non-Pawn
     scaledBonus = bonus - nonPawnCorrectionHistory[board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
@@ -90,14 +92,12 @@ void History::updateQuietHistory(Move move, Color stm, Board* board, BoardStack*
 }
 
 int16_t History::getPawnHistory(Board* board, Move move) {
-    size_t hash = board->stack->pawnHash ^ ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][lsb(board->byColor[Color::WHITE] & board->byPiece[Piece::KING])] ^ ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][lsb(board->byColor[Color::BLACK] & board->byPiece[Piece::KING])];
-    return pawnHistory[hash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)];
+    return pawnHistory[board->stack->pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)];
 }
 
 void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
     int16_t scaledBonus = bonus - getPawnHistory(board, move) * std::abs(bonus) / 32000;
-    size_t hash = board->stack->pawnHash ^ ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][lsb(board->byColor[Color::WHITE] & board->byPiece[Piece::KING])] ^ ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][lsb(board->byColor[Color::BLACK] & board->byPiece[Piece::KING])];
-    pawnHistory[hash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
+    pawnHistory[board->stack->pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
 }
 
 int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move) {
