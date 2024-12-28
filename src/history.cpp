@@ -6,6 +6,7 @@
 #include "move.h"
 #include "evaluation.h"
 #include "spsa.h"
+#include "zobrist.h"
 
 TUNE_INT(pawnCorrectionFactor, 5566, 10, 5000);
 TUNE_INT(nonPawnCorrectionFactor, 5500, 10, 5000);
@@ -89,12 +90,14 @@ void History::updateQuietHistory(Move move, Color stm, Board* board, BoardStack*
 }
 
 int16_t History::getPawnHistory(Board* board, Move move) {
-    return pawnHistory[board->stack->pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)];
+    size_t hash = board->stack->pawnHash ^ ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][lsb(board->byColor[Color::WHITE] & board->byPiece[Piece::KING])] ^ ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][lsb(board->byColor[Color::BLACK] & board->byPiece[Piece::KING])];
+    return pawnHistory[hash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)];
 }
 
 void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
     int16_t scaledBonus = bonus - getPawnHistory(board, move) * std::abs(bonus) / 32000;
-    pawnHistory[board->stack->pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
+    size_t hash = board->stack->pawnHash ^ ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][lsb(board->byColor[Color::WHITE] & board->byPiece[Piece::KING])] ^ ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][lsb(board->byColor[Color::BLACK] & board->byPiece[Piece::KING])];
+    pawnHistory[hash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
 }
 
 int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move) {
