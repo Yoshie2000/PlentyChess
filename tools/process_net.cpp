@@ -3,6 +3,7 @@
 #include <cstring>
 #include <cmath>
 #include <fstream>
+#include <cstdint>
 
 constexpr int INPUT_SIZE = 768;
 constexpr int L1_SIZE = 1536;
