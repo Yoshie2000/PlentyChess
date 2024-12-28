@@ -118,8 +118,15 @@ void transposePermuteNetwork() {
     }
 
     // std::memcpy the rest
-    std::memcpy(out.inputWeights, tmp.inputWeights, sizeof(tmp.inputWeights));
-    std::memcpy(out.inputBiases, tmp.inputBiases, sizeof(tmp.inputBiases));
+    for (int b = 0; b < KING_BUCKETS; b++) {
+        for (int i = 0; i < L1_SIZE; i++) {
+            out.inputBiases[i] = tmp.inputBiases[i] * 2;
+        }
+        for (int i = 0; i < INPUT_SIZE * L1_SIZE; i++) {
+            out.inputWeights[b][i] = tmp.inputWeights[b][i] * 2;
+        }
+    }
+
     std::memcpy(out.l1Biases, tmp.l1Biases, sizeof(tmp.l1Biases));
     std::memcpy(out.l2Biases, tmp.l2Biases, sizeof(tmp.l2Biases));
     std::memcpy(out.l3Biases, tmp.l3Biases, sizeof(tmp.l3Biases));
