@@ -458,21 +458,21 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
         Bitboard toBB = bitboard(moveTarget(move));
         if (piece == Piece::QUEEN) {
             if (fromBB & (threats->pawnThreats | threats->knightThreats | threats->bishopThreats | threats->rookThreats))
-                threatScore += 20000;
+                threatScore += 40000;
             if (toBB & (threats->pawnThreats | threats->knightThreats | threats->bishopThreats | threats->rookThreats))
-                threatScore -= 20000;
+                threatScore -= 40000;
         }
         else if (piece == Piece::ROOK) {
             if (fromBB & (threats->pawnThreats | threats->knightThreats | threats->bishopThreats))
-                threatScore += 12500;
+                threatScore += 25000;
             if (toBB & (threats->pawnThreats | threats->knightThreats | threats->bishopThreats))
-                threatScore -= 12500;
+                threatScore -= 25000;
         }
         else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
             if (fromBB & threats->pawnThreats)
-                threatScore += 7500;
+                threatScore += 15000;
             if (toBB & threats->pawnThreats)
-                threatScore -= 7500;
+                threatScore -= 15000;
         }
 
         moveListScores[i] = history->getHistory(board, board->stack, searchStack, move, false) + threatScore;
