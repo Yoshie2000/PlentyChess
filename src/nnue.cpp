@@ -270,7 +270,7 @@ Eval NNUE::evaluate(Board* board) {
 
     VecIu8* l1NeuronsVec = reinterpret_cast<VecIu8*>(l1Neurons);
 
-    constexpr int inverseShift = 16 - INPUT_SHIFT - 1;
+    constexpr int inverseShift = 16 - INPUT_SHIFT;
     constexpr int pairwiseOffset = L1_SIZE / I16_VEC_SIZE / 2;
     for (int l1 = 0; l1 < pairwiseOffset; l1 += 2) {
         // STM
