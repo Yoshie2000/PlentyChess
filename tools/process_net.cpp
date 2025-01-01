@@ -4,6 +4,7 @@
 #include <cmath>
 #include <fstream>
 #include <cstdint>
+#include <algorithm>
 
 constexpr int INPUT_SIZE = 768;
 constexpr int L1_SIZE = 1536;
@@ -49,7 +50,7 @@ NetworkData out;
 
 template<int Q>
 int16_t quantize(float number) {
-    return static_cast<int16_t>(std::round(number * static_cast<float>(Q)));
+    return std::clamp(static_cast<int16_t>(std::round(number * static_cast<float>(Q))), static_cast<int16_t>(-Q), static_cast<int16_t>(Q));
 }
 
 void quantizeNetwork() {
@@ -57,17 +58,17 @@ void quantizeNetwork() {
     for (int n = 0; n < KING_BUCKETS; n++) {
         for (int w = 0; w < INPUT_SIZE * L1_SIZE; w++) {
             if (KING_BUCKETS_FACTORIZED) {
-                tmp.inputWeights[n][w] = quantize<INPUT_QUANT>(raw.inputWeights[n + 1][w] + raw.inputWeights[0][w]);
+                tmp.inputWeights[n][w] = quantize<2 * INPUT_QUANT>(raw.inputWeights[n + 1][w] + raw.inputWeights[0][w]);
             }
             else {
-                tmp.inputWeights[n][w] = quantize<INPUT_QUANT>(raw.inputWeights[n][w]);
+                tmp.inputWeights[n][w] = quantize<2 * INPUT_QUANT>(raw.inputWeights[n][w]);
             }
         }
     }
 
     // Quantize input biases
     for (int b = 0; b < L1_SIZE; b++) {
-        tmp.inputBiases[b] = quantize<INPUT_QUANT>(raw.inputBiases[b]);
+        tmp.inputBiases[b] = quantize<2 * INPUT_QUANT>(raw.inputBiases[b]);
     }
 
     // Quantize L1 weights
@@ -118,15 +119,8 @@ void transposePermuteNetwork() {
     }
 
     // std::memcpy the rest
-    for (int b = 0; b < KING_BUCKETS; b++) {
-        for (int i = 0; i < L1_SIZE; i++) {
-            out.inputBiases[i] = tmp.inputBiases[i] * 2;
-        }
-        for (int i = 0; i < INPUT_SIZE * L1_SIZE; i++) {
-            out.inputWeights[b][i] = tmp.inputWeights[b][i] * 2;
-        }
-    }
-
+    std::memcpy(out.inputBiases, tmp.inputBiases, sizeof(tmp.inputBiases));
+    std::memcpy(out.inputWeights, tmp.inputWeights, sizeof(tmp.inputWeights));
     std::memcpy(out.l1Biases, tmp.l1Biases, sizeof(tmp.l1Biases));
     std::memcpy(out.l2Biases, tmp.l2Biases, sizeof(tmp.l2Biases));
     std::memcpy(out.l3Biases, tmp.l3Biases, sizeof(tmp.l3Biases));
