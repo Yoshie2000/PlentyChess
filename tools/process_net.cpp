@@ -5,6 +5,13 @@
 #include <fstream>
 #include <cstdint>
 
+#if defined(ARCH_X86)
+#include <immintrin.h>
+#include <xmmintrin.h>
+#else
+#include <arm_neon.h>
+#endif
+
 constexpr int INPUT_SIZE = 768;
 constexpr int L1_SIZE = 1536;
 constexpr int L2_SIZE = 16;
@@ -88,6 +95,31 @@ void quantizeNetwork() {
 }
 
 void transposePermuteNetwork() {
+#if defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
+    // Transpose input weights for packus
+    constexpr int weightsPerBlock = sizeof(__m128i) / sizeof(int16_t);
+#if (defined(__AVX512F__) && defined(__AVX512BW__))
+    constexpr int packusBlocks = 8;
+    constexpr int permutation[packusBlocks] = { 0, 2, 4, 6, 1, 3, 5, 7 };
+#else
+    constexpr int packusBlocks = 4;
+    constexpr int permutation[packusBlocks] = { 0, 2, 1, 3 };
+#endif
+    __m128i regs[packusBlocks];
+
+    for (int limit : { 1, KING_BUCKETS* INPUT_SIZE }) {
+        __m128i* vec = reinterpret_cast<__m128i*>(limit == 1 ? (int16_t*) tmp.inputBiases : (int16_t*) tmp.inputWeights);
+
+        for (int i = 0; i < limit * L1_SIZE / weightsPerBlock; i += packusBlocks) {
+            for (int j = 0; j < packusBlocks; j++)
+                regs[j] = vec[i + j];
+
+            for (int j = 0; j < packusBlocks; j++)
+                vec[i + j] = regs[permutation[j]];
+        }
+    }
+#endif
+
     // Transpose L1 / L2 / L3 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
 #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
@@ -155,7 +187,8 @@ int main(int argc, char* argv[]) {
         }
         outfile.write(reinterpret_cast<char*>(&tmp), sizeof(tmp));
         outfile.close();
-    } else {
+    }
+    else {
         // Read the network
         std::ifstream infile(infile_name, std::ios::binary);
         if (!infile) {
