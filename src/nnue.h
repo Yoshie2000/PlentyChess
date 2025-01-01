@@ -74,9 +74,7 @@ inline VecI32 dpbusdEpi32x2(VecI32 sum, VecIu8 u, VecI8 i, VecIu8 u2, VecI8 i2) 
 #endif
 
 inline VecIu8 packusEpi16(VecI16 x, VecI16 y) {
-  VecI16 packed = _mm512_packus_epi16(x, y);
-  packed = _mm512_permutexvar_epi64(_mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7), packed);
-  return packed;
+  return _mm512_packus_epi16(x, y);
 }
 
 inline void vecStoreI(VecI16* dest, VecI16 x) {
@@ -161,9 +159,7 @@ inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
 }
 
 inline VecIu8 packusEpi16(VecI16 x, VecI16 y) {
-  VecI16 packed = _mm256_packus_epi16(x, y);
-  packed = _mm256_permute4x64_epi64(packed, _MM_SHUFFLE(3, 1, 2, 0));
-  return packed;
+  return _mm256_packus_epi16(x, y);
 }
 
 inline void vecStoreI(VecI16* dest, VecI16 x) {
