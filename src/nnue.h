@@ -506,16 +506,18 @@ struct DirtyPiece {
 struct KingBucketInfo {
   uint8_t index;
   bool mirrored;
+  int8_t network;
 };
 
 constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
-  return bucket1->mirrored != bucket2->mirrored || bucket1->index != bucket2->index;
+  return bucket1->mirrored != bucket2->mirrored || bucket1->index != bucket2->index || bucket1->network != bucket2->network;
 }
 
-constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
+constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare, int8_t network) {
   return KingBucketInfo{
     static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
-    fileOf(kingSquare) >= 4
+    fileOf(kingSquare) >= 4,
+    network
   };
 }
 
@@ -548,11 +550,19 @@ struct NetworkData {
   alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
 };
 
-extern NetworkData* networkData;
+struct Networks {
+  NetworkData middlegame;
+  NetworkData endgame;
+};
 
-void initNetworkData();
+extern Networks* networks;
 
 struct Board;
+
+NetworkData* chooseNetwork(Board* board);
+int networkIndex(Board* board);
+
+void initNetworkData();
 
 class NNUE {
 public:
@@ -561,7 +571,7 @@ public:
   int currentAccumulator;
   int lastCalculatedAccumulator[2];
 
-  FinnyEntry finnyTable[2][KING_BUCKETS];
+  FinnyEntry finnyTable[2][2][KING_BUCKETS]; // <net><mirrored><bucket>
 
   void addPiece(Square square, Piece piece, Color pieceColor);
   void removePiece(Square square, Piece piece, Color pieceColor);
@@ -578,18 +588,18 @@ public:
   Eval evaluate(Board* board);
 
   template<Color side>
-  void calculateAccumulators();
+  void calculateAccumulators(NetworkData* network);
   template<Color side>
-  void refreshAccumulator(Accumulator* acc);
+  void refreshAccumulator(NetworkData* network, Accumulator* acc);
   template<Color side>
-  void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  void incrementallyUpdateAccumulator(NetworkData* network, Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
   template<Color side>
-  void addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
+  void addPieceToAccumulator(NetworkData* network, int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
   template<Color side>
-  void removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
+  void removePieceFromAccumulator(NetworkData* network, int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
   template<Color side>
-  void movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor);
+  void movePieceInAccumulator(NetworkData* network, int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor);
 
 };
 
@@ -611,7 +621,7 @@ public:
   int16_t oldInputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
   int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-  NetworkData nnzOutNet;
+  Networks nnzOutNets;
 
   int order[L1_SIZE / 2];
 
@@ -621,37 +631,40 @@ public:
         std::cerr << "Error opening file for reading" << std::endl;
         return;
     }
-    infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
+    infile.read(reinterpret_cast<char*>(&nnzOutNets), sizeof(nnzOutNets));
     infile.close();
 
-    memcpy(oldInputWeights, nnzOutNet.inputWeights, sizeof(nnzOutNet.inputWeights));
-    memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
-    memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
+    for (NetworkData* nnzOutNet : { &nnzOutNets.middlegame, &nnzOutNets.endgame }) {
 
-    for (int i = 0; i < L1_SIZE / 2; i++) {
-      order[i] = i;
-    }
-    std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
+      memcpy(oldInputWeights, nnzOutNet->inputWeights, sizeof(nnzOutNet->inputWeights));
+      memcpy(oldInputBiases, nnzOutNet->inputBiases, sizeof(nnzOutNet->inputBiases));
+      memcpy(oldL1Weights, nnzOutNet->l1Weights, sizeof(nnzOutNet->l1Weights));
 
-    for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
-
-      // Input weights
-      for (int kb = 0; kb < KING_BUCKETS; kb++) {
-        for (int ip = 0; ip < INPUT_SIZE; ip++) {
-          nnzOutNet.inputWeights[kb][ip * L1_SIZE + l1] = oldInputWeights[kb][ip * L1_SIZE + order[l1]];
-          nnzOutNet.inputWeights[kb][ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[kb][ip * L1_SIZE + order[l1] + L1_SIZE / 2];
-        }
+      for (int i = 0; i < L1_SIZE / 2; i++) {
+        order[i] = i;
       }
+      std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
 
-      // Input biases
-      nnzOutNet.inputBiases[l1] = oldInputBiases[order[l1]];
-      nnzOutNet.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
+      for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
 
-      // L1 weights
-      for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
-        for (int l2 = 0; l2 < L2_SIZE; l2++) {
-          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+        // Input weights
+        for (int kb = 0; kb < KING_BUCKETS; kb++) {
+          for (int ip = 0; ip < INPUT_SIZE; ip++) {
+            nnzOutNet->inputWeights[kb][ip * L1_SIZE + l1] = oldInputWeights[kb][ip * L1_SIZE + order[l1]];
+            nnzOutNet->inputWeights[kb][ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[kb][ip * L1_SIZE + order[l1] + L1_SIZE / 2];
+          }
+        }
+
+        // Input biases
+        nnzOutNet->inputBiases[l1] = oldInputBiases[order[l1]];
+        nnzOutNet->inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
+
+        // L1 weights
+        for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
+          for (int l2 = 0; l2 < L2_SIZE; l2++) {
+            reinterpret_cast<int8_t*>(nnzOutNet->l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+            reinterpret_cast<int8_t*>(nnzOutNet->l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          }
         }
       }
     }
@@ -662,7 +675,7 @@ public:
         std::cerr << "Error opening file for writing" << std::endl;
         return;
     }
-    outfile.write(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
+    outfile.write(reinterpret_cast<char*>(&nnzOutNets), sizeof(nnzOutNets));
     outfile.close();
     std::cout << "NNZ permuted net written to ./quantised.bin" << std::endl;
   }

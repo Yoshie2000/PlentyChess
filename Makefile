@@ -80,6 +80,7 @@ ifdef PROCESS_NET
 	PROCESS_NET := true
 else
 	PROCESS_NET := false
+	NETFILES := $(EVALFILE),
 endif
 
 # Windows only flags
@@ -113,7 +114,7 @@ endif
 	$(info Processing network)
 	$(MAKE) -C tools clean
 	$(MAKE) -C tools arch=$(arch)
-	./tools/process_net $(PROCESS_NET) $(EVALFILE) ./processed.bin
+	./tools/process_net $(PROCESS_NET) ./processed.bin $(shell echo $(NETFILES) | cut -d, -f1) $(shell echo $(NETFILES) | cut -d, -f2)
 endif
 
 all:
