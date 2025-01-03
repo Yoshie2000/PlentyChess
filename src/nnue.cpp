@@ -38,7 +38,7 @@ void initNetworkData() {
 }
 
 inline int networkIndex(Board* board) {
-  if (BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) > 12)
+  if (BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) > 2)
     return 0;
   return 1;
 }
