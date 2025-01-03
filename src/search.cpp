@@ -946,7 +946,7 @@ void Thread::tsearch() {
     if (TUNE_ENABLED)
         initReductions();
     
-    rootBoard.networkIndex = BB::popcount(rootBoard.byColor[Color::WHITE] | rootBoard.byColor[Color::BLACK]) >= 12 ? 0 : 1;
+    rootBoard.networkIndex = previousSearchScore == EVAL_NONE || previousSearchScore <= 425 ? 0 : 1;// BB::popcount(rootBoard.byColor[Color::WHITE] | rootBoard.byColor[Color::BLACK]) >= 12 ? 0 : 1;
 
     nnue.reset(&rootBoard);
 
