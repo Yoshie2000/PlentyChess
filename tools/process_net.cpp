@@ -23,7 +23,7 @@ constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
 constexpr int INPUT_QUANT = 362;
-constexpr int L1_QUANT = 64;
+constexpr int L1_QUANT = 128;
 
 constexpr int ALIGNMENT = 64;
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
