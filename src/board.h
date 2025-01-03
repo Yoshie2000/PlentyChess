@@ -70,6 +70,7 @@ struct Board {
     Color stm;
     uint8_t ply;
     bool chess960;
+    int8_t networkIndex;
     Square castlingSquares[4]; // For each castling right, stores the square of the corresponding rook
 
     struct BoardStack* stack;
