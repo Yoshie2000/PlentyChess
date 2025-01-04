@@ -8,6 +8,9 @@
 const Eval EVAL_MATE = 30000;
 const Eval EVAL_MATE_IN_MAX_PLY = EVAL_MATE - MAX_PLY;
 
+const Eval EVAL_TBWIN = EVAL_MATE_IN_MAX_PLY - 1;
+const Eval EVAL_TBWIN_IN_MAX_PLY = EVAL_TBWIN - MAX_PLY;
+
 const Eval EVAL_INFINITE = 31000;
 const Eval EVAL_NONE = 31010;
 
