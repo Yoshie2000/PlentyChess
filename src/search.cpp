@@ -873,6 +873,8 @@ movesLoop:
                 rootMove->pv.push_back(move);
                 for (int i = 1; i < (stack + 1)->pvLength; i++)
                     rootMove->pv.push_back((stack + 1)->pv[i]);
+            } else {
+                rootMove->value = -EVAL_INFINITE;
             }
         }
 
