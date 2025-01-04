@@ -118,9 +118,15 @@ namespace UCI {
             false
         };
 
+        UCIOption<UCI_STRING> syzygyPath = {
+            "SyzygyPath",
+            "",
+            ""
+        };
+
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &minimal);
+            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &minimal, &syzygyPath);
             for_each_in_tuple(optionsTuple, f);
         }
     };

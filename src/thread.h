@@ -173,4 +173,12 @@ public:
         return sum;
     }
 
+    uint64_t tbhits() {
+        uint64_t sum = 0;
+        for (auto& thread : threads) {
+            sum += thread.get()->searchData.tbHits;
+        }
+        return sum;
+    }
+
 };

@@ -20,6 +20,7 @@
 #include "spsa.h"
 #include "nnue.h"
 #include "uci.h"
+#include "fathom/src/tbprobe.h"
 
 // Time management
 TUNE_FLOAT_DISABLED(tmInitialAdjustment, 1.0796307320901835f, 0.5f, 1.5f);
@@ -225,15 +226,15 @@ void updatePv(SearchStack* stack, Move move) {
 
 int valueToTT(int value, int ply) {
     if (value == EVAL_NONE) return EVAL_NONE;
-    if (value > EVAL_MATE_IN_MAX_PLY) value += ply;
-    else if (value < -EVAL_MATE_IN_MAX_PLY) value -= ply;
+    if (value > EVAL_TBWIN_IN_MAX_PLY) value += ply;
+    else if (value < -EVAL_TBWIN_IN_MAX_PLY) value -= ply;
     return value;
 }
 
 int valueFromTt(int value, int ply) {
     if (value == EVAL_NONE) return EVAL_NONE;
-    if (value > EVAL_MATE_IN_MAX_PLY) value -= ply;
-    else if (value < -EVAL_MATE_IN_MAX_PLY) value += ply;
+    if (value > EVAL_TBWIN_IN_MAX_PLY) value -= ply;
+    else if (value < -EVAL_TBWIN_IN_MAX_PLY) value += ply;
     return value;
 }
 
@@ -332,7 +333,7 @@ movesLoopQsearch:
             continue;
 
         if (futilityValue > -EVAL_INFINITE) { // Only prune when not in check
-            if (bestValue >= -EVAL_MATE_IN_MAX_PLY
+            if (bestValue >= -EVAL_TBWIN_IN_MAX_PLY
                 && futilityValue <= alpha
                 && !SEE(board, move, 1)
                 ) {
@@ -446,7 +447,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Initialize some stuff
     Move bestMove = MOVE_NONE;
     Move excludedMove = stack->excludedMove;
-    Eval bestValue = -EVAL_INFINITE;
+    Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
@@ -478,6 +479,56 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // TT cutoff
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
+
+    // TB Probe
+    if (!rootNode && !excluded && unsigned(BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK])) <= TB_LARGEST) {
+        unsigned result = tb_probe_wdl(
+            rootBoard.byColor[Color::WHITE],
+            rootBoard.byColor[Color::BLACK],
+            rootBoard.byPiece[Piece::KING],
+            rootBoard.byPiece[Piece::QUEEN],
+            rootBoard.byPiece[Piece::ROOK],
+            rootBoard.byPiece[Piece::BISHOP],
+            rootBoard.byPiece[Piece::KNIGHT],
+            rootBoard.byPiece[Piece::PAWN],
+            rootBoard.stack->rule50_ply,
+            (rootBoard.castlingSquares[3] != NO_SQUARE ? 0b1000 : 0b0) | (rootBoard.castlingSquares[2] != NO_SQUARE ? 0b100 : 0b0) | (rootBoard.castlingSquares[1] != NO_SQUARE ? 0b01 : 0b0) | (rootBoard.castlingSquares[0] != NO_SQUARE ? 0b1 : 0b0),
+            rootBoard.stack->enpassantTarget ? lsb(rootBoard.stack->enpassantTarget) : 0,
+            rootBoard.stm == Color::WHITE
+        );
+
+        if (result != TB_RESULT_FAILED) {
+            searchData.tbHits++;
+
+            Eval tbValue;
+            uint8_t tbBound;
+
+            if (result == TB_LOSS) {
+                tbValue = stack->ply - EVAL_TBWIN;
+                tbBound = TT_UPPERBOUND;
+            } else if (result == TB_WIN) {
+                tbValue = EVAL_TBWIN - stack->ply;
+                tbBound = TT_LOWERBOUND;
+            } else {
+                tbValue = 0;
+                tbBound = TT_EXACTBOUND;
+            }
+
+            if (tbBound == TT_EXACTBOUND || (tbBound == TT_LOWERBOUND ? tbValue >= beta : tbValue <= alpha)) {
+                ttEntry->update(board->stack->hash, MOVE_NONE, MAX_PLY, EVAL_NONE, tbValue, ttPv, tbBound);
+                return tbValue;
+            }
+
+            if (pvNode) {
+                if (tbBound == TT_LOWERBOUND) {
+                    bestValue = tbValue;
+                    alpha = std::max(alpha, bestValue);
+                } else {
+                    maxValue = tbValue;
+                }
+            }
+        }
+    }
 
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
@@ -521,13 +572,13 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_MATE_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
-        return std::min((eval + beta) / 2, EVAL_MATE_IN_MAX_PLY - 1);
+    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
+        return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Razoring
-    if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha && alpha < EVAL_MATE_IN_MAX_PLY) {
+    if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
-        if (razorValue <= alpha && razorValue > -EVAL_MATE_IN_MAX_PLY)
+        if (razorValue <= alpha && razorValue > -EVAL_TBWIN_IN_MAX_PLY)
             return razorValue;
     }
 
@@ -538,7 +589,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         && eval >= beta
         && eval >= stack->staticEval
         && stack->staticEval + nmpEvalDepth * depth - nmpEvalBase >= beta
-        && std::abs(beta) < EVAL_MATE_IN_MAX_PLY
+        && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY
         && !excluded
         && (stack - 1)->movedPiece != Piece::NONE
         && depth >= 3
@@ -560,7 +611,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             return 0;
 
         if (nullValue >= beta) {
-            if (nullValue >= EVAL_MATE_IN_MAX_PLY)
+            if (nullValue >= EVAL_TBWIN_IN_MAX_PLY)
                 nullValue = beta;
 
             if (searchData.nmpPlies || depth < 15)
@@ -576,15 +627,15 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // ProbCut
-    probCutBeta = std::min(beta + probCutBetaOffset, EVAL_MATE_IN_MAX_PLY - 1);
+    probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
         && !excluded
         && depth > probCutDepth
-        && std::abs(beta) < EVAL_MATE_IN_MAX_PLY - 1
+        && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
         && !(ttDepth >= depth - 3 && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
 
         assert(probCutBeta > beta);
-        assert(probCutBeta < EVAL_MATE_IN_MAX_PLY);
+        assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
 
         Move probcutTtMove = ttMove != MOVE_NONE && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : MOVE_NONE;
         MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth);
@@ -616,7 +667,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
                 return 0;
 
             if (value >= probCutBeta) {
-                value = std::min(value, EVAL_MATE_IN_MAX_PLY - 1);
+                value = std::min(value, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(board->stack->hash, move, depth - 3, unadjustedEval, valueToTT(value, stack->ply), ttPv, TT_LOWERBOUND);
                 return value;
             }
@@ -661,7 +712,7 @@ movesLoop:
         int moveHistory = history.getHistory(board, board->stack, stack, move, capture);
 
         if (!rootNode
-            && bestValue > -EVAL_MATE_IN_MAX_PLY
+            && bestValue > -EVAL_TBWIN_IN_MAX_PLY
             && board->hasNonPawns()
             ) {
 
@@ -705,7 +756,7 @@ movesLoop:
             && move == ttMove
             && !excluded
             && (ttFlag & TT_LOWERBOUND)
-            && std::abs(ttValue) < EVAL_MATE_IN_MAX_PLY
+            && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
             && ttDepth >= depth - 3
             ) {
             Eval singularBeta = ttValue - (1 + (ttPv && !pvNode)) * depth;
@@ -727,7 +778,7 @@ movesLoop:
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
-                Eval value = std::min(singularBeta, EVAL_MATE_IN_MAX_PLY - 1);
+                Eval value = std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(board->stack->hash, ttMove, singularDepth, unadjustedEval, value, ttPv, TT_LOWERBOUND);
                 return value;
             }
@@ -910,7 +961,7 @@ movesLoop:
                     break;
                 }
 
-                if (depth > 4 && depth < 10 && beta < EVAL_MATE_IN_MAX_PLY && value > -EVAL_MATE_IN_MAX_PLY)
+                if (depth > 4 && depth < 10 && beta < EVAL_TBWIN_IN_MAX_PLY && value > -EVAL_TBWIN_IN_MAX_PLY)
                     depth--;
             }
         }
@@ -923,6 +974,9 @@ movesLoop:
         // Mate / Stalemate
         bestValue = board->stack->checkers ? matedIn(stack->ply) : 0;
     }
+
+    if (pvNode)
+        bestValue = std::min(bestValue, maxValue);
 
     // Insert into TT
     bool failLow = alpha == oldAlpha;
@@ -942,11 +996,47 @@ movesLoop:
     return bestValue;
 }
 
+Move tbProbeMoveRoot(unsigned result) {
+    Square origin = TB_GET_FROM(result);
+    Square target = TB_GET_TO(result);
+    int promotion = TB_GET_PROMOTES(result);
+
+    if (promotion)
+        return createMove(origin, target) | MOVE_PROMOTION | PROMOTION_PIECE[promotion - 1] << 14;
+    
+    if (TB_GET_EP(result))
+        return createMove(origin, target) | MOVE_ENPASSANT;
+    
+    return createMove(origin, target);
+}
+
 void Thread::tsearch() {
     if (TUNE_ENABLED)
         initReductions();
 
     nnue.reset(&rootBoard);
+
+    Move bestTbMove = MOVE_NONE;
+    if (mainThread && unsigned(BB::popcount(rootBoard.byColor[Color::WHITE] | rootBoard.byColor[Color::BLACK])) <= TB_LARGEST) {
+        unsigned result = tb_probe_root(
+            rootBoard.byColor[Color::WHITE],
+            rootBoard.byColor[Color::BLACK],
+            rootBoard.byPiece[Piece::KING],
+            rootBoard.byPiece[Piece::QUEEN],
+            rootBoard.byPiece[Piece::ROOK],
+            rootBoard.byPiece[Piece::BISHOP],
+            rootBoard.byPiece[Piece::KNIGHT],
+            rootBoard.byPiece[Piece::PAWN],
+            rootBoard.stack->rule50_ply,
+            (rootBoard.castlingSquares[3] != NO_SQUARE ? 0b1000 : 0b0) | (rootBoard.castlingSquares[2] != NO_SQUARE ? 0b100 : 0b0) | (rootBoard.castlingSquares[1] != NO_SQUARE ? 0b01 : 0b0) | (rootBoard.castlingSquares[0] != NO_SQUARE ? 0b1 : 0b0),
+            rootBoard.stack->enpassantTarget ? lsb(rootBoard.stack->enpassantTarget) : 0,
+            rootBoard.stm == Color::WHITE,
+            nullptr
+        );
+
+        if (result != TB_RESULT_FAILED)
+            bestTbMove = tbProbeMoveRoot(result);
+    }
 
     searchData.nodesSearched = 0;
     if (mainThread)
@@ -966,7 +1056,7 @@ void Thread::tsearch() {
         }
 
         if (!UCI::Options.ponder.value || bestThread->rootMoves[0].pv.size() < 2) {
-            std::cout << "bestmove " << moveToString(bestThread->rootMoves[0].move, UCI::Options.chess960.value) << std::endl;
+            std::cout << "bestmove " << moveToString(bestTbMove != MOVE_NONE && std::abs(bestThread->rootMoves[0].value) < EVAL_MATE_IN_MAX_PLY ? bestTbMove : bestThread->rootMoves[0].move, UCI::Options.chess960.value) << std::endl;
         }
         else {
             std::cout << "bestmove " << moveToString(bestThread->rootMoves[0].move, UCI::Options.chess960.value) << " ponder " << moveToString(bestThread->rootMoves[0].pv[1], UCI::Options.chess960.value) << std::endl;
@@ -1066,7 +1156,7 @@ void Thread::iterativeDeepening() {
                 else
                     break;
 
-                if (value >= EVAL_MATE_IN_MAX_PLY) {
+                if (value >= EVAL_TBWIN_IN_MAX_PLY) {
                     beta = EVAL_INFINITE;
                     failHighs = 0;
                 }
@@ -1118,7 +1208,7 @@ void Thread::printUCI(Thread* thread, int multiPvCount) {
 
     for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
         RootMove rootMove = thread->rootMoves[rootMoveIdx];
-        std::cout << "info depth " << rootMove.depth << " seldepth " << rootMove.selDepth << " score " << formatEval(rootMove.value) << " multipv " << (rootMoveIdx + 1) << " nodes " << nodes << " time " << ms << " nps " << nps << " hashfull " << TT.hashfull() << " pv ";
+        std::cout << "info depth " << rootMove.depth << " seldepth " << rootMove.selDepth << " score " << formatEval(rootMove.value) << " multipv " << (rootMoveIdx + 1) << " nodes " << nodes << " tbhits " << threadPool->tbhits() << " time " << ms << " nps " << nps << " hashfull " << TT.hashfull() << " pv ";
 
         // Send PV
         for (Move move : rootMove.pv)
@@ -1174,14 +1264,14 @@ Thread* Thread::chooseBestThread() {
                 Move bestMove = bestThread->rootMoves[bestMoveIdx].move;
 
                 // In case of checkmate, take the shorter mate / longer getting mated
-                if (std::abs(bestValue) >= EVAL_MATE_IN_MAX_PLY) {
+                if (std::abs(bestValue) >= EVAL_TBWIN_IN_MAX_PLY) {
                     if (thValue > bestValue) {
                         bestThread = thread;
                         bestMoveIdx = rmi;
                     }
                 }
                 // We have found a mate, take it without voting
-                else if (thValue >= EVAL_MATE_IN_MAX_PLY) {
+                else if (thValue >= EVAL_TBWIN_IN_MAX_PLY) {
                     bestThread = thread;
                     bestMoveIdx = rmi;
                 }
@@ -1288,7 +1378,7 @@ void Thread::tdatagen() {
             else
                 break;
 
-            if (value >= EVAL_MATE_IN_MAX_PLY) {
+            if (value >= EVAL_TBWIN_IN_MAX_PLY) {
                 beta = EVAL_INFINITE;
                 failHighs = 0;
             }
