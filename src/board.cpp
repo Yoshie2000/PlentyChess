@@ -1220,7 +1220,7 @@ bool Board::hasUpcomingRepetition(int ply) {
 }
 
 // Checks for 2-fold repetition and rule50 draw
-bool Board::isDraw() {
+bool Board::isDraw(int ply) {
 
     // Check for material draw
     int pieceCount = BB::popcount(byColor[Color::WHITE] | byColor[Color::BLACK]);
@@ -1243,10 +1243,13 @@ bool Board::isDraw() {
     int maxPlyOffset = std::min(stack->rule50_ply, stack->nullmove_ply);
     BoardStack* compareStack = stack->previous->previous;
 
+    bool twofold = false;
     for (int i = 4; i <= maxPlyOffset; i += 2) {
         compareStack = compareStack->previous->previous;
         if (stack->hash == compareStack->hash) {
-            return true;
+            if (ply >= i || twofold)
+                return true;
+            twofold = true;
         }
     }
 

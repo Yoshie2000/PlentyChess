@@ -256,7 +256,7 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         threadPool->stopSearching();
 
     // Check for stop
-    if (stopped || exiting || stack->ply >= MAX_PLY || board->isDraw())
+    if (stopped || exiting || stack->ply >= MAX_PLY || board->isDraw(stack->ply))
         return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &nnue) : drawEval(this);
 
     stack->inCheck = board->stack->checkerCount > 0;
@@ -434,7 +434,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             threadPool->stopSearching();
 
         // Check for stop or max depth
-        if (stopped || exiting || stack->ply >= MAX_PLY || board->isDraw())
+        if (stopped || exiting || stack->ply >= MAX_PLY || board->isDraw(stack->ply))
             return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &nnue) : drawEval(this);
 
         // Mate distance pruning
