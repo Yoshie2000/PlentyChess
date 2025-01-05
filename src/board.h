@@ -104,7 +104,7 @@ struct Board {
     void updateSliderPins(Color side);
 
     bool hasUpcomingRepetition(int ply);
-    bool isDraw();
+    bool isDraw(int ply);
 
     constexpr bool hasNonPawns() {
         return stack->pieceCount[stm][Piece::KNIGHT] > 0 || stack->pieceCount[stm][Piece::BISHOP] > 0 || stack->pieceCount[stm][Piece::ROOK] > 0 || stack->pieceCount[stm][Piece::QUEEN] > 0;
