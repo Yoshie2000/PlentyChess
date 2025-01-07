@@ -106,7 +106,7 @@ TUNE_INT(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
-TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
+TUNE_INT_DISABLED(lmrMinDepth, 2, 1, 10);
 
 TUNE_INT(lmrHistoryFactorQuiet, 22062, 128, 32768);
 TUNE_INT(lmrHistoryFactorCapture, 17700, 128, 32768);
