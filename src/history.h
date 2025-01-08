@@ -32,8 +32,8 @@ public:
 
     int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
 
-    int16_t getPawnHistory(Board* board, Move move);
-    void updatePawnHistory(Board* board, Move move, int16_t bonus);
+    int16_t getPawnHistory(Color stm, BoardStack* stack, Piece movedPiece, Move move);
+    void updatePawnHistory(Color stm, BoardStack* stack, Piece movedPiece, Move move, int16_t bonus);
 
     int16_t getQuietHistory(Move move, Color stm, Board* board, BoardStack* stack);
     void updateQuietHistory(Move move, Color stm, Board* board, BoardStack* stack, int16_t bonus);
