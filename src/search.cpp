@@ -1220,6 +1220,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         bestValue = board->checkers ? matedIn(stack->ply) : 0;
     }
 
+    if (bestMove == MOVE_NONE && !(stack - 1)->capture && (stack - 1)->move != MOVE_NONE && moveType((stack - 1)->move) != MOVE_PROMOTION) {
+        int bonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * depth, historyBonusQuietMax);
+        history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
+    }
+
     if (pvNode)
         bestValue = std::min(bestValue, maxValue);
 
