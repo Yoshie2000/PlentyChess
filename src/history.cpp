@@ -170,7 +170,7 @@ void History::updateCaptureHistory(Board* board, Move move, int moveSearchCount,
     for (int i = 0; i < captureMoveCount; i++) {
         Move cMove = captureMoves[i];
         if (move == cMove) continue;
-        updateSingleCaptureHistory(board, cMove, -malus);
+        updateSingleCaptureHistory(board, cMove, -malus * captureSearchCount[i]);
     }
 }
 
@@ -184,9 +184,9 @@ void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchS
     for (int i = 0; i < quietMoveCount; i++) {
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
-        updateQuietHistory(qMove, board->stm, board, boardStack, -malus);
-        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -malus);
-        updatePawnHistory(board, qMove, -malus);
+        updateQuietHistory(qMove, board->stm, board, boardStack, -malus * quietSearchCount[i]);
+        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -malus * quietSearchCount[i]);
+        updatePawnHistory(board, qMove, -malus * quietSearchCount[i]);
     }
 }
 
