@@ -569,7 +569,6 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
         int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
-        history.updatePawnHistory(flip(board->stm), board->stack->previous, (stack - 1)->movedPiece, (stack - 1)->move, bonus);
     }
 
     // Reverse futility pruning
@@ -976,6 +975,11 @@ movesLoop:
             return -EVAL_INFINITE;
         // Mate / Stalemate
         bestValue = board->stack->checkers ? matedIn(stack->ply) : 0;
+    }
+
+    if (bestMove == MOVE_NONE && !(stack - 1)->capture && (stack - 1)->move != MOVE_NONE && moveType((stack - 1)->move) != MOVE_PROMOTION) {
+        int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
+        history.updatePawnHistory(flip(board->stm), board->stack->previous, (stack - 1)->movedPiece, (stack - 1)->move, bonus);
     }
 
     if (pvNode)
