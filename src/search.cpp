@@ -863,10 +863,10 @@ movesLoop:
                 else if (!capture && quietMoveCount < 32)
                     quietSearchCount[quietMoveCount]++;
 
-                // if (!capture) {
-                //     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
-                //     history.updateContinuationHistory(stack, flip(board->stm), stack->movedPiece, move, bonus);
-                // }
+                if (!capture) {
+                    int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
+                    history.updateContinuationHistory(stack, flip(board->stm), stack->movedPiece, move, bonus);
+                }
             }
         }
         else if (!pvNode || moveCount > 1) {
