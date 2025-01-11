@@ -683,6 +683,18 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
 movesLoop:
 
+    probCutBeta = beta + 450;
+    if (stack->inCheck
+        && !pvNode
+        && ttMove != MOVE_NONE
+        && board->pieces[moveTarget(ttMove)] != MOVE_NONE
+        && (ttFlag & TT_LOWERBOUND)
+        && ttDepth >= depth - 6
+        && ttValue >= probCutBeta
+        && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
+        && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
+        return probCutBeta;
+
     Move quietMoves[32];
     Move captureMoves[32];
     int quietSearchCount[32];
