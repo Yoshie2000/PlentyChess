@@ -27,7 +27,15 @@ void History::initHistory() {
     memset(minorCorrectionHistory, 0, sizeof(minorCorrectionHistory));
     memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
     memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
-    memset(pawnHistory, -1000, sizeof(pawnHistory));
+    for (int i = 0; i < PAWN_HISTORY_SIZE; i++) {
+        for (int j = 0; j < 2; j++) {
+            for (int k = 0; k < Piece::TOTAL; k++) {
+                for (int l = 0; l < 64; l++) {
+                    pawnHistory[i][j][k][l] = -1000;
+                }
+            }
+        }
+    }
 }
 
 Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStack) {
