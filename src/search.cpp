@@ -860,7 +860,7 @@ movesLoop:
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth);
             newDepth += doDeeperSearch - doShallowerSearch;
 
-            if (value <= alpha && bestValue > -EVAL_INFINITE)
+            if (value <= alpha && bestValue > value)
                 failedLMR++;
 
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - 4 >= newDepth && (ttFlag & TT_UPPERBOUND))) {
