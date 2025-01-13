@@ -690,6 +690,8 @@ movesLoop:
     int quietMoveCount = 0;
     int captureMoveCount = 0;
 
+    int failedLMR = 0;
+
     // Moves loop
     MoveGen movegen(board, &history, stack, ttMove, depth);
     Move move;
@@ -837,6 +839,9 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth -= 2;
+            
+            if (failedLMR > 6)
+                reducedDepth--;
 
             if (capture)
                 reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
@@ -854,6 +859,9 @@ movesLoop:
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth);
             newDepth += doDeeperSearch - doShallowerSearch;
+
+            if (value <= alpha && bestValue > -EVAL_INFINITE)
+                failedLMR++;
 
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - 4 >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(board, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
