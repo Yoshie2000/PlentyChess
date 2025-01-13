@@ -453,6 +453,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
+    (stack + 1)->cutoffCount = 0;
     stack->inCheck = board->stack->checkerCount > 0;
 
     // TT Lookup
@@ -837,6 +838,9 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth -= 2;
+            
+            if ((stack + 1)->cutoffCount > 5)
+                reducedDepth--;
 
             if (capture)
                 reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
@@ -940,6 +944,8 @@ movesLoop:
                     updatePv(stack, move);
 
                 if (bestValue >= beta) {
+
+                    stack->cutoffCount++;
 
                     int historyUpdateDepth = depth + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
 
@@ -1111,6 +1117,7 @@ void Thread::iterativeDeepening() {
                 stackList[i].move = MOVE_NONE;
                 stackList[i].capture = false;
                 stackList[i].inCheck = false;
+                stackList[i].cutoffCount = 0;
             }
 
             searchData.rootDepth = depth;
