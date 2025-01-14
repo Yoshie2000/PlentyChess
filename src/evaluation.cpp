@@ -14,8 +14,12 @@ TUNE_INT_DISABLED(bishopValue, 301, 200, 400);
 TUNE_INT_DISABLED(rookValue, 507, 400, 600);
 TUNE_INT_DISABLED(queenValue, 909, 700, 1100);
 
-TUNE_INT_DISABLED(materialScaleBase, 933, 512, 1536);
-TUNE_INT_DISABLED(materialScaleDivisor, 48, 32, 64);
+TUNE_INT(materialScaleKnightValue, 298, 200, 400);
+TUNE_INT(materialScaleBishopValue, 301, 200, 400);
+TUNE_INT(materialScaleRookValue, 507, 400, 600);
+TUNE_INT(materialScaleQueenValue, 909, 700, 1100);
+TUNE_INT(materialScaleBase, 933, 512, 1536);
+TUNE_INT(materialScaleDivisor, 48, 32, 64);
 
 Eval fakePiece = 0;
 
@@ -34,7 +38,7 @@ int getMaterialScale(Board* board) {
     int rookCount = board->stack->pieceCount[Color::WHITE][Piece::ROOK] + board->stack->pieceCount[Color::BLACK][Piece::ROOK];
     int queenCount = board->stack->pieceCount[Color::WHITE][Piece::QUEEN] + board->stack->pieceCount[Color::BLACK][Piece::QUEEN];
 
-    int materialValue = PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
+    int materialValue = materialScaleKnightValue * knightCount + materialScaleBishopValue * bishopCount + materialScaleRookValue * rookCount + materialScaleQueenValue * queenCount;
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 

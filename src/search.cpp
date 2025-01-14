@@ -64,6 +64,7 @@ TUNE_INT_DISABLED(qsSeeMargin, -101, -200, 50);
 // Pre-search pruning
 TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 
+TUNE_INT(staticHistoryTempo, 0, -200, 200);
 TUNE_INT(staticHistoryFactor, -49, -500, -1);
 TUNE_INT(staticHistoryMin, -82, -1000, -1);
 TUNE_INT(staticHistoryMax, 144, 1, 1000);
@@ -100,9 +101,9 @@ TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
 TUNE_INT(historyPruningFactorCapture, -1549, -8192, -128);
 TUNE_INT(historyPruningFactorQuiet, -5409, -8192, -128);
 
-TUNE_INT(doubleExtensionMargin, 6, 1, 30);
-TUNE_INT(doubleExtensionDepthIncrease, 11, 2, 20);
-TUNE_INT(tripleExtensionMargin, 41, 25, 100);
+TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
+TUNE_INT_DISABLED(doubleExtensionDepthIncrease, 11, 2, 20);
+TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
@@ -567,7 +568,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Adjust quiet history based on how much the previous move changed static eval
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
-        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax);
+        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval + staticHistoryTempo) / 10, staticHistoryMin, staticHistoryMax);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
 
