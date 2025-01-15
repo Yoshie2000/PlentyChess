@@ -4,7 +4,7 @@
 
 #include "nnue.h"
 
-constexpr auto VERSION = "3.0.18";
+constexpr auto VERSION = "3.0.19";
 
 template<int... Is>
 struct seq { };
