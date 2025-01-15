@@ -286,20 +286,21 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     Move bestMove = MOVE_NONE;
     Eval bestValue, futilityValue, unadjustedEval;
 
+    Eval correctionValue = history.getCorrectionValue(board, stack);
     if (board->stack->checkers) {
         stack->staticEval = bestValue = unadjustedEval = futilityValue = -EVAL_INFINITE;
         goto movesLoopQsearch;
     }
     else if (ttHit && ttEval != EVAL_NONE) {
         unadjustedEval = ttEval;
-        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board, stack);
+        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
             bestValue = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
-        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, board, stack);
+        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, correctionValue);
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
     futilityValue = stack->staticEval + qsFutilityOffset;
@@ -532,6 +533,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
+
+    Eval correctionValue = history.getCorrectionValue(board, stack);
     if (board->stack->checkers) {
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
@@ -541,14 +544,14 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
     else if (ttHit) {
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board, stack);
+        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, board, stack);
+        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
 
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
@@ -837,6 +840,8 @@ movesLoop:
 
             if (cutNode)
                 reducedDepth -= 2;
+            
+            reducedDepth += std::abs(correctionValue / 16000000);
 
             if (capture)
                 reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
