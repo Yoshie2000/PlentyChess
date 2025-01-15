@@ -946,7 +946,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int historyUpdateDepth = depth + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
+                    int historyUpdateDepth = depth + (eval <= alpha) + (value - historyDepthBetaOffset > beta) + (std::abs(correctionValue / 16000000));
 
                     int quietBonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * historyUpdateDepth, historyBonusQuietMax);
                     int quietMalus = std::min(historyMalusQuietBase + historyMalusQuietFactor * historyUpdateDepth, historyMalusQuietMax);
