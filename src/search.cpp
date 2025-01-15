@@ -841,12 +841,13 @@ movesLoop:
             if (cutNode)
                 reducedDepth -= 2;
             
-            reducedDepth += std::abs(correctionValue / 16000000);
-
+            int fractionalReduction = -std::abs(correctionValue / 16000);
             if (capture)
-                reducedDepth += moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
+                fractionalReduction -= 1000 * moveHistory * std::abs(moveHistory) / (lmrHistoryFactorCapture * lmrHistoryFactorCapture);
             else
-                reducedDepth += moveHistory / lmrHistoryFactorQuiet;
+                fractionalReduction -= 1000 * moveHistory / lmrHistoryFactorQuiet;
+
+            reducedDepth -= fractionalReduction / 1000;
 
             reducedDepth = std::clamp(reducedDepth, 1, newDepth + pvNode);
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
