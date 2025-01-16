@@ -93,6 +93,8 @@ struct SearchStack {
 
     Eval staticEval;
 
+    int bestMoveChanges;
+
     Move move;
     Piece movedPiece;
     bool inCheck, capture;

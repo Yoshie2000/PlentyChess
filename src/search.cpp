@@ -455,6 +455,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
     stack->inCheck = board->stack->checkerCount > 0;
+    stack->bestMoveChanges = 0;
 
     // TT Lookup
     bool ttHit = false;
@@ -885,7 +886,7 @@ movesLoop:
 
         // PV moves will be researched at full depth if good enough
         if (pvNode && (moveCount == 1 || value > alpha)) {
-            value = -search<PV_NODE>(board, stack + 1, newDepth, -beta, -alpha, false);
+            value = -search<PV_NODE>(board, stack + 1, newDepth + ((stack + 1)->bestMoveChanges >= 3), -beta, -alpha, false);
 
             if (capture && captureMoveCount < 32)
                 captureSearchCount[captureMoveCount]++;
@@ -940,6 +941,8 @@ movesLoop:
             if (value > alpha) {
                 bestMove = move;
                 alpha = value;
+
+                stack->bestMoveChanges++;
 
                 if (pvNode)
                     updatePv(stack, move);
@@ -1114,6 +1117,7 @@ void Thread::iterativeDeepening() {
                 stackList[i].killer = MOVE_NONE;
                 stackList[i].movedPiece = Piece::NONE;
                 stackList[i].move = MOVE_NONE;
+                stackList[i].bestMoveChanges = 0;
                 stackList[i].capture = false;
                 stackList[i].inCheck = false;
             }
