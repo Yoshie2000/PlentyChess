@@ -827,6 +827,8 @@ movesLoop:
         Eval value = 0;
         int newDepth = depth - 1 + extension;
 
+        bool onlyReducedSearch = false;
+
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode && depth >= lmrMinDepth && (!capture || !ttPv || cutNode)) {
@@ -872,6 +874,8 @@ movesLoop:
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
                     history.updateContinuationHistory(stack, flip(board->stm), stack->movedPiece, move, bonus);
                 }
+            } else {
+                onlyReducedSearch = true;
             }
         }
         else if (!pvNode || moveCount > 1) {
@@ -891,6 +895,8 @@ movesLoop:
                 captureSearchCount[captureMoveCount]++;
             else if (!capture && quietMoveCount < 32)
                 quietSearchCount[quietMoveCount]++;
+            
+            onlyReducedSearch = false;
         }
 
         board->undoMove(move, &nnue);
@@ -946,7 +952,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int historyUpdateDepth = depth + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
+                    int historyUpdateDepth = depth + (eval <= alpha) + (value - historyDepthBetaOffset > beta) - onlyReducedSearch;
 
                     int quietBonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * historyUpdateDepth, historyBonusQuietMax);
                     int quietMalus = std::min(historyMalusQuietBase + historyMalusQuietFactor * historyUpdateDepth, historyMalusQuietMax);
