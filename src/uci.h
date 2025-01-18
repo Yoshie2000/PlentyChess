@@ -124,9 +124,17 @@ namespace UCI {
             ""
         };
 
+        UCIOption<UCI_SPIN> syzygyProbeLimit = {
+            "SyzygyProbeLimit",
+            0,
+            0,
+            0,
+            7
+        };
+
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &minimal, &syzygyPath);
+            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &minimal);
             for_each_in_tuple(optionsTuple, f);
         }
     };

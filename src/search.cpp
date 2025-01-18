@@ -484,18 +484,18 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // TB Probe
     if (!rootNode && !excluded && unsigned(BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK])) <= TB_LARGEST) {
         unsigned result = tb_probe_wdl(
-            rootBoard.byColor[Color::WHITE],
-            rootBoard.byColor[Color::BLACK],
-            rootBoard.byPiece[Piece::KING],
-            rootBoard.byPiece[Piece::QUEEN],
-            rootBoard.byPiece[Piece::ROOK],
-            rootBoard.byPiece[Piece::BISHOP],
-            rootBoard.byPiece[Piece::KNIGHT],
-            rootBoard.byPiece[Piece::PAWN],
-            rootBoard.stack->rule50_ply,
-            (rootBoard.castlingSquares[3] != NO_SQUARE ? 0b1000 : 0b0) | (rootBoard.castlingSquares[2] != NO_SQUARE ? 0b100 : 0b0) | (rootBoard.castlingSquares[1] != NO_SQUARE ? 0b01 : 0b0) | (rootBoard.castlingSquares[0] != NO_SQUARE ? 0b1 : 0b0),
-            rootBoard.stack->enpassantTarget ? lsb(rootBoard.stack->enpassantTarget) : 0,
-            rootBoard.stm == Color::WHITE
+            board->byColor[Color::WHITE],
+            board->byColor[Color::BLACK],
+            board->byPiece[Piece::KING],
+            board->byPiece[Piece::QUEEN],
+            board->byPiece[Piece::ROOK],
+            board->byPiece[Piece::BISHOP],
+            board->byPiece[Piece::KNIGHT],
+            board->byPiece[Piece::PAWN],
+            board->stack->rule50_ply,
+            (board->castlingSquares[3] != NO_SQUARE ? 0b1000 : 0b0) | (board->castlingSquares[2] != NO_SQUARE ? 0b100 : 0b0) | (board->castlingSquares[1] != NO_SQUARE ? 0b01 : 0b0) | (board->castlingSquares[0] != NO_SQUARE ? 0b1 : 0b0),
+            board->stack->enpassantTarget ? lsb(board->stack->enpassantTarget) : 0,
+            board->stm == Color::WHITE
         );
 
         if (result != TB_RESULT_FAILED) {
@@ -1046,6 +1046,7 @@ void Thread::tsearch() {
     }
 
     searchData.nodesSearched = 0;
+    searchData.tbHits = 0;
     if (mainThread)
         initTimeManagement(&rootBoard, searchParameters, &searchData);
 
@@ -1306,6 +1307,7 @@ void Thread::tdatagen() {
     nnue.reset(&rootBoard);
 
     searchData.nodesSearched = 0;
+    searchData.tbHits = 0;
     initTimeManagement(&rootBoard, searchParameters, &searchData);
     {
         Move moves[MAX_MOVES] = { MOVE_NONE };
