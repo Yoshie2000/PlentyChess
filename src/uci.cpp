@@ -418,7 +418,6 @@ void setoption(std::string line) {
 
     if (name == "SyzygyPath") {
         std::string path = UCI::Options.syzygyPath.value;
-        std::cout << path << std::endl;
         tb_init(path.c_str());
         if (!TB_LARGEST)
             std::cout << "info string Tablebases failed to load" << std::endl;
