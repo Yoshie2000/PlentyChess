@@ -4,7 +4,7 @@
 
 #include "nnue.h"
 
-constexpr auto VERSION = "4.0.0";
+constexpr auto VERSION = "4.0.1";
 
 template<int... Is>
 struct seq { };
@@ -124,9 +124,17 @@ namespace UCI {
             ""
         };
 
+        UCIOption<UCI_SPIN> syzygyProbeLimit = {
+            "SyzygyProbeLimit",
+            7,
+            7,
+            0,
+            7
+        };
+
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &minimal, &syzygyPath);
+            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &minimal, &syzygyPath, &syzygyProbeLimit);
             for_each_in_tuple(optionsTuple, f);
         }
     };

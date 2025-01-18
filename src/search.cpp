@@ -482,20 +482,20 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         return ttValue;
 
     // TB Probe
-    if (!rootNode && !excluded && unsigned(BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK])) <= TB_LARGEST) {
+    if (!rootNode && !excluded && BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
         unsigned result = tb_probe_wdl(
-            rootBoard.byColor[Color::WHITE],
-            rootBoard.byColor[Color::BLACK],
-            rootBoard.byPiece[Piece::KING],
-            rootBoard.byPiece[Piece::QUEEN],
-            rootBoard.byPiece[Piece::ROOK],
-            rootBoard.byPiece[Piece::BISHOP],
-            rootBoard.byPiece[Piece::KNIGHT],
-            rootBoard.byPiece[Piece::PAWN],
-            rootBoard.stack->rule50_ply,
-            (rootBoard.castlingSquares[3] != NO_SQUARE ? 0b1000 : 0b0) | (rootBoard.castlingSquares[2] != NO_SQUARE ? 0b100 : 0b0) | (rootBoard.castlingSquares[1] != NO_SQUARE ? 0b01 : 0b0) | (rootBoard.castlingSquares[0] != NO_SQUARE ? 0b1 : 0b0),
-            rootBoard.stack->enpassantTarget ? lsb(rootBoard.stack->enpassantTarget) : 0,
-            rootBoard.stm == Color::WHITE
+            board->byColor[Color::WHITE],
+            board->byColor[Color::BLACK],
+            board->byPiece[Piece::KING],
+            board->byPiece[Piece::QUEEN],
+            board->byPiece[Piece::ROOK],
+            board->byPiece[Piece::BISHOP],
+            board->byPiece[Piece::KNIGHT],
+            board->byPiece[Piece::PAWN],
+            board->stack->rule50_ply,
+            board->stack->castling,
+            board->stack->enpassantTarget ? lsb(board->stack->enpassantTarget) : 0,
+            board->stm == Color::WHITE
         );
 
         if (result != TB_RESULT_FAILED) {
@@ -1024,7 +1024,7 @@ void Thread::tsearch() {
     nnue.reset(&rootBoard);
 
     Move bestTbMove = MOVE_NONE;
-    if (mainThread && unsigned(BB::popcount(rootBoard.byColor[Color::WHITE] | rootBoard.byColor[Color::BLACK])) <= TB_LARGEST) {
+    if (mainThread && BB::popcount(rootBoard.byColor[Color::WHITE] | rootBoard.byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
         unsigned result = tb_probe_root(
             rootBoard.byColor[Color::WHITE],
             rootBoard.byColor[Color::BLACK],
@@ -1035,7 +1035,7 @@ void Thread::tsearch() {
             rootBoard.byPiece[Piece::KNIGHT],
             rootBoard.byPiece[Piece::PAWN],
             rootBoard.stack->rule50_ply,
-            (rootBoard.castlingSquares[3] != NO_SQUARE ? 0b1000 : 0b0) | (rootBoard.castlingSquares[2] != NO_SQUARE ? 0b100 : 0b0) | (rootBoard.castlingSquares[1] != NO_SQUARE ? 0b01 : 0b0) | (rootBoard.castlingSquares[0] != NO_SQUARE ? 0b1 : 0b0),
+            rootBoard.stack->castling,
             rootBoard.stack->enpassantTarget ? lsb(rootBoard.stack->enpassantTarget) : 0,
             rootBoard.stm == Color::WHITE,
             nullptr
@@ -1046,6 +1046,7 @@ void Thread::tsearch() {
     }
 
     searchData.nodesSearched = 0;
+    searchData.tbHits = 0;
     if (mainThread)
         initTimeManagement(&rootBoard, searchParameters, &searchData);
 
@@ -1306,6 +1307,7 @@ void Thread::tdatagen() {
     nnue.reset(&rootBoard);
 
     searchData.nodesSearched = 0;
+    searchData.tbHits = 0;
     initTimeManagement(&rootBoard, searchParameters, &searchData);
     {
         Move moves[MAX_MOVES] = { MOVE_NONE };
