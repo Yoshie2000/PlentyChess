@@ -4,7 +4,6 @@
 #include <cmath>
 #include <fstream>
 #include <cstdint>
-#include <algorithm>
 
 #if defined(ARCH_X86)
 #include <immintrin.h>
@@ -57,7 +56,7 @@ NetworkData out;
 
 template<int Q>
 int16_t quantize(float number) {
-    return std::clamp<int16_t>(static_cast<int16_t>(std::round(number * static_cast<float>(Q))), -Q, Q);
+    return static_cast<int16_t>(number * static_cast<float>(Q));
 }
 
 void quantizeNetwork() {
