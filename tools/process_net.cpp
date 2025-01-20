@@ -22,8 +22,8 @@ constexpr int KING_BUCKETS = 9;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
-constexpr int INPUT_QUANT = 362;
-constexpr int L1_QUANT = 64;
+constexpr int INPUT_QUANT = 255;
+constexpr int L1_QUANT = 32;
 
 constexpr int ALIGNMENT = 64;
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
@@ -56,7 +56,7 @@ NetworkData out;
 
 template<int Q>
 int16_t quantize(float number) {
-    return static_cast<int16_t>(std::round(number * static_cast<float>(Q)));
+    return static_cast<int16_t>(number * static_cast<float>(Q));
 }
 
 void quantizeNetwork() {
