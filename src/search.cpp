@@ -104,7 +104,7 @@ TUNE_INT(doubleExtensionMargin, 6, 1, 30);
 TUNE_INT(doubleExtensionDepthIncrease, 11, 2, 20);
 TUNE_INT(tripleExtensionMargin, 41, 25, 100);
 
-TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
+TUNE_INT_DISABLED(lmrMcBase, 1, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 
@@ -829,7 +829,7 @@ movesLoop:
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !ttPv || cutNode)) {
+        if (moveCount > lmrMcBase + lmrMcPv * rootNode && depth >= lmrMinDepth && (!capture || !ttPv || cutNode)) {
             int reducedDepth = newDepth - REDUCTIONS[!capture][depth][moveCount];
 
             if (board->stack->checkers)
