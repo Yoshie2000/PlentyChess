@@ -401,7 +401,7 @@ void setoption(std::string line) {
     if (matchesToken(line, "name")) {
         line = line.substr(5);
         name = line.substr(0, line.find(' '));
-        line = line.substr(name.length() + 1);
+        line = line.substr(std::min(line.size(), name.length() + 1));
     }
 
     if (matchesToken(line, "value")) {
