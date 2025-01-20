@@ -74,7 +74,7 @@ TUNE_INT(rfpFactor, 86, 1, 250);
 TUNE_INT_DISABLED(razoringDepth, 5, 2, 20);
 TUNE_INT(razoringFactor, 199, 1, 1000);
 
-TUNE_INT_DISABLED(nmpRedBase, 4, 1, 5);
+TUNE_INT_DISABLED(nmpRedBase, 5, 1, 5);
 TUNE_INT_DISABLED(nmpDepthDiv, 3, 1, 6);
 TUNE_INT_DISABLED(nmpMin, 4, 1, 10);
 TUNE_INT(nmpDivisor, 123, 10, 1000);
