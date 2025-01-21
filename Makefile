@@ -1,5 +1,5 @@
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -funroll-all-loops
+CXX = clang++
+CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
 CXXFLAGS_EXTRA = 
 
 SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp src/fathom/src/tbprobe.c
@@ -118,21 +118,30 @@ endif
 
 all:
 		$(MAKE) process-net
-		$(MAKE) nopgo SKIP_PROCESS_NET=true
+		$(MAKE) _nopgo SKIP_PROCESS_NET=true
+
+profile-build:
+		$(MAKE) process-net
+		$(MAKE) _pgo SKIP_PROCESS_NET=true
 
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
 
-pgo:	CXXFLAGS_EXTRA := -fprofile-generate="pgo"
-pgo:	process-net $(OBJS)
+_pgo:	CXXFLAGS_EXTRA := -fprofile-instr-generate
+_pgo:	$(OBJS)
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 		./$(PROGRAM) bench
-		$(MAKE) clean
-		$(MAKE) CXXFLAGS_EXTRA="-fprofile-use="pgo"" nopgo
-		$(RM) -rf pgo
+		$(MAKE) clean_pgo
+		llvm-profdata merge -output=default.profdata default.profraw
+		$(MAKE) CXXFLAGS_EXTRA="-fprofile-instr-use=default.profdata" _nopgo
+		$(RM) -rf default.profraw
+		$(RM) -rf default.profdata
 
-nopgo:	process-net $(OBJS)
+_nopgo:	$(OBJS)
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 
 clean:	
 		$(RM) src/*.o *~ engine processed.bin
+
+clean_pgo:	
+		$(RM) src/*.o *~ engine
