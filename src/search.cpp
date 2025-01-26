@@ -97,7 +97,7 @@ TUNE_INT(fpCaptBase, 431, 150, 750);
 TUNE_INT(fpCaptFactor, 364, 100, 600);
 
 TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
-TUNE_INT(historyPruningFactorCapture, -200, -8192, -128);
+TUNE_INT(historyPruningFactorCapture, -250, -8192, -128);
 TUNE_INT(historyPruningFactorQuiet, -5409, -8192, -128);
 
 TUNE_INT(doubleExtensionMargin, 6, 1, 30);
