@@ -681,7 +681,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     assert(board->stack);
 
     // IIR 2: Electric boolagoo
-    if (!ttHit && depth >= iirMinDepth && pvNode)
+    if (!ttHit && depth >= iirMinDepth && (pvNode || cutNode))
         depth--;
 
 movesLoop:
