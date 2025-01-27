@@ -2,15 +2,17 @@
 
 PlentyChess is a very strong UCI chess engine using an efficiently updated neural network (NNUE) for evaluation.
 
-The network is trained on 7.2bn self-generated positions of standard chess and Double Fischer Random Chess (DFRC) using [bullet](https://github.com/jw1912/bullet).
+The network is trained on 3.1bn self-generated standard chess positions using [bullet](https://github.com/jw1912/bullet).
 
-PlentyChess 3.0.1 consistently ranks within the top 10 on various chess engine rating lists:
-- 9th on [SPCC](https://www.sp-cc.de/), 3686 Elo
-- 8th on [Ipman Chess](https://ipmanchess.yolasite.com/r9-7945hx.php), 3561 Elo (excluding duplicate engines)
+PlentyChess consistently ranks within the top 5 on various chess engine rating lists:
+- 5th on [SPCC](https://www.sp-cc.de/), 3722 Elo
+- 4th on [Ipman Chess](https://ipmanchess.yolasite.com/r9-7945hx.php), 3578 Elo (excluding duplicate engines)
 - 5th on [CEGT](http://www.cegt.net/5Plus3Rating/Purelist/rangliste.html) with pondering, 3613 Elo
-- 7th on [CCRL](https://computerchess.org.uk/ccrl/4040/), 3610 Elo
+- 5th on [CCRL](https://computerchess.org.uk/ccrl/4040/), 3618 Elo
+- 3rd on [MCERL](https://www.chessengeria.eu/mcerl) (Mac only), 3785 Elo (excluding duplicate engines)
+- 4th on [e4e6](https://e4e6.com/324/) (Chess324), 3753 Elo
 
-(Last updated: 28th December 2024)
+(Last updated: 27th January 2025)
 
 Additionally, it plays live in the [Chess.com Computer Championship](https://www.chess.com/computer-chess-championship) and the [Top Chess Engine Championship](https://tcec-chess.com/).
 
