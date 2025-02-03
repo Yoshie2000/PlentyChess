@@ -413,7 +413,7 @@ Eval NNUE::evaluate(Board* board) {
         VecF converted = cvtepi32Ps(l2NeuronsVec[l2]);
         VecF l2Result = addPs(mulPs(converted, psNorm), l1Biases[l2]);
         VecF l2Activated = maxPs(minPs(l2Result, psOne), psZero);
-        l2FloatsVec[l2] = l2Activated;
+        l2FloatsVec[l2] = mulPs(l2Activated, l2Activated);
     }
 
     VecF* l3NeuronsVec = reinterpret_cast<VecF*>(l3Neurons);
@@ -428,6 +428,7 @@ Eval NNUE::evaluate(Board* board) {
     for (int l2 = 0; l2 < L2_SIZE; l2++) {
         float l2Result = static_cast<float>(l2Neurons[l2]) * L1_NORMALISATION + networkData->l1Biases[bucket][l2];
         float l2Activated = std::clamp(l2Result, 0.0f, 1.0f);
+        l2Activated *= l2Activated;
 
         for (int l3 = 0; l3 < L3_SIZE; l3++) {
             l3Neurons[l3] = std::fma(l2Activated, networkData->l2Weights[bucket][l2 * L3_SIZE + l3], l3Neurons[l3]);
@@ -446,6 +447,7 @@ Eval NNUE::evaluate(Board* board) {
     for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
             VecF l3Activated = maxPs(minPs(l3NeuronsVec[l3 + chunk], psOne), psZero);
+            l3Activated = mulPs(l3Activated, l3Activated);
             resultSums[chunk] = fmaddPs(l3Activated, l3WeightsVec[l3 + chunk], resultSums[chunk]);
         }
     }
@@ -458,6 +460,7 @@ Eval NNUE::evaluate(Board* board) {
     for (int l3 = 0; l3 < L3_SIZE; l3 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
             float l3Activated = std::clamp(l3Neurons[l3 + chunk], 0.0f, 1.0f);
+            l3Activated *= l3Activated;
             resultSums[chunk] = std::fma(l3Activated, networkData->l3Weights[bucket][l3 + chunk], resultSums[chunk]);
         }
     }
