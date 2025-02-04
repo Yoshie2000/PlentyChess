@@ -28,7 +28,7 @@ jobs:
         if [[ "$bench" != "$real" ]]; then echo "got $real, expected $bench" && exit 1; fi
     
     - name: Upload binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: PlentyChess-${{github.sha}}-neon-${{matrix.os}}
         path: ./PlentyChess
