@@ -5,6 +5,34 @@ CXXFLAGS_EXTRA =
 SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp src/fathom/src/tbprobe.c
 OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
 
+# Compiler detection for PGO
+COMPILER_VERSION := $(shell $(CXX) --version)
+ifneq (, $(findstring profile-build,$(MAKECMDGOALS)))
+	ifneq (, $(findstring clang,$(COMPILER_VERSION)))
+		PGO_GENERATE := -fprofile-instr-generate
+		PGO_USE := -fprofile-instr-use=default.profdata
+		PGO_MERGE := llvm-profdata merge -output=default.profdata default.profraw
+		PGO_FILES := default.profraw default.profdata
+
+		ifneq ($(OS), Windows_NT)
+			ifeq (,$(shell which llvm-profdata))
+$(warning llvm-profdata not found, disabling profile-build)
+				PGO_SKIP := true
+			endif
+		else
+			ifeq (,$(shell where llvm-profdata))
+$(warning llvm-profdata not found, disabling profile-build)
+				PGO_SKIP := true
+			endif
+		endif
+	else
+		PGO_GENERATE := -fprofile-generate
+		PGO_USE := -fprofile-use
+		PGO_MERGE := 
+		PGO_FILES := pgo src/*.gcda *.gcda
+	endif
+endif
+
 # Debug vs. Production flags
 PROGRAM = engine
 ifdef EXE
@@ -121,27 +149,27 @@ all:
 		$(MAKE) _nopgo SKIP_PROCESS_NET=true
 
 profile-build:
+ifneq ($(PGO_SKIP), true)
 		$(MAKE) process-net
 		$(MAKE) _pgo SKIP_PROCESS_NET=true
+else
+		$(MAKE) all
+endif
 
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
 
-_pgo:	CXXFLAGS_EXTRA := -fprofile-instr-generate
+_pgo:	CXXFLAGS_EXTRA := $(PGO_GENERATE)
 _pgo:	$(OBJS)
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 		./$(PROGRAM) bench
-		$(MAKE) clean_pgo
-		llvm-profdata merge -output=default.profdata default.profraw
-		$(MAKE) CXXFLAGS_EXTRA="-fprofile-instr-use=default.profdata" _nopgo
-		$(RM) -rf default.profraw
-		$(RM) -rf default.profdata
+		$(RM) src/*.o *~ engine
+		$(PGO_MERGE)
+		$(MAKE) CXXFLAGS_EXTRA="$(PGO_USE)" _nopgo
+		$(RM) -rf $(PGO_FILES)
 
 _nopgo:	$(OBJS)
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 
 clean:	
 		$(RM) src/*.o *~ engine processed.bin
-
-clean_pgo:	
-		$(RM) src/*.o *~ engine
