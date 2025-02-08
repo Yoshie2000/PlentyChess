@@ -839,7 +839,7 @@ movesLoop:
                 reducedDepth--;
 
             if (cutNode)
-                reducedDepth -= 2;
+                reducedDepth -= 2 + ttPv;
             
             reducedDepth += std::abs(correctionValue / 16000000);
 
