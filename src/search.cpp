@@ -686,6 +686,9 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
 movesLoop:
 
+    if (stopped || exiting)
+        return 0;
+
     Move quietMoves[32];
     Move captureMoves[32];
     int quietSearchCount[32];
@@ -768,6 +771,9 @@ movesLoop:
             stack->excludedMove = move;
             Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
             stack->excludedMove = MOVE_NONE;
+
+            if (stopped || exiting)
+                return 0;
 
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further

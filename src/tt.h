@@ -53,20 +53,21 @@ extern uint8_t TT_GENERATION_COUNTER;
 
 struct TTEntry {
     uint16_t hash = 0;
-    Move bestMove = MOVE_NONE;
-    uint8_t depth = NO_DEPTH;
-    uint8_t flags = TT_NOBOUND;
-    int16_t eval = EVAL_NONE;
-    int16_t value = EVAL_NONE;
+    Move bestMove = 0;
+    uint8_t depth = 0;
+    uint8_t flags = 0;
+    int16_t eval = 0;
+    int16_t value = 0;
 
     constexpr Move getMove() { return bestMove; };
-    constexpr int getDepth() { return depth == NO_DEPTH ? 0 : depth; };
+    constexpr int getDepth() { return depth; };
     constexpr uint8_t getFlag() { return flags & 0x3; };
     constexpr Eval getEval() { return eval; };
     constexpr Eval getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
 
     void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags);
+    bool isInitialised() { return hash != 0; };
 };
 
 struct TTCluster {
@@ -125,7 +126,7 @@ public:
         int count = 0;
         for (int i = 0; i < 1000; i++) {
             for (int j = 0; j < CLUSTER_SIZE; j++) {
-                if ((table[i].entries[j].flags & GENERATION_MASK) == TT_GENERATION_COUNTER && table[i].entries[j].eval != EVAL_NONE)
+                if ((table[i].entries[j].flags & GENERATION_MASK) == TT_GENERATION_COUNTER && table[i].entries[j].isInitialised())
                     count++;
             }
         }
@@ -140,15 +141,13 @@ public:
             size_t startCluster = thread * (clusterCount / threadCount);
             size_t endCluster = thread == threadCount - 1 ? clusterCount : (thread + 1) * (clusterCount / threadCount);
             ts.push_back(std::thread([this, startCluster, endCluster]() {
-                for (size_t i = startCluster; i < endCluster; i++) {
-                    table[i] = TTCluster();
-                }
+                std::memset(static_cast<void*>(&table[startCluster]), 0, sizeof(TTCluster) * (endCluster - startCluster));
             }));
         }
 
-        std::for_each(std::make_move_iterator(ts.begin()), std::make_move_iterator(ts.end()), [](std::thread t) {
+        for (auto& t : ts) {
             t.join();
-        });
+        }
     }
 
 };
