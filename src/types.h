@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <cassert>
 
 constexpr int MAX_PLY = 246;
 constexpr int MAX_MOVES = 218;
@@ -52,6 +53,7 @@ constexpr PromotionType promotionType(Move move) {
 }
 
 inline Square lsb(Bitboard bb) {
+    assert(bb > 0);
     return __builtin_ctzll(bb);
 }
 inline Square popLSB(Bitboard* bb) {

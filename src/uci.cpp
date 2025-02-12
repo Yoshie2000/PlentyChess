@@ -19,6 +19,11 @@
 #include "spsa.h"
 #include "history.h"
 #include "fathom/src/tbprobe.h"
+#include <iomanip>
+#include <istream>
+#include <ostream>
+#include <iostream>
+#include <fstream>
 
 namespace UCI {
     UCIOptions Options;
@@ -322,6 +327,71 @@ void seetest(Board* board) {
     std::cout << "Failed: " << failed << std::endl;
 }
 
+struct __attribute__((packed)) BulletEntry {
+    std::uint64_t occ;
+    std::uint8_t  pcs[16];
+    std::int16_t  score;
+    std::uint8_t  result;
+    std::uint8_t  king_square;
+    std::uint8_t  opp_king_square;
+    std::uint8_t  extra[3];
+};
+
+void relabel(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
+    *stackQueue = std::deque<BoardStack>(1);
+    board->stack = &stackQueue->back();
+
+    board->startpos();
+    UCI::nnue.reset(board);
+    UCI::nnue.incrementAccumulator();
+
+    std::ifstream is(line, std::ios::binary);
+    std::ofstream os(line + ".out2", std::ios::binary);
+
+    if (!is.is_open()) {
+        std::cout << "Failed to open input file." << std::endl;
+        return;
+    }
+
+    if (!os.is_open()) {
+        std::cout << "Failed to open output file." << std::endl;
+        return;
+    }
+
+    std::cout << "Relabling from bulletformat file " << std::quoted(line) << " to "
+              << std::quoted(line + ".out2") << "..." << std::endl;
+
+    BulletEntry currEntry;
+
+    while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry)))
+    {
+        board->parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
+        Bitboard occ = currEntry.occ;
+        size_t count = 0;
+        while (occ) {
+            Square sq = popLSB(&occ);
+            uint8_t packedPieces = currEntry.pcs[count / 2];
+            int pieceWithColor = ((count % 2 == 0) ? packedPieces & 0b1111 : packedPieces >> 4);
+            Piece piece = static_cast<Piece>(pieceWithColor & 0b111);
+            Color pieceColor = static_cast<Color>(pieceWithColor >> 3);
+            count++;
+
+            board->pieces[sq] = piece;
+            board->byColor[pieceColor] ^= bitboard(sq);
+            board->byPiece[piece] ^= bitboard(sq);
+        }
+        for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
+            UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
+            memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byColor[side], board->byColor, sizeof(board->byColor));
+            memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byPiece[side], board->byPiece, sizeof(board->byPiece));
+        }
+
+        currEntry.score = UCI::nnue.evaluate(board);
+
+        os.write(reinterpret_cast<const char*>(&currEntry), sizeof(currEntry));
+    }
+}
+
 void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
     *stackQueue = std::deque<BoardStack>(1);
     board->stack = &stackQueue->back();
@@ -549,6 +619,12 @@ void uciLoop(int argc, char* argv[]) {
     return;
 #endif
 
+    if (argc > 1 && matchesToken(argv[1], "relabel")) {
+        std::string param(argv[2]);
+        relabel(param, &board, &stackQueue);
+        return;
+    }
+
     if (argc > 1 && matchesToken(argv[1], "genfens")) {
         std::cout << "starting fen generation" << std::endl;
         std::string params(argv[1]);
@@ -599,6 +675,7 @@ void uciLoop(int argc, char* argv[]) {
             go(line, &board, &stackQueue);
         } else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
         else if (matchesToken(line, "setoption")) setoption(line.substr(10));
+        else if (matchesToken(line, "relabel")) relabel(line.substr(8), &board, &stackQueue);
 
         /* NON UCI COMMANDS */
         else if (matchesToken(line, "bench")) bench(&stackQueue, &board);

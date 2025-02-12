@@ -248,10 +248,10 @@ Eval NNUE::evaluate(Board* board) {
     assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
 
     // Make sure the current accumulators are up to date
-    calculateAccumulators<Color::WHITE>();
-    calculateAccumulators<Color::BLACK>();
+    refreshAccumulator<Color::WHITE>(&accumulatorStack[currentAccumulator]);
+    refreshAccumulator<Color::BLACK>(&accumulatorStack[currentAccumulator]);
 
-    assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
+    // assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
 
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
