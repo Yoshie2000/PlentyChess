@@ -727,7 +727,8 @@ movesLoop:
             && board->hasNonPawns()
             ) {
 
-            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] / 1000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            int lmrDepthFrac = std::max(0, 1000 * depth - REDUCTIONS[!capture][depth][moveCount] - 1000 * !improving + 1000 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            int lmrDepth = lmrDepthFrac / 1000;
 
             if (!pvNode && !skipQuiets) {
 
@@ -737,7 +738,7 @@ movesLoop:
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                if (!capture && lmrDepth  < fpDepth && eval + fpBase + (fpFactor * lmrDepthFrac) / 1000 <= alpha)
                     skipQuiets = true;
             }
 
