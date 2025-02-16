@@ -411,7 +411,7 @@ Eval NNUE::evaluate(Board* board) {
 
     for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
         VecF converted = cvtepi32Ps(l2NeuronsVec[l2]);
-        VecF l2Result = addPs(mulPs(converted, psNorm), l1Biases[l2]);
+        VecF l2Result = fmaddPs(converted, psNorm, l1Biases[l2]);
         VecF l2Activated = maxPs(minPs(l2Result, psOne), psZero);
         l2FloatsVec[l2] = mulPs(l2Activated, l2Activated);
     }
