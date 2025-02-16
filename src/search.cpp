@@ -729,18 +729,6 @@ movesLoop:
 
             int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] / 1000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
-            if (!pvNode && !skipQuiets) {
-
-                // Movecount pruning (LMP)
-                if (moveCount >= LMP_MARGIN[depth][improving]) {
-                    skipQuiets = true;
-                }
-
-                // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
-                    skipQuiets = true;
-            }
-
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
                 Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
@@ -756,6 +744,18 @@ movesLoop:
             // SEE Pruning
             if (!SEE(board, move, (2 + pvNode) * SEE_MARGIN[!capture ? lmrDepth : depth][!capture] / 2))
                 continue;
+
+            if (!pvNode && !skipQuiets) {
+
+                // Movecount pruning (LMP)
+                if (moveCount >= LMP_MARGIN[depth][improving]) {
+                    skipQuiets = true;
+                }
+
+                // Futility pruning
+                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                    skipQuiets = true;
+            }
 
         }
 
