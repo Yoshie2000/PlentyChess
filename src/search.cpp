@@ -65,7 +65,7 @@ TUNE_INT(qsSeeMargin, -103, -200, 50);
 TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 
 TUNE_INT(staticHistoryFactor, -38, -500, -1);
-TUNE_INT(staticHistoryMin, -160, -1000, -1);
+TUNE_INT(staticHistoryMin, -80, -1000, -1);
 TUNE_INT(staticHistoryMax, 160, 1, 1000);
 
 TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
