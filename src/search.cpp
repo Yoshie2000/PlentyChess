@@ -6,7 +6,6 @@
 #include <cmath>
 #include <thread>
 #include <map>
-#include <unordered_set>
 
 #include <chrono>
 #include <thread>
@@ -165,9 +164,7 @@ void initReductions() {
 }
 
 uint64_t perftInternal(Board* board, NNUE* nnue, int depth) {
-    if (depth == 0) {
-        return 1;
-    }
+    if (depth == 0) return 1;
 
     BoardStack stack;
 
