@@ -640,7 +640,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         && !excluded
         && depth > probCutDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
-        && !(ttDepth >= depth - 3 && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
+        && !(ttDepth >= depth - 3 && ttValue != EVAL_NONE && ttValue < probCutBeta && (ttFlag & TT_UPPERBOUND))) {
 
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
