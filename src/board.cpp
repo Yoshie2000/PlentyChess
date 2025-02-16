@@ -1093,7 +1093,9 @@ uint64_t Board::hashAfter(Move move) {
             Square pawnSquare1 = target + 1;
             Square pawnSquare2 = target - 1;
             Bitboard epPawns = (bitboard(pawnSquare1) | bitboard(pawnSquare2)) & epRank & enemyPawns;
-            if (epPawns)
+            bool pinned = stack->blockers[flip(stm)] & bitboard(epPawns);
+            bool allowed = !pinned || (BB::LINE[origin][target] & byColor[flip(stm)] & byPiece[Piece::KING]);
+            if (epPawns && allowed)
                 hash ^= ZOBRIST_ENPASSENT[fileOf(origin)];
         }
     }
