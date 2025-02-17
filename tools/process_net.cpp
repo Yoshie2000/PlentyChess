@@ -13,7 +13,7 @@
 #endif
 
 constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 1536;
+constexpr int L1_SIZE = 4096;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
