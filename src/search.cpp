@@ -38,18 +38,18 @@ TUNE_FLOAT_DISABLED(tmNodesFactor, 0.921048521228935f, 0.1f, 2.5f);
 TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 6);
 TUNE_INT_DISABLED(aspirationWindowDelta, 14, 1, 30);
 TUNE_INT_DISABLED(aspirationWindowDeltaBase, 10, 1, 30);
-TUNE_INT(aspirationWindowDeltaDivisor, 13002, 7500, 17500);
+TUNE_INT_DISABLED(aspirationWindowDeltaDivisor, 13002, 7500, 17500);
 TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT_DISABLED(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f);
 
 // Reduction / Margin tables
-TUNE_FLOAT(lmrReductionNoisyBase, -0.13908573295700846f, -2.0f, -0.1f);
-TUNE_FLOAT(lmrReductionNoisyFactor, 3.2138426839474468f, 2.0f, 4.0f);
-TUNE_FLOAT(lmrReductionQuietBase, 1.203634500924053f, 0.50f, 1.5f);
-TUNE_FLOAT(lmrReductionQuietFactor, 2.8792614798870306f, 2.0f, 4.0f);
+TUNE_FLOAT_DISABLED(lmrReductionNoisyBase, -0.13908573295700846f, -2.0f, -0.1f);
+TUNE_FLOAT_DISABLED(lmrReductionNoisyFactor, 3.2138426839474468f, 2.0f, 4.0f);
+TUNE_FLOAT_DISABLED(lmrReductionQuietBase, 1.203634500924053f, 0.50f, 1.5f);
+TUNE_FLOAT_DISABLED(lmrReductionQuietFactor, 2.8792614798870306f, 2.0f, 4.0f);
 
-TUNE_FLOAT(seeMarginNoisy, -24.47291348333615f, -50.0f, -10.0f);
-TUNE_FLOAT(seeMarginQuiet, -76.22223052179581f, -100.0f, -50.0f);
+TUNE_INT(seeMarginNoisy, -2447, -5000, -1000);
+TUNE_INT(seeMarginQuiet, -7622, -10000, -5000);
 TUNE_FLOAT(lmpMarginWorseningBase, 2.0264034228074035f, -1.0f, 2.5f);
 TUNE_FLOAT(lmpMarginWorseningFactor, 0.36773070268987235f, 0.1f, 1.5f);
 TUNE_FLOAT(lmpMarginWorseningPower, 1.6488172531400145f, 1.0f, 3.0f);
@@ -58,35 +58,37 @@ TUNE_FLOAT(lmpMarginImprovingFactor, 0.8372651393568566f, 0.5f, 2.0f);
 TUNE_FLOAT(lmpMarginImprovingPower, 1.974333065229244f, 1.0f, 3.0f);
 
 // Search values
-TUNE_INT(qsFutilityOffset, 68, 1, 125);
-TUNE_INT(qsSeeMargin, -103, -200, 50);
+TUNE_INT_DISABLED(qsFutilityOffset, 68, 1, 125);
+TUNE_INT_DISABLED(qsSeeMargin, -103, -200, 50);
 
 // Pre-search pruning
 TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 
-TUNE_INT(staticHistoryFactor, -38, -500, -1);
-TUNE_INT(staticHistoryMin, -50, -1000, -1);
-TUNE_INT(staticHistoryMax, 160, 1, 1000);
+TUNE_INT_DISABLED(staticHistoryFactor, -38, -500, -1);
+TUNE_INT_DISABLED(staticHistoryMin, -50, -1000, -1);
+TUNE_INT_DISABLED(staticHistoryMax, 160, 1, 1000);
 
 TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
-TUNE_INT(rfpFactor, 97, 1, 250);
+TUNE_INT_DISABLED(rfpFactor, 97, 1, 250);
 
 TUNE_INT_DISABLED(razoringDepth, 5, 2, 20);
-TUNE_INT(razoringFactor, 238, 1, 1000);
+TUNE_INT_DISABLED(razoringFactor, 238, 1, 1000);
 
 TUNE_INT_DISABLED(nmpRedBase, 4, 1, 5);
 TUNE_INT_DISABLED(nmpDepthDiv, 3, 1, 6);
 TUNE_INT_DISABLED(nmpMin, 4, 1, 10);
-TUNE_INT(nmpDivisor, 186, 10, 1000);
-TUNE_INT(nmpEvalDepth, 21, 1, 100);
-TUNE_INT(nmpEvalBase, 161, 50, 300);
+TUNE_INT_DISABLED(nmpDivisor, 186, 10, 1000);
+TUNE_INT_DISABLED(nmpEvalDepth, 21, 1, 100);
+TUNE_INT_DISABLED(nmpEvalBase, 161, 50, 300);
 
-TUNE_INT(probCutBetaOffset, 204, 1, 500);
+TUNE_INT_DISABLED(probCutBetaOffset, 204, 1, 500);
 TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 
 // In-search pruning
 TUNE_INT(earlyLmrHistoryFactorQuiet, 16277, 10000, 20000);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14971, 10000, 20000);
+
+TUNE_INT(moveloopImproving, 1000, 0, 5000);
 
 TUNE_INT_DISABLED(fpDepth, 11, 1, 20);
 TUNE_INT(fpBase, 216, 1, 1000);
@@ -108,39 +110,38 @@ TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 
-TUNE_INT(lmrCheck, 931, 0, 5000);
-TUNE_INT(lmrTtPv, 1597, 0, 5000);
-TUNE_INT(lmrCutnode, 1997, 0, 5000);
-TUNE_INT(lmrCorrection, 16074, 1000, 20000);
-TUNE_INT(lmrHistoryFactorQuiet, 24297, 10000, 30000);
-TUNE_INT(lmrHistoryFactorCapture, 310166, 250000, 400000);
+TUNE_INT_DISABLED(lmrCheck, 931, 0, 5000);
+TUNE_INT_DISABLED(lmrTtPv, 1597, 0, 5000);
+TUNE_INT_DISABLED(lmrCutnode, 1997, 0, 5000);
+TUNE_INT_DISABLED(lmrCorrection, 16074, 1000, 20000);
+TUNE_INT_DISABLED(lmrHistoryFactorQuiet, 24297, 10000, 30000);
+TUNE_INT_DISABLED(lmrHistoryFactorCapture, 310166, 250000, 400000);
 
 TUNE_INT_DISABLED(lmrDeeperBase, 40, 1, 100);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
 
-TUNE_INT(lmrPassBonusBase, -313, -500, 500);
-TUNE_INT(lmrPassBonusFactor, 200, 1, 500);
-TUNE_INT(lmrPassBonusMax, 1107, 32, 4096);
+TUNE_INT_DISABLED(lmrPassBonusBase, -313, -500, 500);
+TUNE_INT_DISABLED(lmrPassBonusFactor, 200, 1, 500);
+TUNE_INT_DISABLED(lmrPassBonusMax, 1107, 32, 4096);
 
-TUNE_INT(historyBonusQuietBase, 42, -500, 500);
-TUNE_INT(historyBonusQuietFactor, 208, 1, 500);
-TUNE_INT(historyBonusQuietMax, 2219, 32, 4096);
-TUNE_INT(historyBonusCaptureBase, 25, -500, 500);
-TUNE_INT(historyBonusCaptureFactor, 166, 1, 500);
-TUNE_INT(historyBonusCaptureMax, 1836, 32, 4096);
-TUNE_INT(historyMalusQuietBase, 32, -500, 500);
-TUNE_INT(historyMalusQuietFactor, 226, 1, 500);
-TUNE_INT(historyMalusQuietMax, 1820, 32, 4096);
-TUNE_INT(historyMalusCaptureBase, 118, -500, 500);
-TUNE_INT(historyMalusCaptureFactor, 228, 1, 500);
-TUNE_INT(historyMalusCaptureMax, 1950, 32, 4096);
+TUNE_INT_DISABLED(historyBonusQuietBase, 42, -500, 500);
+TUNE_INT_DISABLED(historyBonusQuietFactor, 208, 1, 500);
+TUNE_INT_DISABLED(historyBonusQuietMax, 2219, 32, 4096);
+TUNE_INT_DISABLED(historyBonusCaptureBase, 25, -500, 500);
+TUNE_INT_DISABLED(historyBonusCaptureFactor, 166, 1, 500);
+TUNE_INT_DISABLED(historyBonusCaptureMax, 1836, 32, 4096);
+TUNE_INT_DISABLED(historyMalusQuietBase, 32, -500, 500);
+TUNE_INT_DISABLED(historyMalusQuietFactor, 226, 1, 500);
+TUNE_INT_DISABLED(historyMalusQuietMax, 1820, 32, 4096);
+TUNE_INT_DISABLED(historyMalusCaptureBase, 118, -500, 500);
+TUNE_INT_DISABLED(historyMalusCaptureFactor, 228, 1, 500);
+TUNE_INT_DISABLED(historyMalusCaptureMax, 1950, 32, 4096);
 
-TUNE_INT(historyDepthBetaOffset, 239, 1, 500);
+TUNE_INT_DISABLED(historyDepthBetaOffset, 239, 1, 500);
 
-TUNE_INT(correctionHistoryFactor, 159, 32, 512);
+TUNE_INT_DISABLED(correctionHistoryFactor, 159, 32, 512);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
-int SEE_MARGIN[MAX_PLY][2];
 int LMP_MARGIN[MAX_PLY][2];
 
 void initReductions() {
@@ -155,9 +156,6 @@ void initReductions() {
     }
 
     for (int depth = 0; depth < MAX_PLY; depth++) {
-        SEE_MARGIN[depth][0] = seeMarginNoisy * depth * depth; // non-quiet
-        SEE_MARGIN[depth][1] = seeMarginQuiet * depth; // quiet
-
         LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
         LMP_MARGIN[depth][1] = lmpMarginImprovingBase + lmpMarginImprovingFactor * std::pow(depth, lmpMarginImprovingPower); // improving
     }
@@ -724,7 +722,7 @@ movesLoop:
             && board->hasNonPawns()
             ) {
 
-            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] / 1000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            int lmrDepth = std::max(0, 1000 * depth - REDUCTIONS[!capture][depth][moveCount] - moveloopImproving * !improving + 1000 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
             if (!pvNode && !skipQuiets) {
 
@@ -734,24 +732,25 @@ movesLoop:
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
+                if (!capture && lmrDepth / 1000 < fpDepth && eval + fpBase + fpFactor * lmrDepth / 1000 <= alpha)
                     skipQuiets = true;
             }
 
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
                 Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
+                if (lmrDepth / 1000 < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 1000 <= alpha)
                     continue;
             }
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth)
+            if (!pvNode && lmrDepth / 1000 < historyPruningDepth && moveHistory < hpFactor * depth)
                 continue;
 
             // SEE Pruning
-            if (!SEE(board, move, (2 + pvNode) * SEE_MARGIN[!capture ? lmrDepth : depth][!capture] / 2))
+            int seeMargin = capture ? depth * depth * seeMarginNoisy / 100 : lmrDepth * seeMarginQuiet / 100000;
+            if (!SEE(board, move, (2 + pvNode) * seeMargin / 2))
                 continue;
 
         }
