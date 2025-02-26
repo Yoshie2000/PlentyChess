@@ -23,82 +23,82 @@
 #include "fathom/src/tbprobe.h"
 
 // Time management
-TUNE_FLOAT_DISABLED(tmInitialAdjustment, 1.0796307320901835f, 0.5f, 1.5f);
-TUNE_INT_DISABLED(tmBestMoveStabilityMax, 18, 10, 30);
-TUNE_FLOAT_DISABLED(tmBestMoveStabilityBase, 1.5114270553993898f, 0.75f, 2.5f);
-TUNE_FLOAT_DISABLED(tmBestMoveStabilityFactor, 0.05192744990530549f, 0.001f, 0.1f);
-TUNE_FLOAT_DISABLED(tmEvalDiffBase, 0.9640137856251421f, 0.5f, 1.5f);
-TUNE_FLOAT_DISABLED(tmEvalDiffFactor, 0.0038870466506728298f, 0.001f, 0.1f);
-TUNE_INT_DISABLED(tmEvalDiffMin, -9, -250, 50);
-TUNE_INT_DISABLED(tmEvalDiffMax, 63, -50, 250);
-TUNE_FLOAT_DISABLED(tmNodesBase, 1.6874618043176948f, 0.5f, 5.0f);
-TUNE_FLOAT_DISABLED(tmNodesFactor, 0.921048521228935f, 0.1f, 2.5f);
+TUNE_FLOAT(tmInitialAdjustment, 1.0796307320901835f, 0.5f, 1.5f);
+TUNE_INT(tmBestMoveStabilityMax, 18, 10, 30);
+TUNE_FLOAT(tmBestMoveStabilityBase, 1.5114270553993898f, 0.75f, 2.5f);
+TUNE_FLOAT(tmBestMoveStabilityFactor, 0.05192744990530549f, 0.001f, 0.1f);
+TUNE_FLOAT(tmEvalDiffBase, 0.9640137856251421f, 0.5f, 1.5f);
+TUNE_FLOAT(tmEvalDiffFactor, 0.0038870466506728298f, 0.001f, 0.1f);
+TUNE_INT(tmEvalDiffMin, -9, -250, 50);
+TUNE_INT(tmEvalDiffMax, 63, -50, 250);
+TUNE_FLOAT(tmNodesBase, 1.6874618043176948f, 0.5f, 5.0f);
+TUNE_FLOAT(tmNodesFactor, 0.921048521228935f, 0.1f, 2.5f);
 
 // Aspiration windows
 TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 6);
 TUNE_INT_DISABLED(aspirationWindowDelta, 14, 1, 30);
 TUNE_INT_DISABLED(aspirationWindowDeltaBase, 10, 1, 30);
-TUNE_INT(aspirationWindowDeltaDivisor, 13002, 7500, 17500);
+TUNE_INT_DISABLED(aspirationWindowDeltaDivisor, 13002, 7500, 17500);
 TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT_DISABLED(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f);
 
 // Reduction / Margin tables
-TUNE_FLOAT(lmrReductionNoisyBase, -0.13908573295700846f, -2.0f, -0.1f);
-TUNE_FLOAT(lmrReductionNoisyFactor, 3.2138426839474468f, 2.0f, 4.0f);
-TUNE_FLOAT(lmrReductionQuietBase, 1.203634500924053f, 0.50f, 1.5f);
-TUNE_FLOAT(lmrReductionQuietFactor, 2.8792614798870306f, 2.0f, 4.0f);
+TUNE_FLOAT_DISABLED(lmrReductionNoisyBase, -0.13908573295700846f, -2.0f, -0.1f);
+TUNE_FLOAT_DISABLED(lmrReductionNoisyFactor, 3.2138426839474468f, 2.0f, 4.0f);
+TUNE_FLOAT_DISABLED(lmrReductionQuietBase, 1.203634500924053f, 0.50f, 1.5f);
+TUNE_FLOAT_DISABLED(lmrReductionQuietFactor, 2.8792614798870306f, 2.0f, 4.0f);
 
-TUNE_FLOAT(seeMarginNoisy, -24.47291348333615f, -50.0f, -10.0f);
-TUNE_FLOAT(seeMarginQuiet, -76.22223052179581f, -100.0f, -50.0f);
-TUNE_FLOAT(lmpMarginWorseningBase, 2.0264034228074035f, -1.0f, 2.5f);
-TUNE_FLOAT(lmpMarginWorseningFactor, 0.36773070268987235f, 0.1f, 1.5f);
-TUNE_FLOAT(lmpMarginWorseningPower, 1.6488172531400145f, 1.0f, 3.0f);
-TUNE_FLOAT(lmpMarginImprovingBase, 2.9529829700559365f, 2.0f, 5.0f);
-TUNE_FLOAT(lmpMarginImprovingFactor, 0.8372651393568566f, 0.5f, 2.0f);
-TUNE_FLOAT(lmpMarginImprovingPower, 1.974333065229244f, 1.0f, 3.0f);
+TUNE_FLOAT_DISABLED(seeMarginNoisy, -24.47291348333615f, -50.0f, -10.0f);
+TUNE_FLOAT_DISABLED(seeMarginQuiet, -76.22223052179581f, -100.0f, -50.0f);
+TUNE_FLOAT_DISABLED(lmpMarginWorseningBase, 2.0264034228074035f, -1.0f, 2.5f);
+TUNE_FLOAT_DISABLED(lmpMarginWorseningFactor, 0.36773070268987235f, 0.1f, 1.5f);
+TUNE_FLOAT_DISABLED(lmpMarginWorseningPower, 1.6488172531400145f, 1.0f, 3.0f);
+TUNE_FLOAT_DISABLED(lmpMarginImprovingBase, 2.9529829700559365f, 2.0f, 5.0f);
+TUNE_FLOAT_DISABLED(lmpMarginImprovingFactor, 0.8372651393568566f, 0.5f, 2.0f);
+TUNE_FLOAT_DISABLED(lmpMarginImprovingPower, 1.974333065229244f, 1.0f, 3.0f);
 
 // Search values
-TUNE_INT(qsFutilityOffset, 68, 1, 125);
-TUNE_INT(qsSeeMargin, -103, -200, 50);
+TUNE_INT_DISABLED(qsFutilityOffset, 68, 1, 125);
+TUNE_INT_DISABLED(qsSeeMargin, -103, -200, 50);
 
 // Pre-search pruning
 TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 
-TUNE_INT(staticHistoryFactor, -38, -500, -1);
-TUNE_INT(staticHistoryMin, -50, -1000, -1);
-TUNE_INT(staticHistoryMax, 160, 1, 1000);
+TUNE_INT_DISABLED(staticHistoryFactor, -38, -500, -1);
+TUNE_INT_DISABLED(staticHistoryMin, -50, -1000, -1);
+TUNE_INT_DISABLED(staticHistoryMax, 160, 1, 1000);
 
 TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
-TUNE_INT(rfpFactor, 97, 1, 250);
+TUNE_INT_DISABLED(rfpFactor, 97, 1, 250);
 
 TUNE_INT_DISABLED(razoringDepth, 5, 2, 20);
-TUNE_INT(razoringFactor, 238, 1, 1000);
+TUNE_INT_DISABLED(razoringFactor, 238, 1, 1000);
 
 TUNE_INT_DISABLED(nmpRedBase, 4, 1, 5);
 TUNE_INT_DISABLED(nmpDepthDiv, 3, 1, 6);
 TUNE_INT_DISABLED(nmpMin, 4, 1, 10);
-TUNE_INT(nmpDivisor, 186, 10, 1000);
-TUNE_INT(nmpEvalDepth, 21, 1, 100);
-TUNE_INT(nmpEvalBase, 161, 50, 300);
+TUNE_INT_DISABLED(nmpDivisor, 186, 10, 1000);
+TUNE_INT_DISABLED(nmpEvalDepth, 21, 1, 100);
+TUNE_INT_DISABLED(nmpEvalBase, 161, 50, 300);
 
-TUNE_INT(probCutBetaOffset, 204, 1, 500);
+TUNE_INT_DISABLED(probCutBetaOffset, 204, 1, 500);
 TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 
 // In-search pruning
-TUNE_INT(earlyLmrHistoryFactorQuiet, 16277, 10000, 20000);
-TUNE_INT(earlyLmrHistoryFactorCapture, 14971, 10000, 20000);
+TUNE_INT_DISABLED(earlyLmrHistoryFactorQuiet, 16277, 10000, 20000);
+TUNE_INT_DISABLED(earlyLmrHistoryFactorCapture, 14971, 10000, 20000);
 
 TUNE_INT_DISABLED(fpDepth, 11, 1, 20);
-TUNE_INT(fpBase, 216, 1, 1000);
-TUNE_INT(fpFactor, 107, 1, 500);
+TUNE_INT_DISABLED(fpBase, 216, 1, 1000);
+TUNE_INT_DISABLED(fpFactor, 107, 1, 500);
 
 TUNE_INT_DISABLED(fpCaptDepth, 9, 1, 20);
-TUNE_INT(fpCaptBase, 411, 150, 750);
-TUNE_INT(fpCaptFactor, 376, 100, 600);
+TUNE_INT_DISABLED(fpCaptBase, 411, 150, 750);
+TUNE_INT_DISABLED(fpCaptFactor, 376, 100, 600);
 
 TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
-TUNE_INT(historyPruningFactorCapture, -1727, -8192, -128);
-TUNE_INT(historyPruningFactorQuiet, -6019, -8192, -128);
+TUNE_INT_DISABLED(historyPruningFactorCapture, -1727, -8192, -128);
+TUNE_INT_DISABLED(historyPruningFactorQuiet, -6019, -8192, -128);
 
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
 TUNE_INT_DISABLED(doubleExtensionDepthIncrease, 11, 2, 20);
@@ -108,36 +108,36 @@ TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 
-TUNE_INT(lmrCheck, 931, 0, 5000);
-TUNE_INT(lmrTtPv, 1597, 0, 5000);
-TUNE_INT(lmrCutnode, 1997, 0, 5000);
-TUNE_INT(lmrCorrection, 16074, 1000, 20000);
-TUNE_INT(lmrHistoryFactorQuiet, 24297, 10000, 30000);
-TUNE_INT(lmrHistoryFactorCapture, 310166, 250000, 400000);
+TUNE_INT_DISABLED(lmrCheck, 931, 0, 5000);
+TUNE_INT_DISABLED(lmrTtPv, 1597, 0, 5000);
+TUNE_INT_DISABLED(lmrCutnode, 1997, 0, 5000);
+TUNE_INT_DISABLED(lmrCorrection, 16074, 1000, 20000);
+TUNE_INT_DISABLED(lmrHistoryFactorQuiet, 24297, 10000, 30000);
+TUNE_INT_DISABLED(lmrHistoryFactorCapture, 310166, 250000, 400000);
 
 TUNE_INT_DISABLED(lmrDeeperBase, 40, 1, 100);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
 
-TUNE_INT(lmrPassBonusBase, -313, -500, 500);
-TUNE_INT(lmrPassBonusFactor, 200, 1, 500);
-TUNE_INT(lmrPassBonusMax, 1107, 32, 4096);
+TUNE_INT_DISABLED(lmrPassBonusBase, -313, -500, 500);
+TUNE_INT_DISABLED(lmrPassBonusFactor, 200, 1, 500);
+TUNE_INT_DISABLED(lmrPassBonusMax, 1107, 32, 4096);
 
-TUNE_INT(historyBonusQuietBase, 42, -500, 500);
-TUNE_INT(historyBonusQuietFactor, 208, 1, 500);
-TUNE_INT(historyBonusQuietMax, 2219, 32, 4096);
-TUNE_INT(historyBonusCaptureBase, 25, -500, 500);
-TUNE_INT(historyBonusCaptureFactor, 166, 1, 500);
-TUNE_INT(historyBonusCaptureMax, 1836, 32, 4096);
-TUNE_INT(historyMalusQuietBase, 32, -500, 500);
-TUNE_INT(historyMalusQuietFactor, 226, 1, 500);
-TUNE_INT(historyMalusQuietMax, 1820, 32, 4096);
-TUNE_INT(historyMalusCaptureBase, 118, -500, 500);
-TUNE_INT(historyMalusCaptureFactor, 228, 1, 500);
-TUNE_INT(historyMalusCaptureMax, 1950, 32, 4096);
+TUNE_INT_DISABLED(historyBonusQuietBase, 42, -500, 500);
+TUNE_INT_DISABLED(historyBonusQuietFactor, 208, 1, 500);
+TUNE_INT_DISABLED(historyBonusQuietMax, 2219, 32, 4096);
+TUNE_INT_DISABLED(historyBonusCaptureBase, 25, -500, 500);
+TUNE_INT_DISABLED(historyBonusCaptureFactor, 166, 1, 500);
+TUNE_INT_DISABLED(historyBonusCaptureMax, 1836, 32, 4096);
+TUNE_INT_DISABLED(historyMalusQuietBase, 32, -500, 500);
+TUNE_INT_DISABLED(historyMalusQuietFactor, 226, 1, 500);
+TUNE_INT_DISABLED(historyMalusQuietMax, 1820, 32, 4096);
+TUNE_INT_DISABLED(historyMalusCaptureBase, 118, -500, 500);
+TUNE_INT_DISABLED(historyMalusCaptureFactor, 228, 1, 500);
+TUNE_INT_DISABLED(historyMalusCaptureMax, 1950, 32, 4096);
 
-TUNE_INT(historyDepthBetaOffset, 239, 1, 500);
+TUNE_INT_DISABLED(historyDepthBetaOffset, 239, 1, 500);
 
-TUNE_INT(correctionHistoryFactor, 159, 32, 512);
+TUNE_INT_DISABLED(correctionHistoryFactor, 159, 32, 512);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
