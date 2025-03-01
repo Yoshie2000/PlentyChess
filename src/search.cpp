@@ -23,16 +23,16 @@
 #include "fathom/src/tbprobe.h"
 
 // Time management
-TUNE_FLOAT(tmInitialAdjustment, 1.0796307320901835f, 0.5f, 1.5f);
-TUNE_INT(tmBestMoveStabilityMax, 18, 10, 30);
-TUNE_FLOAT(tmBestMoveStabilityBase, 1.5114270553993898f, 0.75f, 2.5f);
-TUNE_FLOAT(tmBestMoveStabilityFactor, 0.05192744990530549f, 0.001f, 0.1f);
-TUNE_FLOAT(tmEvalDiffBase, 0.9640137856251421f, 0.5f, 1.5f);
-TUNE_FLOAT(tmEvalDiffFactor, 0.0038870466506728298f, 0.001f, 0.1f);
-TUNE_INT(tmEvalDiffMin, -9, -250, 50);
-TUNE_INT(tmEvalDiffMax, 63, -50, 250);
-TUNE_FLOAT(tmNodesBase, 1.6874618043176948f, 0.5f, 5.0f);
-TUNE_FLOAT(tmNodesFactor, 0.921048521228935f, 0.1f, 2.5f);
+TUNE_FLOAT(tmInitialAdjustment, 1.0802804907068697f, 0.5f, 1.5f);
+TUNE_INT(tmBestMoveStabilityMax, 17, 10, 30);
+TUNE_FLOAT(tmBestMoveStabilityBase, 1.5637819719671833f, 0.75f, 2.5f);
+TUNE_FLOAT(tmBestMoveStabilityFactor, 0.05631182145954412f, 0.001f, 0.1f);
+TUNE_FLOAT(tmEvalDiffBase, 0.9869020024632345f, 0.5f, 1.5f);
+TUNE_FLOAT(tmEvalDiffFactor, 0.005938664789461127f, 0.001f, 0.1f);
+TUNE_INT(tmEvalDiffMin, 1, -250, 50);
+TUNE_INT(tmEvalDiffMax, 58, -50, 250);
+TUNE_FLOAT(tmNodesBase, 1.6619876194926688f, 0.5f, 5.0f);
+TUNE_FLOAT(tmNodesFactor, 0.9322754394630389f, 0.1f, 2.5f);
 
 // Aspiration windows
 TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 6);
