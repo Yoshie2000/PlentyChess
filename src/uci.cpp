@@ -7,6 +7,7 @@
 #include <sstream>
 #include <algorithm>
 #include <tuple>
+#include <random>
 
 #include "board.h"
 #include "uci.h"
@@ -218,7 +219,7 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
         << "\nTotal time (ms) : " << elapsed
         << "\nNodes searched  : " << nodes
         << "\nNodes/second    : " << 1000 * nodes / elapsed << std::endl;
-    
+
     UCI::Options.minimal.value = minimal;
 }
 
@@ -333,57 +334,126 @@ struct __attribute__((packed)) BulletEntry {
 };
 
 void relabel(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
+    // Total stats
+    uint64_t total_processed = 0;
+    uint64_t total_written = 0;
+    uint64_t filtered_piece_count_dist_counter = 0;
+
+    // Piece count stats
+    static constexpr double desired_piece_count_weights[33] = {
+        0.000000,
+        0.000000, 0.000000, 1.339844, 1.437500, 1.527344, 1.609375, 1.683594, 1.750000,
+        1.808594, 1.859375, 1.902344, 1.937500, 1.964844, 1.984375, 1.996094, 2.000000,
+        1.996094, 1.984375, 1.964844, 1.937500, 1.902344, 1.859375, 1.808594, 1.750000,
+        1.683594, 1.609375, 1.527344, 1.437500, 1.339844, 1.234375, 1.121094, 1.000000
+    };
+
+    static constexpr double desired_piece_count_weights_total = []() {
+        double tot = 0;
+        for (auto w : desired_piece_count_weights)
+            tot += w;
+        return tot;
+        }();
+
+    double alpha = 1;
+    double piece_count_history_all[33] = { 0 };
+    double piece_count_history_passed[33] = { 0 };
+    double piece_count_history_all_total = 0;
+    double piece_count_history_passed_total = 0;
+    constexpr double max_skipping_rate = 1.0;
+    std::mt19937_64 s_rng(std::random_device{}());
+
+    // Board setup
     *stackQueue = std::deque<BoardStack>(1);
     board->stack = &stackQueue->back();
-
     board->startpos();
     UCI::nnue.reset(board);
     UCI::nnue.incrementAccumulator();
 
+    // Open files
     std::ifstream is(line, std::ios::binary);
     std::ofstream os(line + ".out2", std::ios::binary);
-
     if (!is.is_open()) {
         std::cout << "Failed to open input file." << std::endl;
         return;
     }
-
     if (!os.is_open()) {
         std::cout << "Failed to open output file." << std::endl;
         return;
     }
 
     std::cout << "Relabling from bulletformat file " << std::quoted(line) << " to "
-              << std::quoted(line + ".out2") << "..." << std::endl;
+        << std::quoted(line + ".out2") << "..." << std::endl;
 
     BulletEntry currEntry;
 
-    while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry)))
-    {
+    while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry))) {
+        total_processed++;
         board->parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
         Bitboard occ = currEntry.occ;
-        size_t count = 0;
-        while (occ) {
-            Square sq = popLSB(&occ);
-            uint8_t packedPieces = currEntry.pcs[count / 2];
-            int pieceWithColor = ((count % 2 == 0) ? packedPieces & 0b1111 : packedPieces >> 4);
-            Piece piece = static_cast<Piece>(pieceWithColor & 0b111);
-            Color pieceColor = static_cast<Color>(pieceWithColor >> 3);
-            count++;
 
-            board->pieces[sq] = piece;
-            board->byColor[pieceColor] ^= bitboard(sq);
-            board->byPiece[piece] ^= bitboard(sq);
-        }
-        for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-            UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
-            memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byColor[side], board->byColor, sizeof(board->byColor));
-            memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byPiece[side], board->byPiece, sizeof(board->byPiece));
+        // Piece count probability skipping
+        const int pc = BB::popcount(occ);
+        piece_count_history_all[pc] += 1;
+        piece_count_history_all_total += 1;
+
+        // update alpha, which scales the filtering probability, to a maximum rate.
+        if (uint64_t(piece_count_history_all_total) % 10000 == 0) {
+            double pass = piece_count_history_all_total * desired_piece_count_weights_total;
+            for (int i = 0; i < 33; ++i) {
+                if (desired_piece_count_weights[pc] > 0) {
+                    double tmp = piece_count_history_all_total * desired_piece_count_weights[pc] /
+                        (desired_piece_count_weights_total * piece_count_history_all[pc]);
+                    if (tmp < pass)
+                        pass = tmp;
+                }
+            }
+            alpha = 1.0 / (pass * max_skipping_rate);
         }
 
-        currEntry.score = UCI::nnue.evaluate(board);
+        double tmp = alpha * piece_count_history_all_total * desired_piece_count_weights[pc] /
+            (desired_piece_count_weights_total * piece_count_history_all[pc]);
+        tmp = std::min(1.0, tmp);
+        std::bernoulli_distribution distrib(1.0 - tmp);
+        if (distrib(s_rng)) {
+            filtered_piece_count_dist_counter++;
+            continue;
+        }
+        piece_count_history_passed[pc] += 1;
+        piece_count_history_passed_total += 1;
+
+        // Process the entry
+        // size_t count = 0;
+        // while (occ) {
+        //     Square sq = popLSB(&occ);
+        //     uint8_t packedPieces = currEntry.pcs[count / 2];
+        //     int pieceWithColor = ((count % 2 == 0) ? packedPieces & 0b1111 : packedPieces >> 4);
+        //     Piece piece = static_cast<Piece>(pieceWithColor & 0b111);
+        //     Color pieceColor = static_cast<Color>(pieceWithColor >> 3);
+        //     count++;
+
+        //     board->pieces[sq] = piece;
+        //     board->byColor[pieceColor] ^= bitboard(sq);
+        //     board->byPiece[piece] ^= bitboard(sq);
+        // }
+        // for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
+        //     UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
+        //     memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byColor[side], board->byColor, sizeof(board->byColor));
+        //     memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byPiece[side], board->byPiece, sizeof(board->byPiece));
+        // }
+
+        // currEntry.score = UCI::nnue.evaluate(board);
 
         os.write(reinterpret_cast<const char*>(&currEntry), sizeof(currEntry));
+        total_written++;
+    }
+
+    std::cout << "Finished processing " << std::quoted(line) << std::endl << "\tProcessed: " << total_processed << std::endl << "\tWritten: " << total_written << std::endl << "\tPiece count skipped: " << filtered_piece_count_dist_counter << std::endl;
+    for (int i = 1; i < 33; i++) {
+        std::cout << "\t\t" << i << ": " << int64_t(piece_count_history_passed[i]) << std::endl;
+    }
+    for (int i = 1; i < 33; i++) {
+        std::cout << "\t\t" << i << ": " << (int64_t(piece_count_history_all[i]) - int64_t(piece_count_history_passed[i])) << std::endl;
     }
 }
 
@@ -668,7 +738,8 @@ void uciLoop(int argc, char* argv[]) {
                 UCI::optionsDirty = false;
             }
             go(line, &board, &stackQueue);
-        } else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
+        }
+        else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
         else if (matchesToken(line, "setoption")) setoption(line.substr(10));
         else if (matchesToken(line, "relabel")) relabel(line.substr(8), &board, &stackQueue);
 
