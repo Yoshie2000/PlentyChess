@@ -401,6 +401,10 @@ movesLoopQsearch:
         bestValue = matedIn(stack->ply); // Checkmate
     }
 
+    if (bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY) {
+        bestValue = (bestValue + beta) / 2;
+    }
+
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : TT_UPPERBOUND;
     ttEntry->update(board->stack->hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
