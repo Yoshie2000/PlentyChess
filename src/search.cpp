@@ -28,7 +28,7 @@ TUNE_INT_DISABLED(tmBestMoveStabilityMax, 18, 10, 30);
 TUNE_FLOAT_DISABLED(tmBestMoveStabilityBase, 1.5114270553993898f, 0.75f, 2.5f);
 TUNE_FLOAT_DISABLED(tmBestMoveStabilityFactor, 0.05192744990530549f, 0.001f, 0.1f);
 TUNE_FLOAT_DISABLED(tmEvalDiffBase, 0.9640137856251421f, 0.5f, 1.5f);
-TUNE_FLOAT_DISABLED(tmEvalDiffFactor, 0.0038870466506728298f, 0.001f, 0.1f);
+TUNE_FLOAT_DISABLED(tmEvalDiffFactor, 0.001943523f, 0.001f, 0.1f);
 TUNE_INT_DISABLED(tmEvalDiffMin, -9, -250, 50);
 TUNE_INT_DISABLED(tmEvalDiffMax, 63, -50, 250);
 TUNE_FLOAT_DISABLED(tmNodesBase, 1.6874618043176948f, 0.5f, 5.0f);
@@ -1080,6 +1080,8 @@ void Thread::tsearch() {
             std::cout << "bestmove " << moveToString(bestThread->rootMoves[0].move, UCI::Options.chess960.value) << " ponder " << moveToString(bestThread->rootMoves[0].pv[1], UCI::Options.chess960.value) << std::endl;
         }
     }
+
+    previousSearchValue = rootMoves[0].value;
 }
 
 void Thread::iterativeDeepening() {
@@ -1203,7 +1205,7 @@ void Thread::iterativeDeepening() {
             tmAdjustment *= tmBestMoveStabilityBase - bestMoveStability * tmBestMoveStabilityFactor;
 
             // Based on score difference to last iteration
-            tmAdjustment *= tmEvalDiffBase + std::clamp(previousValue - rootMoves[0].value, tmEvalDiffMin, tmEvalDiffMax) * tmEvalDiffFactor;
+            tmAdjustment *= tmEvalDiffBase + std::clamp(previousValue - rootMoves[0].value, tmEvalDiffMin, tmEvalDiffMax) * tmEvalDiffFactor + std::clamp((previousSearchValue != EVAL_NONE ? previousSearchValue : previousValue) - rootMoves[0].value, tmEvalDiffMin, tmEvalDiffMax) * tmEvalDiffFactor;
 
             // Based on fraction of nodes that went into the best move
             tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched);

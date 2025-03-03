@@ -42,6 +42,8 @@ public:
     bool stopped = false;
     bool exiting = false;
 
+    Eval previousSearchValue = EVAL_NONE;
+
     SearchData searchData;
     SearchParameters* searchParameters;
     History history;
