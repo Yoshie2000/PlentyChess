@@ -42,6 +42,8 @@ public:
     bool stopped = false;
     bool exiting = false;
 
+    Eval optimism[2];
+
     SearchData searchData;
     SearchParameters* searchParameters;
     History history;
