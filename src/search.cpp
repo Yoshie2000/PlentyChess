@@ -334,7 +334,7 @@ movesLoopQsearch:
     Move move;
     int moveCount = 0;
     bool playedQuiet = false;
-    while ((move = movegen.nextMove()) != MOVE_NONE) {
+    while ((move = movegen.nextMove().first) != MOVE_NONE) {
 
         bool capture = board->isCapture(move);
         if (!capture && playedQuiet && bestValue > -EVAL_TBWIN_IN_MAX_PLY)
@@ -647,7 +647,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         Move probcutTtMove = ttMove != MOVE_NONE && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : MOVE_NONE;
         MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth);
         Move move;
-        while ((move = movegen.nextMove()) != MOVE_NONE) {
+        while ((move = movegen.nextMove().first) != MOVE_NONE) {
             if (move == excludedMove || !board->isLegal(move))
                 continue;
 
@@ -702,9 +702,10 @@ movesLoop:
 
     // Moves loop
     MoveGen movegen(board, &history, stack, ttMove, depth);
-    Move move;
+    std::pair<Move, std::optional<int>> movepickResult;
     int moveCount = 0;
-    while ((move = movegen.nextMove()) != MOVE_NONE) {
+    while ((movepickResult = movegen.nextMove()).first != MOVE_NONE) {
+        Move move = movepickResult.first;
 
         if (move == excludedMove)
             continue;
@@ -719,7 +720,7 @@ movesLoop:
             continue;
 
         uint64_t nodesBeforeMove = searchData.nodesSearched;
-        int moveHistory = history.getHistory(board, board->stack, stack, move, capture);
+        int moveHistory = movepickResult.second.value_or(history.getHistory(board, board->stack, stack, move, capture));
 
         if (!rootNode
             && bestValue > -EVAL_TBWIN_IN_MAX_PLY
@@ -736,14 +737,14 @@ movesLoop:
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && stack->staticEval + fpBase + fpFactor * lmrDepth <= alpha)
+                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
                     skipQuiets = true;
             }
 
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
                 Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                if (lmrDepth < fpCaptDepth && stack->staticEval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
+                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
                     continue;
             }
 

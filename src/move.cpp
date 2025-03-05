@@ -281,7 +281,7 @@ MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move 
     counterMove = MOVE_NONE;
 }
 
-Move MoveGen::nextMove() {
+std::pair<Move, std::optional<int>> MoveGen::nextMove() {
     assert((board->byColor[board->stm] & board->byPiece[Piece::KING]) > 0);
 
     Move* moves;
@@ -293,7 +293,7 @@ Move MoveGen::nextMove() {
 
         stage++;
         if (ttMove != MOVE_NONE && ttMove != MOVE_NULL && board->isPseudoLegal(ttMove)) {
-            return ttMove;
+            return std::make_pair(ttMove, std::nullopt);
         }
 
         [[fallthrough]];
@@ -335,12 +335,12 @@ Move MoveGen::nextMove() {
                 badCaptureList[generatedBadCaptures++] = move;
                 continue;
             }
-            return move;
+            return std::make_pair(move, std::optional<int>{score});
         }
 
         if (probCut || onlyCaptures) {
             stage = STAGE_DONE;
-            return MOVE_NONE;
+            return std::make_pair(MOVE_NONE, std::nullopt);
         }
         stage++;
         [[fallthrough]];
@@ -350,7 +350,7 @@ Move MoveGen::nextMove() {
         stage++;
 
         if (killer != MOVE_NONE && killer != ttMove && board->isPseudoLegal(killer))
-            return killer;
+            return std::make_pair(killer, std::nullopt);
         
         [[fallthrough]];
 
@@ -358,7 +358,7 @@ Move MoveGen::nextMove() {
 
         stage++;
         if (counterMove != MOVE_NONE && counterMove != ttMove && counterMove != killer && !board->isCapture(counterMove) && board->isPseudoLegal(counterMove))
-            return counterMove;
+            return std::make_pair(counterMove, std::nullopt);
 
         [[fallthrough]];
 
@@ -392,8 +392,11 @@ Move MoveGen::nextMove() {
 
     case STAGE_PLAY_QUIETS:
 
-        if (returnedMoves < generatedMoves)
-            return moveList[returnedMoves++];
+        if (returnedMoves < generatedMoves) {
+            Move move = moveList[returnedMoves];
+            int score = moveListScores[returnedMoves++];
+            return std::make_pair(move, std::optional<int>{score});
+        }
 
         stage++;
         [[fallthrough]];
@@ -401,12 +404,12 @@ Move MoveGen::nextMove() {
     case STAGE_PLAY_BAD_CAPTURES:
 
         if (returnedBadCaptures < generatedBadCaptures)
-            return badCaptureList[returnedBadCaptures++];
+            return std::make_pair(badCaptureList[returnedBadCaptures++], std::nullopt);
 
         stage = STAGE_DONE;
     }
 
-    return MOVE_NONE;
+    return std::make_pair(MOVE_NONE, std::nullopt);
 }
 
 int MoveGen::scoreCaptures(int beginIndex, int endIndex) {

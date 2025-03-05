@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 #include <string>
+#include <utility>
+#include <optional>
 
 #include "types.h"
 
@@ -90,7 +92,7 @@ public:
     // ProbCut
     MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int depth);
 
-    Move nextMove();
+    std::pair<Move, std::optional<int>> nextMove();
 
 private:
 
