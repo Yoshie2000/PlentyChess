@@ -106,7 +106,7 @@ TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
-TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
+TUNE_INT_DISABLED(lmrMinDepth, 2, 1, 10);
 
 TUNE_INT(lmrCheck, 931, 0, 5000);
 TUNE_INT(lmrTtPv, 1597, 0, 5000);
