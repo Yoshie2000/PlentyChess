@@ -21,6 +21,7 @@
 #include "nnue.h"
 #include "uci.h"
 #include "fathom/src/tbprobe.h"
+#include <unordered_set>
 
 // Time management
 TUNE_FLOAT_DISABLED(tmInitialAdjustment, 1.0796307320901835f, 0.5f, 1.5f);
@@ -163,8 +164,13 @@ void initReductions() {
     }
 }
 
+std::unordered_set<uint64_t> uniquePositions;
+
 uint64_t perftInternal(Board* board, NNUE* nnue, int depth) {
-    if (depth == 0) return 1;
+    if (depth == 0) {
+        uniquePositions.insert(board->stack->hash);
+        return 1;
+    }
 
     BoardStack stack;
 
@@ -217,6 +223,7 @@ uint64_t perft(Board* board, int depth) {
     double time = (double)(end - begin) / CLOCKS_PER_SEC;
     uint64_t nps = nodes / time;
     std::cout << "Perft: " << nodes << " nodes in " << time << "s => " << nps << "nps" << std::endl;
+    std::cout << "Unique positions: " << uniquePositions.size() << std::endl;
 
     return nodes;
 }
