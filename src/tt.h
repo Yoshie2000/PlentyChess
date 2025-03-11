@@ -65,6 +65,7 @@ struct TTEntry {
     constexpr Eval getEval() { return eval; };
     constexpr Eval getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
+    constexpr uint8_t getAge() { return flags & GENERATION_MASK; };
 
     void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags);
     bool isInitialised() { return hash != 0; };
