@@ -184,12 +184,18 @@ uint64_t perftInternal(Board* board, NNUE* nnue, int depth) {
 
         if (!board->isLegal(move))
             continue;
+        
+        if (depth == 1) {
+            uniquePositions.insert(board->hashAfter(move));
+            nodes++;
+        } else {
+            board->doMove(&stack, move, board->hashAfter(move), nnue);
+            uint64_t subNodes = perftInternal(board, nnue, depth - 1);
+            board->undoMove(move, nnue);
 
-        board->doMove(&stack, move, board->hashAfter(move), nnue);
-        uint64_t subNodes = perftInternal(board, nnue, depth - 1);
-        board->undoMove(move, nnue);
+            nodes += subNodes;
+        }
 
-        nodes += subNodes;
     }
     return nodes;
 }
