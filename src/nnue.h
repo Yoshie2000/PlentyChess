@@ -11,6 +11,7 @@
 #endif
 
 #include "types.h"
+#include "threat-inputs.h"
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 
@@ -460,23 +461,11 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 
 #endif
 
-constexpr int INPUT_SIZE = 768;
+constexpr int INPUT_SIZE = 2 * ThreatInputs::PieceOffsets::END + 768;
 constexpr int L1_SIZE = 1536;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
-constexpr uint8_t KING_BUCKET_LAYOUT[] = {
-  0, 1, 2, 3, 3, 2, 1, 0,
-  4, 4, 5, 5, 5, 5, 4, 4,
-  6, 6, 6, 6, 6, 6, 6, 6,
-  7, 7, 7, 7, 7, 7, 7, 7,
-  8, 8, 8, 8, 8, 8, 8, 8,
-  8, 8, 8, 8, 8, 8, 8, 8,
-  8, 8, 8, 8, 8, 8, 8, 8,
-  8, 8, 8, 8, 8, 8, 8, 8
-};
-constexpr int KING_BUCKETS = 9;
-constexpr bool KING_BUCKETS_FACTORIZED = true;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
@@ -504,17 +493,15 @@ struct DirtyPiece {
 };
 
 struct KingBucketInfo {
-  uint8_t index;
   bool mirrored;
 };
 
 constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
-  return bucket1->mirrored != bucket2->mirrored || bucket1->index != bucket2->index;
+  return bucket1->mirrored != bucket2->mirrored;
 }
 
-constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
+constexpr KingBucketInfo getKingBucket(Square kingSquare) {
   return KingBucketInfo{
-    static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
     fileOf(kingSquare) >= 4
   };
 }
@@ -538,7 +525,7 @@ struct FinnyEntry {
 };
 
 struct NetworkData {
-  alignas(ALIGNMENT) int16_t inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
+  alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -561,7 +548,7 @@ public:
   int currentAccumulator;
   int lastCalculatedAccumulator[2];
 
-  FinnyEntry finnyTable[2][KING_BUCKETS];
+  FinnyEntry finnyTable[2];
 
   void addPiece(Square square, Piece piece, Color pieceColor);
   void removePiece(Square square, Piece piece, Color pieceColor);
@@ -577,6 +564,7 @@ public:
 
   Eval evaluate(Board* board);
 
+  /*
   template<Color side>
   void calculateAccumulators();
   template<Color side>
@@ -590,6 +578,7 @@ public:
   void removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
   template<Color side>
   void movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor);
+  */
 
 };
 

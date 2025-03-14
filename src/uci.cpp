@@ -538,6 +538,10 @@ void uciLoop(int argc, char* argv[]) {
 
     std::cout << "UCI thread running" << std::endl;
 
+    UCI::nnue.evaluate(&board);
+
+    return;
+
 #if defined(PROCESS_NET)
     bench(&stackQueue, &board);
     nnz.permuteNetwork();

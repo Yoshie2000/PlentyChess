@@ -1,0 +1,120 @@
+#pragma once
+
+#include <cstdint>
+#include <cassert>
+#include <limits>
+#include <immintrin.h>
+#include <cstring>
+
+#include "types.h"
+#include "bitboard.h"
+#include "magic.h"
+#include "board.h"
+
+namespace ThreatInputs {
+
+    constexpr uint64_t MAX_ACTIVE_FEATURES = 128;
+
+    class FeatureListIterator {
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = int32_t;
+        using difference_type = std::ptrdiff_t;
+        using pointer = int32_t*;
+        using reference = int32_t&;
+
+        FeatureListIterator(int32_t* ptr) : current(ptr) {}
+
+        reference operator*() const { return *current; }
+        pointer operator->() { return current; }
+
+        FeatureListIterator& operator++() {
+            ++current;
+            return *this;
+        }
+
+        FeatureListIterator operator++(int) {
+            FeatureListIterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        bool operator==(const FeatureListIterator& other) const {
+            return current == other.current;
+        }
+
+        bool operator!=(const FeatureListIterator& other) const {
+            return !(*this == other);
+        }
+
+    private:
+        int32_t* current;
+    };
+
+    class FeatureList {
+    public:
+
+        FeatureList() : featureCount(0) {}
+
+        void add(int32_t feature) {
+            featureIndices[featureCount++] = feature;
+        }
+
+        int32_t operator[](int32_t idx) const {
+            assert(idx < featureCount);
+            return featureIndices[idx];
+        }
+
+        int32_t count() const {
+            return featureCount;
+        }
+
+        FeatureListIterator begin() { return FeatureListIterator(featureIndices); }
+        FeatureListIterator end() { return FeatureListIterator(featureIndices + featureCount); }
+
+    private:
+        int32_t featureIndices[MAX_ACTIVE_FEATURES];
+        int32_t featureCount;
+    };
+
+    namespace SquareThreatCounts {
+
+        constexpr int32_t PAWN = 84;
+        constexpr int32_t KNIGHT[] = { 0, 2, 5, 9, 13, 17, 21, 24, 26, 29, 33, 39, 45, 51, 57, 61, 64, 68, 74, 82, 90, 98, 106, 112, 116, 120, 126, 134, 142, 150, 158, 164, 168, 172, 178, 186, 194, 202, 210, 216, 220, 224, 230, 238, 246, 254, 262, 268, 272, 275, 279, 285, 291, 297, 303, 307, 310, 312, 315, 319, 323, 327, 331, 334, 336 };
+        constexpr int32_t BISHOP[] = { 0, 7, 14, 21, 28, 35, 42, 49, 56, 63, 72, 81, 90, 99, 108, 117, 124, 131, 140, 151, 162, 173, 184, 193, 200, 207, 216, 227, 240, 253, 264, 273, 280, 287, 296, 307, 320, 333, 344, 353, 360, 367, 376, 387, 398, 409, 420, 429, 436, 443, 452, 461, 470, 479, 488, 497, 504, 511, 518, 525, 532, 539, 546, 553, 560 };
+        constexpr int32_t ROOK[] = { 0, 14, 28, 42, 56, 70, 84, 98, 112, 126, 140, 154, 168, 182, 196, 210, 224, 238, 252, 266, 280, 294, 308, 322, 336, 350, 364, 378, 392, 406, 420, 434, 448, 462, 476, 490, 504, 518, 532, 546, 560, 574, 588, 602, 616, 630, 644, 658, 672, 686, 700, 714, 728, 742, 756, 770, 784, 798, 812, 826, 840, 854, 868, 882, 896 };
+        constexpr int32_t QUEEN[] = { 0, 21, 42, 63, 84, 105, 126, 147, 168, 189, 212, 235, 258, 281, 304, 327, 348, 369, 392, 417, 442, 467, 492, 515, 536, 557, 580, 605, 632, 659, 684, 707, 728, 749, 772, 797, 824, 851, 876, 899, 920, 941, 964, 989, 1014, 1039, 1064, 1087, 1108, 1129, 1152, 1175, 1198, 1221, 1244, 1267, 1288, 1309, 1330, 1351, 1372, 1393, 1414, 1435, 1456 };
+        constexpr int32_t KING[] = { 0, 3, 8, 13, 18, 23, 28, 33, 36, 41, 49, 57, 65, 73, 81, 89, 94, 99, 107, 115, 123, 131, 139, 147, 152, 157, 165, 173, 181, 189, 197, 205, 210, 215, 223, 231, 239, 247, 255, 263, 268, 273, 281, 289, 297, 305, 313, 321, 326, 331, 339, 347, 355, 363, 371, 379, 384, 387, 392, 397, 402, 407, 412, 417, 420 };
+
+    }
+
+    namespace PieceOffsets {
+
+        constexpr int32_t PAWN = 0;
+        constexpr int32_t KNIGHT = PAWN + 6 * SquareThreatCounts::PAWN;            // pawn can have threats to 6 different pieces (own pawn, own knight, own rook, opp pawn, opp knight, opp rook)
+        constexpr int32_t BISHOP = KNIGHT + 12 * SquareThreatCounts::KNIGHT[64];   // all 12 pieces possible
+        constexpr int32_t ROOK = BISHOP + 10 * SquareThreatCounts::BISHOP[64];     // queens excluded
+        constexpr int32_t QUEEN = ROOK + 10 * SquareThreatCounts::ROOK[64];        // queens excluded
+        constexpr int32_t KING = QUEEN + 12 * SquareThreatCounts::QUEEN[64];       // all 12 pieces possible
+        constexpr int32_t END = KING + 8 * SquareThreatCounts::KING[64];           // queen and king skipped
+
+    }
+
+    constexpr int32_t MAX = std::numeric_limits<int32_t>::max();
+
+    int32_t localThreatIndex(Square to, Bitboard attackedByFrom);
+    int32_t mirrorBitboard(Bitboard bitboard);
+
+    void addAllFeatures(Board* board, FeatureList& features);
+    void addFeatures(Bitboard* bitboards, FeatureList& features);
+
+    void addPieceThreat(Piece piece, Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
+
+    void addPawnThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
+    void addKnightThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
+    void addBishopThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
+    void addRookThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
+    void addQueenThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
+    void addKingThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
+
+}
