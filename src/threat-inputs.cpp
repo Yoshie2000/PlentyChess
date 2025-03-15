@@ -1,13 +1,15 @@
+#include <iostream>
+
 #include "threat-inputs.h"
 
 namespace ThreatInputs {
 
     // Count how many attacked squares are < to, effectively creating an index for the "to" square relative to the "from" square
     int32_t localThreatIndex(Square to, Bitboard attackedByFrom) {
-        return BB::popcount(attackedByFrom & (Bitboard(to) - 1));
+        return BB::popcount(attackedByFrom & (bitboard(to) - 1));
     }
 
-    int32_t mirrorBitboard(Bitboard bitboard) {
+    Bitboard mirrorBitboard(Bitboard bitboard) {
         constexpr Bitboard K1 = 0x5555555555555555;
         constexpr Bitboard K2 = 0x3333333333333333;
         constexpr Bitboard K4 = 0x0f0f0f0f0f0f0f0f;
@@ -16,23 +18,24 @@ namespace ThreatInputs {
         return ((bitboard >> 4) & K4) | ((bitboard & K4) << 4);
     }
 
-    void addAllFeatures(Board* board, FeatureList& features) {
+    void addSideFeatures(Board* board, Color side, FeatureList& features) {
         // Set up bitboards
         Bitboard bitboards[8];
-        for (Color side = Color::WHITE; side <= Color::BLACK; ++side)
-            bitboards[side] = board->byColor[side];
+        for (Color c = Color::WHITE; c <= Color::BLACK; ++c)
+            bitboards[c] = board->byColor[c];
         for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece)
             bitboards[2 + piece] = board->byPiece[piece];
         
-        // Add STM features
-        addFeatures(bitboards, features);
+        bool stm = side == board->stm;
 
-        // Swap colors
-        std::swap(bitboards[0], bitboards[1]);
-        for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece)
-            bitboards[2 + piece] = __bswap_64(bitboards[2 + piece]);
-
-        // Add NSTM features
+        if (!stm) {
+            // Swap colors
+            std::swap(bitboards[0], bitboards[1]);
+            for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece)
+                bitboards[2 + piece] = __bswap_64(bitboards[2 + piece]);
+        }
+        
+        // Add features
         addFeatures(bitboards, features);
     }
 
@@ -70,36 +73,42 @@ namespace ThreatInputs {
                 while (pieceBitboard) {
                     Square square = popLSB(&pieceBitboard);
                     Bitboard attacks = BB::attackedSquares(piece, square, occupancy, side) & occupancy;
-                    
+
                     // Add the "standard" 768 piece feature
-                    features.add(2 * PieceOffsets::END + 384 * flip(side) + 64 * piece + square);
+                    features.add(2 * PieceOffsets::END + 384 * side + 64 * piece + square);
+                    // std::cout << features[features.count() - 1] << std::endl;
 
                     while (attacks) {
                         Square attackedSquare = popLSB(&attacks);
-                        bool enemy = static_cast<bool>(enemyOccupancy & Bitboard(attackedSquare));
-                        
+                        bool enemy = static_cast<bool>(enemyOccupancy & bitboard(attackedSquare));
+                        Color relativeSide = static_cast<Color>(static_cast<bool>(bitboards[1] & bitboard(attackedSquare)));
+
                         assert(mailbox[attackedSquare] != Piece::NONE);
 
-                        addPieceThreat(piece, square, attackedSquare, mailbox[attackedSquare], enemy, features, sideOffset);
+                        addPieceThreat(piece, square, attackedSquare, mailbox[attackedSquare], relativeSide, enemy, features, sideOffset);
+                        if (features[features.count() - 1] == 40746) {
+                            std::cout << int(piece) << " " << int(square) << " " << int(attackedSquare) << " " << int(mailbox[attackedSquare]) << " " << (enemy ? "true" : "false") << std::endl;
+                        }
+                        // std::cout << features[features.count() - 1] << " " << features.count() << std::endl;
                     }
                 }
             }
         }
     }
 
-    void addPieceThreat(Piece piece, Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset) {
+    void addPieceThreat(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset) {
         switch (piece) {
-            case Piece::PAWN: { addPawnThreat(from, to, target, enemy, features, sideOffset); break; }
-            case Piece::KNIGHT: { addKnightThreat(from, to, target, enemy, features, sideOffset); break; }
-            case Piece::BISHOP: { addBishopThreat(from, to, target, enemy, features, sideOffset); break; }
-            case Piece::ROOK: { addRookThreat(from, to, target, enemy, features, sideOffset); break; }
-            case Piece::QUEEN: { addQueenThreat(from, to, target, enemy, features, sideOffset); break; }
-            case Piece::KING: { addKingThreat(from, to, target, enemy, features, sideOffset); break; }
-            default: assert(false);
+        case Piece::PAWN: { addPawnThreat(from, to, target, relativeSide, enemy, features, sideOffset); break; }
+        case Piece::KNIGHT: { addKnightThreat(from, to, target, relativeSide, features, sideOffset); break; }
+        case Piece::BISHOP: { addBishopThreat(from, to, target, relativeSide, features, sideOffset); break; }
+        case Piece::ROOK: { addRookThreat(from, to, target, relativeSide, features, sideOffset); break; }
+        case Piece::QUEEN: { addQueenThreat(from, to, target, relativeSide, features, sideOffset); break; }
+        case Piece::KING: { addKingThreat(from, to, target, relativeSide, features, sideOffset); break; }
+        default: assert(false);
         }
     }
 
-    void addPawnThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset) {
+    void addPawnThreat(Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset) {
         // Allow threats to pawns, knights and rooks
         constexpr int32_t OFFSETS[] = { 0, 1, MAX, 2, MAX, MAX, 3, 4, MAX, 5, MAX, MAX };
 
@@ -111,7 +120,7 @@ namespace ThreatInputs {
         int32_t diff = std::abs(to - from);
         int32_t id = ((up && diff == 7) || (!up && diff == 9)) ? 0 : 1;
         int32_t attack = 2 * (from % 8) + id - 1;
-        int32_t threat = PieceOffsets::PAWN + OFFSETS[target + 6 * enemy] * SquareThreatCounts::PAWN + (from / 8 - 1) * 14 + attack;
+        int32_t threat = PieceOffsets::PAWN + OFFSETS[target + 6 * relativeSide] * SquareThreatCounts::PAWN + (from / 8 - 1) * 14 + attack;
 
         assert(threat >= PieceOffsets::PAWN);
         assert(threat < PieceOffsets::KNIGHT);
@@ -119,7 +128,7 @@ namespace ThreatInputs {
         features.add(threat + sideOffset);
     }
 
-    void addKnightThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset) {
+    void addKnightThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
         // Allow threats to all piece types
 
         // Skip knights with to > from to prevent duplicates
@@ -127,7 +136,7 @@ namespace ThreatInputs {
             return;
         
         int32_t localIndex = SquareThreatCounts::KNIGHT[from] + localThreatIndex(to, BB::KNIGHT_ATTACKS[from]);
-        int32_t threat = PieceOffsets::KNIGHT + (target + 6 * enemy) * SquareThreatCounts::KNIGHT[64] + localIndex;
+        int32_t threat = PieceOffsets::KNIGHT + (target + 6 * relativeSide) * SquareThreatCounts::KNIGHT[64] + localIndex;
 
         assert(threat >= PieceOffsets::KNIGHT);
         assert(threat < PieceOffsets::BISHOP);
@@ -135,7 +144,7 @@ namespace ThreatInputs {
         features.add(threat + sideOffset);
     }
 
-    void addBishopThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset) {
+    void addBishopThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
         // Allow threats to everything but queens
         constexpr int32_t OFFSETS[] = { 0, 1, 2, 3, MAX, 4, 5, 6, 7, 8, MAX, 9 };
 
@@ -144,7 +153,7 @@ namespace ThreatInputs {
             return;
 
         int32_t localIndex = SquareThreatCounts::BISHOP[from] + localThreatIndex(to, getBishopMoves(from, 0));
-        int32_t threat = PieceOffsets::BISHOP + OFFSETS[target + 6 * enemy] * SquareThreatCounts::BISHOP[64] + localIndex;
+        int32_t threat = PieceOffsets::BISHOP + OFFSETS[target + 6 * relativeSide] * SquareThreatCounts::BISHOP[64] + localIndex;
 
         assert(threat >= PieceOffsets::BISHOP);
         assert(threat < PieceOffsets::ROOK);
@@ -152,7 +161,7 @@ namespace ThreatInputs {
         features.add(threat + sideOffset);
     }
 
-    void addRookThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset) {
+    void addRookThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
         // Allow threats to everything but queens
         constexpr int32_t OFFSETS[] = { 0, 1, 2, 3, MAX, 4, 5, 6, 7, 8, MAX, 9 };
 
@@ -161,7 +170,7 @@ namespace ThreatInputs {
             return;
 
         int32_t localIndex = SquareThreatCounts::ROOK[from] + localThreatIndex(to, getRookMoves(from, 0));
-        int32_t threat = PieceOffsets::ROOK + OFFSETS[target + 6 * enemy] * SquareThreatCounts::ROOK[64] + localIndex;
+        int32_t threat = PieceOffsets::ROOK + OFFSETS[target + 6 * relativeSide] * SquareThreatCounts::ROOK[64] + localIndex;
 
         assert(threat >= PieceOffsets::ROOK);
         assert(threat < PieceOffsets::QUEEN);
@@ -169,15 +178,15 @@ namespace ThreatInputs {
         features.add(threat + sideOffset);
     }
 
-    void addQueenThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset) {
+    void addQueenThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
         // Allow threats to all pieces
 
         // Skip queens with to > from to prevent duplicates
         if (to > from && target == Piece::QUEEN)
             return;
 
-        int32_t localIndex = SquareThreatCounts::QUEEN[from] + localThreatIndex(to, getRookMoves(from, 0));
-        int32_t threat = PieceOffsets::QUEEN + (target + 6 * enemy) * SquareThreatCounts::QUEEN[64] + localIndex;
+        int32_t localIndex = SquareThreatCounts::QUEEN[from] + localThreatIndex(to, getRookMoves(from, 0) | getBishopMoves(from, 0));
+        int32_t threat = PieceOffsets::QUEEN + (target + 6 * relativeSide) * SquareThreatCounts::QUEEN[64] + localIndex;
 
         assert(threat >= PieceOffsets::QUEEN);
         assert(threat < PieceOffsets::KING);
@@ -185,7 +194,7 @@ namespace ThreatInputs {
         features.add(threat + sideOffset);
     }
 
-    void addKingThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset) {
+    void addKingThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
         // Allow threats to pawns, knights, bishops and rooks
         constexpr int32_t OFFSETS[] = { 0, 1, 2, 3, MAX, MAX, 4, 5, 6, 7, MAX, MAX };
 
@@ -193,7 +202,7 @@ namespace ThreatInputs {
             return;
 
         int32_t localIndex = SquareThreatCounts::KING[from] + localThreatIndex(to, BB::KING_ATTACKS[from]);
-        int32_t threat = PieceOffsets::KING + OFFSETS[target + 6 * enemy] * SquareThreatCounts::KING[64] + localIndex;
+        int32_t threat = PieceOffsets::KING + OFFSETS[target + 6 * relativeSide] * SquareThreatCounts::KING[64] + localIndex;
 
         assert(threat >= PieceOffsets::KING);
         assert(threat < PieceOffsets::END);

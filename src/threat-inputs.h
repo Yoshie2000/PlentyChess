@@ -13,7 +13,7 @@
 
 namespace ThreatInputs {
 
-    constexpr uint64_t MAX_ACTIVE_FEATURES = 128;
+    constexpr int32_t MAX_ACTIVE_FEATURES = 128;
 
     class FeatureListIterator {
     public:
@@ -57,6 +57,7 @@ namespace ThreatInputs {
         FeatureList() : featureCount(0) {}
 
         void add(int32_t feature) {
+            assert(featureCount + 1 < MAX_ACTIVE_FEATURES);
             featureIndices[featureCount++] = feature;
         }
 
@@ -103,18 +104,18 @@ namespace ThreatInputs {
     constexpr int32_t MAX = std::numeric_limits<int32_t>::max();
 
     int32_t localThreatIndex(Square to, Bitboard attackedByFrom);
-    int32_t mirrorBitboard(Bitboard bitboard);
+    Bitboard mirrorBitboard(Bitboard bitboard);
 
-    void addAllFeatures(Board* board, FeatureList& features);
+    void addSideFeatures(Board* board, Color side, FeatureList& features);
     void addFeatures(Bitboard* bitboards, FeatureList& features);
 
-    void addPieceThreat(Piece piece, Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
+    void addPieceThreat(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset);
 
-    void addPawnThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
-    void addKnightThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
-    void addBishopThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
-    void addRookThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
-    void addQueenThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
-    void addKingThreat(Square from, Square to, Piece target, bool enemy, FeatureList& features, int32_t sideOffset);
+    void addPawnThreat(Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset);
+    void addKnightThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
+    void addBishopThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
+    void addRookThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
+    void addQueenThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
+    void addKingThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
 
 }

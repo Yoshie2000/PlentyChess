@@ -57,18 +57,18 @@ void NNUE::reset(Board* board) {
     resetAccumulator<Color::BLACK>(board, &accumulatorStack[0]);
 
     // Also reset finny tables
-    for (int i = 0; i < 2; i++) {
-        memset(finnyTable[i].byColor, 0, sizeof(finnyTable[i].byColor));
-        memset(finnyTable[i].byPiece, 0, sizeof(finnyTable[i].byPiece));
-        memcpy(finnyTable[i].colors[Color::WHITE], networkData->inputBiases, sizeof(networkData->inputBiases));
-        memcpy(finnyTable[i].colors[Color::BLACK], networkData->inputBiases, sizeof(networkData->inputBiases));
-    }
+    // for (int i = 0; i < 2; i++) {
+    //     memset(finnyTable[i].byColor, 0, sizeof(finnyTable[i].byColor));
+    //     memset(finnyTable[i].byPiece, 0, sizeof(finnyTable[i].byPiece));
+    //     memcpy(finnyTable[i].colors[Color::WHITE], networkData->inputBiases, sizeof(networkData->inputBiases));
+    //     memcpy(finnyTable[i].colors[Color::BLACK], networkData->inputBiases, sizeof(networkData->inputBiases));
+    // }
 }
 
 template<Color side>
 void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     // Overwrite with biases
-    memcpy(acc->colors[side], networkData->inputBiases, sizeof(networkData->inputBiases));
+    // memcpy(acc->colors[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
     // Then add every piece back one by one
     // for (Square square = 0; square < 64; square++) {
@@ -80,14 +80,14 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     // }
 
     ThreatInputs::FeatureList features;
-    ThreatInputs::addAllFeatures(board, features);
+    ThreatInputs::addSideFeatures(board, side, features);
 
     for (int32_t weightOffset : features) {
-        std::cout << weightOffset << ", ";
+        std::cout << weightOffset << " ";
 
-        VecI16* inputVec = (VecI16*)acc->colors[side];
-        VecI16* outputVec = (VecI16*)acc->colors[side];
-        VecI16* weightsVec = (VecI16*)networkData->inputWeights;
+        // VecI16* inputVec = (VecI16*)acc->colors[side];
+        // VecI16* outputVec = (VecI16*)acc->colors[side];
+        // VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
         // The number of iterations to compute the hidden layer depends on the size of the vector registers
         // for (int i = 0; i < L1_ITERATIONS; ++i)
@@ -95,9 +95,9 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     }
     std::cout << std::endl;
 
-    acc->kingBucketInfo[side] = getKingBucket(lsb(board->byColor[side] & board->byPiece[Piece::KING]));
-    memcpy(acc->byColor[side], board->byColor, sizeof(board->byColor));
-    memcpy(acc->byPiece[side], board->byPiece, sizeof(board->byPiece));
+    // acc->kingBucketInfo[side] = getKingBucket(lsb(board->byColor[side] & board->byPiece[Piece::KING]));
+    // memcpy(acc->byColor[side], board->byColor, sizeof(board->byColor));
+    // memcpy(acc->byPiece[side], board->byPiece, sizeof(board->byPiece));
 }
 
 void NNUE::addPiece(Square square, Piece piece, Color pieceColor) {
@@ -283,6 +283,8 @@ Eval NNUE::evaluate(Board* board) {
     // assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
 
     reset(board);
+
+    return 0;
 
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
