@@ -4,7 +4,7 @@
 
 #include "nnue.h"
 
-constexpr auto VERSION = "4.0.15";
+constexpr auto VERSION = "4.0.16";
 
 template<int... Is>
 struct seq { };
@@ -67,7 +67,7 @@ namespace UCI {
             16,
             16,
             1,
-            98304
+            1048576
         };
 
         UCIOption<UCI_SPIN> threads = {
@@ -75,7 +75,7 @@ namespace UCI {
             1,
             1,
             1,
-            512
+            4096
         };
 
         UCIOption<UCI_SPIN> multiPV = {
