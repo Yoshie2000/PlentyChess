@@ -9,9 +9,9 @@
 #include <xmmintrin.h>
 
 constexpr int INPUT_SIZE = 80624;
-constexpr int L1_SIZE = 384;
+constexpr int L1_SIZE = 1024;
 
-constexpr int OUTPUT_BUCKETS = 1;
+constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int INPUT_QUANT = 510;
 constexpr int L1_QUANT = 64;
