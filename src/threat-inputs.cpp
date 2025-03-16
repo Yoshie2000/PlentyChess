@@ -18,7 +18,7 @@ namespace ThreatInputs {
         return ((bitboard >> 4) & K4) | ((bitboard & K4) << 4);
     }
 
-    void addSideFeatures(Board* board, Color side, FeatureList& features) {
+    void addSideFeatures(Board* board, Color pov, FeatureList& features) {
         // Set up bitboards
         Bitboard bitboards[8];
         for (Color c = Color::WHITE; c <= Color::BLACK; ++c)
@@ -26,7 +26,7 @@ namespace ThreatInputs {
         for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece)
             bitboards[2 + piece] = board->byPiece[piece];
         
-        if (side == Color::BLACK) {
+        if (pov == Color::BLACK) {
             // Swap colors
             std::swap(bitboards[0], bitboards[1]);
             for (int i = 0; i < 8; i++)
@@ -35,6 +35,52 @@ namespace ThreatInputs {
         
         // Add features
         addFeatures(bitboards, features);
+
+        std::cout << std::endl << "------------------------------------------" << std::endl;
+
+        // Directly from board (alternative version)
+        Square king = lsb(board->byColor[pov] & board->byPiece[Piece::KING]);
+        bool hm = fileOf(king) >= 4;
+
+        Bitboard occupancy = board->byColor[Color::WHITE] | board->byColor[Color::BLACK];
+        if (hm) occupancy = mirrorBitboard(occupancy);
+
+        for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
+            int32_t sideOffset = (side != pov) * PieceOffsets::END;
+
+            Bitboard enemyOccupancy = board->byColor[flip(side)];
+            if (hm) enemyOccupancy = mirrorBitboard(enemyOccupancy);
+
+            for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
+                Bitboard pieceBitboard = board->byColor[side] & board->byPiece[piece];
+                while (pieceBitboard) {
+                    Square square = popLSB(&pieceBitboard) ^ (hm * 7);
+
+                    // Add the "standard" 768 piece feature
+                    Square relativeSquare = square ^ (56 * pov);
+                    std::cout << "P " << int(side != pov) << " " << int(piece) << " " << int(relativeSquare) << std::endl;
+                    features.add(2 * PieceOffsets::END + 384 * (side != pov) + 64 * piece + relativeSquare);
+
+                    // Add the threat features
+                    Bitboard attacks = BB::attackedSquares(piece, square, occupancy, side) & occupancy;
+                    while (attacks) {
+                        Square attackedSquare = popLSB(&attacks);
+                        bool enemy = static_cast<bool>(enemyOccupancy & bitboard(attackedSquare));
+                        Color relativeSide = static_cast<Color>(static_cast<bool>(board->byColor[flip(pov)] & bitboard(attackedSquare)));
+                        Piece attackedPiece = board->pieces[attackedSquare ^ (hm * 7)];
+
+                        assert(attackedPiece != Piece::NONE);
+                        
+                        Square relativeAttackedSquare = attackedSquare ^ (56 * pov);
+                        std::cout << "T " << int(piece) << " " << int(relativeSquare) << " " << int(relativeAttackedSquare) << " " << int(attackedPiece) << " " << int(relativeSide) << " " << enemy << std::endl;
+                        addPieceThreat(piece, relativeSquare, relativeAttackedSquare, attackedPiece, relativeSide, enemy, features, sideOffset);
+                    }
+                }
+            }
+
+        }
+
+        std::cout << std::endl << "done" << std::endl << std::endl;
     }
 
     void addFeatures(Bitboard* bitboards, FeatureList& features) {
@@ -73,9 +119,10 @@ namespace ThreatInputs {
                     Bitboard attacks = BB::attackedSquares(piece, square, occupancy, side) & occupancy;
 
                     // Add the "standard" 768 piece feature
-                    features.add(2 * PieceOffsets::END + 384 * side + 64 * piece + square);
-                    // std::cout << features[features.count() - 1] << std::endl;
-
+                    std::cout << "P " << int(side) << " " << int(piece) << " " << int(square) << std::endl;
+                    // features.add(2 * PieceOffsets::END + 384 * side + 64 * piece + square);
+                    
+                    // Add the threat features
                     while (attacks) {
                         Square attackedSquare = popLSB(&attacks);
                         bool enemy = static_cast<bool>(enemyOccupancy & bitboard(attackedSquare));
@@ -83,11 +130,8 @@ namespace ThreatInputs {
 
                         assert(mailbox[attackedSquare] != Piece::NONE);
 
-                        addPieceThreat(piece, square, attackedSquare, mailbox[attackedSquare], relativeSide, enemy, features, sideOffset);
-                        // if (features[features.count() - 1] == 40746) {
-                        //     std::cout << int(piece) << " " << int(square) << " " << int(attackedSquare) << " " << int(mailbox[attackedSquare]) << " " << (enemy ? "true" : "false") << std::endl;
-                        // }
-                        // std::cout << features[features.count() - 1] << " " << features.count() << std::endl;
+                        std::cout << "T " << int(piece) << " " << int(square) << " " << int(attackedSquare) << " " << int(mailbox[attackedSquare]) << " " << int(relativeSide) << " " << enemy << std::endl;
+                        // addPieceThreat(piece, square, attackedSquare, mailbox[attackedSquare], relativeSide, enemy, features, sideOffset);
                     }
                 }
             }

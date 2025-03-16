@@ -46,6 +46,7 @@ void NNUE::reset(Board* board) {
     //     memcpy(finnyTable[i].colors[Color::WHITE], networkData->inputBiases, sizeof(networkData->inputBiases));
     //     memcpy(finnyTable[i].colors[Color::BLACK], networkData->inputBiases, sizeof(networkData->inputBiases));
     // }
+    std::cout << std::endl << "done with reset" << std::endl << std::endl;
 }
 
 template<Color side>
