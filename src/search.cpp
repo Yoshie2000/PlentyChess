@@ -1111,7 +1111,7 @@ void Thread::iterativeDeepening() {
     int bestMoveStability = 0;
 
     constexpr int STACK_OVERHEAD = 6;
-    SearchStack stackList[MAX_PLY + STACK_OVERHEAD];
+    SearchStack stackList[MAX_PLY + STACK_OVERHEAD + 2];
     SearchStack* stack = &stackList[STACK_OVERHEAD];
 
     rootMoveNodes.clear();
@@ -1120,7 +1120,7 @@ void Thread::iterativeDeepening() {
         excludedRootMoves.clear();
         for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
 
-            for (int i = 0; i < MAX_PLY + STACK_OVERHEAD; i++) {
+            for (int i = 0; i < MAX_PLY + STACK_OVERHEAD + 2; i++) {
                 stackList[i].pvLength = 0;
                 stackList[i].ply = i - STACK_OVERHEAD;
                 stackList[i].staticEval = EVAL_NONE;
@@ -1338,7 +1338,7 @@ void Thread::tdatagen() {
     Eval previousValue = EVAL_NONE;
 
     constexpr int STACK_OVERHEAD = 6;
-    SearchStack stackList[MAX_PLY + STACK_OVERHEAD];
+    SearchStack stackList[MAX_PLY + STACK_OVERHEAD + 2];
     SearchStack* stack = &stackList[STACK_OVERHEAD];
 
     rootMoveNodes.clear();
@@ -1346,7 +1346,7 @@ void Thread::tdatagen() {
     int maxDepth = searchParameters->depth ? searchParameters->depth : MAX_PLY - 1;
 
     for (int depth = 1; depth <= maxDepth; depth++) {
-        for (int i = 0; i < MAX_PLY + STACK_OVERHEAD; i++) {
+        for (int i = 0; i < MAX_PLY + STACK_OVERHEAD + 2; i++) {
             stackList[i].pvLength = 0;
             stackList[i].ply = i - STACK_OVERHEAD;
             stackList[i].staticEval = EVAL_NONE;
