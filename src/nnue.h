@@ -3,12 +3,8 @@
 #include <algorithm>
 #include <cstdint>
 
-#if defined(ARCH_X86)
 #include <immintrin.h>
 #include <xmmintrin.h>
-#else
-#include <arm_neon.h>
-#endif
 
 #include "types.h"
 #include "threat-inputs.h"
@@ -36,6 +32,22 @@ inline VecI16 minEpi16(VecI16 x, VecI16 y) {
 
 inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
   return _mm512_max_epi16(x, y);
+}
+
+inline VecI16 mulloEpi16(VecI16 x, VecI16 y) {
+  return _mm512_mullo_epi16(x, y);
+}
+
+inline VecI16 maddEpi16(VecI16 x, VecI16 y) {
+  return _mm512_madd_epi16(x, y);
+}
+
+inline VecI16 addEpi32(VecI16 x, VecI16 y) {
+  return _mm512_add_epi32(x, y);
+}
+
+inline int vecHaddEpi32(VecI16 vec) {
+  return _mm512_reduce_add_epi32(vec);
 }
 
 inline VecI16 set1Epi16(int i) {
@@ -143,6 +155,45 @@ inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
   return _mm256_max_epi16(x, y);
 }
 
+inline VecI16 mulloEpi16(VecI16 x, VecI16 y) {
+  return _mm256_mullo_epi16(x, y);
+}
+
+inline VecI16 maddEpi16(VecI16 x, VecI16 y) {
+  return _mm256_madd_epi16(x, y);
+}
+
+inline VecI16 addEpi32(VecI16 x, VecI16 y) {
+  return _mm256_add_epi32(x, y);
+}
+
+inline int vecHaddEpi32(VecI16 vec) {
+  __m128i xmm0;
+  __m128i xmm1;
+
+  // Get the lower and upper half of the register:
+  xmm0 = _mm256_castsi256_si128(vec);
+  xmm1 = _mm256_extracti128_si256(vec, 1);
+
+  // Add the lower and upper half vertically:
+  xmm0 = _mm_add_epi32(xmm0, xmm1);
+
+  // Get the upper half of the result:
+  xmm1 = _mm_unpackhi_epi64(xmm0, xmm0);
+
+  // Add the lower and upper half vertically:
+  xmm0 = _mm_add_epi32(xmm0, xmm1);
+
+  // Shuffle the result so that the lower 32-bits are directly above the second-lower 32-bits:
+  xmm1 = _mm_shuffle_epi32(xmm0, _MM_SHUFFLE(2, 3, 0, 1));
+
+  // Add the lower 32-bits to the second-lower 32-bits vertically:
+  xmm0 = _mm_add_epi32(xmm0, xmm1);
+
+  // Cast the result to the 32-bit integer type and return it:
+  return _mm_cvtsi128_si32(xmm0);
+}
+
 inline VecI16 set1Epi16(int i) {
   return _mm256_set1_epi16(i);
 }
@@ -222,7 +273,7 @@ inline uint32_t vecNNZ(VecI32 chunk) {
   return _mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(chunk, _mm256_setzero_si256())));
 }
 
-#elif defined(ARCH_X86)
+#else
 
 using VecI8 = __m128i;
 using VecIu8 = __m128i;
@@ -245,6 +296,23 @@ inline VecI16 minEpi16(VecI16 x, VecI16 y) {
 
 inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
   return _mm_max_epi16(x, y);
+}
+
+inline VecI16 mulloEpi16(VecI16 x, VecI16 y) {
+  return _mm_mullo_epi16(x, y);
+}
+
+inline VecI16 maddEpi16(VecI16 x, VecI16 y) {
+  return _mm_madd_epi16(x, y);
+}
+
+inline VecI16 addEpi32(VecI16 x, VecI16 y) {
+  return _mm_add_epi32(x, y);
+}
+
+inline int vecHaddEpi32(VecI16 vec) {
+  int* asArray = (int*)&vec;
+  return asArray[0] + asArray[1] + asArray[2] + asArray[3];
 }
 
 inline VecI16 set1Epi16(int i) {
@@ -329,151 +397,16 @@ inline float reduceAddPs(VecF* sums) {
 inline uint32_t vecNNZ(VecI32 chunk) {
   return _mm_movemask_ps(_mm_castsi128_ps(_mm_cmpgt_epi32(chunk, _mm_setzero_si128())));
 }
-
-#else
-
-using VecI8 = int8x16_t;
-using VecIu8 = uint8x16_t;
-using VecI16 = int16x8_t;
-using VecIu16 = uint16x8_t;
-using VecI32 = int32x4_t;
-using VecF = float32x4_t;
-
-// Integer operations
-inline VecI16 addEpi16(VecI16 x, VecI16 y) {
-  return vaddq_s16(x, y);
-}
-
-inline VecI16 subEpi16(VecI16 x, VecI16 y) {
-  return vsubq_s16(x, y);
-}
-
-inline VecI16 minEpi16(VecI16 x, VecI16 y) {
-  return vminq_s16(x, y);
-}
-
-inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
-  return vmaxq_s16(x, y);
-}
-
-inline VecI16 set1Epi16(int i) {
-  return vdupq_n_s16(i);
-}
-
-inline VecI32 set1Epi32(int i) {
-  return vdupq_n_s32(i);
-}
-
-inline VecI16 slliEpi16(VecI16 x, int shift) {
-  return vshlq_s16(x, vdupq_n_s16(shift));
-}
-
-inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
-  VecI32 lo = vmull_s16(vget_low_s16(x), vget_low_s16(y));
-  VecI32 hi = vmull_s16(vget_high_s16(x), vget_high_s16(y));
-  return vcombine_s16(vshrn_n_s32(lo, 16), vshrn_n_s32(hi, 16));
-}
-
-inline int16x8_t maddubs(uint8x16_t a, int8x16_t b) {
-  int16x8_t tl = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(a))), vmovl_s8(vget_low_s8(b)));
-  int16x8_t th = vmulq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(a))), vmovl_s8(vget_high_s8(b)));
-  return vqaddq_s16(vuzp1q_s16(tl, th), vuzp2q_s16(tl, th));
-}
-
-inline int32x4_t madd(int16x8_t a, int16x8_t b) {
-  int32x4_t low = vmull_s16(vget_low_s16(a), vget_low_s16(b));
-  int32x4_t high = vmull_high_s16(a, b);
-  return vpaddq_s32(low, high);
-}
-
-// SIMD dot-product
-inline VecI32 dpbusdEpi32(VecI32 sum, VecIu8 u, VecI8 i) {
-  int32x4_t sum32 = madd(maddubs(u, i), vdupq_n_s16(1));
-  return vaddq_s32(sum32, sum);
-}
-
-inline VecI32 dpbusdEpi32x2(VecI32 sum, VecIu8 u, VecI8 i, VecIu8 u2, VecI8 i2) {
-  int16x8_t mul1 = maddubs(u, i);
-  int16x8_t mul2 = maddubs(u2, i2);
-  VecI32 sum32 = madd(vaddq_s16(mul1, mul2), vdupq_n_s16(1));
-  return vaddq_s32(sum32, sum);
-}
-
-// Pack and store
-inline VecIu8 packusEpi16(VecI16 x, VecI16 y) {
-  return vcombine_u8(vqmovun_s16(x), vqmovun_s16(y));
-}
-
-inline void vecStoreI(VecI16* dest, VecI16 x) {
-  vst1q_s16(reinterpret_cast<int16_t*>(dest), x);
-}
-
-// Floating-point operations
-inline VecF cvtepi32Ps(VecI32 x) {
-  return vcvtq_f32_s32(x);
-}
-
-inline VecF addPs(VecF x, VecF y) {
-  return vaddq_f32(x, y);
-}
-
-inline VecF mulPs(VecF x, VecF y) {
-  return vmulq_f32(x, y);
-}
-
-inline VecF set1Ps(float x) {
-  return vdupq_n_f32(x);
-}
-
-inline VecF minPs(VecF x, VecF y) {
-  return vminq_f32(x, y);
-}
-
-inline VecF maxPs(VecF x, VecF y) {
-  return vmaxq_f32(x, y);
-}
-
-inline VecF fmaddPs(VecF a, VecF b, VecF c) {
-  return vfmaq_f32(c, a, b);
-}
-
-inline float reduceAddPsR(float* sums, int length) {
-  if (length == 2) return sums[0] + sums[1];
-  length /= 2;
-  for (int i = 0; i < length; ++i)
-    sums[i] += sums[i + length];
-  return reduceAddPsR(sums, length);
-}
-
-inline float reduceAddPs(VecF* sums) {
-  return reduceAddPsR((float*)sums, 64 / sizeof(float));
-}
-
-inline uint32_t vecNNZ(VecI32 chunk) {
-  uint32x4_t mask = vcgtq_s32(chunk, vdupq_n_s32(0));
-  uint16x4_t narrowed_mask = vmovn_u32(mask);
-  uint64_t packed_mask = vget_lane_u64(vreinterpret_u64_u16(narrowed_mask), 0);
-  return ((packed_mask & (1ULL << 0)) >> 0) |
-    ((packed_mask & (1ULL << 16)) >> 15) |
-    ((packed_mask & (1ULL << 32)) >> 30) |
-    ((packed_mask & (1ULL << 48)) >> 45);
-}
-
 #endif
 
 constexpr int INPUT_SIZE = 2 * ThreatInputs::PieceOffsets::END + 768;
-constexpr int L1_SIZE = 1536;
-constexpr int L2_SIZE = 16;
-constexpr int L3_SIZE = 32;
+constexpr int L1_SIZE = 384;
 
-constexpr int OUTPUT_BUCKETS = 8;
+constexpr int OUTPUT_BUCKETS = 1;
 
 constexpr int NETWORK_SCALE = 400;
-constexpr int INPUT_QUANT = 362;
-constexpr int INPUT_SHIFT = 10;
+constexpr int INPUT_QUANT = 510;
 constexpr int L1_QUANT = 64;
-
-constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
 
 constexpr int ALIGNMENT = 64;
 
@@ -527,12 +460,8 @@ struct FinnyEntry {
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
-  alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-  alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-  alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
-  alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
+  alignas(ALIGNMENT) int16_t l1Weights[OUTPUT_BUCKETS][2 * L1_SIZE];
+  alignas(ALIGNMENT) int16_t l1Biases[OUTPUT_BUCKETS];
 };
 
 extern NetworkData* networkData;
@@ -581,81 +510,3 @@ public:
   */
 
 };
-
-#if defined(PROCESS_NET)
-
-#include <cstring>
-#include <fstream>
-
-class NNZ {
-public:
-  int64_t activations[L1_SIZE / 2] = {};
-
-  void addActivations(uint8_t* neurons) {
-    for (int i = 0; i < L1_SIZE; i++) {
-      activations[i % (L1_SIZE / 2)] += bool(neurons[i]);
-    }
-  }
-
-  int16_t oldInputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
-  int16_t oldInputBiases[L1_SIZE];
-  int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-  NetworkData nnzOutNet;
-
-  int order[L1_SIZE / 2];
-
-  void permuteNetwork() {
-    std::ifstream infile("./quantised.bin", std::ios::binary);
-    if (!infile) {
-        std::cerr << "Error opening file for reading" << std::endl;
-        return;
-    }
-    infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
-    infile.close();
-
-    memcpy(oldInputWeights, nnzOutNet.inputWeights, sizeof(nnzOutNet.inputWeights));
-    memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
-    memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
-
-    for (int i = 0; i < L1_SIZE / 2; i++) {
-      order[i] = i;
-    }
-    std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
-
-    for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
-
-      // Input weights
-      for (int kb = 0; kb < KING_BUCKETS; kb++) {
-        for (int ip = 0; ip < INPUT_SIZE; ip++) {
-          nnzOutNet.inputWeights[kb][ip * L1_SIZE + l1] = oldInputWeights[kb][ip * L1_SIZE + order[l1]];
-          nnzOutNet.inputWeights[kb][ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[kb][ip * L1_SIZE + order[l1] + L1_SIZE / 2];
-        }
-      }
-
-      // Input biases
-      nnzOutNet.inputBiases[l1] = oldInputBiases[order[l1]];
-      nnzOutNet.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
-
-      // L1 weights
-      for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
-        for (int l2 = 0; l2 < L2_SIZE; l2++) {
-          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-        }
-      }
-    }
-
-    // Write the network
-    std::ofstream outfile("./quantised.bin", std::ios::binary);
-    if (!outfile) {
-        std::cerr << "Error opening file for writing" << std::endl;
-        return;
-    }
-    outfile.write(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
-    outfile.close();
-    std::cout << "NNZ permuted net written to ./quantised.bin" << std::endl;
-  }
-};
-
-extern NNZ nnz;
-#endif

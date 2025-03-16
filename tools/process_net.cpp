@@ -5,48 +5,32 @@
 #include <fstream>
 #include <cstdint>
 
-#if defined(ARCH_X86)
 #include <immintrin.h>
 #include <xmmintrin.h>
-#else
-#include <arm_neon.h>
-#endif
 
-constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 1536;
-constexpr int L2_SIZE = 16;
-constexpr int L3_SIZE = 32;
+constexpr int INPUT_SIZE = 80624;
+constexpr int L1_SIZE = 384;
 
-constexpr bool KING_BUCKETS_FACTORIZED = true;
-constexpr int KING_BUCKETS = 9;
-constexpr int OUTPUT_BUCKETS = 8;
+constexpr int OUTPUT_BUCKETS = 1;
 
-constexpr int INPUT_QUANT = 362;
+constexpr int INPUT_QUANT = 510;
 constexpr int L1_QUANT = 64;
 
 constexpr int ALIGNMENT = 64;
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
 
 struct RawNetworkData {
-    float inputWeights[KING_BUCKETS + static_cast<int>(KING_BUCKETS_FACTORIZED)][INPUT_SIZE * L1_SIZE];
+    float inputWeights[INPUT_SIZE * L1_SIZE];
     float inputBiases[L1_SIZE];
-    float l1Weights[L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
-    float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    float l2Weights[L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
-    float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-    float l3Weights[L3_SIZE][OUTPUT_BUCKETS];
-    float l3Biases[OUTPUT_BUCKETS];
+    float l1Weights[2 * L1_SIZE][OUTPUT_BUCKETS];
+    float l1Biases[OUTPUT_BUCKETS];
 };
 
 struct NetworkData {
-    alignas(ALIGNMENT) int16_t inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
-    alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-    alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
-    alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-    alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE];
-    alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
+    alignas(ALIGNMENT) int16_t l1Weights[OUTPUT_BUCKETS][2 * L1_SIZE];
+    alignas(ALIGNMENT) int16_t l1Biases[OUTPUT_BUCKETS];
 };
 
 RawNetworkData raw;
@@ -60,15 +44,8 @@ int16_t quantize(float number) {
 
 void quantizeNetwork() {
     // Add factorized input weights to buckets, and quantize
-    for (int n = 0; n < KING_BUCKETS; n++) {
-        for (int w = 0; w < INPUT_SIZE * L1_SIZE; w++) {
-            if (KING_BUCKETS_FACTORIZED) {
-                tmp.inputWeights[n][w] = quantize<INPUT_QUANT>(raw.inputWeights[n + 1][w] + raw.inputWeights[0][w]);
-            }
-            else {
-                tmp.inputWeights[n][w] = quantize<INPUT_QUANT>(raw.inputWeights[n][w]);
-            }
-        }
+    for (int w = 0; w < INPUT_SIZE * L1_SIZE; w++) {
+        tmp.inputWeights[w] = quantize<INPUT_QUANT>(raw.inputWeights[w]);
     }
 
     // Quantize input biases
@@ -76,84 +53,35 @@ void quantizeNetwork() {
         tmp.inputBiases[b] = quantize<INPUT_QUANT>(raw.inputBiases[b]);
     }
 
-    // Quantize L1 weights
+    // Quantize L1 weights and biases
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
-            for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                tmp.l1Weights[b][l2 * L1_SIZE + l1] = quantize<L1_QUANT>(((float*)raw.l1Weights)[b * L1_SIZE * L2_SIZE + l2 * L1_SIZE + l1]);
-            }
+        for (int l1 = 0; l1 < L1_SIZE * 2; l1++) {
+            tmp.l1Weights[b][l1] = quantize<L1_QUANT>(((float*)raw.l1Weights)[b * L1_SIZE * 2 + l1]);
         }
-    }
+        tmp.l1Biases[b] = quantize<L1_QUANT * INPUT_QUANT>(raw.l1Biases[b]);
 
-    // std::memcpy the rest
-    std::memcpy(tmp.l1Biases, raw.l1Biases, sizeof(raw.l1Biases));
-    std::memcpy(tmp.l2Weights, raw.l2Weights, sizeof(raw.l2Weights));
-    std::memcpy(tmp.l2Biases, raw.l2Biases, sizeof(raw.l2Biases));
-    std::memcpy(tmp.l3Weights, raw.l3Weights, sizeof(raw.l3Weights));
-    std::memcpy(tmp.l3Biases, raw.l3Biases, sizeof(raw.l3Biases));
+        // for (int i = 0; i < L1_SIZE; i++) {
+        //     std::cout << "(" << int(tmp.l1Weights[b][i]) << " " << int(tmp.l1Weights[b][i + L1_SIZE]) << "), ";
+        // }
+        // std::cout << std::endl;
+    }
 }
 
 void transposePermuteNetwork() {
-#if defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
-    // Transpose input weights for packus
-    constexpr int weightsPerBlock = sizeof(__m128i) / sizeof(int16_t);
-#if (defined(__AVX512F__) && defined(__AVX512BW__))
-    constexpr int packusBlocks = 8;
-    constexpr int permutation[packusBlocks] = { 0, 2, 4, 6, 1, 3, 5, 7 };
-#else
-    constexpr int packusBlocks = 4;
-    constexpr int permutation[packusBlocks] = { 0, 2, 1, 3 };
-#endif
-    __m128i regs[packusBlocks];
-
-    for (int limit : { 1, KING_BUCKETS* INPUT_SIZE }) {
-        __m128i* vec = reinterpret_cast<__m128i*>(limit == 1 ? (int16_t*) tmp.inputBiases : (int16_t*) tmp.inputWeights);
-
-        for (int i = 0; i < limit * L1_SIZE / weightsPerBlock; i += packusBlocks) {
-            for (int j = 0; j < packusBlocks; j++)
-                regs[j] = vec[i + j];
-
-            for (int j = 0; j < packusBlocks; j++)
-                vec[i + j] = regs[permutation[j]];
-        }
-    }
-#endif
-
-    // Transpose L1 / L2 / L3 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-        for (int l1 = 0; l1 < L1_SIZE / INT8_PER_INT32; l1++) {
-            for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                for (int c = 0; c < INT8_PER_INT32; c++) {
-                    out.l1Weights[b][l1 * INT8_PER_INT32 * L2_SIZE + l2 * INT8_PER_INT32 + c] = reinterpret_cast<int8_t*>(tmp.l1Weights)[(l1 * INT8_PER_INT32 + c) * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
-                }
-            }
+        for (int l1 = 0; l1 < L1_SIZE * 2; l1++) {
+            out.l1Weights[b][l1] = reinterpret_cast<int16_t*>(tmp.l1Weights)[l1 * OUTPUT_BUCKETS + b];
         }
-#else
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
-            for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                out.l1Weights[b][l1 * L2_SIZE + l2] = reinterpret_cast<int8_t*>(tmp.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
-            }
-        }
-#endif
-
-        for (int l2 = 0; l2 < L2_SIZE; l2++) {
-            for (int l3 = 0; l3 < L3_SIZE; l3++) {
-                out.l2Weights[b][l2 * L3_SIZE + l3] = reinterpret_cast<float*>(tmp.l2Weights)[l2 * OUTPUT_BUCKETS * L3_SIZE + b * L3_SIZE + l3];
-            }
-        }
-
-        for (int l3 = 0; l3 < L3_SIZE; l3++) {
-            out.l3Weights[b][l3] = reinterpret_cast<float*>(tmp.l3Weights)[l3 * OUTPUT_BUCKETS + b];
-        }
+        // for (int i = 0; i < L1_SIZE; i++) {
+        //     std::cout << "(" << int(out.l1Weights[b][i]) << " " << int(out.l1Weights[b][i + L1_SIZE]) << "), ";
+        // }
+        // std::cout << std::endl;
     }
 
     // std::memcpy the rest
     std::memcpy(out.inputWeights, tmp.inputWeights, sizeof(tmp.inputWeights));
     std::memcpy(out.inputBiases, tmp.inputBiases, sizeof(tmp.inputBiases));
     std::memcpy(out.l1Biases, tmp.l1Biases, sizeof(tmp.l1Biases));
-    std::memcpy(out.l2Biases, tmp.l2Biases, sizeof(tmp.l2Biases));
-    std::memcpy(out.l3Biases, tmp.l3Biases, sizeof(tmp.l3Biases));
 }
 
 int main(int argc, char* argv[]) {

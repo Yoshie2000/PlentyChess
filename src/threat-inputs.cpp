@@ -26,13 +26,11 @@ namespace ThreatInputs {
         for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece)
             bitboards[2 + piece] = board->byPiece[piece];
         
-        bool stm = side == board->stm;
-
-        if (!stm) {
+        if (side == Color::BLACK) {
             // Swap colors
             std::swap(bitboards[0], bitboards[1]);
-            for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece)
-                bitboards[2 + piece] = __bswap_64(bitboards[2 + piece]);
+            for (int i = 0; i < 8; i++)
+                bitboards[i] = __bswap_64(bitboards[i]);
         }
         
         // Add features
@@ -86,9 +84,9 @@ namespace ThreatInputs {
                         assert(mailbox[attackedSquare] != Piece::NONE);
 
                         addPieceThreat(piece, square, attackedSquare, mailbox[attackedSquare], relativeSide, enemy, features, sideOffset);
-                        if (features[features.count() - 1] == 40746) {
-                            std::cout << int(piece) << " " << int(square) << " " << int(attackedSquare) << " " << int(mailbox[attackedSquare]) << " " << (enemy ? "true" : "false") << std::endl;
-                        }
+                        // if (features[features.count() - 1] == 40746) {
+                        //     std::cout << int(piece) << " " << int(square) << " " << int(attackedSquare) << " " << int(mailbox[attackedSquare]) << " " << (enemy ? "true" : "false") << std::endl;
+                        // }
                         // std::cout << features[features.count() - 1] << " " << features.count() << std::endl;
                     }
                 }
