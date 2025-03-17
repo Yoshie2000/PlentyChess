@@ -25,12 +25,8 @@ constexpr int castlingIndex(Color side, Square kingOrigin, Square kingTarget) {
 }
 
 struct Threats {
-    Bitboard pawnThreats;
-    Bitboard knightThreats;
-    Bitboard bishopThreats;
-    Bitboard rookThreats;
-    Bitboard queenThreats;
-    Bitboard kingThreats;
+    Bitboard byPiece[6];
+    Bitboard bySquare[64];
 };
 
 struct BoardStack {
@@ -117,10 +113,10 @@ struct Board {
         Bitboard minors = byColor[stm] & (byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP]);
         minors |= rooks;
 
-        Bitboard minorThreats = stack->threats.knightThreats | stack->threats.bishopThreats | stack->threats.pawnThreats;
-        Bitboard rookThreats = minorThreats | stack->threats.rookThreats;
+        Bitboard minorThreats = stack->threats.byPiece[Piece::KNIGHT] | stack->threats.byPiece[Piece::BISHOP] | stack->threats.byPiece[Piece::PAWN];
+        Bitboard rookThreats = minorThreats | stack->threats.byPiece[Piece::ROOK];
 
-        return (queens & rookThreats) | (rooks & minorThreats) | (minors & stack->threats.pawnThreats);
+        return (queens & rookThreats) | (rooks & minorThreats) | (minors & stack->threats.byPiece[Piece::PAWN]);
     }
 
     Bitboard attackersTo(Square square, Bitboard occupied);

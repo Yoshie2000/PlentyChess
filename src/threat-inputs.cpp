@@ -40,14 +40,17 @@ namespace ThreatInputs {
 
                 // Add features for this piece
                 while (pieceBitboard) {
-                    Square square = popLSB(&pieceBitboard) ^ (hm * 7);
+                    Square indexSquare = popLSB(&pieceBitboard);
+                    Square square = indexSquare ^ (hm * 7);
 
                     // Add the "standard" 768 piece feature
                     Square relativeSquare = square ^ (56 * pov);
-                    features.add(2 * PieceOffsets::END + 384 * (side != pov) + 64 * piece + relativeSquare);
+                    addPieceFeature(piece, relativeSquare, static_cast<Color>(side != pov), features);
 
                     // Add the threat features
-                    Bitboard attacks = BB::attackedSquares(piece, square, occupancy, side) & occupancy;
+                    Bitboard attacks = board->stack->threats.bySquare[indexSquare];
+                    if (hm) attacks = mirrorBitboard(attacks);
+                    attacks &= occupancy;
                     while (attacks) {
                         Square attackedSquare = popLSB(&attacks);
                         bool enemy = static_cast<bool>(enemyOccupancy & bitboard(attackedSquare));
@@ -57,26 +60,30 @@ namespace ThreatInputs {
                         assert(attackedPiece != Piece::NONE);
                         
                         Square relativeAttackedSquare = attackedSquare ^ (56 * pov);
-                        addPieceThreat(piece, relativeSquare, relativeAttackedSquare, attackedPiece, relativeSide, enemy, features, sideOffset);
+                        addThreatFeature(piece, relativeSquare, relativeAttackedSquare, attackedPiece, relativeSide, enemy, features, sideOffset);
                     }
                 }
             }
         }
     }
 
-    void addPieceThreat(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset) {
+    void addPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, FeatureList& features) {
+        features.add(2 * PieceOffsets::END + 384 * relativeColor + 64 * piece + relativeSquare);
+    }
+
+    void addThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset) {
         switch (piece) {
-        case Piece::PAWN: { addPawnThreat(from, to, target, relativeSide, enemy, features, sideOffset); break; }
-        case Piece::KNIGHT: { addKnightThreat(from, to, target, relativeSide, features, sideOffset); break; }
-        case Piece::BISHOP: { addBishopThreat(from, to, target, relativeSide, features, sideOffset); break; }
-        case Piece::ROOK: { addRookThreat(from, to, target, relativeSide, features, sideOffset); break; }
-        case Piece::QUEEN: { addQueenThreat(from, to, target, relativeSide, features, sideOffset); break; }
-        case Piece::KING: { addKingThreat(from, to, target, relativeSide, features, sideOffset); break; }
+        case Piece::PAWN: { addPawnThreatFeature(from, to, target, relativeSide, enemy, features, sideOffset); break; }
+        case Piece::KNIGHT: { addKnightThreatFeature(from, to, target, relativeSide, features, sideOffset); break; }
+        case Piece::BISHOP: { addBishopThreatFeature(from, to, target, relativeSide, features, sideOffset); break; }
+        case Piece::ROOK: { addRookThreatFeature(from, to, target, relativeSide, features, sideOffset); break; }
+        case Piece::QUEEN: { addQueenThreatFeature(from, to, target, relativeSide, features, sideOffset); break; }
+        case Piece::KING: { addKingThreatFeature(from, to, target, relativeSide, features, sideOffset); break; }
         default: assert(false);
         }
     }
 
-    void addPawnThreat(Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset) {
+    void addPawnThreatFeature(Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset) {
         // Allow threats to pawns, knights and rooks
         constexpr int32_t OFFSETS[] = { 0, 1, MAX, 2, MAX, MAX, 3, 4, MAX, 5, MAX, MAX };
 
@@ -96,7 +103,7 @@ namespace ThreatInputs {
         features.add(threat + sideOffset);
     }
 
-    void addKnightThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
+    void addKnightThreatFeature(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
         // Allow threats to all piece types
 
         // Skip knights with to > from to prevent duplicates
@@ -112,7 +119,7 @@ namespace ThreatInputs {
         features.add(threat + sideOffset);
     }
 
-    void addBishopThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
+    void addBishopThreatFeature(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
         // Allow threats to everything but queens
         constexpr int32_t OFFSETS[] = { 0, 1, 2, 3, MAX, 4, 5, 6, 7, 8, MAX, 9 };
 
@@ -129,7 +136,7 @@ namespace ThreatInputs {
         features.add(threat + sideOffset);
     }
 
-    void addRookThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
+    void addRookThreatFeature(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
         // Allow threats to everything but queens
         constexpr int32_t OFFSETS[] = { 0, 1, 2, 3, MAX, 4, 5, 6, 7, 8, MAX, 9 };
 
@@ -146,7 +153,7 @@ namespace ThreatInputs {
         features.add(threat + sideOffset);
     }
 
-    void addQueenThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
+    void addQueenThreatFeature(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
         // Allow threats to all pieces
 
         // Skip queens with to > from to prevent duplicates
@@ -162,7 +169,7 @@ namespace ThreatInputs {
         features.add(threat + sideOffset);
     }
 
-    void addKingThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
+    void addKingThreatFeature(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset) {
         // Allow threats to pawns, knights, bishops and rooks
         constexpr int32_t OFFSETS[] = { 0, 1, 2, 3, MAX, MAX, 4, 5, 6, 7, MAX, MAX };
 

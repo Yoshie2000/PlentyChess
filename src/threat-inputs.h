@@ -109,13 +109,14 @@ namespace ThreatInputs {
     void addSideFeatures(Board* board, Color side, FeatureList& features);
     void addFeatures(Bitboard* bitboards, FeatureList& features);
 
-    void addPieceThreat(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset);
+    void addPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, FeatureList& features);
+    void addThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset);
 
-    void addPawnThreat(Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset);
-    void addKnightThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
-    void addBishopThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
-    void addRookThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
-    void addQueenThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
-    void addKingThreat(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
+    void addPawnThreatFeature(Square from, Square to, Piece target, Color relativeSide, bool enemy, FeatureList& features, int32_t sideOffset);
+    void addKnightThreatFeature(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
+    void addBishopThreatFeature(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
+    void addRookThreatFeature(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
+    void addQueenThreatFeature(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
+    void addKingThreatFeature(Square from, Square to, Piece target, Color relativeSide, FeatureList& features, int32_t sideOffset);
 
 }

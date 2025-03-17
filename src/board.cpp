@@ -827,40 +827,30 @@ void Board::calculateThreats() {
     Color them = flip(stm);
     Threats* threats = &stack->threats;
 
-    threats->pawnThreats = BB::pawnAttacks(byPiece[Piece::PAWN] & byColor[them], them);
-    threats->knightThreats = BB::knightAttacks(byPiece[Piece::KNIGHT] & byColor[them]);
+    for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece)
+        threats->byPiece[piece] = 0;
 
-    threats->bishopThreats = 0;
-    Bitboard bishops = byPiece[Piece::BISHOP] & byColor[them];
-    while (bishops) {
-        threats->bishopThreats |= getBishopMoves(popLSB(&bishops), occupied);
+    for (Square square = 0; square < 64; square++) {
+        Piece piece = pieces[square];
+        if (piece == Piece::NONE) {
+            threats->bySquare[square] = 0;
+            continue;
+        }
+        
+        Color color = (bitboard(square) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
+        Bitboard squareThreats = BB::attackedSquares(piece, square, occupied, color);
+        threats->bySquare[square] = squareThreats;
+
+        if (color == them) {
+            threats->byPiece[piece] |= squareThreats;
+        }
     }
-
-    threats->rookThreats = 0;
-    Bitboard rooks = byPiece[Piece::ROOK] & byColor[them];
-    while (rooks) {
-        threats->rookThreats |= getRookMoves(popLSB(&rooks), occupied);
-    }
-
-    threats->queenThreats = 0;
-    Bitboard queens = byPiece[Piece::QUEEN] & byColor[them];
-    while (queens) {
-        Square square = popLSB(&queens);
-        threats->queenThreats |= getRookMoves(square, occupied);
-        threats->queenThreats |= getBishopMoves(square, occupied);
-    }
-
-    threats->kingThreats = 0;
-    Bitboard kings = byPiece[Piece::KING] & byColor[them];
-    while (kings) {
-        threats->kingThreats |= BB::KING_ATTACKS[popLSB(&kings)];
-    };
 }
 
 bool Board::isSquareThreatened(Square square, BoardStack* bs) {
     Bitboard squareBB = bitboard(square);
     Threats* threats = &bs->threats;
-    return squareBB & (threats->pawnThreats | threats->knightThreats | threats->bishopThreats | threats->rookThreats | threats->queenThreats | threats->kingThreats);
+    return squareBB & (threats->byPiece[Piece::PAWN] | threats->byPiece[Piece::KNIGHT] | threats->byPiece[Piece::BISHOP] | threats->byPiece[Piece::ROOK] | threats->byPiece[Piece::QUEEN] | threats->byPiece[Piece::KING]);
 }
 
 bool Board::isPseudoLegal(Move move) {
