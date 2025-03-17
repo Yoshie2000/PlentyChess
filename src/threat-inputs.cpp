@@ -45,7 +45,6 @@ namespace ThreatInputs {
 
                     // Add the "standard" 768 piece feature
                     Square relativeSquare = square ^ (56 * pov);
-                    // std::cout << "P " << int(piece) << " " << int(relativeSquare) << " " << int(side != pov) << std::endl;
                     features.add(getPieceFeature(piece, relativeSquare, static_cast<Color>(side != pov)));
 
                     // Add the threat features
@@ -61,7 +60,6 @@ namespace ThreatInputs {
                         assert(attackedPiece != Piece::NONE);
 
                         Square relativeAttackedSquare = attackedSquare ^ (56 * pov);
-                        // std::cout << "T " << int(piece) << " " << int(relativeSquare) << " " << int(relativeAttackedSquare) << " " << int(attackedPiece) << " " << int(relativeSide) << " " << enemy << std::endl;
                         int threatFeature = getThreatFeature(piece, relativeSquare, relativeAttackedSquare, attackedPiece, relativeSide, enemy, sideOffset);
                         if (threatFeature != -1)
                             features.add(threatFeature);
@@ -69,7 +67,6 @@ namespace ThreatInputs {
                 }
             }
         }
-        // std::cout << std::endl;
     }
 
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor) {
@@ -120,9 +117,6 @@ namespace ThreatInputs {
         int attack = 2 * (from % 8) + id - 1;
         int threat = PieceOffsets::PAWN + OFFSETS[target + 6 * relativeSide] * SquareThreatCounts::PAWN + (from / 8 - 1) * 14 + attack;
 
-        if (threat < PieceOffsets::PAWN) {
-            std::cout << "E " << int(from) << " " << int(to) << " " << int(target) << " " << int(relativeSide) << " " << int(enemy) << " " << int(sideOffset) << std::endl;
-        }
         assert(threat >= PieceOffsets::PAWN);
         assert(threat < PieceOffsets::KNIGHT);
 

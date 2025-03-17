@@ -501,8 +501,20 @@ public:
   void calculateAccumulators();
   template<Color side>
   void refreshAccumulator(Accumulator* acc);
+
   template<Color side>
   void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  template<Color side>
+  Accumulator* incrementallyUpdatePieces(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  template<Color side>
+  void incrementallyUpdateThreats(Accumulator* originalInputAcc, Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+
+  template<Color side>
+  Accumulator* addThreatFeatures(Square square, Bitboard threatsToAdd, bool hm, Accumulator* inputAcc, Accumulator* outputAcc);
+  template<Color side>
+  Accumulator* removeThreatFeatures(Square square, Bitboard threatsToRemove, bool hm, Accumulator* originalInputAcc, Accumulator* inputAcc, Accumulator* outputAcc);
+  template<Color side>
+  Accumulator* updateThreatFeatures(Square square, Bitboard threatsToUpdate, bool hm, Accumulator* originalInputAcc, Accumulator* inputAcc, Accumulator* outputAcc);
 
   template<Color side>
   void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
