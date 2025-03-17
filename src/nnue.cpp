@@ -20,17 +20,6 @@ void initNetworkData() {
     networkData = (NetworkData*)gNETWORKData;
 }
 
-/*
-inline int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square square, KingBucketInfo* kingBucket) {
-    square ^= kingBucket->mirrored * 7;
-    int relativeSquare = square ^ (side * 56);
-    if (side == pieceColor)
-        return (64 * piece + relativeSquare) * L1_SIZE / I16_VEC_SIZE;
-    else
-        return (64 * (piece + 6) + relativeSquare) * L1_SIZE / I16_VEC_SIZE;
-}
-*/
-
 void NNUE::reset(Board* board) {
     // Reset accumulator
     currentAccumulator = 0;
@@ -40,12 +29,12 @@ void NNUE::reset(Board* board) {
     resetAccumulator<Color::BLACK>(board, &accumulatorStack[0]);
 
     // Also reset finny tables
-    // for (int i = 0; i < 2; i++) {
-    //     memset(finnyTable[i].byColor, 0, sizeof(finnyTable[i].byColor));
-    //     memset(finnyTable[i].byPiece, 0, sizeof(finnyTable[i].byPiece));
-    //     memcpy(finnyTable[i].colors[Color::WHITE], networkData->inputBiases, sizeof(networkData->inputBiases));
-    //     memcpy(finnyTable[i].colors[Color::BLACK], networkData->inputBiases, sizeof(networkData->inputBiases));
-    // }
+    for (int i = 0; i < 2; i++) {
+        memset(finnyTable[i].byColor, 0, sizeof(finnyTable[i].byColor));
+        memset(finnyTable[i].byPiece, 0, sizeof(finnyTable[i].byPiece));
+        memcpy(finnyTable[i].colors[Color::WHITE], networkData->inputBiases, sizeof(networkData->inputBiases));
+        memcpy(finnyTable[i].colors[Color::BLACK], networkData->inputBiases, sizeof(networkData->inputBiases));
+    }
 }
 
 template<Color side>
@@ -53,31 +42,12 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     // Overwrite with biases
     memcpy(acc->colors[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
-    // Then add every piece back one by one
-    // for (Square square = 0; square < 64; square++) {
-    //     Piece piece = board->pieces[square];
-    //     if (piece == Piece::NONE) continue;
-
-    //     Color pieceColor = (board->byColor[Color::WHITE] & bitboard(square)) ? Color::WHITE : Color::BLACK;
-    //     addPieceToAccumulator<side>(acc->colors, acc->colors, &kingBucket, square, piece, pieceColor);
-    // }
-
     ThreatInputs::FeatureList features;
     ThreatInputs::addSideFeatures(board, side, features);
+    for (int featureIndex : features)
+        addToAccumulator<side>(acc->colors, acc->colors, featureIndex);
 
-    for (int32_t weightOffset : features) {
-        // std::cout << weightOffset << " ";
-
-        VecI16* inputVec = (VecI16*)acc->colors[side];
-        VecI16* outputVec = (VecI16*)acc->colors[side];
-        VecI16* weightsVec = (VecI16*)networkData->inputWeights;
-
-        // The number of iterations to compute the hidden layer depends on the size of the vector registers
-        for (int i = 0; i < L1_ITERATIONS; ++i)
-            outputVec[i] = addEpi16(inputVec[i], weightsVec[weightOffset * L1_SIZE / I16_VEC_SIZE + i]);
-    }
-    // std::cout << std::endl;
-
+    acc->threats = &board->stack->threats;
     acc->kingBucketInfo[side] = getKingBucket(lsb(board->byColor[side] & board->byPiece[Piece::KING]));
     memcpy(acc->byColor[side], board->byColor, sizeof(board->byColor));
     memcpy(acc->byPiece[side], board->byPiece, sizeof(board->byPiece));
@@ -119,6 +89,7 @@ void NNUE::decrementAccumulator() {
 
 void NNUE::finalizeMove(Board* board) {
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
+    accumulator->threats = &board->stack->threats;
 
     for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
         accumulator->kingBucketInfo[side] = getKingBucket(lsb(board->byPiece[Piece::KING] & board->byColor[side]));
@@ -127,7 +98,6 @@ void NNUE::finalizeMove(Board* board) {
     }
 }
 
-/*
 template<Color side>
 void NNUE::calculateAccumulators() {
     // Incrementally update all accumulators for this side
@@ -201,13 +171,12 @@ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* ou
 }
 
 template<Color side>
-void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
-    // Get the index of the piece for this color in the input layer
-    int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
+void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
+    int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
-    VecI16* weightsVec = (VecI16*)networkData->inputWeights[kingBucket->index];
+    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
     for (int i = 0; i < L1_ITERATIONS; ++i)
@@ -215,13 +184,12 @@ void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputDa
 }
 
 template<Color side>
-void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
-    // Get the index of the piece for this color in the input layer
-    int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
+void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
+    int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
-    VecI16* weightsVec = (VecI16*)networkData->inputWeights[kingBucket->index];
+    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
     for (int i = 0; i < L1_ITERATIONS; ++i)
@@ -229,21 +197,19 @@ void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*out
 }
 
 template<Color side>
-void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor) {
-    // Get the index of the piece squares for this color in the input layer
-    int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin, kingBucket);
-    int addWeightOffset = getFeatureOffset(side, piece, pieceColor, target, kingBucket);
+void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex) {
+    int subtractWeightOffset = subIndex * L1_SIZE / I16_VEC_SIZE;
+    int addWeightOffset = addIndex * L1_SIZE / I16_VEC_SIZE;
 
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
-    VecI16* weightsVec = (VecI16*)networkData->inputWeights[kingBucket->index];
+    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
     // The number of iterations to compute the hidden layer depends on the size of the vector registers
     for (int i = 0; i < L1_ITERATIONS; ++i) {
         outputVec[i] = subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]);
     }
 }
-*/
 
 Eval NNUE::evaluate(Board* board) {
     // assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);

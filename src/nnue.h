@@ -443,11 +443,12 @@ struct Accumulator {
   alignas(ALIGNMENT) int16_t colors[2][L1_SIZE];
 
   DirtyPiece dirtyPieces[4];
-  int32_t numDirtyPieces;
+  int numDirtyPieces;
 
   KingBucketInfo kingBucketInfo[2];
   Bitboard byColor[2][2];
   Bitboard byPiece[2][Piece::TOTAL];
+  Threats* threats;
 };
 
 struct FinnyEntry {
@@ -493,7 +494,6 @@ public:
 
   Eval evaluate(Board* board);
 
-  /*
   template<Color side>
   void calculateAccumulators();
   template<Color side>
@@ -502,11 +502,10 @@ public:
   void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
   template<Color side>
-  void addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
+  void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
   template<Color side>
-  void removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor);
+  void subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
   template<Color side>
-  void movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor);
-  */
+  void addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex);
 
 };
