@@ -288,7 +288,7 @@ Accumulator* NNUE::incrementallyUpdatePieces(Accumulator* inputAcc, Accumulator*
 }
 
 template<Color side>
-void NNUE::addThreatFeatures(Square square, Bitboard threatsToAdd, bool hm, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList) {
+__attribute__((always_inline)) inline void NNUE::addThreatFeatures(Square square, Bitboard threatsToAdd, bool hm, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList) {
     while (threatsToAdd) {
         Square attackedSquare = popLSB(&threatsToAdd);
         Piece piece = baseAcc->mailbox[side][square];
@@ -309,7 +309,7 @@ void NNUE::addThreatFeatures(Square square, Bitboard threatsToAdd, bool hm, Accu
 }
 
 template<Color side>
-void NNUE::removeThreatFeatures(Square square, Bitboard threatsToRemove, bool hm, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList) {
+__attribute__((always_inline)) inline void NNUE::removeThreatFeatures(Square square, Bitboard threatsToRemove, bool hm, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList) {
     while (threatsToRemove) {
         Square attackedSquare = popLSB(&threatsToRemove);
         Piece piece = baseAcc->mailbox[side][square];
@@ -330,7 +330,7 @@ void NNUE::removeThreatFeatures(Square square, Bitboard threatsToRemove, bool hm
 }
 
 template<Color side>
-void NNUE::updateThreatFeatures(Square square, Bitboard threatsToUpdate, bool hm, Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
+__attribute__((always_inline)) inline void NNUE::updateThreatFeatures(Square square, Bitboard threatsToUpdate, bool hm, Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
     while (threatsToUpdate) {
         Square attackedSquare = popLSB(&threatsToUpdate);
 
@@ -391,14 +391,16 @@ void NNUE::updateThreatFeatures(Square square, Bitboard threatsToUpdate, bool hm
 template<Color side>
 void NNUE::incrementallyUpdateThreats(Accumulator* originalInputAcc, Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
     bool hm = kingBucket->mirrored;
+    Bitboard originalInputOccupancy = originalInputAcc->byColor[side][Color::WHITE] | originalInputAcc->byColor[side][Color::BLACK];
+    Bitboard outputOccupancy = outputAcc->byColor[side][Color::WHITE] | outputAcc->byColor[side][Color::BLACK];
 
     ThreatInputs::FeatureList addFeatureList;
     ThreatInputs::FeatureList subFeatureList;
 
     // Incrementally update threats via bitboard diffs
     for (Square square = 0; square < 64; square++) {
-        Bitboard finnyBB = originalInputAcc->threats[side].bySquare[square] & (originalInputAcc->byColor[side][Color::WHITE] | originalInputAcc->byColor[side][Color::BLACK]);
-        Bitboard accBB = outputAcc->threats[side].bySquare[square] & (outputAcc->byColor[side][Color::WHITE] | outputAcc->byColor[side][Color::BLACK]);
+        Bitboard finnyBB = originalInputAcc->threats[side].bySquare[square] & originalInputOccupancy;
+        Bitboard accBB = outputAcc->threats[side].bySquare[square] & outputOccupancy;
 
         Bitboard addBB = accBB & ~finnyBB;
         Bitboard removeBB = ~accBB & finnyBB;

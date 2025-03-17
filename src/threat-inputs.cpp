@@ -97,6 +97,7 @@ namespace ThreatInputs {
             featureIndex = getKingThreatFeature(from, to, target, relativeSide, sideOffset);
             break;
         case Piece::NONE:
+            featureIndex = -1;
             assert(false);
         }
 
