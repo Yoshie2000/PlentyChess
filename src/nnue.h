@@ -448,7 +448,8 @@ struct Accumulator {
   KingBucketInfo kingBucketInfo[2];
   Bitboard byColor[2][2];
   Bitboard byPiece[2][Piece::TOTAL];
-  Threats* threats;
+  Piece mailbox[2][64];
+  Threats threats[2];
 };
 
 struct FinnyEntry {
@@ -456,6 +457,8 @@ struct FinnyEntry {
 
   Bitboard byColor[2][2];
   Bitboard byPiece[2][Piece::TOTAL];
+  Piece mailbox[2][64];
+  Threats threats[2];
 };
 
 struct NetworkData {
