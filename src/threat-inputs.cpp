@@ -19,32 +19,16 @@ namespace ThreatInputs {
     }
 
     void addSideFeatures(Board* board, Color pov, FeatureList& features) {
-        // Set up bitboards
-        Bitboard bitboards[8];
-        for (Color c = Color::WHITE; c <= Color::BLACK; ++c)
-            bitboards[c] = board->byColor[c];
-        for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece)
-            bitboards[2 + piece] = board->byPiece[piece];
-        
-        if (pov == Color::BLACK) {
-            // Swap colors
-            std::swap(bitboards[0], bitboards[1]);
-            for (int i = 0; i < 8; i++)
-                bitboards[i] = __bswap_64(bitboards[i]);
-        }
-        
-        // Add features
-        addFeatures(bitboards, features);
-
-        std::cout << std::endl << "------------------------------------------" << std::endl;
-
-        // Directly from board (alternative version)
+        // Check HM and get occupancies
         Square king = lsb(board->byColor[pov] & board->byPiece[Piece::KING]);
         bool hm = fileOf(king) >= 4;
 
         Bitboard occupancy = board->byColor[Color::WHITE] | board->byColor[Color::BLACK];
         if (hm) occupancy = mirrorBitboard(occupancy);
+        Bitboard nonPovOccupancy = board->byColor[flip(pov)];
+        if (hm) nonPovOccupancy = mirrorBitboard(nonPovOccupancy);
 
+        // Loop through sides and pieces
         for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
             int32_t sideOffset = (side != pov) * PieceOffsets::END;
 
@@ -53,12 +37,13 @@ namespace ThreatInputs {
 
             for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
                 Bitboard pieceBitboard = board->byColor[side] & board->byPiece[piece];
+
+                // Add features for this piece
                 while (pieceBitboard) {
                     Square square = popLSB(&pieceBitboard) ^ (hm * 7);
 
                     // Add the "standard" 768 piece feature
                     Square relativeSquare = square ^ (56 * pov);
-                    std::cout << "P " << int(side != pov) << " " << int(piece) << " " << int(relativeSquare) << std::endl;
                     features.add(2 * PieceOffsets::END + 384 * (side != pov) + 64 * piece + relativeSquare);
 
                     // Add the threat features
@@ -66,72 +51,13 @@ namespace ThreatInputs {
                     while (attacks) {
                         Square attackedSquare = popLSB(&attacks);
                         bool enemy = static_cast<bool>(enemyOccupancy & bitboard(attackedSquare));
-                        Color relativeSide = static_cast<Color>(static_cast<bool>(board->byColor[flip(pov)] & bitboard(attackedSquare)));
+                        Color relativeSide = static_cast<Color>(static_cast<bool>(nonPovOccupancy & bitboard(attackedSquare)));
                         Piece attackedPiece = board->pieces[attackedSquare ^ (hm * 7)];
 
                         assert(attackedPiece != Piece::NONE);
                         
                         Square relativeAttackedSquare = attackedSquare ^ (56 * pov);
-                        std::cout << "T " << int(piece) << " " << int(relativeSquare) << " " << int(relativeAttackedSquare) << " " << int(attackedPiece) << " " << int(relativeSide) << " " << enemy << std::endl;
                         addPieceThreat(piece, relativeSquare, relativeAttackedSquare, attackedPiece, relativeSide, enemy, features, sideOffset);
-                    }
-                }
-            }
-
-        }
-
-        std::cout << std::endl << "done" << std::endl << std::endl;
-    }
-
-    void addFeatures(Bitboard* bitboards, FeatureList& features) {
-        // HM
-        Square king = lsb(bitboards[0] & bitboards[2 + Piece::KING]);
-        if (king % 8 > 3) {
-            for (int i = 0; i < 8; i++) {
-                bitboards[i] = mirrorBitboard(bitboards[i]);
-            }
-        }
-
-        // Build mailbox
-        Piece mailbox[64];
-        std::memset(mailbox, Piece::NONE, sizeof(mailbox));
-        for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-            for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
-                Bitboard pieceBitboard = bitboards[side] & bitboards[2 + piece];
-                while (pieceBitboard) {
-                    Square square = popLSB(&pieceBitboard);
-                    mailbox[square] = piece;
-                }
-            }
-        }
-
-        // Add features
-        for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-            int32_t sideOffset = side * PieceOffsets::END;
-
-            Bitboard occupancy = bitboards[0] | bitboards[1];
-            Bitboard enemyOccupancy = bitboards[flip(side)];
-
-            for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
-                Bitboard pieceBitboard = bitboards[side] & bitboards[2 + piece];
-                while (pieceBitboard) {
-                    Square square = popLSB(&pieceBitboard);
-                    Bitboard attacks = BB::attackedSquares(piece, square, occupancy, side) & occupancy;
-
-                    // Add the "standard" 768 piece feature
-                    std::cout << "P " << int(side) << " " << int(piece) << " " << int(square) << std::endl;
-                    // features.add(2 * PieceOffsets::END + 384 * side + 64 * piece + square);
-                    
-                    // Add the threat features
-                    while (attacks) {
-                        Square attackedSquare = popLSB(&attacks);
-                        bool enemy = static_cast<bool>(enemyOccupancy & bitboard(attackedSquare));
-                        Color relativeSide = static_cast<Color>(static_cast<bool>(bitboards[1] & bitboard(attackedSquare)));
-
-                        assert(mailbox[attackedSquare] != Piece::NONE);
-
-                        std::cout << "T " << int(piece) << " " << int(square) << " " << int(attackedSquare) << " " << int(mailbox[attackedSquare]) << " " << int(relativeSide) << " " << enemy << std::endl;
-                        // addPieceThreat(piece, square, attackedSquare, mailbox[attackedSquare], relativeSide, enemy, features, sideOffset);
                     }
                 }
             }
