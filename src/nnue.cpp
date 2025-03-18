@@ -21,16 +21,93 @@ alignas(ALIGNMENT) uint16_t nnzLookup[256][8];
 NNZ nnz;
 #endif
 
+struct RawNetworkData {
+    float inputWeights[INPUT_SIZE * L1_SIZE];
+    float inputBiases[L1_SIZE];
+    float l1Weights[2 * L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
+    float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
+    float l2Weights[L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
+    float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
+    float l3Weights[L3_SIZE][OUTPUT_BUCKETS];
+    float l3Biases[OUTPUT_BUCKETS];
+};
+
+RawNetworkData rawNetwork;
+float featureAccumulator[2][L1_SIZE];
+float l1Output[2 * L1_SIZE];
+float l2Neurons[L2_SIZE];
+float l3Neurons[L3_SIZE];
+
 void initNetworkData() {
-    for (size_t i = 0; i < 256; i++) {
-        uint64_t j = i;
-        uint64_t k = 0;
-        while (j) {
-            nnzLookup[i][k++] = popLSB(&j);
+
+    Board board;
+    BoardStack boardStack;
+    board.stack = &boardStack;
+    board.startpos();
+
+    std::ifstream infile("raw.bin", std::ios::binary);
+    if (!infile) {
+        std::cerr << "Error opening float file for reading (raw.bin)" << std::endl;
+        return;
+    }
+    infile.read(reinterpret_cast<char*>(&rawNetwork), sizeof(rawNetwork));
+    infile.close();
+
+    // Bucket
+    int pieceCount = BB::popcount(board.byColor[Color::WHITE] | board.byColor[Color::BLACK]);
+    constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
+    int bucket = (pieceCount - 2) / divisor;
+    assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
+
+    // Feature accumulator
+    for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
+        for (int i = 0; i < L1_SIZE; i++) {
+            featureAccumulator[c][i] = rawNetwork.inputBiases[i];
+        }
+
+        ThreatInputs::FeatureList features;
+        ThreatInputs::addSideFeatures(&board, c, features);
+        for (int featureIndex : features) {
+            for (int i = 0; i < L1_SIZE; i++) {
+                featureAccumulator[c][i] += rawNetwork.inputWeights[featureIndex + i];
+            }
         }
     }
 
-    networkData = (NetworkData*)gNETWORKData;
+    // Activate L1 (no pairwise)
+    for (int i = 0; i < L1_SIZE; i++) {
+        l1Output[i] = std::clamp(featureAccumulator[board.stm][i], 0.0f, 1.0f);
+        l1Output[i + L1_SIZE] = std::clamp(featureAccumulator[flip(board.stm)][i], 0.0f, 1.0f);
+    }
+
+    // Calculate L2
+    for (int l1 = 0; l1 < 2 * L1_SIZE; l1++) {
+        for (int l2 = 0; l2 < L2_SIZE; l2++) {
+            l2Neurons[l2] += l1Output[l1] * rawNetwork.l1Weights[l1][bucket][l2];
+        }
+    }
+
+    // Activate L2 & calculate L3
+    memcpy(l3Neurons, rawNetwork.l2Biases[bucket], sizeof(l3Neurons));
+    for (int l2 = 0; l2 < L2_SIZE; l2++) {
+        float l2Result = l2Neurons[l2] + rawNetwork.l1Biases[bucket][l2];
+        float l2Activated = std::clamp(l2Result, 0.0f, 1.0f);
+        l2Activated *= l2Activated;
+
+        for (int l3 = 0; l3 < L3_SIZE; l3++) {
+            l3Neurons[l3] += l2Activated * rawNetwork.l2Weights[l2][bucket][l3];
+        }
+    }
+
+    float result = rawNetwork.l3Biases[bucket];
+    for (int l3 = 0; l3 < L3_SIZE; l3++) {
+        float l3Activated = std::clamp(l3Neurons[l3], 0.0f, 1.0f);
+        l3Activated *= l3Activated;
+        result += l3Activated * rawNetwork.l3Weights[l3][bucket];
+    }
+
+    Eval eval = result * NETWORK_SCALE;
+    std::cout << "Startpos eval: " << int(eval) << std::endl;
 }
 
 void NNUE::reset(Board* board) {
@@ -537,163 +614,24 @@ Eval NNUE::evaluate(Board* board) {
 
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
-    // VecI16* stmAcc = reinterpret_cast<VecI16*>(accumulator->colors[board->stm]);
-    // VecI16* oppAcc = reinterpret_cast<VecI16*>(accumulator->colors[1 - board->stm]);
-
-    // VecI16 i16Zero = set1Epi16(0);
-    // VecI16 i16Quant = set1Epi16(INPUT_QUANT);
-
-    // VecIu8* l1NeuronsVec = reinterpret_cast<VecIu8*>(l1Neurons);
-
-    // No pairwise on this net
-    // for (int l1 = 0; l1 < L1_ITERATIONS * 2; l1 += 2) {
-    //     // STM
-    //     VecI16 clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
-    //     VecI16 clipped2 = minEpi16(maxEpi16(stmAcc[l1 + 1], i16Zero), i16Quant);
-
-    //     l1NeuronsVec[l1 / 2] = packusEpi16(clipped1, clipped2);
-
-    //     // NSTM
-    //     clipped1 = minEpi16(maxEpi16(oppAcc[l1], i16Zero), i16Quant);
-    //     clipped2 = minEpi16(maxEpi16(oppAcc[l1 + 1], i16Zero), i16Quant);
-
-    //     l1NeuronsVec[l1 / 2 + L1_ITERATIONS] = packusEpi16(clipped1, clipped2);
-    // }
-
     for (int i = 0; i < L1_SIZE; i++) {
         l1Neurons[i] = std::clamp<int16_t>(accumulator->colors[board->stm][i], 0, 255);
         l1Neurons[i + L1_SIZE] = std::clamp<int16_t>(accumulator->colors[1 - board->stm][i], 0, 255);
     }
 
-    // for (int i = 0; i < 2 * L1_SIZE; i++)
-    //     std::cout << int(l1Neurons[i]) << " ";
-    // std::cout << std::endl;
+    alignas(ALIGNMENT) float l2Neurons[L2_SIZE] = {};
 
-// #if defined(PROCESS_NET)
-//     nnz.addActivations(l1Neurons);
-// #endif
-
-    alignas(ALIGNMENT) int l2Neurons[L2_SIZE] = {};
-#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-    int nnzCount = 0;
-    alignas(ALIGNMENT) uint16_t nnzIndices[2 * L1_SIZE / INT8_PER_INT32];
-
-#if defined(ARCH_X86)
-    __m128i nnzZero = _mm_setzero_si128();
-    __m128i nnzIncrement = _mm_set1_epi16(8);
-    for (int i = 0; i < 2 * L1_SIZE / INT8_PER_INT32 / 16; i++) {
-        uint32_t nnz = 0;
-
-        for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
-            nnz |= vecNNZ(l1NeuronsVec[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
-        }
-
-        for (int j = 0; j < 16 / 8; j++) {
-            uint16_t lookup = (nnz >> (j * 8)) & 0xFF;
-            __m128i offsets = _mm_loadu_si128(reinterpret_cast<__m128i*>(&nnzLookup[lookup]));
-            _mm_storeu_si128(reinterpret_cast<__m128i*>(nnzIndices + nnzCount), _mm_add_epi16(nnzZero, offsets));
-            nnzCount += BB::popcount(lookup);
-            nnzZero = _mm_add_epi16(nnzZero, nnzIncrement);
-        }
-    }
-#else
-    VecI32* l1NeuronsVecI32 = reinterpret_cast<VecI32*>(l1Neurons);
-    uint16x8_t nnzZero = vdupq_n_u16(0);
-    uint16x8_t nnzIncrement = vdupq_n_u16(8);
-
-    for (int i = 0; i < 2 * L1_SIZE / INT8_PER_INT32 / 16; i++) {
-        uint32_t nnz = 0;
-
-        for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
-            nnz |= vecNNZ(l1NeuronsVecI32[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
-        }
-
-        for (int j = 0; j < 16 / 8; j++) {
-            uint16_t lookup = (nnz >> (j * 8)) & 0xFF;
-            uint16x8_t offsets = vld1q_u16(nnzLookup[lookup]);
-            vst1q_u16(nnzIndices + nnzCount, vaddq_u16(nnzZero, offsets));
-            nnzCount += BB::popcount(lookup);
-            nnzZero = vaddq_u16(nnzZero, nnzIncrement);
-        }
-    }
-
-#endif
-
-    int* l1Packs = reinterpret_cast<int*>(l1Neurons);
-    VecI32* l2NeuronsVec = reinterpret_cast<VecI32*>(l2Neurons);
-
-    int i = 0;
-    for (; i < nnzCount - 1; i += 2) {
-        int l1_1 = nnzIndices[i] * INT8_PER_INT32;
-        int l1_2 = nnzIndices[i + 1] * INT8_PER_INT32;
-#if defined(ARCH_X86)
-        VecIu8 u8_1 = set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]);
-        VecIu8 u8_2 = set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]);
-#else
-        VecIu8 u8_1 = vreinterpretq_u8_s32(set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]));
-        VecIu8 u8_2 = vreinterpretq_u8_s32(set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]));
-#endif
-        VecI8* weights_1 = reinterpret_cast<VecI8*>(&networkData->l1Weights[bucket][l1_1 * L2_SIZE]);
-        VecI8* weights_2 = reinterpret_cast<VecI8*>(&networkData->l1Weights[bucket][l1_2 * L2_SIZE]);
-
-        for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
-            l2NeuronsVec[l2] = dpbusdEpi32x2(l2NeuronsVec[l2], u8_1, weights_1[l2], u8_2, weights_2[l2]);
-        }
-    }
-
-    for (; i < nnzCount; i++) {
-        int l1 = nnzIndices[i] * INT8_PER_INT32;
-#if defined(ARCH_X86)
-        VecIu8 u8 = set1Epi32(l1Packs[l1 / INT8_PER_INT32]);
-#else
-        VecIu8 u8 = vreinterpretq_u8_s32(set1Epi32(l1Packs[l1 / INT8_PER_INT32]));
-#endif
-        VecI8* weights = reinterpret_cast<VecI8*>(&networkData->l1Weights[bucket][l1 * L2_SIZE]);
-
-        for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
-            l2NeuronsVec[l2] = dpbusdEpi32(l2NeuronsVec[l2], u8, weights[l2]);
-        }
-    }
-#else
     for (int l1 = 0; l1 < 2 * L1_SIZE; l1++) {
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
             l2Neurons[l2] += l1Neurons[l1] * networkData->l1Weights[bucket][l1 * L2_SIZE + l2];
         }
     }
-#endif
 
     alignas(ALIGNMENT) float l3Neurons[L3_SIZE];
     memcpy(l3Neurons, networkData->l2Biases[bucket], sizeof(l3Neurons));
 
-#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-    alignas(ALIGNMENT) float l2Floats[L2_SIZE];
-
-    VecF psNorm = set1Ps(L1_NORMALISATION);
-    VecF psZero = set1Ps(0.0f);
-    VecF psOne = set1Ps(1.0f);
-
-    VecF* l1Biases = reinterpret_cast<VecF*>(networkData->l1Biases[bucket]);
-    VecF* l2FloatsVec = reinterpret_cast<VecF*>(l2Floats);
-
-    for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
-        VecF converted = cvtepi32Ps(l2NeuronsVec[l2]);
-        VecF l2Result = fmaddPs(converted, psNorm, l1Biases[l2]);
-        VecF l2Activated = maxPs(minPs(l2Result, psOne), psZero);
-        l2FloatsVec[l2] = mulPs(l2Activated, l2Activated);
-    }
-
-    VecF* l3NeuronsVec = reinterpret_cast<VecF*>(l3Neurons);
-    for (int l2 = 0; l2 < L2_SIZE; l2++) {
-        VecF l2Vec = set1Ps(l2Floats[l2]);
-        VecF* weights = reinterpret_cast<VecF*>(&networkData->l2Weights[bucket][l2 * L3_SIZE]);
-        for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3++) {
-            l3NeuronsVec[l3] = fmaddPs(l2Vec, weights[l3], l3NeuronsVec[l3]);
-        }
-    }
-#else
     for (int l2 = 0; l2 < L2_SIZE; l2++) {
         float l2Result = static_cast<float>(l2Neurons[l2]) / (255.0f * 64.0f) + networkData->l1Biases[bucket][l2];
-        std::cout << l2Neurons[l2] << " (" << l2Result << ") ";
         float l2Activated = std::clamp(l2Result, 0.0f, 1.0f);
         l2Activated *= l2Activated;
 
@@ -701,27 +639,7 @@ Eval NNUE::evaluate(Board* board) {
             l3Neurons[l3] = std::fma(l2Activated, networkData->l2Weights[bucket][l2 * L3_SIZE + l3], l3Neurons[l3]);
         }
     }
-    std::cout << std::endl;
-#endif
 
-#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-    constexpr int chunks = 64 / sizeof(VecF);
-
-    VecF resultSums[chunks];
-    for (int i = 0; i < chunks; i++)
-        resultSums[i] = psZero;
-
-    VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData->l3Weights[bucket]);
-    for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3 += chunks) {
-        for (int chunk = 0; chunk < chunks; chunk++) {
-            VecF l3Activated = maxPs(minPs(l3NeuronsVec[l3 + chunk], psOne), psZero);
-            l3Activated = mulPs(l3Activated, l3Activated);
-            resultSums[chunk] = fmaddPs(l3Activated, l3WeightsVec[l3 + chunk], resultSums[chunk]);
-        }
-    }
-
-    float result = networkData->l3Biases[bucket] + reduceAddPs(resultSums);
-#else
     constexpr int chunks = sizeof(VecF) / sizeof(float);
     float resultSums[chunks] = {};
 
@@ -734,7 +652,6 @@ Eval NNUE::evaluate(Board* board) {
     }
 
     float result = networkData->l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
-#endif
 
     return result * NETWORK_SCALE;
 }
