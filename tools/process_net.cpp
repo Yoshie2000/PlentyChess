@@ -67,7 +67,7 @@ void quantizeNetwork() {
         tmp.inputBiases[b] = quantize<INPUT_QUANT>(raw.inputBiases[b]);
     }
 
-    // Quantize L1 weights
+    // // Quantize L1 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
         for (int l1 = 0; l1 < 2 * L1_SIZE; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
@@ -77,6 +77,9 @@ void quantizeNetwork() {
     }
 
     // std::memcpy the rest
+    // std::memcpy(tmp.inputWeights, raw.inputWeights, sizeof(raw.inputWeights));
+    // std::memcpy(tmp.inputBiases, raw.inputBiases, sizeof(raw.inputBiases));
+    // std::memcpy(tmp.l1Weights, raw.l1Weights, sizeof(raw.l1Weights));
     std::memcpy(tmp.l1Biases, raw.l1Biases, sizeof(raw.l1Biases));
     std::memcpy(tmp.l2Weights, raw.l2Weights, sizeof(raw.l2Weights));
     std::memcpy(tmp.l2Biases, raw.l2Biases, sizeof(raw.l2Biases));
@@ -87,21 +90,21 @@ void quantizeNetwork() {
 void transposePermuteNetwork() {
     // Transpose L1 / L2 / L3 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-        for (int l1 = 0; l1 < 2 * L1_SIZE / INT8_PER_INT32; l1++) {
-            for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                for (int c = 0; c < INT8_PER_INT32; c++) {
-                    out.l1Weights[b][l1 * INT8_PER_INT32 * L2_SIZE + l2 * INT8_PER_INT32 + c] = reinterpret_cast<int8_t*>(tmp.l1Weights)[(l1 * INT8_PER_INT32 + c) * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
-                }
-            }
-        }
-#else
+// #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
+//         for (int l1 = 0; l1 < 2 * L1_SIZE / INT8_PER_INT32; l1++) {
+//             for (int l2 = 0; l2 < L2_SIZE; l2++) {
+//                 for (int c = 0; c < INT8_PER_INT32; c++) {
+//                     out.l1Weights[b][l1 * INT8_PER_INT32 * L2_SIZE + l2 * INT8_PER_INT32 + c] = reinterpret_cast<int8_t*>(tmp.l1Weights)[(l1 * INT8_PER_INT32 + c) * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
+//                 }
+//             }
+//         }
+// #else
         for (int l1 = 0; l1 < 2 * L1_SIZE; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
                 out.l1Weights[b][l1 * L2_SIZE + l2] = reinterpret_cast<int8_t*>(tmp.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
             }
         }
-#endif
+// #endif
 
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
             for (int l3 = 0; l3 < L3_SIZE; l3++) {

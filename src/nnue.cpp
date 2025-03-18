@@ -472,53 +472,60 @@ void NNUE::applyAccumulatorUpdates(Accumulator* inputAcc, Accumulator* outputAcc
 
 template<Color side>
 void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
-    int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
+    for (int i = 0; i < L1_SIZE; i++)
+        outputData[side][i] = inputData[side][i] + networkData->inputWeights[featureIndex + i];
 
-    VecI16* inputVec = (VecI16*)inputData[side];
-    VecI16* outputVec = (VecI16*)outputData[side];
-    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
+    // int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < L1_ITERATIONS; ++i)
-        outputVec[i] = addEpi16(inputVec[i], weightsVec[weightOffset + i]);
+    // VecI16* inputVec = (VecI16*)inputData[side];
+    // VecI16* outputVec = (VecI16*)outputData[side];
+    // VecI16* weightsVec = (VecI16*)networkData->inputWeights;
+
+    // // The number of iterations to compute the hidden layer depends on the size of the vector registers
+    // for (int i = 0; i < L1_ITERATIONS; ++i)
+    //     outputVec[i] = addEpi16(inputVec[i], weightsVec[weightOffset + i]);
 }
 
 template<Color side>
 void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
-    int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
+    for (int i = 0; i < L1_SIZE; i++)
+        outputData[side][i] = inputData[side][i] - networkData->inputWeights[featureIndex + i];
+    // int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
-    VecI16* inputVec = (VecI16*)inputData[side];
-    VecI16* outputVec = (VecI16*)outputData[side];
-    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
+    // VecI16* inputVec = (VecI16*)inputData[side];
+    // VecI16* outputVec = (VecI16*)outputData[side];
+    // VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < L1_ITERATIONS; ++i)
-        outputVec[i] = subEpi16(inputVec[i], weightsVec[weightOffset + i]);
+    // // The number of iterations to compute the hidden layer depends on the size of the vector registers
+    // for (int i = 0; i < L1_ITERATIONS; ++i)
+    //     outputVec[i] = subEpi16(inputVec[i], weightsVec[weightOffset + i]);
 }
 
 template<Color side>
 void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex) {
-    int subtractWeightOffset = subIndex * L1_SIZE / I16_VEC_SIZE;
-    int addWeightOffset = addIndex * L1_SIZE / I16_VEC_SIZE;
+    for (int i = 0; i < L1_SIZE; i++)
+        outputData[side][i] = inputData[side][i] + networkData->inputWeights[addIndex + i] - networkData->inputWeights[subIndex + i];
+    // int subtractWeightOffset = subIndex * L1_SIZE / I16_VEC_SIZE;
+    // int addWeightOffset = addIndex * L1_SIZE / I16_VEC_SIZE;
 
-    VecI16* inputVec = (VecI16*)inputData[side];
-    VecI16* outputVec = (VecI16*)outputData[side];
-    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
+    // VecI16* inputVec = (VecI16*)inputData[side];
+    // VecI16* outputVec = (VecI16*)outputData[side];
+    // VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < L1_ITERATIONS; ++i) {
-        outputVec[i] = subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]);
-    }
+    // // The number of iterations to compute the hidden layer depends on the size of the vector registers
+    // for (int i = 0; i < L1_ITERATIONS; ++i) {
+    //     outputVec[i] = subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]);
+    // }
 }
 
-alignas(ALIGNMENT) uint8_t l1Neurons[2 * L1_SIZE];
+alignas(ALIGNMENT) int16_t l1Neurons[2 * L1_SIZE];
 
 Eval NNUE::evaluate(Board* board) {
     assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
 
     // Make sure the current accumulators are up to date
-    calculateAccumulators<Color::WHITE>();
-    calculateAccumulators<Color::BLACK>();
+    // calculateAccumulators<Color::WHITE>();
+    // calculateAccumulators<Color::BLACK>();
 
     assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
 
@@ -530,32 +537,37 @@ Eval NNUE::evaluate(Board* board) {
 
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
-    VecI16* stmAcc = reinterpret_cast<VecI16*>(accumulator->colors[board->stm]);
-    VecI16* oppAcc = reinterpret_cast<VecI16*>(accumulator->colors[1 - board->stm]);
+    // VecI16* stmAcc = reinterpret_cast<VecI16*>(accumulator->colors[board->stm]);
+    // VecI16* oppAcc = reinterpret_cast<VecI16*>(accumulator->colors[1 - board->stm]);
 
-    VecI16 i16Zero = set1Epi16(0);
-    VecI16 i16Quant = set1Epi16(INPUT_QUANT);
+    // VecI16 i16Zero = set1Epi16(0);
+    // VecI16 i16Quant = set1Epi16(INPUT_QUANT);
 
-    VecIu8* l1NeuronsVec = reinterpret_cast<VecIu8*>(l1Neurons);
+    // VecIu8* l1NeuronsVec = reinterpret_cast<VecIu8*>(l1Neurons);
 
     // No pairwise on this net
-    for (int l1 = 0; l1 < L1_ITERATIONS * 2; l1 += 2) {
-        // STM
-        VecI16 clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
-        VecI16 clipped2 = minEpi16(maxEpi16(stmAcc[l1 + 1], i16Zero), i16Quant);
+    // for (int l1 = 0; l1 < L1_ITERATIONS * 2; l1 += 2) {
+    //     // STM
+    //     VecI16 clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
+    //     VecI16 clipped2 = minEpi16(maxEpi16(stmAcc[l1 + 1], i16Zero), i16Quant);
 
-        l1NeuronsVec[l1 / 2] = packusEpi16(clipped1, clipped2);
+    //     l1NeuronsVec[l1 / 2] = packusEpi16(clipped1, clipped2);
 
-        // NSTM
-        clipped1 = minEpi16(maxEpi16(oppAcc[l1], i16Zero), i16Quant);
-        clipped2 = minEpi16(maxEpi16(oppAcc[l1 + 1], i16Zero), i16Quant);
+    //     // NSTM
+    //     clipped1 = minEpi16(maxEpi16(oppAcc[l1], i16Zero), i16Quant);
+    //     clipped2 = minEpi16(maxEpi16(oppAcc[l1 + 1], i16Zero), i16Quant);
 
-        l1NeuronsVec[l1 / 2 + L1_ITERATIONS] = packusEpi16(clipped1, clipped2);
+    //     l1NeuronsVec[l1 / 2 + L1_ITERATIONS] = packusEpi16(clipped1, clipped2);
+    // }
+
+    for (int i = 0; i < L1_SIZE; i++) {
+        l1Neurons[i] = std::clamp<int16_t>(accumulator->colors[board->stm][i], 0, 255);
+        l1Neurons[i + L1_SIZE] = std::clamp<int16_t>(accumulator->colors[1 - board->stm][i], 0, 255);
     }
 
-    for (int i = 0; i < 2 * L1_SIZE; i++)
-        std::cout << int(l1Neurons[i]) << " ";
-    std::cout << std::endl;
+    // for (int i = 0; i < 2 * L1_SIZE; i++)
+    //     std::cout << int(l1Neurons[i]) << " ";
+    // std::cout << std::endl;
 
 // #if defined(PROCESS_NET)
 //     nnz.addActivations(l1Neurons);
@@ -644,9 +656,6 @@ Eval NNUE::evaluate(Board* board) {
     }
 #else
     for (int l1 = 0; l1 < 2 * L1_SIZE; l1++) {
-        if (!l1Neurons[l1])
-            continue;
-            
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
             l2Neurons[l2] += l1Neurons[l1] * networkData->l1Weights[bucket][l1 * L2_SIZE + l2];
         }
@@ -683,7 +692,8 @@ Eval NNUE::evaluate(Board* board) {
     }
 #else
     for (int l2 = 0; l2 < L2_SIZE; l2++) {
-        float l2Result = static_cast<float>(l2Neurons[l2]) * L1_NORMALISATION + networkData->l1Biases[bucket][l2];
+        float l2Result = static_cast<float>(l2Neurons[l2]) / (255.0f * 64.0f) + networkData->l1Biases[bucket][l2];
+        std::cout << l2Neurons[l2] << " (" << l2Result << ") ";
         float l2Activated = std::clamp(l2Result, 0.0f, 1.0f);
         l2Activated *= l2Activated;
 
@@ -691,6 +701,7 @@ Eval NNUE::evaluate(Board* board) {
             l3Neurons[l3] = std::fma(l2Activated, networkData->l2Weights[bucket][l2 * L3_SIZE + l3], l3Neurons[l3]);
         }
     }
+    std::cout << std::endl;
 #endif
 
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
