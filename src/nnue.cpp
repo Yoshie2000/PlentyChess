@@ -69,7 +69,7 @@ void initNetworkData() {
         ThreatInputs::addSideFeatures(&board, c, features);
         for (int featureIndex : features) {
             for (int i = 0; i < L1_SIZE; i++) {
-                featureAccumulator[c][i] += rawNetwork.inputWeights[featureIndex + i];
+                featureAccumulator[c][i] += rawNetwork.inputWeights[featureIndex * L1_SIZE + i];
             }
         }
     }
@@ -108,6 +108,16 @@ void initNetworkData() {
 
     Eval eval = result * NETWORK_SCALE;
     std::cout << "Startpos eval: " << int(eval) << std::endl;
+
+    for (size_t i = 0; i < 256; i++) {
+        uint64_t j = i;
+        uint64_t k = 0;
+        while (j) {
+            nnzLookup[i][k++] = popLSB(&j);
+        }
+    }
+
+    networkData = (NetworkData*)gNETWORKData;
 }
 
 void NNUE::reset(Board* board) {
@@ -549,50 +559,43 @@ void NNUE::applyAccumulatorUpdates(Accumulator* inputAcc, Accumulator* outputAcc
 
 template<Color side>
 void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
-    for (int i = 0; i < L1_SIZE; i++)
-        outputData[side][i] = inputData[side][i] + networkData->inputWeights[featureIndex + i];
+    int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
-    // int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
-    // VecI16* inputVec = (VecI16*)inputData[side];
-    // VecI16* outputVec = (VecI16*)outputData[side];
-    // VecI16* weightsVec = (VecI16*)networkData->inputWeights;
-
-    // // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    // for (int i = 0; i < L1_ITERATIONS; ++i)
-    //     outputVec[i] = addEpi16(inputVec[i], weightsVec[weightOffset + i]);
+    // The number of iterations to compute the hidden layer depends on the size of the vector registers
+    for (int i = 0; i < L1_ITERATIONS; ++i)
+        outputVec[i] = addEpi16(inputVec[i], weightsVec[weightOffset + i]);
 }
 
 template<Color side>
 void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
-    for (int i = 0; i < L1_SIZE; i++)
-        outputData[side][i] = inputData[side][i] - networkData->inputWeights[featureIndex + i];
-    // int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
+    int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
-    // VecI16* inputVec = (VecI16*)inputData[side];
-    // VecI16* outputVec = (VecI16*)outputData[side];
-    // VecI16* weightsVec = (VecI16*)networkData->inputWeights;
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
-    // // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    // for (int i = 0; i < L1_ITERATIONS; ++i)
-    //     outputVec[i] = subEpi16(inputVec[i], weightsVec[weightOffset + i]);
+    // The number of iterations to compute the hidden layer depends on the size of the vector registers
+    for (int i = 0; i < L1_ITERATIONS; ++i)
+        outputVec[i] = subEpi16(inputVec[i], weightsVec[weightOffset + i]);
 }
 
 template<Color side>
 void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex) {
-    for (int i = 0; i < L1_SIZE; i++)
-        outputData[side][i] = inputData[side][i] + networkData->inputWeights[addIndex + i] - networkData->inputWeights[subIndex + i];
-    // int subtractWeightOffset = subIndex * L1_SIZE / I16_VEC_SIZE;
-    // int addWeightOffset = addIndex * L1_SIZE / I16_VEC_SIZE;
+    int subtractWeightOffset = subIndex * L1_SIZE / I16_VEC_SIZE;
+    int addWeightOffset = addIndex * L1_SIZE / I16_VEC_SIZE;
 
-    // VecI16* inputVec = (VecI16*)inputData[side];
-    // VecI16* outputVec = (VecI16*)outputData[side];
-    // VecI16* weightsVec = (VecI16*)networkData->inputWeights;
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
-    // // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    // for (int i = 0; i < L1_ITERATIONS; ++i) {
-    //     outputVec[i] = subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]);
-    // }
+    // The number of iterations to compute the hidden layer depends on the size of the vector registers
+    for (int i = 0; i < L1_ITERATIONS; ++i) {
+        outputVec[i] = subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]);
+    }
 }
 
 alignas(ALIGNMENT) int16_t l1Neurons[2 * L1_SIZE];
@@ -601,8 +604,8 @@ Eval NNUE::evaluate(Board* board) {
     assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
 
     // Make sure the current accumulators are up to date
-    // calculateAccumulators<Color::WHITE>();
-    // calculateAccumulators<Color::BLACK>();
+    calculateAccumulators<Color::WHITE>();
+    calculateAccumulators<Color::BLACK>();
 
     assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
 
