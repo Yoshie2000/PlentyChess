@@ -505,16 +505,19 @@ public:
   template<Color side>
   void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
   template<Color side>
-  Accumulator* incrementallyUpdatePieces(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
-  template<Color side>
-  void incrementallyUpdateThreats(Accumulator* originalInputAcc, Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  void applyAccumulatorUpdates(Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
 
   template<Color side>
-  __attribute__((always_inline)) inline void addThreatFeatures(Square square, Bitboard threatsToAdd, bool hm, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList);
+  void calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
   template<Color side>
-  __attribute__((always_inline)) inline void removeThreatFeatures(Square square, Bitboard threatsToRemove, bool hm, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList);
+  void calculateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
+
   template<Color side>
-  __attribute__((always_inline)) inline void updateThreatFeatures(Square square, Bitboard threatsToUpdate, bool hm, Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
+  __attribute__((always_inline)) inline void addThreatFeatures(Square square, Bitboard threatsToAdd, KingBucketInfo* kingBucket, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList);
+  template<Color side>
+  __attribute__((always_inline)) inline void removeThreatFeatures(Square square, Bitboard threatsToRemove, KingBucketInfo* kingBucket, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList);
+  template<Color side>
+  __attribute__((always_inline)) inline void updateThreatFeatures(Square square, Bitboard threatsToUpdate, KingBucketInfo* kingBucket, Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
 
   template<Color side>
   void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);

@@ -256,39 +256,42 @@ void NNUE::refreshAccumulator(Accumulator* acc) {
 }
 
 template<Color side>
-Accumulator* NNUE::incrementallyUpdatePieces(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
-    bool hm = kingBucket->mirrored;
+void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+    ThreatInputs::FeatureList addFeatureList;
+    ThreatInputs::FeatureList subFeatureList;
 
-    // Incrementally update all the dirty pieces
-    // Input and output are the same king bucket so it's all good
+    calculatePieceFeatures<side>(outputAcc, kingBucket, addFeatureList, subFeatureList);
+    calculateThreatFeatures<side>(inputAcc, outputAcc, kingBucket, addFeatureList, subFeatureList);
+
+    applyAccumulatorUpdates<side>(inputAcc, outputAcc, addFeatureList, subFeatureList);
+}
+
+template<Color side>
+void NNUE::calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
     for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
         DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
 
         Color relativeColor = static_cast<Color>(dirtyPiece.pieceColor != side);
 
         if (dirtyPiece.origin == NO_SQUARE) {
-            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * hm), relativeColor);
-            addToAccumulator<side>(inputAcc->colors, outputAcc->colors, featureIndex);
+            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor);
+            addFeatureList.add(featureIndex);
         }
         else if (dirtyPiece.target == NO_SQUARE) {
-            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * hm), relativeColor);
-            subFromAccumulator<side>(inputAcc->colors, outputAcc->colors, featureIndex);
+            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor);
+            subFeatureList.add(featureIndex);
         }
         else {
-            int subIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * hm), relativeColor);
-            int addIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * hm), relativeColor);
-            addSubToAccumulator<side>(inputAcc->colors, outputAcc->colors, addIndex, subIndex);
+            int subIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor);
+            int addIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor);
+            addFeatureList.add(addIndex);
+            subFeatureList.add(subIndex);
         }
-
-        // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
-        inputAcc = outputAcc;
     }
-
-    return inputAcc;
 }
 
 template<Color side>
-__attribute__((always_inline)) inline void NNUE::addThreatFeatures(Square square, Bitboard threatsToAdd, bool hm, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList) {
+__attribute__((always_inline)) inline void NNUE::addThreatFeatures(Square square, Bitboard threatsToAdd, KingBucketInfo* kingBucket, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList) {
     while (threatsToAdd) {
         Square attackedSquare = popLSB(&threatsToAdd);
         Piece piece = baseAcc->mailbox[side][square];
@@ -299,8 +302,8 @@ __attribute__((always_inline)) inline void NNUE::addThreatFeatures(Square square
         bool enemy = static_cast<bool>(baseAcc->byColor[side][flip(pieceColor)] & bitboard(attackedSquare));
         int sideOffset = (pieceColor != side) * ThreatInputs::PieceOffsets::END;
 
-        Square relativeSquare = square ^ (hm * 7) ^ (side * 56);
-        Square relativeAttackedSquare = attackedSquare ^ (hm * 7) ^ (side * 56);
+        Square relativeSquare = square ^ (kingBucket->mirrored * 7) ^ (side * 56);
+        Square relativeAttackedSquare = attackedSquare ^ (kingBucket->mirrored * 7) ^ (side * 56);
 
         int featureIndex = ThreatInputs::getThreatFeature(piece, relativeSquare, relativeAttackedSquare, targetPiece, relativeSide, enemy, sideOffset);
         if (featureIndex != -1)
@@ -309,7 +312,7 @@ __attribute__((always_inline)) inline void NNUE::addThreatFeatures(Square square
 }
 
 template<Color side>
-__attribute__((always_inline)) inline void NNUE::removeThreatFeatures(Square square, Bitboard threatsToRemove, bool hm, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList) {
+__attribute__((always_inline)) inline void NNUE::removeThreatFeatures(Square square, Bitboard threatsToRemove, KingBucketInfo* kingBucket, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList) {
     while (threatsToRemove) {
         Square attackedSquare = popLSB(&threatsToRemove);
         Piece piece = baseAcc->mailbox[side][square];
@@ -320,8 +323,8 @@ __attribute__((always_inline)) inline void NNUE::removeThreatFeatures(Square squ
         bool enemy = static_cast<bool>(baseAcc->byColor[side][flip(pieceColor)] & bitboard(attackedSquare));
         int sideOffset = (pieceColor != side) * ThreatInputs::PieceOffsets::END;
 
-        Square relativeSquare = square ^ (hm * 7) ^ (side * 56);
-        Square relativeAttackedSquare = attackedSquare ^ (hm * 7) ^ (side * 56);
+        Square relativeSquare = square ^ (kingBucket->mirrored * 7) ^ (side * 56);
+        Square relativeAttackedSquare = attackedSquare ^ (kingBucket->mirrored * 7) ^ (side * 56);
 
         int featureIndex = ThreatInputs::getThreatFeature(piece, relativeSquare, relativeAttackedSquare, targetPiece, relativeSide, enemy, sideOffset);
         if (featureIndex != -1)
@@ -330,7 +333,7 @@ __attribute__((always_inline)) inline void NNUE::removeThreatFeatures(Square squ
 }
 
 template<Color side>
-__attribute__((always_inline)) inline void NNUE::updateThreatFeatures(Square square, Bitboard threatsToUpdate, bool hm, Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
+__attribute__((always_inline)) inline void NNUE::updateThreatFeatures(Square square, Bitboard threatsToUpdate, KingBucketInfo* kingBucket, Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
     while (threatsToUpdate) {
         Square attackedSquare = popLSB(&threatsToUpdate);
 
@@ -343,8 +346,8 @@ __attribute__((always_inline)) inline void NNUE::updateThreatFeatures(Square squ
         bool enemy1 = static_cast<bool>(inputAcc->byColor[side][flip(pieceColor1)] & bitboard(attackedSquare));
         int sideOffset1 = (pieceColor1 != side) * ThreatInputs::PieceOffsets::END;
 
-        Square relativeSquare1 = square ^ (hm * 7) ^ (side * 56);
-        Square relativeAttackedSquare1 = attackedSquare ^ (hm * 7) ^ (side * 56);
+        Square relativeSquare1 = square ^ (kingBucket->mirrored * 7) ^ (side * 56);
+        Square relativeAttackedSquare1 = attackedSquare ^ (kingBucket->mirrored * 7) ^ (side * 56);
 
         // Feature index of accumulator
         Piece piece2 = outputAcc->mailbox[side][square];
@@ -355,8 +358,8 @@ __attribute__((always_inline)) inline void NNUE::updateThreatFeatures(Square squ
         bool enemy2 = static_cast<bool>(outputAcc->byColor[side][flip(pieceColor2)] & bitboard(attackedSquare));
         int sideOffset2 = (pieceColor2 != side) * ThreatInputs::PieceOffsets::END;
 
-        Square relativeSquare2 = square ^ (hm * 7) ^ (side * 56);
-        Square relativeAttackedSquare2 = attackedSquare ^ (hm * 7) ^ (side * 56);
+        Square relativeSquare2 = square ^ (kingBucket->mirrored * 7) ^ (side * 56);
+        Square relativeAttackedSquare2 = attackedSquare ^ (kingBucket->mirrored * 7) ^ (side * 56);
 
         // Continue if all values are equal
         if (piece1 == piece2 && relativeSquare1 == relativeSquare2 && relativeAttackedSquare1 == relativeAttackedSquare2 && targetPiece1 == targetPiece2 && relativeSide1 == relativeSide2 && enemy1 == enemy2 && sideOffset1 == sideOffset2)
@@ -389,52 +392,69 @@ __attribute__((always_inline)) inline void NNUE::updateThreatFeatures(Square squ
 }
 
 template<Color side>
-void NNUE::incrementallyUpdateThreats(Accumulator* originalInputAcc, Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
-    bool hm = kingBucket->mirrored;
-    Bitboard originalInputOccupancy = originalInputAcc->byColor[side][Color::WHITE] | originalInputAcc->byColor[side][Color::BLACK];
+void NNUE::calculateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
+    Bitboard originalInputOccupancy = inputAcc->byColor[side][Color::WHITE] | inputAcc->byColor[side][Color::BLACK];
     Bitboard outputOccupancy = outputAcc->byColor[side][Color::WHITE] | outputAcc->byColor[side][Color::BLACK];
-
-    ThreatInputs::FeatureList addFeatureList;
-    ThreatInputs::FeatureList subFeatureList;
 
     // Incrementally update threats via bitboard diffs
     for (Square square = 0; square < 64; square++) {
-        Bitboard finnyBB = originalInputAcc->threats[side].bySquare[square] & originalInputOccupancy;
+        Bitboard finnyBB = inputAcc->threats[side].bySquare[square] & originalInputOccupancy;
         Bitboard accBB = outputAcc->threats[side].bySquare[square] & outputOccupancy;
 
         Bitboard addBB = accBB & ~finnyBB;
         Bitboard removeBB = ~accBB & finnyBB;
         Bitboard updateBB = accBB & finnyBB;
 
-        addThreatFeatures<side>(square, addBB, hm, outputAcc, addFeatureList);
-        removeThreatFeatures<side>(square, removeBB, hm, originalInputAcc, subFeatureList);
-        updateThreatFeatures<side>(square, updateBB, hm, originalInputAcc, outputAcc, addFeatureList, subFeatureList);
-    }
-
-    int commonEnd = std::min(addFeatureList.count(), subFeatureList.count());
-    for (int i = 0; i < commonEnd; i++) {
-        addSubToAccumulator<side>(inputAcc->colors, outputAcc->colors, addFeatureList[i], subFeatureList[i]);
-        // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
-        inputAcc = outputAcc;
-    }
-    for (int i = commonEnd; i < addFeatureList.count(); i++) {
-        addToAccumulator<side>(inputAcc->colors, outputAcc->colors, addFeatureList[i]);
-        // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
-        inputAcc = outputAcc;
-    }
-    for (int i = commonEnd; i < subFeatureList.count(); i++) {
-        subFromAccumulator<side>(inputAcc->colors, outputAcc->colors, subFeatureList[i]);
-        // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
-        inputAcc = outputAcc;
+        addThreatFeatures<side>(square, addBB, kingBucket, outputAcc, addFeatureList);
+        removeThreatFeatures<side>(square, removeBB, kingBucket, inputAcc, subFeatureList);
+        updateThreatFeatures<side>(square, updateBB, kingBucket, inputAcc, outputAcc, addFeatureList, subFeatureList);
     }
 }
 
 template<Color side>
-void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
-    Accumulator* originalInputAcc = inputAcc;
+void NNUE::applyAccumulatorUpdates(Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
+    int commonEnd = std::min(addFeatureList.count(), subFeatureList.count());
+    VecI16* inputVec = (VecI16*)inputAcc->colors[side];
+    VecI16* outputVec = (VecI16*)outputAcc->colors[side];
+    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
-    inputAcc = incrementallyUpdatePieces<side>(inputAcc, outputAcc, kingBucket);
-    incrementallyUpdateThreats<side>(originalInputAcc, inputAcc, outputAcc, kingBucket);
+    constexpr int UNROLL_REGISTERS = 16;
+    VecI16 regs[UNROLL_REGISTERS];
+
+    for (int i = 0; i < L1_ITERATIONS / UNROLL_REGISTERS; ++i) {
+        int unrollOffset = i * UNROLL_REGISTERS;
+
+        VecI16* inputs = &inputVec[unrollOffset];
+        VecI16* outputs = &outputVec[unrollOffset];
+
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            regs[j] = inputs[j];
+
+        for (int j = 0; j < commonEnd; j++) {
+            VecI16* addWeights = &weightsVec[unrollOffset + addFeatureList[j] * L1_SIZE / I16_VEC_SIZE];
+            VecI16* subWeights = &weightsVec[unrollOffset + subFeatureList[j] * L1_SIZE / I16_VEC_SIZE];
+
+            for (int k = 0; k < UNROLL_REGISTERS; k++)
+                regs[k] = subEpi16(addEpi16(regs[k], addWeights[k]), subWeights[k]);
+        }
+
+        for (int j = commonEnd; j < addFeatureList.count(); j++) {
+            VecI16* addWeights = &weightsVec[unrollOffset + addFeatureList[j] * L1_SIZE / I16_VEC_SIZE];
+
+            for (int k = 0; k < UNROLL_REGISTERS; k++)
+                regs[k] = addEpi16(regs[k], addWeights[k]);
+        }
+
+        for (int j = commonEnd; j < subFeatureList.count(); j++) {
+            VecI16* subWeights = &weightsVec[unrollOffset + subFeatureList[j] * L1_SIZE / I16_VEC_SIZE];
+
+            for (int k = 0; k < UNROLL_REGISTERS; k++)
+                regs[k] = subEpi16(regs[k], subWeights[k]);
+        }
+
+        for (int j = 0; j < UNROLL_REGISTERS; j++)
+            outputs[j] = regs[j];
+    }
 }
 
 template<Color side>
