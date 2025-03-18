@@ -34,22 +34,6 @@ inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
   return _mm512_max_epi16(x, y);
 }
 
-inline VecI16 mulloEpi16(VecI16 x, VecI16 y) {
-  return _mm512_mullo_epi16(x, y);
-}
-
-inline VecI16 maddEpi16(VecI16 x, VecI16 y) {
-  return _mm512_madd_epi16(x, y);
-}
-
-inline VecI16 addEpi32(VecI16 x, VecI16 y) {
-  return _mm512_add_epi32(x, y);
-}
-
-inline int vecHaddEpi32(VecI16 vec) {
-  return _mm512_reduce_add_epi32(vec);
-}
-
 inline VecI16 set1Epi16(int i) {
   return _mm512_set1_epi16(i);
 }
@@ -87,7 +71,9 @@ inline VecI32 dpbusdEpi32x2(VecI32 sum, VecIu8 u, VecI8 i, VecIu8 u2, VecI8 i2) 
 #endif
 
 inline VecIu8 packusEpi16(VecI16 x, VecI16 y) {
-  return _mm512_packus_epi16(x, y);
+  VecI16 packed = _mm512_packus_epi16(x, y);
+  packed = _mm512_permutexvar_epi64(_mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7), packed);
+  return packed;
 }
 
 inline void vecStoreI(VecI16* dest, VecI16 x) {
@@ -155,45 +141,6 @@ inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
   return _mm256_max_epi16(x, y);
 }
 
-inline VecI16 mulloEpi16(VecI16 x, VecI16 y) {
-  return _mm256_mullo_epi16(x, y);
-}
-
-inline VecI16 maddEpi16(VecI16 x, VecI16 y) {
-  return _mm256_madd_epi16(x, y);
-}
-
-inline VecI16 addEpi32(VecI16 x, VecI16 y) {
-  return _mm256_add_epi32(x, y);
-}
-
-inline int vecHaddEpi32(VecI16 vec) {
-  __m128i xmm0;
-  __m128i xmm1;
-
-  // Get the lower and upper half of the register:
-  xmm0 = _mm256_castsi256_si128(vec);
-  xmm1 = _mm256_extracti128_si256(vec, 1);
-
-  // Add the lower and upper half vertically:
-  xmm0 = _mm_add_epi32(xmm0, xmm1);
-
-  // Get the upper half of the result:
-  xmm1 = _mm_unpackhi_epi64(xmm0, xmm0);
-
-  // Add the lower and upper half vertically:
-  xmm0 = _mm_add_epi32(xmm0, xmm1);
-
-  // Shuffle the result so that the lower 32-bits are directly above the second-lower 32-bits:
-  xmm1 = _mm_shuffle_epi32(xmm0, _MM_SHUFFLE(2, 3, 0, 1));
-
-  // Add the lower 32-bits to the second-lower 32-bits vertically:
-  xmm0 = _mm_add_epi32(xmm0, xmm1);
-
-  // Cast the result to the 32-bit integer type and return it:
-  return _mm_cvtsi128_si32(xmm0);
-}
-
 inline VecI16 set1Epi16(int i) {
   return _mm256_set1_epi16(i);
 }
@@ -211,7 +158,9 @@ inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
 }
 
 inline VecIu8 packusEpi16(VecI16 x, VecI16 y) {
-  return _mm256_packus_epi16(x, y);
+  VecI16 packed = _mm256_packus_epi16(x, y);
+  packed = _mm256_permute4x64_epi64(packed, _MM_SHUFFLE(3, 1, 2, 0));
+  return packed;
 }
 
 inline void vecStoreI(VecI16* dest, VecI16 x) {
@@ -298,23 +247,6 @@ inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
   return _mm_max_epi16(x, y);
 }
 
-inline VecI16 mulloEpi16(VecI16 x, VecI16 y) {
-  return _mm_mullo_epi16(x, y);
-}
-
-inline VecI16 maddEpi16(VecI16 x, VecI16 y) {
-  return _mm_madd_epi16(x, y);
-}
-
-inline VecI16 addEpi32(VecI16 x, VecI16 y) {
-  return _mm_add_epi32(x, y);
-}
-
-inline int vecHaddEpi32(VecI16 vec) {
-  int* asArray = (int*)&vec;
-  return asArray[0] + asArray[1] + asArray[2] + asArray[3];
-}
-
 inline VecI16 set1Epi16(int i) {
   return _mm_set1_epi16(i);
 }
@@ -397,16 +329,21 @@ inline float reduceAddPs(VecF* sums) {
 inline uint32_t vecNNZ(VecI32 chunk) {
   return _mm_movemask_ps(_mm_castsi128_ps(_mm_cmpgt_epi32(chunk, _mm_setzero_si128())));
 }
+
 #endif
 
 constexpr int INPUT_SIZE = 2 * ThreatInputs::PieceOffsets::END + 768;
-constexpr int L1_SIZE = 1024;
+constexpr int L1_SIZE = 2048;
+constexpr int L2_SIZE = 16;
+constexpr int L3_SIZE = 32;
 
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
-constexpr int INPUT_QUANT = 510;
+constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
+
+constexpr float L1_NORMALISATION = static_cast<float>(1) / static_cast<float>(INPUT_QUANT * L1_QUANT);
 
 constexpr int ALIGNMENT = 64;
 
@@ -464,8 +401,12 @@ struct FinnyEntry {
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
-  alignas(ALIGNMENT) int16_t l1Weights[OUTPUT_BUCKETS][2 * L1_SIZE];
-  alignas(ALIGNMENT) int16_t l1Biases[OUTPUT_BUCKETS];
+  alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
+  alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
+  alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+  alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
+  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE];
+  alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
 };
 
 extern NetworkData* networkData;
@@ -477,7 +418,7 @@ struct Board;
 class NNUE {
 public:
 
-  Accumulator accumulatorStack[MAX_PLY];
+  Accumulator accumulatorStack[MAX_PLY + 8];
   int currentAccumulator;
   int lastCalculatedAccumulator[2];
 
@@ -527,3 +468,79 @@ public:
   void addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex);
 
 };
+
+#if defined(PROCESS_NET)
+
+#include <cstring>
+#include <fstream>
+
+class NNZ {
+public:
+  int64_t activations[L1_SIZE / 2] = {};
+
+  void addActivations(uint8_t* neurons) {
+    for (int i = 0; i < L1_SIZE; i++) {
+      activations[i % (L1_SIZE / 2)] += bool(neurons[i]);
+    }
+  }
+
+  int16_t oldInputWeights[INPUT_SIZE * L1_SIZE];
+  int16_t oldInputBiases[L1_SIZE];
+  int8_t  oldL1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
+  NetworkData nnzOutNet;
+
+  int order[L1_SIZE / 2];
+
+  void permuteNetwork() {
+    // std::ifstream infile("./quantised.bin", std::ios::binary);
+    // if (!infile) {
+    //     std::cerr << "Error opening file for reading" << std::endl;
+    //     return;
+    // }
+    // infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
+    // infile.close();
+
+    // memcpy(oldInputWeights, nnzOutNet.inputWeights, sizeof(nnzOutNet.inputWeights));
+    // memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
+    // memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
+
+    // for (int i = 0; i < L1_SIZE / 2; i++) {
+    //   order[i] = i;
+    // }
+    // std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
+
+    // for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
+
+    //   // Input weights
+    //   for (int ip = 0; ip < INPUT_SIZE; ip++) {
+    //     nnzOutNet.inputWeights[ip * L1_SIZE + l1] = oldInputWeights[ip * L1_SIZE + order[l1]];
+    //     nnzOutNet.inputWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
+    //   }
+
+    //   // Input biases
+    //   nnzOutNet.inputBiases[l1] = oldInputBiases[order[l1]];
+    //   nnzOutNet.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
+
+    //   // L1 weights
+    //   for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
+    //     for (int l2 = 0; l2 < L2_SIZE; l2++) {
+    //       reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+    //       reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+    //     }
+    //   }
+    // }
+
+    // // Write the network
+    // std::ofstream outfile("./quantised.bin", std::ios::binary);
+    // if (!outfile) {
+    //     std::cerr << "Error opening file for writing" << std::endl;
+    //     return;
+    // }
+    // outfile.write(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
+    // outfile.close();
+    // std::cout << "NNZ permuted net written to ./quantised.bin" << std::endl;
+  }
+};
+
+extern NNZ nnz;
+#endif
