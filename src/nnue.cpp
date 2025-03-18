@@ -626,32 +626,126 @@ Eval NNUE::evaluate(Board* board) {
 
     for (int l1 = 0; l1 < L1_ITERATIONS; l1 += 2) {
         VecI16 clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
+        clipped1 = srliEpi16(clipped1, 1);
         VecI16 clipped2 = minEpi16(maxEpi16(stmAcc[l1 + 1], i16Zero), i16Quant);
+        clipped2 = srliEpi16(clipped2, 1);
         l1NeuronsVec[l1 / 2] = packusEpi16(clipped1, clipped2);
 
         clipped1 = minEpi16(maxEpi16(oppAcc[l1], i16Zero), i16Quant);
+        clipped1 = srliEpi16(clipped1, 1);
         clipped2 = minEpi16(maxEpi16(oppAcc[l1 + 1], i16Zero), i16Quant);
+        clipped2 = srliEpi16(clipped2, 1);
         l1NeuronsVec[l1 / 2 + L1_ITERATIONS / 2] = packusEpi16(clipped1, clipped2);
     }
 
+    // for (int i = 0; i < 2 * L1_SIZE; i++) {
+    //     std::cout << int(l1Neurons[i]) << " ";
+    // }
+    // std::cout << std::endl << std::endl;
+
     alignas(ALIGNMENT) int l2Neurons[L2_SIZE] = {};
-
-    for (int l1 = 0; l1 < 2 * L1_SIZE; l1++) {
-        if (!l1Neurons[l1])
-            continue;
-
-        for (int l2 = 0; l2 < L2_SIZE; l2++) {
-            l2Neurons[l2] += l1Neurons[l1] * networkData->l1Weights[bucket][l1 * L2_SIZE + l2];
+    #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
+        int nnzCount = 0;
+        alignas(ALIGNMENT) uint16_t nnzIndices[2 * L1_SIZE / INT8_PER_INT32];
+    
+    #if defined(ARCH_X86)
+        __m128i nnzZero = _mm_setzero_si128();
+        __m128i nnzIncrement = _mm_set1_epi16(8);
+        for (int i = 0; i < 2 * L1_SIZE / INT8_PER_INT32 / 16; i++) {
+            uint32_t nnz = 0;
+    
+            for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
+                nnz |= vecNNZ(l1NeuronsVec[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
+                // std::cout << int(i * 16 / I32_VEC_SIZE + j) << " ";
+            }
+    
+            for (int j = 0; j < 16 / 8; j++) {
+                uint16_t lookup = (nnz >> (j * 8)) & 0xFF;
+                __m128i offsets = _mm_loadu_si128(reinterpret_cast<__m128i*>(&nnzLookup[lookup]));
+                _mm_storeu_si128(reinterpret_cast<__m128i*>(nnzIndices + nnzCount), _mm_add_epi16(nnzZero, offsets));
+                nnzCount += BB::popcount(lookup);
+                nnzZero = _mm_add_epi16(nnzZero, nnzIncrement);
+            }
         }
-    }
+        // std::cout << std::endl << std::endl;
+    #else
+        VecI32* l1NeuronsVecI32 = reinterpret_cast<VecI32*>(l1Neurons);
+        uint16x8_t nnzZero = vdupq_n_u16(0);
+        uint16x8_t nnzIncrement = vdupq_n_u16(8);
+    
+        for (int i = 0; i < 2 * L1_SIZE / INT8_PER_INT32 / 16; i++) {
+            uint32_t nnz = 0;
+    
+            for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
+                nnz |= vecNNZ(l1NeuronsVecI32[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
+            }
+    
+            for (int j = 0; j < 16 / 8; j++) {
+                uint16_t lookup = (nnz >> (j * 8)) & 0xFF;
+                uint16x8_t offsets = vld1q_u16(nnzLookup[lookup]);
+                vst1q_u16(nnzIndices + nnzCount, vaddq_u16(nnzZero, offsets));
+                nnzCount += BB::popcount(lookup);
+                nnzZero = vaddq_u16(nnzZero, nnzIncrement);
+            }
+        }
+    
+    #endif
+    
+        int* l1Packs = reinterpret_cast<int*>(l1Neurons);
+        VecI32* l2NeuronsVec = reinterpret_cast<VecI32*>(l2Neurons);
+
+        // for (int i = 0; i < nnzCount; i++)
+        //     std::cout << int(nnzIndices[i]) << " (" << int((reinterpret_cast<uint8_t*>(&l1Packs[nnzIndices[i]]))[0]) << "," << int((reinterpret_cast<uint8_t*>(&l1Packs[nnzIndices[i]]))[1]) << "," << int((reinterpret_cast<uint8_t*>(&l1Packs[nnzIndices[i]]))[2]) << "," << int((reinterpret_cast<uint8_t*>(&l1Packs[nnzIndices[i]]))[3]) << ") ";
+        // std::cout << std::endl;
+    
+        int i = 0;
+        for (; i < nnzCount - 1; i += 2) {
+            int l1_1 = nnzIndices[i] * INT8_PER_INT32;
+            int l1_2 = nnzIndices[i + 1] * INT8_PER_INT32;
+    #if defined(ARCH_X86)
+            VecIu8 u8_1 = set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]);
+            VecIu8 u8_2 = set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]);
+    #else
+            VecIu8 u8_1 = vreinterpretq_u8_s32(set1Epi32(l1Packs[l1_1 / INT8_PER_INT32]));
+            VecIu8 u8_2 = vreinterpretq_u8_s32(set1Epi32(l1Packs[l1_2 / INT8_PER_INT32]));
+    #endif
+            VecI8* weights_1 = reinterpret_cast<VecI8*>(&networkData->l1Weights[bucket][l1_1 * L2_SIZE]);
+            VecI8* weights_2 = reinterpret_cast<VecI8*>(&networkData->l1Weights[bucket][l1_2 * L2_SIZE]);
+    
+            for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
+                l2NeuronsVec[l2] = dpbusdEpi32x2(l2NeuronsVec[l2], u8_1, weights_1[l2], u8_2, weights_2[l2]);
+            }
+        }
+    
+        for (; i < nnzCount; i++) {
+            int l1 = nnzIndices[i] * INT8_PER_INT32;
+    #if defined(ARCH_X86)
+            VecIu8 u8 = set1Epi32(l1Packs[l1 / INT8_PER_INT32]);
+    #else
+            VecIu8 u8 = vreinterpretq_u8_s32(set1Epi32(l1Packs[l1 / INT8_PER_INT32]));
+    #endif
+            VecI8* weights = reinterpret_cast<VecI8*>(&networkData->l1Weights[bucket][l1 * L2_SIZE]);
+    
+            for (int l2 = 0; l2 < L2_SIZE / I32_VEC_SIZE; l2++) {
+                l2NeuronsVec[l2] = dpbusdEpi32(l2NeuronsVec[l2], u8, weights[l2]);
+            }
+        }
+    #else
+        for (int l1 = 0; l1 < 2 * L1_SIZE; l1++) {
+            if (!l1Neurons[l1])
+                continue;
+                
+            for (int l2 = 0; l2 < L2_SIZE; l2++) {
+                l2Neurons[l2] += l1Neurons[l1] * networkData->l1Weights[bucket][l1 * L2_SIZE + l2];
+            }
+        }
+    #endif
 
     alignas(ALIGNMENT) float l3Neurons[L3_SIZE];
     memcpy(l3Neurons, networkData->l2Biases[bucket], sizeof(l3Neurons));
 
     #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     alignas(ALIGNMENT) float l2Floats[L2_SIZE];
-
-    VecI32* l2NeuronsVec = reinterpret_cast<VecI32*>(l2Neurons);
 
     VecF psNorm = set1Ps(L1_NORMALISATION);
     VecF psZero = set1Ps(0.0f);

@@ -54,6 +54,10 @@ inline VecI16 slliEpi16(VecI16 x, int shift) {
   return _mm512_slli_epi16(x, shift);
 }
 
+inline VecI16 srliEpi16(VecI16 x, int shift) {
+  return _mm512_srli_epi16(x, shift);
+}
+
 inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
   return _mm512_mulhi_epi16(x, y);
 }
@@ -159,6 +163,10 @@ inline VecI16 set1Epi32(int i) {
 
 inline VecI16 slliEpi16(VecI16 x, int shift) {
   return _mm256_slli_epi16(x, shift);
+}
+
+inline VecI16 srliEpi16(VecI16 x, int shift) {
+  return _mm256_srli_epi16(x, shift);
 }
 
 inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
@@ -267,6 +275,10 @@ inline VecI16 slliEpi16(VecI16 x, int shift) {
   return _mm_slli_epi16(x, shift);
 }
 
+inline VecI16 srliEpi16(VecI16 x, int shift) {
+  return _mm_srli_epi16(x, shift);
+}
+
 inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
   return _mm_mulhi_epi16(x, y);
 }
@@ -343,7 +355,7 @@ constexpr int NETWORK_SCALE = 400;
 constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
 
-constexpr float L1_NORMALISATION = static_cast<float>(1) / static_cast<float>(INPUT_QUANT * L1_QUANT);
+constexpr float L1_NORMALISATION = static_cast<float>(1 << 1) / static_cast<float>(INPUT_QUANT * L1_QUANT);
 
 constexpr int ALIGNMENT = 64;
 
