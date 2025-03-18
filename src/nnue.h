@@ -488,11 +488,11 @@ public:
 
 class NNZ {
 public:
-  int64_t activations[L1_SIZE / 2] = {};
+  int64_t activations[L1_SIZE] = {};
 
   void addActivations(uint8_t* neurons) {
-    for (int i = 0; i < L1_SIZE; i++) {
-      activations[i % (L1_SIZE / 2)] += bool(neurons[i]);
+    for (int i = 0; i < 2 * L1_SIZE; i++) {
+      activations[i % L1_SIZE] += bool(neurons[i]);
     }
   }
 
@@ -501,56 +501,53 @@ public:
   int8_t  oldL1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
   NetworkData nnzOutNet;
 
-  int order[L1_SIZE / 2];
+  int order[L1_SIZE];
 
   void permuteNetwork() {
-    // std::ifstream infile("./quantised.bin", std::ios::binary);
-    // if (!infile) {
-    //     std::cerr << "Error opening file for reading" << std::endl;
-    //     return;
-    // }
-    // infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
-    // infile.close();
+    std::ifstream infile("./quantised.bin", std::ios::binary);
+    if (!infile) {
+        std::cerr << "Error opening file for reading" << std::endl;
+        return;
+    }
+    infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
+    infile.close();
 
-    // memcpy(oldInputWeights, nnzOutNet.inputWeights, sizeof(nnzOutNet.inputWeights));
-    // memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
-    // memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
+    memcpy(oldInputWeights, nnzOutNet.inputWeights, sizeof(nnzOutNet.inputWeights));
+    memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
+    memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
-    // for (int i = 0; i < L1_SIZE / 2; i++) {
-    //   order[i] = i;
-    // }
-    // std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
+    for (int i = 0; i < L1_SIZE; i++) {
+      order[i] = i;
+    }
+    std::stable_sort(order, order + L1_SIZE, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
 
-    // for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
+    for (int l1 = 0; l1 < L1_SIZE; l1++) {
 
-    //   // Input weights
-    //   for (int ip = 0; ip < INPUT_SIZE; ip++) {
-    //     nnzOutNet.inputWeights[ip * L1_SIZE + l1] = oldInputWeights[ip * L1_SIZE + order[l1]];
-    //     nnzOutNet.inputWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
-    //   }
+      // Input weights
+      for (int ip = 0; ip < INPUT_SIZE; ip++) {
+        nnzOutNet.inputWeights[ip * L1_SIZE + l1] = oldInputWeights[ip * L1_SIZE + order[l1]];
+      }
 
-    //   // Input biases
-    //   nnzOutNet.inputBiases[l1] = oldInputBiases[order[l1]];
-    //   nnzOutNet.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
+      // Input biases
+      nnzOutNet.inputBiases[l1] = oldInputBiases[order[l1]];
 
-    //   // L1 weights
-    //   for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
-    //     for (int l2 = 0; l2 < L2_SIZE; l2++) {
-    //       reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-    //       reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-    //     }
-    //   }
-    // }
+      // L1 weights
+      for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
+        for (int l2 = 0; l2 < L2_SIZE; l2++) {
+          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+        }
+      }
+    }
 
-    // // Write the network
-    // std::ofstream outfile("./quantised.bin", std::ios::binary);
-    // if (!outfile) {
-    //     std::cerr << "Error opening file for writing" << std::endl;
-    //     return;
-    // }
-    // outfile.write(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
-    // outfile.close();
-    // std::cout << "NNZ permuted net written to ./quantised.bin" << std::endl;
+    // Write the network
+    std::ofstream outfile("./quantised.bin", std::ios::binary);
+    if (!outfile) {
+        std::cerr << "Error opening file for writing" << std::endl;
+        return;
+    }
+    outfile.write(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
+    outfile.close();
+    std::cout << "NNZ permuted net written to ./quantised.bin" << std::endl;
   }
 };
 
