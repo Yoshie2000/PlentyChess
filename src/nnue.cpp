@@ -598,7 +598,7 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData
     }
 }
 
-alignas(ALIGNMENT) int16_t l1Neurons[2 * L1_SIZE];
+alignas(ALIGNMENT) uint8_t l1Neurons[2 * L1_SIZE];
 
 Eval NNUE::evaluate(Board* board) {
     assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
@@ -617,14 +617,29 @@ Eval NNUE::evaluate(Board* board) {
 
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
-    for (int i = 0; i < L1_SIZE; i++) {
-        l1Neurons[i] = std::clamp<int16_t>(accumulator->colors[board->stm][i], 0, 255);
-        l1Neurons[i + L1_SIZE] = std::clamp<int16_t>(accumulator->colors[1 - board->stm][i], 0, 255);
+    VecI16* stmAcc = reinterpret_cast<VecI16*>(accumulator->colors[board->stm]);
+    VecI16* oppAcc = reinterpret_cast<VecI16*>(accumulator->colors[1 - board->stm]);
+
+    VecIu8* l1NeuronsVec = reinterpret_cast<VecIu8*>(l1Neurons);
+    VecI16 i16Zero = set1Epi16(0);
+    VecI16 i16Quant = set1Epi16(INPUT_QUANT);
+
+    for (int l1 = 0; l1 < L1_ITERATIONS; l1 += 2) {
+        VecI16 clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
+        VecI16 clipped2 = minEpi16(maxEpi16(stmAcc[l1 + 1], i16Zero), i16Quant);
+        l1NeuronsVec[l1 / 2] = packusEpi16(clipped1, clipped2);
+
+        clipped1 = minEpi16(maxEpi16(oppAcc[l1], i16Zero), i16Quant);
+        clipped2 = minEpi16(maxEpi16(oppAcc[l1 + 1], i16Zero), i16Quant);
+        l1NeuronsVec[l1 / 2 + L1_ITERATIONS / 2] = packusEpi16(clipped1, clipped2);
     }
 
-    alignas(ALIGNMENT) float l2Neurons[L2_SIZE] = {};
+    alignas(ALIGNMENT) int l2Neurons[L2_SIZE] = {};
 
     for (int l1 = 0; l1 < 2 * L1_SIZE; l1++) {
+        if (!l1Neurons[l1])
+            continue;
+
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
             l2Neurons[l2] += l1Neurons[l1] * networkData->l1Weights[bucket][l1 * L2_SIZE + l2];
         }
@@ -633,8 +648,36 @@ Eval NNUE::evaluate(Board* board) {
     alignas(ALIGNMENT) float l3Neurons[L3_SIZE];
     memcpy(l3Neurons, networkData->l2Biases[bucket], sizeof(l3Neurons));
 
+    #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
+    alignas(ALIGNMENT) float l2Floats[L2_SIZE];
+
+    VecI32* l2NeuronsVec = reinterpret_cast<VecI32*>(l2Neurons);
+
+    VecF psNorm = set1Ps(L1_NORMALISATION);
+    VecF psZero = set1Ps(0.0f);
+    VecF psOne = set1Ps(1.0f);
+
+    VecF* l1Biases = reinterpret_cast<VecF*>(networkData->l1Biases[bucket]);
+    VecF* l2FloatsVec = reinterpret_cast<VecF*>(l2Floats);
+
+    for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
+        VecF converted = cvtepi32Ps(l2NeuronsVec[l2]);
+        VecF l2Result = fmaddPs(converted, psNorm, l1Biases[l2]);
+        VecF l2Activated = maxPs(minPs(l2Result, psOne), psZero);
+        l2FloatsVec[l2] = mulPs(l2Activated, l2Activated);
+    }
+
+    VecF* l3NeuronsVec = reinterpret_cast<VecF*>(l3Neurons);
     for (int l2 = 0; l2 < L2_SIZE; l2++) {
-        float l2Result = static_cast<float>(l2Neurons[l2]) / (255.0f * 64.0f) + networkData->l1Biases[bucket][l2];
+        VecF l2Vec = set1Ps(l2Floats[l2]);
+        VecF* weights = reinterpret_cast<VecF*>(&networkData->l2Weights[bucket][l2 * L3_SIZE]);
+        for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3++) {
+            l3NeuronsVec[l3] = fmaddPs(l2Vec, weights[l3], l3NeuronsVec[l3]);
+        }
+    }
+#else
+    for (int l2 = 0; l2 < L2_SIZE; l2++) {
+        float l2Result = static_cast<float>(l2Neurons[l2]) * L1_NORMALISATION + networkData->l1Biases[bucket][l2];
         float l2Activated = std::clamp(l2Result, 0.0f, 1.0f);
         l2Activated *= l2Activated;
 
@@ -642,7 +685,26 @@ Eval NNUE::evaluate(Board* board) {
             l3Neurons[l3] = std::fma(l2Activated, networkData->l2Weights[bucket][l2 * L3_SIZE + l3], l3Neurons[l3]);
         }
     }
+#endif
 
+    #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
+    constexpr int chunks = 64 / sizeof(VecF);
+
+    VecF resultSums[chunks];
+    for (int i = 0; i < chunks; i++)
+        resultSums[i] = psZero;
+
+    VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData->l3Weights[bucket]);
+    for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3 += chunks) {
+        for (int chunk = 0; chunk < chunks; chunk++) {
+            VecF l3Activated = maxPs(minPs(l3NeuronsVec[l3 + chunk], psOne), psZero);
+            l3Activated = mulPs(l3Activated, l3Activated);
+            resultSums[chunk] = fmaddPs(l3Activated, l3WeightsVec[l3 + chunk], resultSums[chunk]);
+        }
+    }
+
+    float result = networkData->l3Biases[bucket] + reduceAddPs(resultSums);
+#else
     constexpr int chunks = sizeof(VecF) / sizeof(float);
     float resultSums[chunks] = {};
 
@@ -655,6 +717,7 @@ Eval NNUE::evaluate(Board* board) {
     }
 
     float result = networkData->l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
+#endif
 
     return result * NETWORK_SCALE;
 }

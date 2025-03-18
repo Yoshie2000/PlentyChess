@@ -9,6 +9,14 @@
 #include "types.h"
 #include "threat-inputs.h"
 
+inline float reduceAddPsR(float* sums, int length) {
+  if (length == 2) return sums[0] + sums[1];
+  length /= 2;
+  for (int i = 0; i < length; ++i)
+    sums[i] += sums[i + length];
+  return reduceAddPsR(sums, length);
+}
+
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 
 using VecI8 = __m512i;
@@ -314,14 +322,6 @@ inline VecF fmaddPs(VecF a, VecF b, VecF c) {
 }
 #endif
 
-inline float reduceAddPsR(float* sums, int length) {
-  if (length == 2) return sums[0] + sums[1];
-  length /= 2;
-  for (int i = 0; i < length; ++i)
-    sums[i] += sums[i + length];
-  return reduceAddPsR(sums, length);
-}
-
 inline float reduceAddPs(VecF* sums) {
   return reduceAddPsR((float*)sums, 64 / sizeof(float));
 }
@@ -340,10 +340,10 @@ constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
-// constexpr int INPUT_QUANT = 255;
-// constexpr int L1_QUANT = 64;
+constexpr int INPUT_QUANT = 255;
+constexpr int L1_QUANT = 64;
 
-// constexpr float L1_NORMALISATION = static_cast<float>(1) / static_cast<float>(INPUT_QUANT * L1_QUANT);
+constexpr float L1_NORMALISATION = static_cast<float>(1) / static_cast<float>(INPUT_QUANT * L1_QUANT);
 
 constexpr int ALIGNMENT = 64;
 
