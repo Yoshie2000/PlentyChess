@@ -827,22 +827,22 @@ void Board::calculateThreats() {
     Color them = flip(stm);
     Threats* threats = &stack->threats;
 
-    for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece)
-        threats->byPiece[piece] = 0;
+    std::memset(threats, 0, sizeof(Threats));
 
-    for (Square square = 0; square < 64; square++) {
-        Piece piece = pieces[square];
-        if (piece == Piece::NONE) {
-            threats->bySquare[square] = 0;
-            continue;
-        }
-        
-        Color color = (bitboard(square) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
-        Bitboard squareThreats = BB::attackedSquares(piece, square, occupied, color);
-        threats->bySquare[square] = squareThreats;
+    for (Color pieceColor = Color::WHITE; pieceColor <= Color::BLACK; ++pieceColor) {
+        for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
+            Bitboard pieceBB = byColor[pieceColor] & byPiece[piece];
 
-        if (color == them) {
-            threats->byPiece[piece] |= squareThreats;
+            while (pieceBB) {
+                Square square = popLSB(&pieceBB);
+
+                Bitboard squareThreats = BB::attackedSquares(piece, square, occupied, pieceColor);
+                threats->bySquare[square] = squareThreats;
+
+                if (pieceColor == them) {
+                    threats->byPiece[piece] |= squareThreats;
+                }
+            }
         }
     }
 }
