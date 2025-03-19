@@ -15,11 +15,6 @@ TUNE_INT(continuationCorrectionFactor, 5226, 1000, 7500);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
-    for (Square s1 = 0; s1 < 64; s1++) {
-        for (Square s2 = 0; s2 < 64; s2++) {
-            counterMoves[s1][s2] = MOVE_NONE;
-        }
-    }
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
     memset(correctionHistory, 0, sizeof(correctionHistory));
@@ -198,12 +193,4 @@ void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchS
         updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -malus * quietSearchCount[i]);
         updatePawnHistory(board, qMove, -malus * quietSearchCount[i]);
     }
-}
-
-Move History::getCounterMove(Move move) {
-    return counterMoves[moveOrigin(move)][moveTarget(move)];
-}
-
-void History::setCounterMove(Move move, Move counter) {
-    counterMoves[moveOrigin(move)][moveTarget(move)] = counter;
 }

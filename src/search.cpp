@@ -967,10 +967,6 @@ movesLoop:
                         // Update quiet killer
                         stack->killer = move;
 
-                        // Update counter move
-                        if (stack->ply > 0)
-                            history.setCounterMove((stack - 1)->move, move);
-
                         history.updateQuietHistories(board, board->stack, stack, move, quietSearchCount[quietMoveCount - 1], quietBonus, quietMalus, quietMoves, quietSearchCount, quietMoveCount);
                     }
                     if (captureMoveCount > 0)
