@@ -782,9 +782,13 @@ movesLoop:
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
                 extension = 1;
-                if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
+
+                int doubleMargin = doubleExtensionMargin - std::abs(correctionValue) / 125000;
+                if (!pvNode && singularValue + doubleMargin < singularBeta) {
                     extension = 2;
                     depth += depth < doubleExtensionDepthIncrease;
+
+                    int tripleMargin = tripleExtensionMargin - std::abs(correctionValue) / 125000;
                     if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
                         extension = 3;
                 }
