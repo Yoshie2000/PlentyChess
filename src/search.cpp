@@ -851,6 +851,9 @@ movesLoop:
             if (cutNode)
                 reduction += lmrCutnode;
             
+            if (stack->staticEval != EVAL_NONE && (stack - 2)->staticEval != EVAL_NONE && stack->staticEval <= (stack - 2)->staticEval)
+                reduction += std::min(500, (stack - 2)->staticEval - stack->staticEval); // Not improving
+            
             reduction -= std::abs(correctionValue / lmrCorrection);
 
             if (capture)
