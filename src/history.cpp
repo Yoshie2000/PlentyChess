@@ -160,6 +160,11 @@ int16_t* History::getCaptureHistory(Board* board, Move move) {
     if (capturedPiece == Piece::NONE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
         capturedPiece = Piece::PAWN;
 
+    if (movedPiece == Piece::NONE || capturedPiece == Piece::NONE) {
+        board->debugBoard();
+        std::cout << moveToString(move, false) << std::endl;
+    }
+
     assert(movedPiece != Piece::NONE && capturedPiece != Piece::NONE);
 
     return &captureHistory[board->stm][movedPiece][target][capturedPiece];
