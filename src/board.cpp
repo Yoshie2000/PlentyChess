@@ -1055,6 +1055,8 @@ void Board::finishThreatsUpdate() {
     Color them = flip(stm);
     Threats* threats = &stack->threats;
 
+    memset(threats->byPiece, 0, sizeof(threats->byPiece));
+
     for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
         Bitboard pieceBB = byColor[them] & byPiece[piece];
         Bitboard pieceAttacks = bitboard(0);
