@@ -109,36 +109,32 @@ void NNUE::finalizeMove(Board* board) {
 template<Color side>
 void NNUE::calculateAccumulators(Board* board) {
     Accumulator* current = &accumulatorStack[currentAccumulator];
-    Accumulator* acc = &accumulatorStack[currentAccumulator];
-    KingBucketInfo* kingBucket = &current->kingBucketInfo[side];
 
     if (current->updated[side])
         return;
     
-    if (current == acc || true) {
-        resetAccumulator<side>(board, current);
-        return;
-    }
+    Accumulator* previous = current;
+    KingBucketInfo* currentKingBucket = &current->kingBucketInfo[side];
 
     while (true) {
-        assert(acc > &accumulatorStack[0]);
-        acc--;
+        previous--;
+        KingBucketInfo* prevKingBucket = &previous->kingBucketInfo[side];
 
-        if (acc == &accumulatorStack[0] || needsRefresh(kingBucket, &acc->kingBucketInfo[side])) {
+        if (needsRefresh(currentKingBucket, prevKingBucket)) {
             resetAccumulator<side>(board, current);
-            assert(current->updated[side]);
             break;
         }
 
-        if (acc->updated[side]) {
-            while (acc < current) {
-                incrementallyUpdateAccumulator<side>(acc, acc + 1, kingBucket);
-                acc++;
+        if (previous->updated[side]) {
+            while (previous != current) {
+                incrementallyUpdateAccumulator<side>(previous, previous + 1, currentKingBucket);
+                previous++;
             }
-            assert(current->updated[side]);
             break;
         }
     }
+
+    assert(current->updated[side]);
 }
 
 template<Color side>
@@ -185,9 +181,10 @@ void NNUE::calculateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc
 
         Piece piece = dirtyThreat.piece;
         Piece attackedPiece = dirtyThreat.attackedPiece;
-        Square square = dirtyThreat.square;
-        Square attackedSquare = dirtyThreat.attackedSquare;
-        Color relativeSide = static_cast<Color>(static_cast<bool>(side != dirtyThreat.attackedColor));
+        Square square = dirtyThreat.square ^ (56 * side) ^ (7 * kingBucket->mirrored);
+        Square attackedSquare = dirtyThreat.attackedSquare ^ (56 * side) ^ (7 * kingBucket->mirrored);
+        
+        Color relativeSide = static_cast<Color>(side != dirtyThreat.attackedColor);
         bool enemy = static_cast<bool>(dirtyThreat.pieceColor != dirtyThreat.attackedColor);
         int sideOffset = (dirtyThreat.pieceColor != side) * ThreatInputs::PieceOffsets::END;
 

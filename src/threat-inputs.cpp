@@ -57,8 +57,8 @@ namespace ThreatInputs {
                         Piece attackingPiece = board->pieces[attackingIndexSquare];
                         Color attackingSide = (board->byColor[Color::WHITE] & bitboard(attackingIndexSquare)) ? Color::WHITE : Color::BLACK;
 
-                        bool enemy = attackingSide != side;
                         Color relativeSide = static_cast<Color>(pov != side);
+                        bool enemy = attackingSide != side;
                         int sideOffset = (attackingSide != pov) * PieceOffsets::END;
 
                         assert(attackingPiece != Piece::NONE);
