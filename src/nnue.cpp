@@ -41,6 +41,8 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     acc->kingBucketInfo[side] = getKingBucket(lsb(board->byColor[side] & board->byPiece[Piece::KING]));
     memcpy(acc->byColor[side], board->byColor, sizeof(board->byColor));
     memcpy(acc->byPiece[side], board->byPiece, sizeof(board->byPiece));
+    acc->numDirtyPieces = 0;
+    acc->numDirtyThreats = 0;
     acc->updated[side] = true;
 }
 
@@ -91,8 +93,6 @@ void NNUE::incrementAccumulator() {
 
 void NNUE::decrementAccumulator() {
     assert(currentAccumulator > 0);
-    accumulatorStack[currentAccumulator].numDirtyPieces = 0;
-    accumulatorStack[currentAccumulator].numDirtyThreats = 0;
     currentAccumulator--;
 }
 
@@ -112,11 +112,21 @@ void NNUE::calculateAccumulators(Board* board) {
     Accumulator* acc = &accumulatorStack[currentAccumulator];
     KingBucketInfo* kingBucket = &current->kingBucketInfo[side];
 
+    if (current->updated[side])
+        return;
+    
+    if (current == acc || true) {
+        resetAccumulator<side>(board, current);
+        return;
+    }
+
     while (true) {
+        assert(acc > &accumulatorStack[0]);
         acc--;
 
-        if (needsRefresh(kingBucket, &acc->kingBucketInfo[side])) {
+        if (acc == &accumulatorStack[0] || needsRefresh(kingBucket, &acc->kingBucketInfo[side])) {
             resetAccumulator<side>(board, current);
+            assert(current->updated[side]);
             break;
         }
 
@@ -125,6 +135,7 @@ void NNUE::calculateAccumulators(Board* board) {
                 incrementallyUpdateAccumulator<side>(acc, acc + 1, kingBucket);
                 acc++;
             }
+            assert(current->updated[side]);
             break;
         }
     }
@@ -139,6 +150,8 @@ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* ou
     calculateThreatFeatures<side>(inputAcc, outputAcc, kingBucket, addFeatureList, subFeatureList);
 
     applyAccumulatorUpdates<side>(inputAcc, outputAcc, addFeatureList, subFeatureList);
+
+    outputAcc->updated[side] = true;
 }
 
 template<Color side>

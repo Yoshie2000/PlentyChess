@@ -454,7 +454,7 @@ struct Accumulator {
 
   DirtyPiece dirtyPieces[4];
   int numDirtyPieces;
-  DirtyThreat dirtyThreats[32];
+  DirtyThreat dirtyThreats[256];
   int numDirtyThreats;
 
   KingBucketInfo kingBucketInfo[2];

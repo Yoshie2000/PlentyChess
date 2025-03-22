@@ -89,6 +89,7 @@ struct Board {
     void undoNullMove();
 
     void finishThreatsUpdate();
+    Threats calculateAllThreats();
     bool isSquareThreatened(Square square, BoardStack* bs);
 
     constexpr bool isCapture(Move move) {

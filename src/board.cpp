@@ -356,7 +356,7 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
 
     chess960 = isChess960;
 
-    finishThreatsUpdate();
+    stack->threats = calculateAllThreats();
 
     return i;
 }
@@ -430,14 +430,16 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, Square square,
         if (add) {
             assert((stack->threats.toSquare[attackedSquare] & squareBB) == 0);
             stack->threats.toSquare[attackedSquare] |= squareBB;
-
-            nnue->addThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
+            
+            if (attackedPiece != Piece::NONE)
+                nnue->addThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
         }
         else {
             assert((stack->threats.toSquare[attackedSquare] & squareBB) != 0);
             stack->threats.toSquare[attackedSquare] &= ~squareBB;
 
-            nnue->removeThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
+            if (attackedPiece != Piece::NONE)
+                nnue->removeThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
         }
     }
 
@@ -448,6 +450,10 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, Square square,
     while (slidingPieces) {
         Square slidingPieceSquare = popLSB(&slidingPieces);
         Bitboard slidingPieceBB = bitboard(slidingPieceSquare);
+
+        // If the slider isn't currently attacking this piece, it can't attack squares behind it either
+        if ((stack->threats.toSquare[square] & slidingPieceBB) == 0)
+            continue;
 
         int8_t direction = BB::DIRECTION_BETWEEN[slidingPieceSquare][square];
         if (direction == DIRECTION_NONE)
@@ -473,7 +479,7 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, Square square,
             }
             else {
                 assert((stack->threats.toSquare[attackedSquare] & slidingPieceBB) == 0);
-                stack->threats.toSquare[attackedSquare] &= slidingPieceBB;
+                stack->threats.toSquare[attackedSquare] |= slidingPieceBB;
 
                 if (attackedPiece != Piece::NONE)
                     nnue->removeThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
@@ -505,6 +511,9 @@ void Board::updateThreatsToPiece(Piece piece, Color pieceColor, Square square, B
 }
 
 void Board::addPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue) {
+    Threats t1 = calculateAllThreats();
+    assert(0 == memcmp(stack->threats.toSquare, t1.toSquare, sizeof(t1.toSquare)));
+
     assert(pieces[square] == Piece::NONE);
 
     byColor[pieceColor] ^= squareBB;
@@ -515,9 +524,26 @@ void Board::addPiece(Piece piece, Color pieceColor, Square square, Bitboard squa
     nnue->addPiece(square, piece, pieceColor);
     updateThreatsFromPiece<true>(piece, pieceColor, square, squareBB, nnue);
     updateThreatsToPiece<true>(piece, pieceColor, square, squareBB, nnue);
+
+    Threats t2 = calculateAllThreats();
+    if (memcmp(stack->threats.toSquare, t2.toSquare, sizeof(t2.toSquare)) != 0) {
+        std::cout << "added " << int(piece) << " to " << int(square) << std::endl;
+        for (Square sq = 0; sq < 64; sq++) {
+            if (stack->threats.toSquare[sq] != t2.toSquare[sq]) {
+                std::cout << "To square: " << int(sq) << std::endl;
+                debugBitboard(stack->threats.toSquare[sq]);
+                debugBitboard(t2.toSquare[sq]);
+                break;
+            }
+        }
+    }
+    assert(0 == memcmp(stack->threats.toSquare, t2.toSquare, sizeof(t2.toSquare)));
 };
 
 void Board::removePiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue) {
+    Threats t1 = calculateAllThreats();
+    assert(0 == memcmp(stack->threats.toSquare, t1.toSquare, sizeof(t1.toSquare)));
+
     assert(pieces[square] != Piece::NONE);
 
     byColor[pieceColor] ^= squareBB;
@@ -528,9 +554,26 @@ void Board::removePiece(Piece piece, Color pieceColor, Square square, Bitboard s
     nnue->removePiece(square, piece, pieceColor);
     updateThreatsFromPiece<false>(piece, pieceColor, square, squareBB, nnue);
     updateThreatsToPiece<false>(piece, pieceColor, square, squareBB, nnue);
+
+    Threats t2 = calculateAllThreats();
+    if (memcmp(stack->threats.toSquare, t2.toSquare, sizeof(t2.toSquare)) != 0) {
+        std::cout << "removed " << int(piece) << " from " << int(square) << std::endl;
+        for (Square sq = 0; sq < 64; sq++) {
+            if (stack->threats.toSquare[sq] != t2.toSquare[sq]) {
+                std::cout << "To square: " << int(sq) << std::endl;
+                debugBitboard(stack->threats.toSquare[sq]);
+                debugBitboard(t2.toSquare[sq]);
+                break;
+            }
+        }
+    }
+    assert(0 == memcmp(stack->threats.toSquare, t2.toSquare, sizeof(t2.toSquare)));
 };
 
 void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square target, Bitboard fromTo, NNUE* nnue) {
+    Threats t1 = calculateAllThreats();
+    assert(0 == memcmp(stack->threats.toSquare, t1.toSquare, sizeof(t1.toSquare)));
+
     assert(pieces[origin] != Piece::NONE);
     assert(pieces[target] == Piece::NONE);
 
@@ -548,6 +591,20 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
 
     updateThreatsToPiece<false>(piece, pieceColor, origin, bitboard(origin), nnue);
     updateThreatsToPiece<true>(piece, pieceColor, target, bitboard(target), nnue);
+    
+    Threats t2 = calculateAllThreats();
+    if (memcmp(stack->threats.toSquare, t2.toSquare, sizeof(t2.toSquare)) != 0) {
+        std::cout << "moved " << int(piece) << " from " << int(origin) << " to " << int(target) << std::endl;
+        for (Square sq = 0; sq < 64; sq++) {
+            if (stack->threats.toSquare[sq] != t2.toSquare[sq]) {
+                std::cout << "To square: " << int(sq) << std::endl;
+                debugBitboard(stack->threats.toSquare[sq]);
+                debugBitboard(t2.toSquare[sq]);
+                break;
+            }
+        }
+    }
+    assert(0 == memcmp(stack->threats.toSquare, t2.toSquare, sizeof(t2.toSquare)));
 };
 
 void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling) {
@@ -568,6 +625,9 @@ void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Squa
 }
 
 void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue) {
+    Threats t1 = calculateAllThreats();
+    assert(0 == memcmp(stack->threats.toSquare, t1.toSquare, sizeof(t1.toSquare)));
+
     // General setup stuff
     newStack->previous = stack;
     stack = newStack;
@@ -805,9 +865,15 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
     finishThreatsUpdate();
 
     nnue->finalizeMove(this);
+
+    Threats t2 = calculateAllThreats();
+    assert(0 == memcmp(stack->threats.toSquare, t2.toSquare, sizeof(t2.toSquare)));
 }
 
 void Board::undoMove(Move move, NNUE* nnue) {
+    Threats t1 = calculateAllThreats();
+    assert(0 == memcmp(stack->threats.toSquare, t1.toSquare, sizeof(t1.toSquare)));
+
     if (stm == Color::WHITE)
         ply--;
     stm = flip(stm);
@@ -880,10 +946,16 @@ void Board::undoMove(Move move, NNUE* nnue) {
     nnue->decrementAccumulator();
 
     stack = stack->previous;
+
+    Threats t2 = calculateAllThreats();
+    assert(0 == memcmp(stack->threats.toSquare, t2.toSquare, sizeof(t2.toSquare)));
 }
 
 void Board::doNullMove(BoardStack* newStack) {
     assert(!stack->checkers);
+
+    Threats t1 = calculateAllThreats();
+    assert(0 == memcmp(stack->threats.toSquare, t1.toSquare, sizeof(t1.toSquare)));
 
     newStack->previous = stack;
     stack = newStack;
@@ -897,6 +969,7 @@ void Board::doNullMove(BoardStack* newStack) {
     newStack->majorHash = newStack->previous->majorHash;
     newStack->rule50_ply = newStack->previous->rule50_ply + 1;
     newStack->nullmove_ply = 0;
+    newStack->threats = newStack->previous->threats;
 
     // En passent square
     if (newStack->previous->enpassantTarget != 0) {
@@ -916,11 +989,66 @@ void Board::doNullMove(BoardStack* newStack) {
     newStack->move = MOVE_NULL;
 
     finishThreatsUpdate();
+
+    Threats t2 = calculateAllThreats();
+    if (memcmp(stack->threats.toSquare, t2.toSquare, sizeof(t2.toSquare)) != 0) {
+        std::cout << "null move" << std::endl;
+        debugBoard();
+        for (Square sq = 0; sq < 64; sq++) {
+            if (stack->threats.toSquare[sq] != t2.toSquare[sq]) {
+                std::cout << "To square: " << int(sq) << std::endl;
+                debugBitboard(stack->threats.toSquare[sq]);
+                debugBitboard(t2.toSquare[sq]);
+                break;
+            }
+        }
+    }
+    assert(0 == memcmp(stack->threats.toSquare, t2.toSquare, sizeof(t2.toSquare)));
 }
 
 void Board::undoNullMove() {
     stm = flip(stm);
     stack = stack->previous;
+}
+
+Threats Board::calculateAllThreats() {
+    Threats threats;
+    memset(&threats, 0, sizeof(Threats));
+
+    Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
+
+    for (Color color = Color::WHITE; color <= Color::BLACK; ++color) {
+        for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
+            Bitboard pieceBB = byColor[color] & byPiece[piece];
+
+            while (pieceBB) {
+                Square square = popLSB(&pieceBB);
+                Bitboard pieceAttacks = BB::attackedSquares(piece, square, occupied, color);
+
+                while (pieceAttacks) {
+                    Square attackedSquare = popLSB(&pieceAttacks);
+
+                    threats.toSquare[attackedSquare] |= bitboard(square);
+                }
+            }
+        }
+    }
+
+    Color them = flip(stm);
+
+    for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
+        Bitboard pieceBB = byColor[them] & byPiece[piece];
+        Bitboard pieceAttacks = bitboard(0);
+
+        for (Square square = 0; square < 64; square++) {
+            if (pieceBB & threats.toSquare[square])
+                pieceAttacks |= bitboard(square);
+        }
+
+        threats.byPiece[piece] |= pieceAttacks;
+    }
+
+    return threats;
 }
 
 void Board::finishThreatsUpdate() {
