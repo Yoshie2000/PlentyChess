@@ -29,7 +29,7 @@ void NNUE::reset(Board* board) {
 }
 
 template<Color side>
-void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
+__attribute_noinline__ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     // Overwrite with biases
     memcpy(acc->colors[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
@@ -138,7 +138,7 @@ void NNUE::calculateAccumulators(Board* board) {
 }
 
 template<Color side>
-void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+__attribute_noinline__ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
     ThreatInputs::FeatureList addFeatureList;
     ThreatInputs::FeatureList subFeatureList;
 
@@ -151,7 +151,7 @@ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* ou
 }
 
 template<Color side>
-void NNUE::calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
+__attribute_noinline__ void NNUE::calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
     for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
         DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
 
@@ -175,7 +175,7 @@ void NNUE::calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBu
 }
 
 template<Color side>
-void NNUE::calculateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
+__attribute_noinline__ void NNUE::calculateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
         DirtyThreat dirtyThreat = outputAcc->dirtyThreats[dp];
 
@@ -191,16 +191,26 @@ void NNUE::calculateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc
         int featureIndex = ThreatInputs::getThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy, sideOffset);
 
         if (featureIndex != -1) {
-            if (dirtyThreat.add)
-                addFeatureList.add(featureIndex);
-            else
-                subFeatureList.add(featureIndex);
+            if (dirtyThreat.add) {
+                int subIndex = subFeatureList.indexOf(featureIndex);
+                if (subIndex == -1)
+                    addFeatureList.add(featureIndex);
+                else
+                    subFeatureList.remove(subIndex);
+            }
+            else {
+                int addIndex = addFeatureList.indexOf(featureIndex);
+                if (addIndex == -1)
+                    subFeatureList.add(featureIndex);
+                else
+                    addFeatureList.remove(addIndex);
+            }
         }
     }
 }
 
 template<Color side>
-void NNUE::applyAccumulatorUpdates(Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
+__attribute_noinline__ void NNUE::applyAccumulatorUpdates(Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
     int commonEnd = std::min(addFeatureList.count(), subFeatureList.count());
     VecI16* inputVec = (VecI16*)inputAcc->colors[side];
     VecI16* outputVec = (VecI16*)outputAcc->colors[side];
