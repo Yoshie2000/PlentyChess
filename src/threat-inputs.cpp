@@ -30,7 +30,6 @@ namespace ThreatInputs {
 
         // Loop through sides and pieces
         for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-            int sideOffset = (side != pov) * PieceOffsets::END;
 
             Bitboard enemyOccupancy = board->byColor[flip(side)];
             if (hm) enemyOccupancy = mirrorBitboard(enemyOccupancy);
@@ -43,9 +42,6 @@ namespace ThreatInputs {
                     Square indexSquare = popLSB(&pieceBitboard);
                     Square square = indexSquare ^ (hm * 7);
 
-                    bool enemy = static_cast<bool>(enemyOccupancy & bitboard(square));
-                    Color relativeSide = static_cast<Color>(static_cast<bool>(nonPovOccupancy & bitboard(square)));
-
                     // Add the "standard" 768 piece feature
                     Square relativeSquare = square ^ (56 * pov);
                     features.add(getPieceFeature(piece, relativeSquare, static_cast<Color>(side != pov)));
@@ -56,8 +52,14 @@ namespace ThreatInputs {
                     attacks &= occupancy;
                     while (attacks) {
                         Square attackingSquare = popLSB(&attacks);
+                        Square attackingIndexSquare = attackingSquare ^ (hm * 7);
                         Square relativeAttackingSquare = attackingSquare ^ (56 * pov);
-                        Piece attackingPiece = board->pieces[attackingSquare ^ (hm * 7)];
+                        Piece attackingPiece = board->pieces[attackingIndexSquare];
+                        Color attackingSide = (board->byColor[Color::WHITE] & bitboard(attackingIndexSquare)) ? Color::WHITE : Color::BLACK;
+
+                        bool enemy = attackingSide != side;
+                        Color relativeSide = static_cast<Color>(pov != side);
+                        int sideOffset = (attackingSide != pov) * PieceOffsets::END;
 
                         assert(attackingPiece != Piece::NONE);
 
