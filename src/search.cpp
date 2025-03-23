@@ -562,8 +562,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
-    if (!excluded && (stack - 1)->reduction >= 2)
-        depth += std::max(0, std::abs(correctionValue / lmrCorrection) - std::abs((stack - 1)->correctionValue / lmrCorrection)) / 1000;
+    if ((stack - 1)->reduction >= 1 && (stack - 2)->staticEval != EVAL_NONE)
+        depth += stack->staticEval - (stack - 2)->staticEval >= 40;
 
     // IIR
     if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
