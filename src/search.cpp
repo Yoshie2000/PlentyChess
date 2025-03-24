@@ -456,6 +456,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    int pruningReduction = 0;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -562,9 +563,6 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
-    if (!excluded && (stack - 1)->reduction >= 2)
-        depth += std::max(0, std::abs(correctionValue / lmrCorrection) - std::abs((stack - 1)->correctionValue / lmrCorrection)) / 1000;
-
     // IIR
     if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
         depth--;
@@ -582,6 +580,10 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
+
+    if (!excluded && (stack - 1)->reduction >= 2)
+        pruningReduction -= std::abs(correctionValue / lmrCorrection) >= std::abs((stack - 1)->correctionValue / lmrCorrection) + 1000;
+    depth += pruningReduction;
 
     // Reverse futility pruning
     if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
@@ -688,6 +690,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     assert(board->stack);
+
+    depth -= pruningReduction;
 
     // IIR 2: Electric boolagoo
     if (!ttHit && depth >= iirMinDepth && pvNode)
