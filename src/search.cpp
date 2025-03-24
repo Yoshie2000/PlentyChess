@@ -583,7 +583,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     if (!excluded && (stack - 1)->reduction >= 2)
         pruningReduction -= std::abs(correctionValue / lmrCorrection) >= std::abs((stack - 1)->correctionValue / lmrCorrection) + 1000;
-    depth += pruningReduction;
+    depth -= pruningReduction;
 
     // Reverse futility pruning
     if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
@@ -691,7 +691,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     assert(board->stack);
 
-    depth -= pruningReduction;
+    depth += pruningReduction;
 
     // IIR 2: Electric boolagoo
     if (!ttHit && depth >= iirMinDepth && pvNode)
