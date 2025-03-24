@@ -481,10 +481,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
 }
 
 void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) {
-    int limit = -3500 * depth;
     for (int i = beginIndex + 1; i < endIndex; i++) {
-        if (scores[i] < limit)
-            continue;
         Move move = moves[i];
         int score = scores[i];
         int j = i - 1;
