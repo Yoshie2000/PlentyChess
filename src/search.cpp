@@ -455,7 +455,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
-    bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    bool skipQuiets = false, excluded = excludedMove != MOVE_NONE;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -568,14 +568,17 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 2)->staticEval;
+        stack->improving = stack->staticEval > (stack - 2)->staticEval;
     }
     else if ((stack - 4)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 4)->staticEval;
+        stack->improving = stack->staticEval > (stack - 4)->staticEval;
     }
 
     if ((stack - 1)->reduction >= 3 && stack->staticEval <= -(stack - 1)->staticEval)
         depth++;
+        
+    if (depth >= 2 && (stack - 1)->reduction >= 2 && (stack - 1)->improving && !stack->improving)
+        depth--;
 
     // Adjust quiet history based on how much the previous move changed static eval
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
@@ -584,7 +587,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
+    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - (stack->improving && !board->opponentHasGoodCapture())) >= beta)
         return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Razoring
@@ -731,12 +734,12 @@ movesLoop:
             && board->hasNonPawns()
             ) {
 
-            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] / 1000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] / 1000 - !stack->improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
             if (!pvNode && !skipQuiets) {
 
                 // Movecount pruning (LMP)
-                if (moveCount >= LMP_MARGIN[depth][improving]) {
+                if (moveCount >= LMP_MARGIN[depth][stack->improving]) {
                     skipQuiets = true;
                 }
 
@@ -1138,7 +1141,11 @@ void Thread::iterativeDeepening() {
                 stackList[i].move = MOVE_NONE;
                 stackList[i].capture = false;
                 stackList[i].inCheck = false;
+<<<<<<< HEAD
                 stackList[i].correctionValue = 0;
+=======
+                stackList[i].improving = false;
+>>>>>>> Bench: 2001089
                 stackList[i].reduction = 0;
             }
 
@@ -1366,7 +1373,11 @@ void Thread::tdatagen() {
             stackList[i].move = MOVE_NONE;
             stackList[i].capture = false;
             stackList[i].inCheck = false;
+<<<<<<< HEAD
             stackList[i].correctionValue = 0;
+=======
+            stackList[i].improving = false;
+>>>>>>> Bench: 2001089
             stackList[i].reduction = 0;
         }
 
