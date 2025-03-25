@@ -562,9 +562,6 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
 
-    if (!excluded && (stack - 1)->reduction >= 2)
-        depth += std::max(0, std::abs(correctionValue / lmrCorrection) - std::abs((stack - 1)->correctionValue / lmrCorrection)) / 1000;
-
     // IIR
     if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
         depth--;
@@ -576,6 +573,9 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
     }
+
+    if ((stack - 1)->reduction >= 3 && stack->staticEval <= -(stack - 1)->staticEval)
+        depth++;
 
     // Adjust quiet history based on how much the previous move changed static eval
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
