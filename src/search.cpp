@@ -1141,11 +1141,8 @@ void Thread::iterativeDeepening() {
                 stackList[i].move = MOVE_NONE;
                 stackList[i].capture = false;
                 stackList[i].inCheck = false;
-<<<<<<< HEAD
                 stackList[i].correctionValue = 0;
-=======
                 stackList[i].improving = false;
->>>>>>> Bench: 2001089
                 stackList[i].reduction = 0;
             }
 
@@ -1373,11 +1370,8 @@ void Thread::tdatagen() {
             stackList[i].move = MOVE_NONE;
             stackList[i].capture = false;
             stackList[i].inCheck = false;
-<<<<<<< HEAD
             stackList[i].correctionValue = 0;
-=======
             stackList[i].improving = false;
->>>>>>> Bench: 2001089
             stackList[i].reduction = 0;
         }
 

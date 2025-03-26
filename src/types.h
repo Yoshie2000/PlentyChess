@@ -94,12 +94,8 @@ struct SearchStack {
 
     Move move;
     Piece movedPiece;
-<<<<<<< HEAD
-    bool inCheck, capture;
-    int correctionValue;
-=======
     bool inCheck, capture, improving;
->>>>>>> Bench: 2001089
+    int correctionValue;
     int reduction;
 
     Move excludedMove;
