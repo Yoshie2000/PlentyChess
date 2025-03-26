@@ -577,6 +577,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     if ((stack - 1)->reduction >= 3 && stack->staticEval <= -(stack - 1)->staticEval)
         depth++;
 
+    depth += (stack - 1)->reduction < 0 && depth < 10;
+
     // Adjust quiet history based on how much the previous move changed static eval
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
         int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax);
@@ -686,6 +688,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         }
 
     }
+
+    depth -= (stack - 1)->reduction < 0 && depth < 10;
 
     assert(board->stack);
 
