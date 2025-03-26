@@ -292,6 +292,7 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     Eval bestValue, futilityValue, unadjustedEval;
 
     Eval correctionValue = history.getCorrectionValue(board, stack);
+    stack->correctionValue = correctionValue;
     if (board->stack->checkers) {
         stack->staticEval = bestValue = unadjustedEval = futilityValue = -EVAL_INFINITE;
         goto movesLoopQsearch;
@@ -539,6 +540,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
 
     Eval correctionValue = history.getCorrectionValue(board, stack);
+    stack->correctionValue = correctionValue;
     if (board->stack->checkers) {
         stack->staticEval = EVAL_NONE;
         goto movesLoop;
@@ -571,6 +573,9 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
     }
+
+    if ((stack - 1)->reduction >= 3 && stack->staticEval <= -(stack - 1)->staticEval)
+        depth++;
 
     // Adjust quiet history based on how much the previous move changed static eval
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
@@ -858,8 +863,11 @@ movesLoop:
             else
                 reduction -= 1000 * moveHistory / lmrHistoryFactorQuiet;
 
-            int reducedDepth = std::clamp(newDepth - reduction / 1000, 1, newDepth + pvNode);
+            reduction /= 1000;
+            int reducedDepth = std::clamp(newDepth - reduction, 1, newDepth + pvNode);
+            stack->reduction = reduction;
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
+            stack->reduction = 0;
 
             if (capture && captureMoveCount < 32)
                 captureSearchCount[captureMoveCount]++;
@@ -1130,6 +1138,8 @@ void Thread::iterativeDeepening() {
                 stackList[i].move = MOVE_NONE;
                 stackList[i].capture = false;
                 stackList[i].inCheck = false;
+                stackList[i].correctionValue = 0;
+                stackList[i].reduction = 0;
             }
 
             searchData.rootDepth = depth;
@@ -1356,6 +1366,8 @@ void Thread::tdatagen() {
             stackList[i].move = MOVE_NONE;
             stackList[i].capture = false;
             stackList[i].inCheck = false;
+            stackList[i].correctionValue = 0;
+            stackList[i].reduction = 0;
         }
 
         searchData.rootDepth = depth;
