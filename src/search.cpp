@@ -574,7 +574,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         improving = stack->staticEval > (stack - 4)->staticEval;
     }
 
-    if ((stack - 1)->reduction >= 3 && stack->staticEval <= -(stack - 1)->staticEval)
+    if ((stack - 1)->reduction >= 3 && stack->staticEval <= -(stack - 1)->staticEval && ttHit)
         depth++;
 
     // Adjust quiet history based on how much the previous move changed static eval
