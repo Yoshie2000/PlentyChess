@@ -456,6 +456,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    int pruneReduction = 0;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -577,7 +578,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     if ((stack - 1)->reduction >= 3 && stack->staticEval <= -(stack - 1)->staticEval)
         depth++;
 
-    depth += (stack - 1)->reduction < 0 && depth < 10;
+    pruneReduction += (stack - 1)->reduction < 0 && depth < 10;
+    depth -= pruneReduction;
 
     // Adjust quiet history based on how much the previous move changed static eval
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
@@ -689,7 +691,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     }
 
-    depth -= (stack - 1)->reduction < 0 && depth < 10;
+    depth += pruneReduction;
 
     assert(board->stack);
 
