@@ -598,6 +598,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             return razorValue;
     }
 
+    depth += pruneReduction;
+
     BoardStack boardStack;
 
     // Null move pruning
@@ -690,8 +692,6 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         }
 
     }
-
-    depth += pruneReduction;
 
     assert(board->stack);
 
