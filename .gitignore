@@ -9,3 +9,4 @@ tools/*.o
 tools/process_net
 *.bin
 datagen_scrape/
+.vscode
