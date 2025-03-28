@@ -579,7 +579,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         if ((stack - 1)->reduction >= 3000 && stack->staticEval <= -(stack - 1)->staticEval)
             depth++;
         
-        if ((stack - 1)->ttPv && !stack->ttPv && (stack - 1)->reduction % 1000 >= 500)
+        if ((stack - 1)->ttPv && !stack->ttPv && (stack - 1)->reduction > 0 && (stack - 1)->reduction % 1000 >= 750)
             depth--;
     }
 
