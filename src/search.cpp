@@ -468,7 +468,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Eval ttValue = EVAL_NONE, ttEval = EVAL_NONE;
     int ttDepth = 0;
     uint8_t ttFlag = TT_NOBOUND;
-    stack->ttPv = excluded ? false : pvNode;
+    stack->ttPv = excluded ? stack->ttPv : pvNode;
 
     if (!excluded) {
         ttEntry = TT.probe(board->stack->hash, &ttHit);
@@ -512,10 +512,12 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             if (result == TB_LOSS) {
                 tbValue = stack->ply - EVAL_TBWIN;
                 tbBound = TT_UPPERBOUND;
-            } else if (result == TB_WIN) {
+            }
+            else if (result == TB_WIN) {
                 tbValue = EVAL_TBWIN - stack->ply;
                 tbBound = TT_LOWERBOUND;
-            } else {
+            }
+            else {
                 tbValue = 0;
                 tbBound = TT_EXACTBOUND;
             }
@@ -529,7 +531,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
                 if (tbBound == TT_LOWERBOUND) {
                     bestValue = tbValue;
                     alpha = std::max(alpha, bestValue);
-                } else {
+                }
+                else {
                     maxValue = tbValue;
                 }
             }
@@ -570,6 +573,12 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         improving = stack->staticEval > (stack - 4)->staticEval;
     }
 
+    // Adjust quiet history based on how much the previous move changed static eval
+    if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
+        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax);
+        history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
+    }
+
     // IIR
     if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
         depth--;
@@ -578,15 +587,6 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     if ((stack - 1)->inLMR) {
         if ((stack - 1)->reduction >= 3000 && stack->staticEval <= -(stack - 1)->staticEval)
             depth++;
-        
-        if ((stack - 1)->ttPv && !stack->ttPv && (stack - 1)->reduction > 0 && (stack - 1)->reduction % 1000 >= 750)
-            depth--;
-    }
-
-    // Adjust quiet history based on how much the previous move changed static eval
-    if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
-        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax);
-        history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
 
     // Reverse futility pruning
@@ -863,7 +863,7 @@ movesLoop:
 
             if (cutNode)
                 reduction += lmrCutnode;
-            
+
             reduction -= std::abs(correctionValue / lmrCorrection);
 
             if (capture)
@@ -956,7 +956,8 @@ movesLoop:
                 rootMove->pv.push_back(move);
                 for (int i = 1; i < (stack + 1)->pvLength; i++)
                     rootMove->pv.push_back((stack + 1)->pv[i]);
-            } else {
+            }
+            else {
                 rootMove->value = -EVAL_INFINITE;
             }
         }
@@ -1040,10 +1041,10 @@ Move tbProbeMoveRoot(unsigned result) {
 
     if (promotion)
         return createMove(origin, target) | MOVE_PROMOTION | (PROMOTION_PIECE[promotion - 1] << 14);
-    
+
     if (TB_GET_EP(result))
         return createMove(origin, target) | MOVE_ENPASSANT;
-    
+
     return createMove(origin, target);
 }
 
