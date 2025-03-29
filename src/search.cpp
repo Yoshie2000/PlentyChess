@@ -404,7 +404,7 @@ movesLoopQsearch:
 
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : TT_UPPERBOUND;
-    ttEntry->update(board->stack->hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+    ttEntry->update(board->stack->hash, bestMove, static_cast<int>(board->stack->checkers), unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     return bestValue;
 }
