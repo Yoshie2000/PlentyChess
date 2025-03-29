@@ -468,7 +468,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Eval ttValue = EVAL_NONE, ttEval = EVAL_NONE;
     int ttDepth = 0;
     uint8_t ttFlag = TT_NOBOUND;
-    bool ttPv = pvNode;
+    stack->ttPv = excluded ? stack->ttPv : pvNode;
 
     if (!excluded) {
         ttEntry = TT.probe(board->stack->hash, &ttHit);
@@ -478,7 +478,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             ttEval = ttEntry->getEval();
             ttDepth = ttEntry->getDepth();
             ttFlag = ttEntry->getFlag();
-            ttPv = ttPv || ttEntry->getTtPv();
+            stack->ttPv = stack->ttPv || ttEntry->getTtPv();
         }
     }
 
@@ -512,16 +512,18 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             if (result == TB_LOSS) {
                 tbValue = stack->ply - EVAL_TBWIN;
                 tbBound = TT_UPPERBOUND;
-            } else if (result == TB_WIN) {
+            }
+            else if (result == TB_WIN) {
                 tbValue = EVAL_TBWIN - stack->ply;
                 tbBound = TT_LOWERBOUND;
-            } else {
+            }
+            else {
                 tbValue = 0;
                 tbBound = TT_EXACTBOUND;
             }
 
             if (tbBound == TT_EXACTBOUND || (tbBound == TT_LOWERBOUND ? tbValue >= beta : tbValue <= alpha)) {
-                ttEntry->update(board->stack->hash, MOVE_NONE, MAX_PLY, EVAL_NONE, tbValue, ttPv, tbBound);
+                ttEntry->update(board->stack->hash, MOVE_NONE, MAX_PLY, EVAL_NONE, tbValue, stack->ttPv, tbBound);
                 return tbValue;
             }
 
@@ -529,7 +531,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
                 if (tbBound == TT_LOWERBOUND) {
                     bestValue = tbValue;
                     alpha = std::max(alpha, bestValue);
-                } else {
+                }
+                else {
                     maxValue = tbValue;
                 }
             }
@@ -559,12 +562,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         unadjustedEval = evaluate(board, &nnue);
         eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
 
-        ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
+        ttEntry->update(board->stack->hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, stack->ttPv, TT_NOBOUND);
     }
-
-    // IIR
-    if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
-        depth--;
 
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
@@ -574,13 +573,20 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         improving = stack->staticEval > (stack - 4)->staticEval;
     }
 
-    if ((stack - 1)->reduction >= 3 && stack->staticEval <= -(stack - 1)->staticEval)
-        depth++;
-
     // Adjust quiet history based on how much the previous move changed static eval
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
         int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
+    }
+
+    // IIR
+    if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
+        depth--;
+
+    // Post-LMR depth adjustments
+    if ((stack - 1)->inLMR) {
+        if ((stack - 1)->reduction >= 3000 && stack->staticEval <= -(stack - 1)->staticEval)
+            depth++;
     }
 
     // Reverse futility pruning
@@ -680,7 +686,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
             if (value >= probCutBeta) {
                 value = std::min(value, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(board->stack->hash, move, depth - 3, unadjustedEval, valueToTT(value, stack->ply), ttPv, TT_LOWERBOUND);
+                ttEntry->update(board->stack->hash, move, depth - 3, unadjustedEval, valueToTT(value, stack->ply), stack->ttPv, TT_LOWERBOUND);
                 return value;
             }
         }
@@ -774,12 +780,14 @@ movesLoop:
             && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
             && ttDepth >= depth - 3
             ) {
-            Eval singularBeta = ttValue - (1 + (ttPv && !pvNode)) * depth;
+            Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth;
             int singularDepth = (depth - 1) / 2;
 
+            bool currTtPv = stack->ttPv;
             stack->excludedMove = move;
             Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
             stack->excludedMove = MOVE_NONE;
+            stack->ttPv = currTtPv;
 
             if (stopped || exiting)
                 return 0;
@@ -797,7 +805,7 @@ movesLoop:
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
                 Eval value = std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(board->stack->hash, ttMove, singularDepth, unadjustedEval, value, ttPv, TT_LOWERBOUND);
+                ttEntry->update(board->stack->hash, ttMove, singularDepth, unadjustedEval, value, stack->ttPv, TT_LOWERBOUND);
                 return value;
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
@@ -844,18 +852,18 @@ movesLoop:
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !ttPv || cutNode)) {
+        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !stack->ttPv || cutNode)) {
             int reduction = REDUCTIONS[!capture][depth][moveCount];
 
             if (board->stack->checkers)
                 reduction -= lmrCheck;
 
-            if (!ttPv)
+            if (!stack->ttPv)
                 reduction += lmrTtPv;
 
             if (cutNode)
                 reduction += lmrCutnode;
-            
+
             reduction -= std::abs(correctionValue / lmrCorrection);
 
             if (capture)
@@ -863,10 +871,11 @@ movesLoop:
             else
                 reduction -= 1000 * moveHistory / lmrHistoryFactorQuiet;
 
-            reduction /= 1000;
-            int reducedDepth = std::clamp(newDepth - reduction, 1, newDepth + pvNode);
+            int reducedDepth = std::clamp(newDepth - reduction / 1000, 1, newDepth + pvNode);
             stack->reduction = reduction;
+            stack->inLMR = true;
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
+            stack->inLMR = false;
             stack->reduction = 0;
 
             if (capture && captureMoveCount < 32)
@@ -947,7 +956,8 @@ movesLoop:
                 rootMove->pv.push_back(move);
                 for (int i = 1; i < (stack + 1)->pvLength; i++)
                     rootMove->pv.push_back((stack + 1)->pv[i]);
-            } else {
+            }
+            else {
                 rootMove->value = -EVAL_INFINITE;
             }
         }
@@ -1011,7 +1021,7 @@ movesLoop:
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+        ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), stack->ttPv, flags);
 
     // Adjust correction history
     if (!board->stack->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
@@ -1031,10 +1041,10 @@ Move tbProbeMoveRoot(unsigned result) {
 
     if (promotion)
         return createMove(origin, target) | MOVE_PROMOTION | (PROMOTION_PIECE[promotion - 1] << 14);
-    
+
     if (TB_GET_EP(result))
         return createMove(origin, target) | MOVE_ENPASSANT;
-    
+
     return createMove(origin, target);
 }
 
@@ -1140,6 +1150,8 @@ void Thread::iterativeDeepening() {
                 stackList[i].inCheck = false;
                 stackList[i].correctionValue = 0;
                 stackList[i].reduction = 0;
+                stackList[i].inLMR = false;
+                stackList[i].ttPv = false;
             }
 
             searchData.rootDepth = depth;
@@ -1368,6 +1380,8 @@ void Thread::tdatagen() {
             stackList[i].inCheck = false;
             stackList[i].correctionValue = 0;
             stackList[i].reduction = 0;
+            stackList[i].inLMR = false;
+            stackList[i].ttPv = false;
         }
 
         searchData.rootDepth = depth;
