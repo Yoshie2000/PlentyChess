@@ -815,7 +815,7 @@ movesLoop:
             else if (cutNode)
                 extension = -2;
             else if (ttValue <= alpha)
-                extension = -1;
+                extension = -1 - (ttFlag == TT_EXACTBOUND);
         }
 
         uint64_t newHash = board->hashAfter(move);
