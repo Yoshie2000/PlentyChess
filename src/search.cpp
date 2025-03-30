@@ -814,8 +814,8 @@ movesLoop:
             // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
             else if (cutNode)
                 extension = -2;
-            else if (ttValue <= alpha)
-                extension = -1 - (ttFlag == TT_EXACTBOUND);
+            else if (ttValue <= alpha && ttFlag == TT_EXACTBOUND)
+                extension = -1;
         }
 
         uint64_t newHash = board->hashAfter(move);
