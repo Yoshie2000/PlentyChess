@@ -14,7 +14,7 @@ TUNE_INT_DISABLED(bishopValue, 301, 200, 400);
 TUNE_INT_DISABLED(rookValue, 507, 400, 600);
 TUNE_INT_DISABLED(queenValue, 909, 700, 1100);
 
-TUNE_INT_DISABLED(materialScaleBase, 933, 512, 1536);
+TUNE_INT_DISABLED(materialScaleBase, 920, 512, 1536);
 TUNE_INT_DISABLED(materialScaleDivisor, 48, 32, 64);
 
 Eval fakePiece = 0;
@@ -29,12 +29,13 @@ constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
 
 
 int getMaterialScale(Board* board) {
+    int pawnCount = board->stack->pieceCount[Color::WHITE][Piece::PAWN] + board->stack->pieceCount[Color::BLACK][Piece::PAWN];
     int knightCount = board->stack->pieceCount[Color::WHITE][Piece::KNIGHT] + board->stack->pieceCount[Color::BLACK][Piece::KNIGHT];
     int bishopCount = board->stack->pieceCount[Color::WHITE][Piece::BISHOP] + board->stack->pieceCount[Color::BLACK][Piece::BISHOP];
     int rookCount = board->stack->pieceCount[Color::WHITE][Piece::ROOK] + board->stack->pieceCount[Color::BLACK][Piece::ROOK];
     int queenCount = board->stack->pieceCount[Color::WHITE][Piece::QUEEN] + board->stack->pieceCount[Color::BLACK][Piece::QUEEN];
 
-    int materialValue = PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
+    int materialValue = PIECE_VALUES[Piece::PAWN] * pawnCount + PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
