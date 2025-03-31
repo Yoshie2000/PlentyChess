@@ -25,7 +25,7 @@ struct RawNetworkData {
     float inputBiases[L1_SIZE];
     float l1Weights[L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
     float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    float l2Weights[L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
+    float l2Weights[2 * L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
     float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
     float l3Weights[L3_SIZE][OUTPUT_BUCKETS];
     float l3Biases[OUTPUT_BUCKETS];
@@ -36,7 +36,7 @@ struct NetworkData {
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
     alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
     alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+    alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
     alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
     alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE];
     alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
@@ -105,7 +105,7 @@ void transposePermuteNetwork() {
         }
 #endif
 
-        for (int l2 = 0; l2 < L2_SIZE; l2++) {
+        for (int l2 = 0; l2 < 2 * L2_SIZE; l2++) {
             for (int l3 = 0; l3 < L3_SIZE; l3++) {
                 out.l2Weights[b][l2 * L3_SIZE + l3] = reinterpret_cast<float*>(tmp.l2Weights)[l2 * OUTPUT_BUCKETS * L3_SIZE + b * L3_SIZE + l3];
             }
