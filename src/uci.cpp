@@ -333,6 +333,13 @@ struct __attribute__((packed)) BulletEntry {
 };
 
 void relabel(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
+    tb_init("/media/patrick/NVMEStorage/Syzygy/3-4-5:/media/patrick/NVMEStorage/Syzygy/6/dtz:/media/patrick/NVMEStorage/Syzygy/6/wdl");
+    std::cout << "Loaded TBs with " << int(TB_LARGEST) << " pieces" << std::endl;
+    int64_t changedScores = 0;
+    int64_t changedResults = 0;
+    int64_t processedEntries = 0;
+    int64_t syzygyEntries = 0;
+
     *stackQueue = std::deque<BoardStack>(1);
     board->stack = &stackQueue->back();
 
@@ -360,31 +367,71 @@ void relabel(std::string line, Board* board, std::deque<BoardStack>* stackQueue)
 
     while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry)))
     {
-        board->parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
         Bitboard occ = currEntry.occ;
-        size_t count = 0;
-        while (occ) {
-            Square sq = popLSB(&occ);
-            uint8_t packedPieces = currEntry.pcs[count / 2];
-            int pieceWithColor = ((count % 2 == 0) ? packedPieces & 0b1111 : packedPieces >> 4);
-            Piece piece = static_cast<Piece>(pieceWithColor & 0b111);
-            Color pieceColor = static_cast<Color>(pieceWithColor >> 3);
-            count++;
 
-            board->pieces[sq] = piece;
-            board->byColor[pieceColor] ^= bitboard(sq);
-            board->byPiece[piece] ^= bitboard(sq);
-        }
-        for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-            UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
-            memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byColor[side], board->byColor, sizeof(board->byColor));
-            memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byPiece[side], board->byPiece, sizeof(board->byPiece));
-        }
+        if (BB::popcount(occ) <= int(TB_LARGEST)) {
+            board->parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
+            size_t count = 0;
+            while (occ) {
+                Square sq = popLSB(&occ);
+                uint8_t packedPieces = currEntry.pcs[count / 2];
+                int pieceWithColor = ((count % 2 == 0) ? packedPieces & 0b1111 : packedPieces >> 4);
+                Piece piece = static_cast<Piece>(pieceWithColor & 0b111);
+                Color pieceColor = static_cast<Color>(pieceWithColor >> 3);
+                count++;
+    
+                board->pieces[sq] = piece;
+                board->byColor[pieceColor] ^= bitboard(sq);
+                board->byPiece[piece] ^= bitboard(sq);
+            }
 
-        currEntry.score = UCI::nnue.evaluate(board);
+            unsigned result = tb_probe_root(
+                board->byColor[Color::WHITE],
+                board->byColor[Color::BLACK],
+                board->byPiece[Piece::KING],
+                board->byPiece[Piece::QUEEN],
+                board->byPiece[Piece::ROOK],
+                board->byPiece[Piece::BISHOP],
+                board->byPiece[Piece::KNIGHT],
+                board->byPiece[Piece::PAWN],
+                board->stack->rule50_ply,
+                board->stack->castling,
+                board->stack->enpassantTarget ? lsb(board->stack->enpassantTarget) : 0,
+                board->stm == Color::WHITE,
+                nullptr
+            );
+
+            if (result != TB_RESULT_FAILED) {
+                unsigned wdl = TB_GET_WDL(result);
+                uint8_t currentResult = currEntry.result;
+                int16_t currentScore = currEntry.score;
+                if (wdl == TB_LOSS) {
+                    currEntry.result = board->stm == Color::WHITE ? 0 : 2;
+                    currEntry.score = board->stm == Color::WHITE ? std::min<int16_t>(currEntry.score, -2500) : std::max<int16_t>(currEntry.score, 2500);
+                } else if (wdl == TB_WIN) {
+                    currEntry.result = board->stm == Color::WHITE ? 2 : 0;
+                    currEntry.score = board->stm == Color::WHITE ? std::max<int16_t>(currEntry.score, 2500) : std::min<int16_t>(currEntry.score, -2500);
+                } else {
+                    currEntry.result = 1;
+                    currEntry.score = 0;
+                }
+                if (currentResult != currEntry.result)
+                    changedResults++;
+                if (currentScore != currEntry.score)
+                    changedScores++;
+                // if (std::abs(currentScore - currEntry.score) >= 100 || currentResult != currEntry.result) {
+                //     std::cout << board->fen() << " previous result " << int(currentResult) << " score " << int(currentScore); 
+                //     std::cout << " now result " << int(currEntry.result) << " score " << int(currEntry.score) << std::endl;
+                // }
+                syzygyEntries++;
+            }
+        }
 
         os.write(reinterpret_cast<const char*>(&currEntry), sizeof(currEntry));
+        processedEntries++;
     }
+
+    std::cout << "Finished processing " << processedEntries << " entries, " << syzygyEntries << " syzygy positions, " << changedScores << " scores changed, " << changedResults << " results changed (" << std::quoted(line) << ")" << std::endl;
 }
 
 void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
