@@ -162,7 +162,7 @@ int16_t* History::getCaptureHistory(Board* board, Move move) {
 
     assert(movedPiece != Piece::NONE && capturedPiece != Piece::NONE);
 
-    return &captureHistory[board->stm][movedPiece][target][capturedPiece];
+    return &captureHistory[board->stm][movedPiece][target][capturedPiece][board->isSquareThreatened(target, board->stack)];
 }
 
 void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus) {
