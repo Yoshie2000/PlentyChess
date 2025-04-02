@@ -484,7 +484,7 @@ constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
 constexpr int INPUT_QUANT = 255;
-constexpr int INPUT_SHIFT = 9;
+constexpr int INPUT_SHIFT = 10;
 constexpr int L1_QUANT = 128;
 
 constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
