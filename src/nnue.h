@@ -74,7 +74,9 @@ inline VecI32 dpbusdEpi32x2(VecI32 sum, VecIu8 u, VecI8 i, VecIu8 u2, VecI8 i2) 
 #endif
 
 inline VecIu8 packusEpi16(VecI16 x, VecI16 y) {
-  return _mm512_packus_epi16(x, y);
+  VecI16 packed = _mm512_packus_epi16(x, y);
+  packed = _mm512_permutexvar_epi64(_mm512_setr_epi64(0, 2, 4, 6, 1, 3, 5, 7), packed);
+  return packed;
 }
 
 inline void vecStoreI(VecI16* dest, VecI16 x) {
@@ -159,7 +161,9 @@ inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
 }
 
 inline VecIu8 packusEpi16(VecI16 x, VecI16 y) {
-  return _mm256_packus_epi16(x, y);
+  VecI16 packed = _mm256_packus_epi16(x, y);
+  packed = _mm256_permute4x64_epi64(packed, _MM_SHUFFLE(3, 1, 2, 0));
+  return packed;
 }
 
 inline void vecStoreI(VecI16* dest, VecI16 x) {
@@ -466,23 +470,22 @@ constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
-  0, 1, 2, 3, 3, 2, 1, 0,
-  4, 4, 5, 5, 5, 5, 4, 4,
-  6, 6, 6, 6, 6, 6, 6, 6,
-  7, 7, 7, 7, 7, 7, 7, 7,
-  8, 8, 8, 8, 8, 8, 8, 8,
-  8, 8, 8, 8, 8, 8, 8, 8,
-  8, 8, 8, 8, 8, 8, 8, 8,
-  8, 8, 8, 8, 8, 8, 8, 8
+  0,  1,  2,  3,  3,  2,  1,  0,
+  4,  5,  6,  7,  7,  6,  5,  4,
+  8,  8,  9,  9,  9,  9,  8,  8,
+  10, 10, 10, 10, 10, 10, 10, 10,
+  10, 10, 10, 10, 10, 10, 10, 10,
+  11, 11, 11, 11, 11, 11, 11, 11,
+  11, 11, 11, 11, 11, 11, 11, 11,
+  11, 11, 11, 11, 11, 11, 11, 11,
 };
-constexpr int KING_BUCKETS = 9;
-constexpr bool KING_BUCKETS_FACTORIZED = true;
+constexpr int KING_BUCKETS = 12;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int NETWORK_SCALE = 400;
-constexpr int INPUT_QUANT = 362;
-constexpr int INPUT_SHIFT = 10;
-constexpr int L1_QUANT = 64;
+constexpr int NETWORK_SCALE = 200;
+constexpr int INPUT_QUANT = 255;
+constexpr int INPUT_SHIFT = 9;
+constexpr int L1_QUANT = 128;
 
 constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
 
@@ -537,12 +540,23 @@ struct FinnyEntry {
   Bitboard byPiece[2][Piece::TOTAL];
 };
 
+struct RawNetworkData {
+  int16_t inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
+  int16_t inputBiases[L1_SIZE];
+  int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+  float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
+  float   l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+  float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
+  float   l3Weights[OUTPUT_BUCKETS][L3_SIZE];
+  float   l3Biases[OUTPUT_BUCKETS];
+};
+
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-  alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
+  alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
   alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
   alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE];
   alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];

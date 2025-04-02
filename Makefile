@@ -122,7 +122,7 @@ ifndef EVALFILE
 	EVALFILE_NOT_DEFINED = true
 endif
 
-CXXFLAGS := $(CXXFLAGS) -DEVALFILE=\"processed.bin\"
+CXXFLAGS := $(CXXFLAGS) -DEVALFILE=\"$(EVALFILE)\"
 
 # Targets
 
@@ -141,7 +141,6 @@ endif
 	$(info Processing network)
 	$(MAKE) -C tools clean
 	$(MAKE) -C tools arch=$(arch)
-	./tools/process_net $(PROCESS_NET) $(EVALFILE) ./processed.bin
 endif
 
 all:
