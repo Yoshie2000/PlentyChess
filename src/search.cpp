@@ -859,7 +859,7 @@ movesLoop:
                 reduction -= lmrCheck;
 
             if (!stack->ttPv)
-                reduction += lmrTtPv;
+                reduction += lmrTtPv - 200;
             
             if ((stack - 1)->inLMR && (stack - 1)->ttPv && !stack->ttPv)
                 reduction += 400;
