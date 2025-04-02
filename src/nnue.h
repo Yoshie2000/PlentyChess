@@ -482,7 +482,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
 constexpr int KING_BUCKETS = 12;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int NETWORK_SCALE = 200;
+constexpr int NETWORK_SCALE = 400;
 constexpr int INPUT_QUANT = 255;
 constexpr int INPUT_SHIFT = 9;
 constexpr int L1_QUANT = 128;
