@@ -285,7 +285,7 @@ Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     }
 
     // TT cutoff
-    if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
     Move bestMove = MOVE_NONE;
