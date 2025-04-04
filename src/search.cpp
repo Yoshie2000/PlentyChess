@@ -483,8 +483,13 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // TT cutoff
-    if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
-        return ttValue;
+    bool wouldTtCut = false;
+    if (ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND))) {
+        if (pvNode)
+            wouldTtCut = true;
+        else
+            return ttValue;
+    }
 
     // TB Probe
     if (!rootNode && !excluded && BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
@@ -581,6 +586,8 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // IIR
     if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
+        depth--;
+    if (wouldTtCut && depth >= 2 * iirMinDepth)
         depth--;
 
     // Post-LMR depth adjustments
