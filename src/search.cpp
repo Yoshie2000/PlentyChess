@@ -974,7 +974,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int historyUpdateDepth = depth + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
+                    int historyUpdateDepth = depth + pvNode + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
 
                     int quietBonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * historyUpdateDepth, historyBonusQuietMax);
                     int quietMalus = std::min(historyMalusQuietBase + historyMalusQuietFactor * historyUpdateDepth, historyMalusQuietMax);
