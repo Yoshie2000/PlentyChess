@@ -41,9 +41,7 @@ int getMaterialScale(Board* board) {
 Eval evaluate(Board* board, NNUE* nnue) {
     assert(!board->stack->checkers);
 
-    Eval eval = nnue->evaluate(board);
-    eval = std::clamp((int) eval, (int) -EVAL_TBWIN_IN_MAX_PLY + 1, (int) EVAL_TBWIN_IN_MAX_PLY - 1);
-    
+    Eval eval = nnue->evaluate(board);    
     eval = (eval * getMaterialScale(board)) / 1024;
     eval = eval * (300 - board->stack->rule50_ply) / 300;
 

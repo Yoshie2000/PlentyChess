@@ -59,11 +59,6 @@ void quantizeNetwork() {
             tmp.l1Weights[b][l1] = quantize<L1_QUANT>(((float*)raw.l1Weights)[b * L1_SIZE * 2 + l1]);
         }
         tmp.l1Biases[b] = quantize<L1_QUANT * INPUT_QUANT>(raw.l1Biases[b]);
-
-        // for (int i = 0; i < L1_SIZE; i++) {
-        //     std::cout << "(" << int(tmp.l1Weights[b][i]) << " " << int(tmp.l1Weights[b][i + L1_SIZE]) << "), ";
-        // }
-        // std::cout << std::endl;
     }
 }
 
@@ -72,10 +67,6 @@ void transposePermuteNetwork() {
         for (int l1 = 0; l1 < L1_SIZE * 2; l1++) {
             out.l1Weights[b][l1] = reinterpret_cast<int16_t*>(tmp.l1Weights)[l1 * OUTPUT_BUCKETS + b];
         }
-        // for (int i = 0; i < L1_SIZE; i++) {
-        //     std::cout << "(" << int(out.l1Weights[b][i]) << " " << int(out.l1Weights[b][i + L1_SIZE]) << "), ";
-        // }
-        // std::cout << std::endl;
     }
 
     // std::memcpy the rest
