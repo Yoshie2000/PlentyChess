@@ -374,6 +374,16 @@ struct DirtyPiece {
   Color pieceColor;
 };
 
+struct DirtyThreat {
+  Piece piece;
+  Piece attackedPiece;
+  Square square;
+  Square attackedSquare;
+  Color pieceColor;
+  Color attackedColor;
+  bool add;
+};
+
 struct KingBucketInfo {
   bool mirrored;
 };
@@ -393,21 +403,14 @@ struct Accumulator {
 
   DirtyPiece dirtyPieces[4];
   int numDirtyPieces;
+  DirtyThreat dirtyThreats[256];
+  int numDirtyThreats;
 
   KingBucketInfo kingBucketInfo[2];
   Bitboard byColor[2][2];
   Bitboard byPiece[2][Piece::TOTAL];
-  Piece mailbox[2][64];
-  Threats threats[2];
-};
 
-struct FinnyEntry {
-  alignas(ALIGNMENT) int16_t colors[2][L1_SIZE];
-
-  Bitboard byColor[2][2];
-  Bitboard byPiece[2][Piece::TOTAL];
-  Piece mailbox[2][64];
-  Threats threats[2];
+  bool updated[2];
 };
 
 struct NetworkData {
@@ -432,13 +435,12 @@ public:
 
   Accumulator accumulatorStack[MAX_PLY + 8];
   int currentAccumulator;
-  int lastCalculatedAccumulator[2];
-
-  FinnyEntry finnyTable[2];
 
   void addPiece(Square square, Piece piece, Color pieceColor);
   void removePiece(Square square, Piece piece, Color pieceColor);
   void movePiece(Square origin, Square target, Piece piece, Color pieceColor);
+  void addThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor);
+  void removeThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor);
 
   void incrementAccumulator();
   void decrementAccumulator();
@@ -446,31 +448,21 @@ public:
 
   void reset(Board* board);
   template<Color side>
-  void resetAccumulator(Board* board, Accumulator* acc);
+  __attribute_noinline__ void resetAccumulator(Board* board, Accumulator* acc);
 
   Eval evaluate(Board* board);
+  template<Color side>
+  void calculateAccumulators(Board* board);
 
   template<Color side>
-  void calculateAccumulators();
+  __attribute_noinline__ void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
   template<Color side>
-  void refreshAccumulator(Accumulator* acc);
+  __attribute_noinline__ void applyAccumulatorUpdates(Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
 
   template<Color side>
-  void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  __attribute_noinline__ void calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
   template<Color side>
-  void applyAccumulatorUpdates(Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
-
-  template<Color side>
-  void calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
-  template<Color side>
-  void calculateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
-
-  template<Color side>
-  __attribute__((always_inline)) inline void addThreatFeatures(Square square, Bitboard threatsToAdd, KingBucketInfo* kingBucket, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList);
-  template<Color side>
-  __attribute__((always_inline)) inline void removeThreatFeatures(Square square, Bitboard threatsToRemove, KingBucketInfo* kingBucket, Accumulator* baseAcc, ThreatInputs::FeatureList& featureList);
-  template<Color side>
-  __attribute__((always_inline)) inline void updateThreatFeatures(Square square, Bitboard threatsToUpdate, KingBucketInfo* kingBucket, Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
+  __attribute_noinline__ void calculateThreatFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
 
   template<Color side>
   void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);

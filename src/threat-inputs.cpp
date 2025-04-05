@@ -30,7 +30,6 @@ namespace ThreatInputs {
 
         // Loop through sides and pieces
         for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-            int sideOffset = (side != pov) * PieceOffsets::END;
 
             Bitboard enemyOccupancy = board->byColor[flip(side)];
             if (hm) enemyOccupancy = mirrorBitboard(enemyOccupancy);
@@ -48,19 +47,23 @@ namespace ThreatInputs {
                     features.add(getPieceFeature(piece, relativeSquare, static_cast<Color>(side != pov)));
 
                     // Add the threat features
-                    Bitboard attacks = board->stack->threats.bySquare[indexSquare];
+                    Bitboard attacks = board->stack->threats.toSquare[indexSquare];
                     if (hm) attacks = mirrorBitboard(attacks);
                     attacks &= occupancy;
                     while (attacks) {
-                        Square attackedSquare = popLSB(&attacks);
-                        bool enemy = static_cast<bool>(enemyOccupancy & bitboard(attackedSquare));
-                        Color relativeSide = static_cast<Color>(static_cast<bool>(nonPovOccupancy & bitboard(attackedSquare)));
-                        Piece attackedPiece = board->pieces[attackedSquare ^ (hm * 7)];
+                        Square attackingSquare = popLSB(&attacks);
+                        Square attackingIndexSquare = attackingSquare ^ (hm * 7);
+                        Square relativeAttackingSquare = attackingSquare ^ (56 * pov);
+                        Piece attackingPiece = board->pieces[attackingIndexSquare];
+                        Color attackingSide = (board->byColor[Color::WHITE] & bitboard(attackingIndexSquare)) ? Color::WHITE : Color::BLACK;
 
-                        assert(attackedPiece != Piece::NONE);
+                        Color relativeSide = static_cast<Color>(pov != side);
+                        bool enemy = attackingSide != side;
+                        int sideOffset = (attackingSide != pov) * PieceOffsets::END;
 
-                        Square relativeAttackedSquare = attackedSquare ^ (56 * pov);
-                        int threatFeature = getThreatFeature(piece, relativeSquare, relativeAttackedSquare, attackedPiece, relativeSide, enemy, sideOffset);
+                        assert(attackingPiece != Piece::NONE);
+
+                        int threatFeature = getThreatFeature(attackingPiece, relativeAttackingSquare, relativeSquare, piece, relativeSide, enemy, sideOffset);
                         if (threatFeature != -1)
                             features.add(threatFeature);
                     }

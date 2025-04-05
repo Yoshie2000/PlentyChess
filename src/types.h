@@ -62,6 +62,16 @@ inline Square popLSB(Bitboard* bb) {
     return l;
 }
 
+inline Square msb(Bitboard bb) {
+    assert(bb > 0);
+    return 63 - __builtin_clzll(bb);
+}
+inline Square popMSB(Bitboard* bb) {
+    Square l = msb(*bb);
+    *bb &= *bb - 1;
+    return l;
+}
+
 constexpr Bitboard bitboard(int32_t number) {
     return static_cast<Bitboard>(number);
 }

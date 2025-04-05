@@ -70,6 +70,18 @@ namespace ThreatInputs {
             return featureCount;
         }
 
+        int indexOf(int other) const {
+            for (int i = 0; i < featureCount; i++) {
+                if (featureIndices[i] == other)
+                    return i;
+            }
+            return -1;
+        }
+
+        void remove(int idx) {
+            featureIndices[idx] = featureIndices[--featureCount];
+        }
+
         FeatureListIterator begin() { return FeatureListIterator(featureIndices); }
         FeatureListIterator end() { return FeatureListIterator(featureIndices + featureCount); }
 

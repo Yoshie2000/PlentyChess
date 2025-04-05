@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <iostream>
 
 #include "board.h"
 #include "types.h"
@@ -11,6 +12,8 @@ namespace BB {
     Bitboard LINE[64][64];
     Bitboard KING_ATTACKS[64];
     Bitboard KNIGHT_ATTACKS[64];
+
+    Bitboard DIRECTION_BETWEEN[64][64];
 
     Bitboard kingAttacks(Square origin) {
         Bitboard attacksBB = bitboard(0);
@@ -73,6 +76,35 @@ namespace BB {
                 BETWEEN[a][b] |= getRookMoves(a, bitboard(b)) & getRookMoves(b, bitboard(a));
                 BETWEEN[a][b] |= bitboard(b);
                 BETWEEN[a][b] &= LINE[a][b];
+
+
+                if (fileOf(a) == fileOf(b)) {
+                    DIRECTION_BETWEEN[a][b] = b > a ? DIRECTION_UP : DIRECTION_DOWN;
+                }
+                else if (rankOf(a) == rankOf(b)) {
+                    DIRECTION_BETWEEN[a][b] = b > a ? DIRECTION_RIGHT : DIRECTION_LEFT;
+                }
+                else if (std::abs(fileOf(a) - fileOf(b)) == std::abs(rankOf(a) - rankOf(b))) {
+                    if (b > a) {
+                        if (fileOf(b) > fileOf(a)) {
+                            DIRECTION_BETWEEN[a][b] = DIRECTION_UP_RIGHT;
+                        }
+                        else {
+                            DIRECTION_BETWEEN[a][b] = DIRECTION_UP_LEFT;
+                        }
+                    }
+                    else {
+                        if (fileOf(b) > fileOf(a)) {
+                            DIRECTION_BETWEEN[a][b] = DIRECTION_DOWN_RIGHT;
+                        }
+                        else {
+                            DIRECTION_BETWEEN[a][b] = DIRECTION_DOWN_LEFT;
+                        }
+                    }
+                }
+                else {
+                    DIRECTION_BETWEEN[a][b] = DIRECTION_NONE;
+                }
             }
 
             KING_ATTACKS[a] = kingAttacks(a);

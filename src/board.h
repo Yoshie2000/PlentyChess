@@ -26,7 +26,7 @@ constexpr int castlingIndex(Color side, Square kingOrigin, Square kingTarget) {
 
 struct Threats {
     Bitboard byPiece[6];
-    Bitboard bySquare[64];
+    Bitboard toSquare[64];
 };
 
 struct BoardStack {
@@ -74,13 +74,22 @@ struct Board {
     size_t parseFen(std::string fen, bool chess960);
     std::string fen();
 
-    void movePiece(Piece piece, Square origin, Square target, Bitboard fromTo);
+    template<bool add>
+    void updateThreatsFromPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
+    template<bool add>
+    void updateThreatsToPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
+
+    void addPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
+    void removePiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
+    void movePiece(Piece piece, Color pieceColor, Square origin, Square target, Bitboard fromTo, NNUE* nnue);
+
     void doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue);
     void undoMove(Move move, NNUE* nnue);
     void doNullMove(BoardStack* newStack);
     void undoNullMove();
 
-    void calculateThreats();
+    void finishThreatsUpdate();
+    Threats calculateAllThreats();
     bool isSquareThreatened(Square square, BoardStack* bs);
 
     constexpr bool isCapture(Move move) {
