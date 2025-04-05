@@ -498,8 +498,6 @@ void Board::updateThreatsToPiece(Piece piece, Color pieceColor, Square square, B
     // Add threat features of pieces that were already attacking this square
     // OR: Remove them
     Bitboard attackingSquares = stack->threats.toSquare[square] & ~squareBB;
-    debugBitboard(attackingSquares);
-    debugBitboard(stack->threats.toSquare[square]);
     
     while (attackingSquares) {
         Square attackingSquare = popLSB(&attackingSquares);
@@ -554,10 +552,10 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
 
     pieces[origin] = Piece::NONE;
     pieces[target] = piece;
+    
+    updateThreatsToPiece<false>(piece, pieceColor, origin, bitboard(target), nnue);
 
     updateThreatsFromPiece<true>(piece, pieceColor, target, bitboard(target), nnue);
-
-    updateThreatsToPiece<false>(piece, pieceColor, origin, bitboard(target), nnue);
     updateThreatsToPiece<true>(piece, pieceColor, target, bitboard(target), nnue);
 };
 
@@ -579,7 +577,6 @@ void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Squa
 }
 
 void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue) {
-    std::cout << "Making move " << moveToString(move, false) << std::endl;
     // General setup stuff
     newStack->previous = stack;
     stack = newStack;
@@ -817,11 +814,9 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
     finishThreatsUpdate();
 
     nnue->finalizeMove(this);
-    std::cout << std::endl;
 }
 
 void Board::undoMove(Move move, NNUE* nnue) {
-    std::cout << "Undoing move " << moveToString(move, false) << std::endl << std::endl;
     if (stm == Color::WHITE)
         ply--;
     stm = flip(stm);

@@ -480,8 +480,6 @@ struct Board;
 class NNUE {
 public:
 
-  Accumulator correctAccumulator;
-
   Accumulator accumulatorStack[MAX_PLY];
   int currentAccumulator;
 
@@ -511,7 +509,7 @@ public:
   template<Color side>
   __attribute_noinline__ void calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
   template<Color side>
-  __attribute_noinline__ void calculateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
+  __attribute_noinline__ void calculateThreatFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
 
   template<Color side>
   void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);

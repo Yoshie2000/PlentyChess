@@ -71,8 +71,6 @@ void NNUE::addThreat(Piece piece, Piece attackedPiece, Square square, Square att
     assert(piece != Piece::NONE);
     assert(attackedPiece != Piece::NONE);
 
-    std::cout << "Adding threat " << int(piece) << " " << int(attackedPiece) << " " << int(square) << " " << int(attackedSquare) << " " << int(pieceColor) << " " << int(attackedColor) << std::endl;
-
     Accumulator* acc = &accumulatorStack[currentAccumulator];
     acc->dirtyThreats[acc->numDirtyThreats++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, true };
 }
@@ -81,14 +79,11 @@ void NNUE::removeThreat(Piece piece, Piece attackedPiece, Square square, Square 
     assert(piece != Piece::NONE);
     assert(attackedPiece != Piece::NONE);
 
-    std::cout << "Removing threat " << int(piece) << " " << int(attackedPiece) << " " << int(square) << " " << int(attackedSquare) << " " << int(pieceColor) << " " << int(attackedColor) << std::endl;
-
     Accumulator* acc = &accumulatorStack[currentAccumulator];
     acc->dirtyThreats[acc->numDirtyThreats++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, false };
 }
 
 void NNUE::incrementAccumulator() {
-    std::cout << "Increment acc" << std::endl;
     currentAccumulator++;
     accumulatorStack[currentAccumulator].numDirtyPieces = 0;
     accumulatorStack[currentAccumulator].numDirtyThreats = 0;
@@ -97,7 +92,6 @@ void NNUE::incrementAccumulator() {
 }
 
 void NNUE::decrementAccumulator() {
-    std::cout << "Decrement acc" << std::endl;
     assert(currentAccumulator > 0);
     currentAccumulator--;
 }
@@ -122,16 +116,6 @@ void NNUE::calculateAccumulators(Board* board) {
     Accumulator* previous = current;
     KingBucketInfo* currentKingBucket = &current->kingBucketInfo[side];
 
-    resetAccumulator<side>(board, &correctAccumulator);
-    ThreatInputs::FeatureList features;
-    ThreatInputs::addSideFeatures(board, side, features);
-    std::cout << "Correct ";
-    for (int featureIndex : features)
-        std::cout << featureIndex << " ";
-    std::cout << std::endl;
-
-    std::cout << accumulatorStack[currentAccumulator].numDirtyPieces << " " << accumulatorStack[currentAccumulator].numDirtyThreats << std::endl;
-
     while (true) {
         previous--;
         KingBucketInfo* prevKingBucket = &previous->kingBucketInfo[side];
@@ -142,7 +126,6 @@ void NNUE::calculateAccumulators(Board* board) {
         }
 
         if (previous->updated[side]) {
-            std::cout << int(current - previous) << " " << int(currentKingBucket->mirrored) << " " << previous << " " << current << std::endl;
             while (previous != current) {
                 incrementallyUpdateAccumulator<side>(previous, previous + 1, currentKingBucket);
                 previous++;
@@ -150,24 +133,6 @@ void NNUE::calculateAccumulators(Board* board) {
             break;
         }
     }
-
-    bool allMatches = true;
-    for (int i = 0; i < L1_SIZE; i++) {
-        if (correctAccumulator.colors[side][i] != current->colors[side][i])
-            allMatches = false;
-    }
-
-    if (!allMatches) {
-        board->debugBoard();
-        BoardStack* s = board->stack;
-        while (s) {
-            std::cout << moveToString(s->move, false) << " ";
-            s = s->previous;
-        }
-        std::cout << std::endl;
-    }
-
-    assert(allMatches);
 
     assert(current->updated[side]);
 }
@@ -178,19 +143,7 @@ __attribute_noinline__ void NNUE::incrementallyUpdateAccumulator(Accumulator* in
     ThreatInputs::FeatureList subFeatureList;
 
     calculatePieceFeatures<side>(outputAcc, kingBucket, addFeatureList, subFeatureList);
-    calculateThreatFeatures<side>(inputAcc, outputAcc, kingBucket, addFeatureList, subFeatureList);
-
-    std::cout << outputAcc << " " << inputAcc << " " << outputAcc->numDirtyPieces << " " << outputAcc->numDirtyThreats << " " << inputAcc->numDirtyPieces << " " << inputAcc->numDirtyThreats << std::endl;
-    std::cout << addFeatureList.count() << ": ";
-    for (int addFeature : addFeatureList) {
-        std::cout << addFeature << " ";
-    }
-    std::cout << std::endl;
-    std::cout << subFeatureList.count() << ": ";
-    for (int subFeature : subFeatureList) {
-        std::cout << subFeature << " ";
-    }
-    std::cout << std::endl;
+    calculateThreatFeatures<side>(outputAcc, kingBucket, addFeatureList, subFeatureList);
 
     applyAccumulatorUpdates<side>(inputAcc, outputAcc, addFeatureList, subFeatureList);
 
@@ -222,7 +175,7 @@ __attribute_noinline__ void NNUE::calculatePieceFeatures(Accumulator* outputAcc,
 }
 
 template<Color side>
-__attribute_noinline__ void NNUE::calculateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
+__attribute_noinline__ void NNUE::calculateThreatFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
         DirtyThreat dirtyThreat = outputAcc->dirtyThreats[dp];
 
