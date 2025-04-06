@@ -539,6 +539,14 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         }
     }
 
+    // Post-LMR depth adjustments
+    if ((stack - 1)->inLMR) {
+        if ((stack - 1)->reduction >= 3000 && stack->staticEval <= -(stack - 1)->staticEval) {
+            depth++;
+            (stack - 1)->reduction -= 1000;
+        }
+    }
+
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
 
@@ -582,14 +590,6 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // IIR
     if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
         depth--;
-
-    // Post-LMR depth adjustments
-    if ((stack - 1)->inLMR) {
-        if ((stack - 1)->reduction >= 3000 && stack->staticEval <= -(stack - 1)->staticEval) {
-            depth++;
-            (stack - 1)->reduction -= 1000;
-        }
-    }
 
     // Reverse futility pruning
     if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
