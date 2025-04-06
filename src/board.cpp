@@ -974,22 +974,38 @@ Threats Board::calculateAllThreats() {
 }
 
 void Board::finishThreatsUpdate() {
+    Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
     Color them = flip(stm);
     Threats* threats = &stack->threats;
 
-    memset(threats->byPiece, 0, sizeof(threats->byPiece));
+    threats->byPiece[Piece::PAWN] = BB::pawnAttacks(byPiece[Piece::PAWN] & byColor[them], them);
+    threats->byPiece[Piece::KNIGHT] = BB::knightAttacks(byPiece[Piece::KNIGHT] & byColor[them]);
 
-    for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
-        Bitboard pieceBB = byColor[them] & byPiece[piece];
-        Bitboard pieceAttacks = bitboard(0);
-
-        for (Square square = 0; square < 64; square++) {
-            if (pieceBB & threats->toSquare[square])
-                pieceAttacks |= bitboard(square);
-        }
-
-        threats->byPiece[piece] |= pieceAttacks;
+    threats->byPiece[Piece::BISHOP] = 0;
+    Bitboard bishops = byPiece[Piece::BISHOP] & byColor[them];
+    while (bishops) {
+        threats->byPiece[Piece::BISHOP] |= getBishopMoves(popLSB(&bishops), occupied);
     }
+
+    threats->byPiece[Piece::ROOK] = 0;
+    Bitboard rooks = byPiece[Piece::ROOK] & byColor[them];
+    while (rooks) {
+        threats->byPiece[Piece::ROOK] |= getRookMoves(popLSB(&rooks), occupied);
+    }
+
+    threats->byPiece[Piece::QUEEN] = 0;
+    Bitboard queens = byPiece[Piece::QUEEN] & byColor[them];
+    while (queens) {
+        Square square = popLSB(&queens);
+        threats->byPiece[Piece::QUEEN] |= getRookMoves(square, occupied);
+        threats->byPiece[Piece::QUEEN] |= getBishopMoves(square, occupied);
+    }
+
+    threats->byPiece[Piece::KING] = 0;
+    Bitboard kings = byPiece[Piece::KING] & byColor[them];
+    while (kings) {
+        threats->byPiece[Piece::KING] |= BB::KING_ATTACKS[popLSB(&kings)];
+    };
 }
 
 bool Board::isSquareThreatened(Square square, BoardStack* bs) {

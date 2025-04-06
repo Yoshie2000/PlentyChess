@@ -205,18 +205,18 @@ __attribute_noinline__ void NNUE::calculateThreatFeatures(Accumulator* outputAcc
 
         if (featureIndex != -1) {
             if (dirtyThreat.add) {
-                int subIndex = subFeatureList.indexOf(featureIndex);
-                if (subIndex == -1)
+                // int subIndex = subFeatureList.indexOf(featureIndex);
+                // if (subIndex == -1)
                     addFeatureList.add(featureIndex);
-                else
-                    subFeatureList.remove(subIndex);
+                // else
+                //     subFeatureList.remove(subIndex);
             }
             else {
-                int addIndex = addFeatureList.indexOf(featureIndex);
-                if (addIndex == -1)
+                // int addIndex = addFeatureList.indexOf(featureIndex);
+                // if (addIndex == -1)
                     subFeatureList.add(featureIndex);
-                else
-                    addFeatureList.remove(addIndex);
+                // else
+                //     addFeatureList.remove(addIndex);
             }
         }
     }
