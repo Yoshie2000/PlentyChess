@@ -585,8 +585,10 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Post-LMR depth adjustments
     if ((stack - 1)->inLMR) {
-        if ((stack - 1)->reduction >= 3000 && stack->staticEval <= -(stack - 1)->staticEval)
+        if ((stack - 1)->reduction >= 3000 && stack->staticEval <= -(stack - 1)->staticEval) {
             depth++;
+            (stack - 1)->reduction -= 1000;
+        }
     }
 
     // Reverse futility pruning
@@ -876,6 +878,7 @@ movesLoop:
             stack->inLMR = true;
             value = -search<NON_PV_NODE>(board, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
             stack->inLMR = false;
+            reducedDepth = std::clamp(newDepth - stack->reduction / 1000, 1, newDepth + pvNode);
             stack->reduction = 0;
 
             if (capture && captureMoveCount < 32)
