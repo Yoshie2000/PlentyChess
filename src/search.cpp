@@ -555,8 +555,15 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
         eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
 
-        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
+        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND))) {
             eval = ttValue;
+
+            // Adjust correction history
+            if (!board->stack->checkers && (ttMove == MOVE_NONE || !board->isCapture(ttMove)) && (ttFlag != TT_LOWERBOUND || eval > stack->staticEval) && (ttFlag != TT_UPPERBOUND || eval <= stack->staticEval)) {
+                int bonus = std::clamp((int)(eval - stack->staticEval) * correctionHistoryFactor / 512, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+                history.updateCorrectionHistory(board, stack, bonus);
+            }
+        }
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
