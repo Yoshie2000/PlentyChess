@@ -806,7 +806,7 @@ movesLoop:
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
-                Eval value = std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
+                Eval value = std::min(singularValue, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(board->stack->hash, ttMove, singularDepth, unadjustedEval, value, stack->ttPv, TT_LOWERBOUND);
                 return value;
             }
