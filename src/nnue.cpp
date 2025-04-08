@@ -229,7 +229,7 @@ __attribute_noinline__ void NNUE::applyAccumulatorUpdates(Accumulator* inputAcc,
     VecI16* outputVec = (VecI16*)outputAcc->colors[side];
     VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
-    constexpr int UNROLL_REGISTERS = 16;
+    constexpr int UNROLL_REGISTERS = std::min(16, L1_ITERATIONS);
     VecI16 regs[UNROLL_REGISTERS];
 
     for (int i = 0; i < L1_ITERATIONS / UNROLL_REGISTERS; ++i) {
