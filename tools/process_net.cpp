@@ -9,7 +9,7 @@
 #include <xmmintrin.h>
 
 constexpr int INPUT_SIZE = 80624;
-constexpr int L1_SIZE = 1024;
+constexpr int L1_SIZE = 256;
 
 constexpr int OUTPUT_BUCKETS = 8;
 
@@ -63,14 +63,15 @@ void quantizeNetwork() {
 }
 
 void transposePermuteNetwork() {
-    for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-        for (int l1 = 0; l1 < L1_SIZE * 2; l1++) {
-            out.l1Weights[b][l1] = reinterpret_cast<int16_t*>(tmp.l1Weights)[l1 * OUTPUT_BUCKETS + b];
-        }
-    }
+    // for (int b = 0; b < OUTPUT_BUCKETS; b++) {
+    //     for (int l1 = 0; l1 < L1_SIZE * 2; l1++) {
+    //         out.l1Weights[b][l1] = reinterpret_cast<int16_t*>(tmp.l1Weights)[l1 * OUTPUT_BUCKETS + b];
+    //     }
+    // }
 
     // std::memcpy the rest
     std::memcpy(out.inputWeights, tmp.inputWeights, sizeof(tmp.inputWeights));
+    std::memcpy(out.l1Weights, tmp.l1Weights, sizeof(tmp.l1Weights));
     std::memcpy(out.inputBiases, tmp.inputBiases, sizeof(tmp.inputBiases));
     std::memcpy(out.l1Biases, tmp.l1Biases, sizeof(tmp.l1Biases));
 }

@@ -216,7 +216,7 @@ __attribute_noinline__ void NNUE::applyAccumulatorUpdates(Accumulator* inputAcc,
     VecI16* outputVec = (VecI16*)outputAcc->colors[side];
     VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
-    constexpr int UNROLL_REGISTERS = 16;
+    constexpr int UNROLL_REGISTERS = std::min(16, L1_ITERATIONS);
     VecI16 regs[UNROLL_REGISTERS];
 
     for (int i = 0; i < L1_ITERATIONS / UNROLL_REGISTERS; ++i) {
@@ -305,8 +305,7 @@ Eval NNUE::evaluate(Board* board) {
 
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
-    constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-    int bucket = (pieceCount - 2) / divisor;
+    int bucket = (pieceCount - 2) / 4;
     assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
 
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];

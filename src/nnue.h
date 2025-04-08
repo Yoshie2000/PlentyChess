@@ -400,12 +400,12 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 #endif
 
 constexpr int INPUT_SIZE = 2 * ThreatInputs::PieceOffsets::END + 768;
-constexpr int L1_SIZE = 1024;
+constexpr int L1_SIZE = 256;
 
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 400;
-constexpr int INPUT_QUANT = 510;
+constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
 
 constexpr int ALIGNMENT = 64;
