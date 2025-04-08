@@ -421,6 +421,7 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, Square square,
     // OR: Remove it as an attacker
     Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
     Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor);
+    Bitboard attackedOcc = attacked & occupancy;
     while (attacked) {
         Square attackedSquare = popLSB(&attacked);
 
@@ -430,17 +431,22 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, Square square,
         if (add) {
             assert((stack->threats.toSquare[attackedSquare] & squareBB) == 0);
             stack->threats.toSquare[attackedSquare] |= squareBB;
-            
-            if (attackedPiece != Piece::NONE)
-                nnue->addThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
         }
         else {
             assert((stack->threats.toSquare[attackedSquare] & squareBB) != 0);
             stack->threats.toSquare[attackedSquare] &= ~squareBB;
-
-            if (attackedPiece != Piece::NONE)
-                nnue->removeThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
         }
+    }
+    while (attackedOcc) {
+        Square attackedSquare = popLSB(&attackedOcc);
+
+        Piece attackedPiece = pieces[attackedSquare];
+        Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
+
+        if (add)
+            nnue->addThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
+        else
+            nnue->removeThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
     }
 
     // Remove attacks of sliding pieces that are now blocked by this piece

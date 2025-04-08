@@ -4,6 +4,8 @@
 
 namespace ThreatInputs {
 
+    int INDEX_LOOKUP[6][64][64][6][2][2][2];
+
     // Count how many attacked squares are < to, effectively creating an index for the "to" square relative to the "from" square
     int localThreatIndex(Square to, Bitboard attackedByFrom) {
         return BB::popcount(attackedByFrom & (bitboard(to) - 1));
@@ -74,6 +76,40 @@ namespace ThreatInputs {
 
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor) {
         return 2 * PieceOffsets::END + 384 * relativeColor + 64 * piece + relativeSquare;
+    }
+
+    void initialise() {
+        memset(INDEX_LOOKUP, 0xFFFF, sizeof(INDEX_LOOKUP));
+
+        for (Piece attackingPiece = Piece::PAWN; attackingPiece < Piece::TOTAL; ++attackingPiece) {
+            for (Piece attackedPiece = Piece::PAWN; attackedPiece < Piece::TOTAL; ++attackedPiece) {
+                for (Color attackingColor = Color::WHITE; attackingColor <= Color::BLACK; ++attackingColor) {
+                    for (Color attackedColor = Color::WHITE; attackedColor <= Color::BLACK; ++attackedColor) {
+                        for (Color pov = Color::WHITE; pov <= Color::BLACK; ++pov) {
+                            for (Square attackingSquare = 0; attackingSquare < 64; attackingSquare++) {
+
+                                if (attackingPiece == Piece::PAWN && (attackingSquare < 8 || attackingSquare >= 56))
+                                    continue;
+
+                                Bitboard attacks = BB::attackedSquares(attackingPiece, attackingSquare, 0, attackingColor);
+                                assert(attacks > 0);
+                                while (attacks) {
+                                    Square attackedSquare = popLSB(&attacks);
+
+                                    Color relativeSide = static_cast<Color>(pov != attackedColor);
+                                    bool enemy = attackingColor != attackedColor;
+                                    bool hasSideOffset = attackingColor != pov;
+                                    int sideOffset = hasSideOffset * PieceOffsets::END;
+
+                                    int feature = getThreatFeature(attackingPiece, attackingSquare, attackedSquare, attackedPiece, relativeSide, enemy, sideOffset);
+                                    INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy][hasSideOffset] = feature;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, int sideOffset) {

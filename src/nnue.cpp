@@ -22,6 +22,8 @@ NNZ nnz;
 #endif
 
 void initNetworkData() {
+    ThreatInputs::initialise();
+
     for (size_t i = 0; i < 256; i++) {
         uint64_t j = i;
         uint64_t k = 0;
@@ -198,10 +200,10 @@ __attribute_noinline__ void NNUE::calculateThreatFeatures(Accumulator* outputAcc
         Square attackedSquare = dirtyThreat.attackedSquare ^ (56 * side) ^ (7 * kingBucket->mirrored);
         
         Color relativeSide = static_cast<Color>(side != dirtyThreat.attackedColor);
-        bool enemy = static_cast<bool>(dirtyThreat.pieceColor != dirtyThreat.attackedColor);
-        int sideOffset = (dirtyThreat.pieceColor != side) * ThreatInputs::PieceOffsets::END;
+        bool enemy = dirtyThreat.pieceColor != dirtyThreat.attackedColor;
+        bool hasSideOffset = dirtyThreat.pieceColor != side;
 
-        int featureIndex = ThreatInputs::getThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy, sideOffset);
+        int featureIndex = ThreatInputs::lookupThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy, hasSideOffset);
 
         if (featureIndex != -1) {
             if (dirtyThreat.add) {
