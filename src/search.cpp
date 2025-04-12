@@ -560,7 +560,7 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
             // Adjust correction history
             if (!board->stack->checkers && (ttMove == MOVE_NONE || !board->isCapture(ttMove)) && (ttFlag != TT_LOWERBOUND || eval > stack->staticEval) && (ttFlag != TT_UPPERBOUND || eval <= stack->staticEval)) {
-                int bonus = std::clamp((int)(eval - stack->staticEval) * correctionHistoryFactor / 512, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+                int bonus = std::clamp((int)(eval - stack->staticEval) * ttDepth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
                 history.updateCorrectionHistory(board, stack, bonus);
             }
         }
