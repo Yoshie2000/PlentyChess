@@ -589,6 +589,11 @@ Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             depth++;
             (stack - 1)->reduction -= 1000;
         }
+
+        if (stack->ttPv && ttHit && ttValue >= beta && depth >= 2 && ttDepth >= depth) {
+            depth--;
+            (stack - 1)->reduction += 1000;
+        }
     }
 
     // Reverse futility pruning
