@@ -7,9 +7,9 @@ OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
 
 # Compiler detection for PGO
 COMPILER_VERSION := $(shell $(CXX) --version)
-ifneq (, $(findstring profile-build,$(MAKECMDGOALS)))
+ifneq (, $(filter profile-build _pgo,$(MAKECMDGOALS)))
 	ifneq (, $(findstring clang,$(COMPILER_VERSION)))
-		PGO_GENERATE := -fprofile-instr-generate
+		PGO_GENERATE := -fprofile-instr-generate -DPROFILE_GENERATE
 		PGO_USE := -fprofile-instr-use=default.profdata
 		PGO_MERGE := llvm-profdata merge -output=default.profdata default.profraw
 		PGO_FILES := default.profraw default.profdata

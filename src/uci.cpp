@@ -192,10 +192,15 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
 
     int i = 0;
     for (const std::string& fen : benchPositions) {
-        //threads.ucinewgame();
         board->parseFen(fen, i++ >= 44);
         SearchParameters parameters;
+
+#ifdef PROFILE_GENERATE
+        TT.newSearch();
+        parameters.depth = 25;
+#else
         parameters.depth = 13;
+#endif
 
         std::cerr << "\nPosition: " << position++ << '/' << totalPositions << " (" << fen << ")" << std::endl;
 
