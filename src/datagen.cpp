@@ -13,7 +13,7 @@ std::vector<Move> generateLegalMoves(Board* board) {
     return legalMoves;
 }
 
-bool playRandomMoves(Board* board, Thread* thread, int remainingMoves) {
+bool playRandomMoves(Board* board, Worker* thread, int remainingMoves) {
     std::vector<Move> legalMoves = generateLegalMoves(board);
 
     if (legalMoves.empty())
@@ -57,7 +57,7 @@ bool playRandomMoves(Board* board, Thread* thread, int remainingMoves) {
     return playRandomMoves(board, thread, remainingMoves - 1);
 }
 
-void Thread::tgenfens() {
+void Worker::tgenfens() {
     std::srand(searchParameters->genfensSeed);
 
     int generatedFens = 0;

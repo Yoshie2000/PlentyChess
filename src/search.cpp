@@ -243,12 +243,12 @@ int valueFromTt(int value, int ply) {
     return value;
 }
 
-Eval drawEval(Thread* thread) {
+Eval drawEval(Worker* thread) {
     return 4 - (thread->searchData.nodesSearched & 3);  // Small overhead to avoid 3-fold blindness
 }
 
 template <NodeType nodeType>
-Eval Thread::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
+Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     constexpr bool pvNode = nodeType == PV_NODE;
 
     if (pvNode)
@@ -410,7 +410,7 @@ movesLoopQsearch:
 }
 
 template <NodeType nt>
-Eval Thread::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, bool cutNode) {
+Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, bool cutNode) {
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
     constexpr NodeType nodeType = nt == ROOT_NODE ? PV_NODE : NON_PV_NODE;
@@ -1057,7 +1057,7 @@ Move tbProbeMoveRoot(unsigned result) {
     return createMove(origin, target);
 }
 
-void Thread::tsearch() {
+void Worker::tsearch() {
     if (TUNE_ENABLED)
         initReductions();
 
@@ -1097,7 +1097,7 @@ void Thread::tsearch() {
         threadPool->stopSearching();
         threadPool->waitForHelpersFinished();
 
-        Thread* bestThread = chooseBestThread();
+        Worker* bestThread = chooseBestThread();
 
         if (bestThread != this || UCI::Options.minimal.value) {
             printUCI(bestThread);
@@ -1112,7 +1112,7 @@ void Thread::tsearch() {
     }
 }
 
-void Thread::iterativeDeepening() {
+void Worker::iterativeDeepening() {
     int multiPvCount = 0;
     {
         Move moves[MAX_MOVES] = { MOVE_NONE };
@@ -1253,7 +1253,7 @@ void Thread::iterativeDeepening() {
     }
 }
 
-void Thread::printUCI(Thread* thread, int multiPvCount) {
+void Worker::printUCI(Worker* thread, int multiPvCount) {
     int64_t ms = getTime() - searchData.startTime;
     int64_t nodes = threadPool->nodesSearched();
     int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
@@ -1269,7 +1269,7 @@ void Thread::printUCI(Thread* thread, int multiPvCount) {
     }
 }
 
-void Thread::sortRootMoves() {
+void Worker::sortRootMoves() {
     std::stable_sort(rootMoves.begin(), rootMoves.end(), [](RootMove rm1, RootMove rm2) {
         if (rm1.depth > rm2.depth) return true;
         if (rm1.depth < rm2.depth) return false;
@@ -1277,16 +1277,16 @@ void Thread::sortRootMoves() {
         });
 }
 
-Thread* Thread::chooseBestThread() {
-    Thread* bestThread = this;
+Worker* Worker::chooseBestThread() {
+    Worker* bestThread = this;
     size_t bestMoveIdx = 0;
 
-    if (threadPool->threads.size() > 1 && UCI::Options.multiPV.value == 1) {
+    if (threadPool->workers.size() > 1 && UCI::Options.multiPV.value == 1) {
         std::map<Move, int64_t> votes;
         Eval minValue = EVAL_INFINITE;
 
-        for (auto& th : threadPool->threads) {
-            for (auto& rm : th.get()->rootMoves) {
+        for (auto& worker : threadPool->workers) {
+            for (auto& rm : worker->rootMoves) {
                 if (rm.value == -EVAL_INFINITE)
                     break;
                 minValue = std::min(minValue, rm.value);
@@ -1294,17 +1294,17 @@ Thread* Thread::chooseBestThread() {
         }
         minValue++;
 
-        for (auto& th : threadPool->threads) {
-            for (auto& rm : th->rootMoves) {
+        for (auto& worker : threadPool->workers) {
+            for (auto& rm : worker->rootMoves) {
                 if (rm.value == -EVAL_INFINITE)
                     break;
                 // Votes weighted by depth and difference to the minimum value
-                votes[rm.move] += (rm.value - minValue + 10) * std::max(1, rm.depth - (th->rootMoves[0].depth - rm.depth));
+                votes[rm.move] += (rm.value - minValue + 10) * std::max(1, rm.depth - (worker->rootMoves[0].depth - rm.depth));
             }
         }
 
-        for (auto& th : threadPool->threads) {
-            Thread* thread = th.get();
+        for (auto& worker : threadPool->workers) {
+            Worker* thread = worker.get();
             for (size_t rmi = 0; rmi < thread->rootMoves.size(); rmi++) {
                 RootMove& rm = thread->rootMoves[rmi];
                 if (rm.value == -EVAL_INFINITE)
@@ -1347,7 +1347,7 @@ Thread* Thread::chooseBestThread() {
     return bestThread;
 }
 
-void Thread::tdatagen() {
+void Worker::tdatagen() {
     nnue.reset(&rootBoard);
 
     searchData.nodesSearched = 0;
