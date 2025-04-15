@@ -10,12 +10,11 @@
 #include "history.h"
 #include "uci.h"
 
-Thread::Thread(ThreadPool* threadPool, int threadId) : threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
+Worker::Worker(ThreadPool* threadPool, int threadId) : threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
     history.initHistory();
-    thread = std::thread(&Thread::idle, this);
 }
 
-void Thread::startSearching() {
+void Worker::startSearching() {
     memcpy(&rootBoard, &threadPool->rootBoard, sizeof(Board));
     rootStackQueue = &threadPool->rootStackQueue;
     searchParameters = &threadPool->searchParameters;
@@ -33,12 +32,14 @@ void Thread::startSearching() {
         tsearch();
 }
 
-void Thread::waitForSearchFinished() {
+void Worker::waitForSearchFinished() {
     std::unique_lock<std::mutex> lock(mutex);
     cv.wait(lock, [&] { return !searching; });
 }
 
-void Thread::idle() {
+void Worker::idle() {
+    threadPool->startedThreads++;
+
     while (!exiting) {
         std::unique_lock<std::mutex> lock(mutex);
         cv.wait(lock, [&] { return searching; });
@@ -53,17 +54,17 @@ void Thread::idle() {
     }
 }
 
-void Thread::exit() {
+void Worker::exit() {
     {
         std::lock_guard<std::mutex> lock(mutex);
         searching = true;
         exiting = true;
     }
     cv.notify_all();
-    if (thread.joinable())
-        thread.join();
+    if (threadPool->threads[threadId]->joinable())
+        threadPool->threads[threadId]->join();
 }
 
-void Thread::ucinewgame() {
+void Worker::ucinewgame() {
     history.initHistory();
 }
