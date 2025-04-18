@@ -67,6 +67,7 @@ TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 TUNE_INT(staticHistoryFactor, -38, -500, -1);
 TUNE_INT(staticHistoryMin, -150, -1000, -1);
 TUNE_INT(staticHistoryMax, 160, 1, 1000);
+TUNE_INT(staticHistoryTempo, 100, 1, 1000);
 
 TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
 TUNE_INT(rfpFactor, 97, 1, 250);
@@ -85,6 +86,8 @@ TUNE_INT(probCutBetaOffset, 204, 1, 500);
 TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 
 // In-search pruning
+TUNE_INT(earlyLmrReductionTableFactor, 1000, 500, 2000);
+
 TUNE_INT(earlyLmrHistoryFactorQuiet, 16277, 10000, 20000);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14971, 10000, 20000);
 
@@ -111,9 +114,12 @@ TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 TUNE_INT(lmrCheck, 931, 0, 5000);
 TUNE_INT(lmrTtPv, 1597, 0, 5000);
 TUNE_INT(lmrCutnode, 1997, 0, 5000);
+TUNE_INT(lmrTtpvFaillow, 1000, 0, 5000);
 TUNE_INT(lmrCorrection, 16074, 1000, 20000);
 TUNE_INT(lmrHistoryFactorQuiet, 24297, 10000, 30000);
 TUNE_INT(lmrHistoryFactorCapture, 310166, 250000, 400000);
+
+TUNE_INT(postlmrOppWorseningThreshold, 3000, 1500, 4500);
 
 TUNE_INT_DISABLED(lmrDeeperBase, 40, 1, 100);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
@@ -575,7 +581,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Adjust quiet history based on how much the previous move changed static eval
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
-        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + 100;
+        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + staticHistoryTempo;
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
 
@@ -585,10 +591,12 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Post-LMR depth adjustments
     if ((stack - 1)->inLMR) {
-        if ((stack - 1)->reduction >= 3000 && stack->staticEval <= -(stack - 1)->staticEval) {
-            depth++;
-            (stack - 1)->reduction -= 1000;
-        }
+        int additionalReduction = 0;
+        if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
+            additionalReduction--;
+
+        depth -= additionalReduction;
+        (stack - 1)->reduction += 1000 * additionalReduction;
     }
 
     // Reverse futility pruning
@@ -739,7 +747,7 @@ movesLoop:
             && board->hasNonPawns()
             ) {
 
-            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] / 1000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            int lmrDepth = std::max(0, depth - earlyLmrReductionTableFactor * REDUCTIONS[!capture][depth][moveCount] / 1000000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
             if (!pvNode && !skipQuiets) {
 
@@ -867,7 +875,7 @@ movesLoop:
                 reduction += lmrCutnode;
             
             if (stack->ttPv && ttHit && ttValue <= alpha)
-                reduction += 1000;
+                reduction += lmrTtpvFaillow;
 
             reduction -= std::abs(correctionValue / lmrCorrection);
 
