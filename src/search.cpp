@@ -65,7 +65,7 @@ TUNE_INT(qsSeeMargin, -103, -200, 50);
 TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 
 TUNE_INT(staticHistoryFactor, -38, -500, -1);
-TUNE_INT(staticHistoryMin, -150, -1000, -1);
+TUNE_INT(staticHistoryMin, -100, -1000, -1);
 TUNE_INT(staticHistoryMax, 160, 1, 1000);
 
 TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
@@ -575,7 +575,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Adjust quiet history based on how much the previous move changed static eval
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
-        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + 100;
+        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + 50;
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
 
