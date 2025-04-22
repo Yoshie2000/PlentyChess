@@ -15,9 +15,13 @@ ifneq (, $(filter profile-build _pgo,$(MAKECMDGOALS)))
 		PGO_FILES := default.profraw default.profdata
 
 		ifneq ($(OS), Windows_NT)
-			ifeq (,$(shell which llvm-profdata))
+		    ifneq (,$(shell xcrun -f llvm-profdata 2>/dev/null))
+		        PGO_MERGE := xcrun $(PGO_MERGE)
+		    else
+			    ifeq (,$(shell which llvm-profdata))
 $(warning llvm-profdata not found, disabling profile-build)
-				PGO_SKIP := true
+				    PGO_SKIP := true
+				endif
 			endif
 		else
 			ifeq (,$(shell where llvm-profdata))
