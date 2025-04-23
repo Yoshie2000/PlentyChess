@@ -766,7 +766,7 @@ movesLoop:
                 continue;
 
             // SEE Pruning
-            if (!SEE(board, move, (2 + pvNode) * SEE_MARGIN[!capture ? lmrDepth : depth][!capture] / 2))
+            if (!SEE(board, move, (2 + (pvNode || (!capture && board->givesCheck(move)))) * SEE_MARGIN[!capture ? lmrDepth : depth][!capture] / 2))
                 continue;
 
         }
