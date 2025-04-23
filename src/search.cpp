@@ -291,7 +291,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     Move bestMove = MOVE_NONE;
     Eval bestValue, futilityValue, unadjustedEval;
 
-    Eval correctionValue = history.getCorrectionValue(board, stack);
+    Eval correctionValue = 11 * history.getCorrectionValue(board, stack) / 10;
     stack->correctionValue = correctionValue;
     if (board->stack->checkers) {
         stack->staticEval = bestValue = unadjustedEval = futilityValue = -EVAL_INFINITE;
