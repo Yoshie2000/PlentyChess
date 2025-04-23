@@ -27,6 +27,7 @@ void History::initHistory() {
     memset(minorCorrectionHistory, 0, sizeof(minorCorrectionHistory));
     memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
     memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
+    memset(adaptiveLmrHistory, 0, sizeof(adaptiveLmrHistory));
     for (int i = 0; i < PAWN_HISTORY_SIZE; i++) {
         for (int j = 0; j < 2; j++) {
             for (int k = 0; k < Piece::TOTAL; k++) {
@@ -76,6 +77,15 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
         scaledBonus = bonus - *(searchStack - 1)->contCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
         *(searchStack - 1)->contCorrHist += scaledBonus;
     }
+}
+
+int History::getLmrAdaption(uint64_t hash, Color stm, Piece movedPiece, Square targetSquare) {
+    return adaptiveLmrHistory[hash & (16384 - 1)][stm][movedPiece][targetSquare];
+}
+
+void History::updateLmrAdaption(uint64_t hash, Color stm, Piece movedPiece, Square targetSquare, int16_t bonus) {
+    int16_t scaledBonus = bonus - adaptiveLmrHistory[hash & (16384 - 1)][stm][movedPiece][targetSquare] * std::abs(bonus) / 1000;
+    adaptiveLmrHistory[hash & (16384 - 1)][stm][movedPiece][targetSquare] += scaledBonus;
 }
 
 int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture) {

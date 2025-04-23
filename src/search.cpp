@@ -875,6 +875,8 @@ movesLoop:
                 reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
             else
                 reduction -= 1000 * moveHistory / lmrHistoryFactorQuiet;
+            
+            reduction += history.getLmrAdaption(board->stack->previous->hash, flip(board->stm), stack->movedPiece, moveTarget(move));
 
             int reducedDepth = std::clamp(newDepth - reduction / 1000, 1, newDepth + pvNode);
             stack->reduction = reduction;
@@ -905,6 +907,10 @@ movesLoop:
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth : reducedDepth), lmrPassBonusMax);
                     history.updateContinuationHistory(stack, flip(board->stm), stack->movedPiece, move, bonus);
                 }
+
+                history.updateLmrAdaption(board->stack->previous->hash, flip(board->stm), stack->movedPiece, moveTarget(move), -std::min(32 * reducedDepth, 256));
+            } else {
+                history.updateLmrAdaption(board->stack->previous->hash, flip(board->stm), stack->movedPiece, moveTarget(move), std::min(32 * reducedDepth, 256));
             }
         }
         else if (!pvNode || moveCount > 1) {
@@ -986,6 +992,8 @@ movesLoop:
                     int quietMalus = std::min(historyMalusQuietBase + historyMalusQuietFactor * historyUpdateDepth, historyMalusQuietMax);
                     int captureBonus = std::min(historyBonusCaptureBase + historyBonusCaptureFactor * historyUpdateDepth, historyBonusCaptureMax);
                     int captureMalus = std::min(historyMalusCaptureBase + historyMalusCaptureFactor * historyUpdateDepth, historyMalusCaptureMax);
+
+                    history.updateLmrAdaption(board->stack->hash, board->stm, stack->movedPiece, moveTarget(move), -std::min(32 * depth, 256));
 
                     if (!capture) {
                         // Update quiet killer

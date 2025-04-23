@@ -20,6 +20,8 @@ class History {
 
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
+    int16_t adaptiveLmrHistory[16384][2][Piece::TOTAL][64];
+
 public:
 
     int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2];
@@ -30,6 +32,9 @@ public:
     Eval getCorrectionValue(Board* board, SearchStack* searchStack);
     Eval correctStaticEval(Eval eval, Eval correctionValue);
     void updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus);
+
+    int getLmrAdaption(uint64_t hash, Color stm, Piece movedPiece, Square targetSquare);
+    void updateLmrAdaption(uint64_t hash, Color stm, Piece movedPiece, Square targetSquare, int16_t bonus);
 
     int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
 
