@@ -1022,6 +1022,10 @@ movesLoop:
         bestValue = board->stack->checkers ? matedIn(stack->ply) : 0;
     }
 
+    // Check for upcoming repetition against bestValue
+    if (!rootNode && bestValue < 0 && board->hasUpcomingRepetition(stack->ply))
+        bestValue = drawEval(this);
+
     if (pvNode)
         bestValue = std::min(bestValue, maxValue);
 
