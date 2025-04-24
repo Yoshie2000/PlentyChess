@@ -2,6 +2,7 @@ name: PlentyChess Build & Bench
 on:
   push:
   workflow_dispatch:
+  pull_request:
 
 jobs:
   engine:
@@ -18,14 +19,16 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Compile
-      run: make -j EXE=PlentyChess
+      run: make -j profile-build EXE=PlentyChess
 
     - name: Bench
       run: |
+        git fetch origin ${{ github.event.pull_request.head.ref }}
+        git checkout FETCH_HEAD
         bench=$(git show --summary | grep -oE 'Bench: [0-9]+' | awk '{print $2}')
         ./PlentyChess bench 2> output
         real=$(grep 'Nodes searched' output | awk '{print $4}')
-        if [[ "$bench" != "$real" ]]; then echo "got $real, expected $bench" && exit 1; fi
+        if [[ "$bench" != "$real" ]]; then echo "got $real, expected $bench (real: '$(git show --summary)')" && exit 1; fi
     
     - name: Upload binary
       uses: actions/upload-artifact@v4
