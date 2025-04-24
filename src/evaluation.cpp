@@ -90,6 +90,11 @@ bool SEE(Board* board, Move move, Eval threshold) {
 
     Color side = flip(board->stm);
 
+    Square whiteKing = lsb(board->byColor[Color::WHITE] & board->byPiece[Piece::KING]);
+    Square blackKing = lsb(board->byColor[Color::BLACK] & board->byPiece[Piece::KING]);
+    Bitboard blockers = board->stack->blockers[Color::WHITE] | board->stack->blockers[Color::BLACK];
+    Bitboard alignedBlockers = (board->stack->blockers[Color::WHITE] & BB::LINE[target][whiteKing]) | (board->stack->blockers[Color::BLACK] & BB::LINE[target][blackKing]);
+
     // Make captures until one side has none left / fails to beat the threshold
     while (true) {
 
@@ -97,7 +102,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
         attackersToTarget &= occupied;
 
         // No attackers left for the current side
-        Bitboard stmAttackers = board->byColor[side] & attackersToTarget;
+        Bitboard stmAttackers = board->byColor[side] & attackersToTarget & (~blockers | alignedBlockers);
         if (!stmAttackers) break;
 
         // Find least valuable piece
@@ -121,6 +126,8 @@ bool SEE(Board* board, Move move, Eval threshold) {
         // Remove the used piece
         Square pieceSquare = lsb(stmAttackers & board->byPiece[piece]);
         occupied ^= bitboard(pieceSquare);
+        blockers &= ~bitboard(pieceSquare);
+        alignedBlockers &= ~bitboard(pieceSquare);
 
         // Add discovered attacks
         if (piece == Piece::PAWN || piece == Piece::BISHOP || piece == Piece::QUEEN)
