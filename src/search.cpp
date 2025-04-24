@@ -1012,6 +1012,10 @@ movesLoop:
     if (stopped || exiting)
         return 0;
 
+    // Check for upcoming repetition against bestValue
+    if (!rootNode && bestValue < 0 && board->hasUpcomingRepetition(stack->ply))
+        return drawEval(this);
+
     if (!pvNode && bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && std::abs(alpha) < EVAL_TBWIN_IN_MAX_PLY)
         bestValue = (bestValue * depth + beta) / (depth + 1);
 
@@ -1021,10 +1025,6 @@ movesLoop:
         // Mate / Stalemate
         bestValue = board->stack->checkers ? matedIn(stack->ply) : 0;
     }
-
-    // Check for upcoming repetition against bestValue
-    if (!rootNode && bestValue < 0 && board->hasUpcomingRepetition(stack->ply))
-        bestValue = drawEval(this);
 
     if (pvNode)
         bestValue = std::min(bestValue, maxValue);
