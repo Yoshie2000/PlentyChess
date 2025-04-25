@@ -7,7 +7,7 @@ void TTEntry::update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval,
     if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
         bestMove = _bestMove;
 
-    if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + 2 * wasPv + 4 > depth) {
+    if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + 2 * wasPv + 2 * (_flags == TT_LOWERBOUND && getFlag() == TT_UPPERBOUND) + 4 > depth) {
         hash = (uint16_t)_hash;
         depth = _depth;
         value = _value;
