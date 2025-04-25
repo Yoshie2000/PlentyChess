@@ -159,6 +159,9 @@ public:
 
 #include <cstring>
 #include <fstream>
+#include <vector>
+#include <cmath>
+#include <random>
 
 inline void writeSLEB128(std::ostream& os, int64_t value) {
     bool more = true;
@@ -192,11 +195,17 @@ inline void writeFloat(std::ostream& os, float f) {
 
 class NNZ {
 public:
-  int64_t activations[L1_SIZE / 2] = {};
+  int64_t activationsByNeuron[L1_SIZE / 2][L1_SIZE / 2] = {};
+
+  int64_t evaluations = 0;
 
   void addActivations(uint8_t* neurons) {
-    for (int i = 0; i < L1_SIZE; i++) {
-      activations[i % (L1_SIZE / 2)] += bool(neurons[i]);
+    evaluations++;
+    for (int i = 0; i < L1_SIZE / 2; i++) {
+      if (!neurons[i]) continue;
+      for (int j = 0; j < L1_SIZE / 2; j++) {
+        activationsByNeuron[i][j] += bool(neurons[j]);
+      }
     }
   }
 
@@ -207,12 +216,33 @@ public:
   NetworkData nnzOutNet;
 
   int order[L1_SIZE / 2];
+  int bestOrder[L1_SIZE / 2];
+
+  double scoreGroup(int* order, int group) {
+    double score = 0;
+    for (int i = 0; i < 4; i++) {
+      double neuronScore = 1 / double(evaluations);
+      for (int j = 0; j < 4; j++) {
+        if (i == j) continue;
+        neuronScore *= double(activationsByNeuron[order[4 * group + i]][order[4 * group + j]]);
+      }
+      score += neuronScore;
+    }
+    return score;
+  }
+
+  double scoreAllGroups(int* order) {
+    double sum = 0;
+    for (int i = 0; i < L1_SIZE / 2 / 4; i++)
+      sum += scoreGroup(order, i);
+    return sum;
+  }
 
   void permuteNetwork() {
     std::ifstream infile("./quantised.bin", std::ios::binary);
     if (!infile) {
-        std::cerr << "Error opening file for reading" << std::endl;
-        return;
+      std::cerr << "Error opening file for reading" << std::endl;
+      return;
     }
     infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
     infile.close();
@@ -222,32 +252,76 @@ public:
     memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
+    // Shuffle randomly to begin with
     for (int i = 0; i < L1_SIZE / 2; i++) {
       order[i] = i;
     }
-    std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(order, order + L1_SIZE / 2, g);
 
+    // Variables setup
+    std::memcpy(bestOrder, order, sizeof(order));
+    double bestScore = scoreAllGroups(bestOrder);
+    double T = 0.1;
+    constexpr uint64_t maxAttempts = 100000000;
+
+    // Simulated annealing loop
+    for (uint64_t attempts = 0; attempts < maxAttempts; attempts++) {
+      if (attempts % 1000000 == 0)
+        std::cout << "Iteration " << attempts << " (" << (100 * double(attempts) / double(maxAttempts)) << "%), current score: " << scoreAllGroups(order) << ", current best score: " << scoreAllGroups(bestOrder) << std::endl;
+
+      // Generate random swap and calculate improvement
+      int i = std::rand() % (L1_SIZE / 2 - 5);
+      int j = i + 4 + (std::rand() % (L1_SIZE / 2 - i - 4));
+      int iGroup = i / 4;
+      int jGroup = j / 4;
+      double iGroupScore = scoreGroup(order, iGroup);
+      double jGroupScore = scoreGroup(order, jGroup);
+      std::swap(order[i], order[j]);
+      double iGroupScoreAfterSwap = scoreGroup(order, iGroup);
+      double jGroupScoreAfterSwap = scoreGroup(order, jGroup);
+      std::swap(order[i], order[j]);
+      double improvement = iGroupScoreAfterSwap + jGroupScoreAfterSwap - (iGroupScore + jGroupScore);
+
+      if (improvement < 0) {
+        // Neighbour is worse, chose with probability depending on how much worse it is
+        double probability = std::exp(improvement / (T / std::log10(double(attempts))));
+        double random = double(rand()) / double(RAND_MAX);
+        if (random >= probability)
+          continue;
+      }
+      std::swap(order[i], order[j]);
+
+      double newScore = scoreAllGroups(order);
+      if (newScore > bestScore) {
+        std::memcpy(bestOrder, order, sizeof(order));
+        bestScore = newScore;
+      }
+    }
+    
+    // Permute weights
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
 
       // Input weights
       for (int ip = 0; ip < 768 * KING_BUCKETS; ip++) {
-        nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1] = oldInputPsqWeights[ip * L1_SIZE + order[l1]];
-        nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputPsqWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
+        nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1] = oldInputPsqWeights[ip * L1_SIZE + bestOrder[l1]];
+        nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputPsqWeights[ip * L1_SIZE + bestOrder[l1] + L1_SIZE / 2];
       }
       for (int ip = 0; ip < ThreatInputs::FEATURE_COUNT; ip++) {
-        nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1] = oldInputThreatWeights[ip * L1_SIZE + order[l1]];
-        nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputThreatWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
+        nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1] = oldInputThreatWeights[ip * L1_SIZE + bestOrder[l1]];
+        nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputThreatWeights[ip * L1_SIZE + bestOrder[l1] + L1_SIZE / 2];
       }
 
       // Input biases
-      nnzOutNet.inputBiases[l1] = oldInputBiases[order[l1]];
-      nnzOutNet.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
+      nnzOutNet.inputBiases[l1] = oldInputBiases[bestOrder[l1]];
+      nnzOutNet.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[bestOrder[l1] + L1_SIZE / 2];
 
       // L1 weights
       for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
-          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[bestOrder[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(bestOrder[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
         }
       }
     }
@@ -255,8 +329,8 @@ public:
     // Write the network
     std::ofstream outfile("./compressed.bin", std::ios::binary);
     if (!outfile) {
-        std::cerr << "Error opening file for writing" << std::endl;
-        return;
+      std::cerr << "Error opening file for writing" << std::endl;
+      return;
     }
     for (auto v : nnzOutNet.inputPsqWeights) writeSLEB128(outfile, v);
     for (auto v : nnzOutNet.inputThreatWeights) writeSLEB128(outfile, v);
