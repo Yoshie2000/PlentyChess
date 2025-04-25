@@ -1002,7 +1002,7 @@ movesLoop:
                     break;
                 }
 
-                if (depth > 4 && depth < 10 && beta < EVAL_TBWIN_IN_MAX_PLY && value > -EVAL_TBWIN_IN_MAX_PLY)
+                if (depth > 4 && depth < 13 && beta < EVAL_TBWIN_IN_MAX_PLY && value > -EVAL_TBWIN_IN_MAX_PLY)
                     depth--;
             }
         }
