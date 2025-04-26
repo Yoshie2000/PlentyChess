@@ -586,7 +586,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Post-LMR depth adjustments
     if ((stack - 1)->inLMR) {
-        if ((stack - 1)->reduction >= 3000 && opponentWorsening) {
+        if ((stack - 1)->reduction >= 3000 && !opponentWorsening) {
             depth++;
             (stack - 1)->reduction -= 1000;
         }
