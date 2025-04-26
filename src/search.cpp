@@ -257,6 +257,12 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     assert(alpha >= -EVAL_INFINITE && alpha < beta && beta <= EVAL_INFINITE);
 
+    if (alpha < 0 && board->hasUpcomingRepetition(stack->ply)) {
+        alpha = drawEval(this);
+        if (alpha >= beta)
+            return alpha;
+    }
+
     if (mainThread && timeOver(searchParameters, &searchData))
         threadPool->stopSearching();
 
