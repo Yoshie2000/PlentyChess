@@ -455,7 +455,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
-    bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE, opponentWorsening = false;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -572,6 +572,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
     }
+    opponentWorsening = stack->staticEval > -(stack - 1)->staticEval;
 
     // Adjust quiet history based on how much the previous move changed static eval
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
@@ -585,7 +586,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Post-LMR depth adjustments
     if ((stack - 1)->inLMR) {
-        if ((stack - 1)->reduction >= 3000 && stack->staticEval <= -(stack - 1)->staticEval) {
+        if ((stack - 1)->reduction >= 3000 && opponentWorsening) {
             depth++;
             (stack - 1)->reduction -= 1000;
         }
@@ -647,7 +648,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // ProbCut
-    probCutBeta = std::min(beta + probCutBetaOffset - 25 * (ttMove != MOVE_NONE && ttMove != MOVE_NULL && board->isCapture(ttMove)), EVAL_TBWIN_IN_MAX_PLY - 1);
+    probCutBeta = std::min(beta + probCutBetaOffset - 50 * (improving && opponentWorsening && ttMove != MOVE_NONE && ttMove != MOVE_NULL && board->isCapture(ttMove)), EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
         && !excluded
         && depth > probCutDepth
