@@ -1172,14 +1172,26 @@ void Worker::iterativeDeepening() {
                 stackList[i].staticEval = EVAL_NONE;
                 stackList[i].excludedMove = MOVE_NONE;
                 stackList[i].killer = MOVE_NONE;
-                stackList[i].movedPiece = i < STACK_OVERHEAD ? preRootMovesPieces[STACK_OVERHEAD - i - 1] : Piece::NONE;
-                stackList[i].move = i < STACK_OVERHEAD ? preRootMoves[STACK_OVERHEAD - i - 1] : MOVE_NONE;
+                stackList[i].movedPiece = Piece::NONE;
+                stackList[i].move = MOVE_NONE;
                 stackList[i].capture = false;
                 stackList[i].inCheck = false;
                 stackList[i].correctionValue = 0;
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
                 stackList[i].ttPv = false;
+                if (i < STACK_OVERHEAD) {
+                    Move move = preRootMoves[STACK_OVERHEAD - i - 1];
+                    if (move != MOVE_NONE && move != MOVE_NULL) {
+                        Square target = moveTarget(move);
+                        Piece piece = preRootMovesPieces[STACK_OVERHEAD - i - 1];
+                        Color stm = (STACK_OVERHEAD - i) % 2 == 0 ? rootBoard.stm : flip(rootBoard.stm);
+                        stackList[i].movedPiece = piece;
+                        stackList[i].move = move;
+                        stackList[i].contHist = history.continuationHistory[stm][piece][target];
+                        stackList[i].contCorrHist = &history.continuationCorrectionHistory[stm][piece][target];
+                    }
+                }
             }
 
             searchData.rootDepth = depth;
