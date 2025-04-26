@@ -1143,8 +1143,10 @@ void Worker::iterativeDeepening() {
 
     Move preRootMoves[STACK_OVERHEAD];
     Piece preRootMovesPieces[STACK_OVERHEAD];
+    bool preRootMovesCaptures[STACK_OVERHEAD];
     for (int i = 0; i < STACK_OVERHEAD; i++) {
         preRootMoves[i] = MOVE_NONE;
+        preRootMovesCaptures[i] = false;
         preRootMovesPieces[i] = Piece::NONE;
     }
     int preRootMoveCount = 0;
@@ -1154,6 +1156,7 @@ void Worker::iterativeDeepening() {
             if (stack->move != MOVE_NONE && stack->move != MOVE_NULL) {
                 preRootMoves[preRootMoveCount] = stack->move;
                 preRootMovesPieces[preRootMoveCount] = stack->movedPiece;
+                preRootMovesCaptures[preRootMoveCount] = stack->capturedPiece != Piece::NONE;
                 preRootMoveCount++;
             }
             stack = stack->previous;
@@ -1188,6 +1191,7 @@ void Worker::iterativeDeepening() {
                         Color stm = (STACK_OVERHEAD - i) % 2 == 0 ? rootBoard.stm : flip(rootBoard.stm);
                         stackList[i].movedPiece = piece;
                         stackList[i].move = move;
+                        stackList[i].capture = preRootMovesPieces[STACK_OVERHEAD - i - 1];
                         stackList[i].contHist = history.continuationHistory[stm][piece][target];
                         stackList[i].contCorrHist = &history.continuationCorrectionHistory[stm][piece][target];
                     }
