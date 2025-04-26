@@ -647,7 +647,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // ProbCut
-    probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
+    probCutBeta = std::min(beta + probCutBetaOffset - 25 * (ttMove != MOVE_NONE && ttMove != MOVE_NULL && board->isCapture(ttMove)), EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
         && !excluded
         && depth > probCutDepth
