@@ -1141,6 +1141,25 @@ void Worker::iterativeDeepening() {
     SearchStack stackList[MAX_PLY + STACK_OVERHEAD + 2];
     SearchStack* stack = &stackList[STACK_OVERHEAD];
 
+    Move preRootMoves[STACK_OVERHEAD];
+    Piece preRootMovesPieces[STACK_OVERHEAD];
+    for (int i = 0; i < STACK_OVERHEAD; i++) {
+        preRootMoves[i] = MOVE_NONE;
+        preRootMovesPieces[i] = Piece::NONE;
+    }
+    int preRootMoveCount = 0;
+    {
+        BoardStack* stack = rootBoard.stack;
+        while (stack) {
+            if (stack->move != MOVE_NONE && stack->move != MOVE_NULL) {
+                preRootMoves[preRootMoveCount] = stack->move;
+                preRootMovesPieces[preRootMoveCount] = stack->movedPiece;
+                preRootMoveCount++;
+            }
+            stack = stack->previous;
+        }
+    }
+
     rootMoveNodes.clear();
 
     for (int depth = 1; depth <= maxDepth; depth++) {
@@ -1153,8 +1172,8 @@ void Worker::iterativeDeepening() {
                 stackList[i].staticEval = EVAL_NONE;
                 stackList[i].excludedMove = MOVE_NONE;
                 stackList[i].killer = MOVE_NONE;
-                stackList[i].movedPiece = Piece::NONE;
-                stackList[i].move = MOVE_NONE;
+                stackList[i].movedPiece = i < STACK_OVERHEAD ? preRootMovesPieces[STACK_OVERHEAD - i - 1] : Piece::NONE;
+                stackList[i].move = i < STACK_OVERHEAD ? preRootMoves[STACK_OVERHEAD - i - 1] : MOVE_NONE;
                 stackList[i].capture = false;
                 stackList[i].inCheck = false;
                 stackList[i].correctionValue = 0;

@@ -358,6 +358,9 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
 
     calculateThreats();
 
+    stack->move = MOVE_NULL;
+    stack->movedPiece = Piece::NONE;
+
     return i;
 }
 
@@ -702,6 +705,7 @@ void Board::doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue
 
     stm = flip(stm);
     newStack->move = move;
+    newStack->movedPiece = piece;
 
     calculateThreats();
 }
@@ -813,6 +817,7 @@ void Board::doNullMove(BoardStack* newStack) {
 
     stm = flip(stm);
     newStack->move = MOVE_NULL;
+    newStack->movedPiece = Piece::NONE;
 
     calculateThreats();
 }

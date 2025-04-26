@@ -50,6 +50,7 @@ struct BoardStack {
     uint8_t checkerCount;
 
     Move move;
+    Piece movedPiece;
 
     Threats threats;
 
