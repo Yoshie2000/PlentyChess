@@ -128,19 +128,6 @@ TUNE_INT(lmrPassBonusBase, -313, -500, 500);
 TUNE_INT(lmrPassBonusFactor, 200, 1, 500);
 TUNE_INT(lmrPassBonusMax, 1007, 32, 4096);
 
-TUNE_INT(historyBonusQuietBase, 42, -500, 500);
-TUNE_INT(historyBonusQuietFactor, 208, 1, 500);
-TUNE_INT(historyBonusQuietMax, 2219, 32, 4096);
-TUNE_INT(historyBonusCaptureBase, 25, -500, 500);
-TUNE_INT(historyBonusCaptureFactor, 166, 1, 500);
-TUNE_INT(historyBonusCaptureMax, 1836, 32, 4096);
-TUNE_INT(historyMalusQuietBase, 32, -500, 500);
-TUNE_INT(historyMalusQuietFactor, 226, 1, 500);
-TUNE_INT(historyMalusQuietMax, 1820, 32, 4096);
-TUNE_INT(historyMalusCaptureBase, 118, -500, 500);
-TUNE_INT(historyMalusCaptureFactor, 228, 1, 500);
-TUNE_INT(historyMalusCaptureMax, 1950, 32, 4096);
-
 TUNE_INT(historyDepthBetaOffset, 239, 1, 500);
 
 TUNE_INT(correctionHistoryFactor, 148, 32, 512);
@@ -990,11 +977,6 @@ movesLoop:
 
                     int historyUpdateDepth = depth + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
 
-                    int quietBonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * historyUpdateDepth, historyBonusQuietMax);
-                    int quietMalus = std::min(historyMalusQuietBase + historyMalusQuietFactor * historyUpdateDepth, historyMalusQuietMax);
-                    int captureBonus = std::min(historyBonusCaptureBase + historyBonusCaptureFactor * historyUpdateDepth, historyBonusCaptureMax);
-                    int captureMalus = std::min(historyMalusCaptureBase + historyMalusCaptureFactor * historyUpdateDepth, historyMalusCaptureMax);
-
                     if (!capture) {
                         // Update quiet killer
                         stack->killer = move;
@@ -1003,10 +985,10 @@ movesLoop:
                         if (stack->ply > 0)
                             history.setCounterMove((stack - 1)->move, move);
 
-                        history.updateQuietHistories(board, board->stack, stack, move, quietSearchCount[quietMoveCount - 1], quietBonus, quietMalus, quietMoves, quietSearchCount, quietMoveCount);
+                        history.updateQuietHistories(historyUpdateDepth, board, board->stack, stack, move, quietSearchCount[quietMoveCount - 1], quietMoves, quietSearchCount, quietMoveCount);
                     }
                     if (captureMoveCount > 0)
-                        history.updateCaptureHistory(board, move, captureSearchCount[captureMoveCount - 1], captureBonus, captureMalus, captureMoves, captureSearchCount, captureMoveCount);
+                        history.updateCaptureHistory(historyUpdateDepth, board, move, captureSearchCount[captureMoveCount - 1], captureMoves, captureSearchCount, captureMoveCount);
                     break;
                 }
 
