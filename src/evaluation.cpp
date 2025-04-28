@@ -46,7 +46,7 @@ Eval evaluate(Board* board, NNUE* nnue) {
     eval = (eval * getMaterialScale(board)) / 1024;
     eval = eval * (300 - board->stack->rule50_ply) / 300;
 
-    eval = std::clamp((int) eval, (int) -EVAL_TBWIN_IN_MAX_PLY + 1, (int) EVAL_TBWIN_IN_MAX_PLY - 1);
+    eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return (eval / 16) * 16;
 }
 
@@ -57,6 +57,12 @@ std::string formatEval(Eval value) {
     }
     else if (value <= -EVAL_MATE_IN_MAX_PLY) {
         evalString = "mate " + std::to_string(-(EVAL_MATE + value) / 2);
+    }
+    else if (value >= EVAL_TBWIN_IN_MAX_PLY) {
+        evalString = "cp " + std::to_string(1000 * 100 - (EVAL_TBWIN - value) * 100);
+    }
+    else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
+        evalString = "cp " + std::to_string(-1000 * 100 + (EVAL_TBWIN + value) * 100);
     }
     else {
         evalString = "cp " + std::to_string(100 * value / 280);
@@ -70,7 +76,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
     // "Special" moves pass SEE
     if (move >> 12)
         return true;
-    
+
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
 
@@ -115,7 +121,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
 
         side = flip(side);
         value = -value - 1 - SEE_VALUES[piece];
-        
+
         // Value beats (or can't beat) threshold (negamax)
         if (value >= 0) {
             if (piece == Piece::KING && (attackersToTarget & board->byColor[side]))
