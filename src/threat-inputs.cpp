@@ -20,9 +20,10 @@ namespace ThreatInputs {
         return ((bitboard >> 4) & K4) | ((bitboard & K4) << 4);
     }
 
-    void addSideFeatures(Board* board, Color pov, FeatureList& features) {
+    void addSideFeatures(Board* board, Color pov, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT) {
         // Check HM and get occupancies
         Square king = lsb(board->byColor[pov] & board->byPiece[Piece::KING]);
+        uint8_t kingBucket = KING_BUCKET_LAYOUT[king ^ (56 * pov)];
         bool hm = fileOf(king) >= 4;
 
         Bitboard occupancy = board->byColor[Color::WHITE] | board->byColor[Color::BLACK];
@@ -46,7 +47,7 @@ namespace ThreatInputs {
 
                     // Add the "standard" 768 piece feature
                     Square relativeSquare = square ^ (56 * pov);
-                    features.add(getPieceFeature(piece, relativeSquare, static_cast<Color>(side != pov)));
+                    features.add(getPieceFeature(piece, relativeSquare, static_cast<Color>(side != pov), kingBucket));
 
                     // Add the threat features
                     Bitboard attacks = board->stack->threats.toSquare[indexSquare];
@@ -74,8 +75,8 @@ namespace ThreatInputs {
         }
     }
 
-    int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor) {
-        return 2 * PieceOffsets::END + 384 * relativeColor + 64 * piece + relativeSquare;
+    int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket) {
+        return 2 * PieceOffsets::END + (384 * relativeColor + 64 * piece + relativeSquare) + 768 * kingBucket;
     }
 
     void initialise() {

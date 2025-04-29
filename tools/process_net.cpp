@@ -12,12 +12,14 @@
 #include <arm_neon.h>
 #endif
 
-constexpr int INPUT_SIZE = 80624;
-constexpr int L1_SIZE = 256;
-constexpr int L2_SIZE = 16;
-constexpr int L3_SIZE = 32;
-
+constexpr int KING_BUCKETS = 12;
 constexpr int OUTPUT_BUCKETS = 8;
+
+constexpr int THREAT_INPUT_SIZE = 79856;
+constexpr int INPUT_SIZE = THREAT_INPUT_SIZE + KING_BUCKETS * 768;
+constexpr int L1_SIZE = 2048;
+constexpr int L2_SIZE = 32;
+constexpr int L3_SIZE = 64;
 
 constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
@@ -26,7 +28,7 @@ constexpr int ALIGNMENT = 64;
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
 
 struct RawNetworkData {
-    float inputWeights[INPUT_SIZE * L1_SIZE];
+    float inputWeights[(INPUT_SIZE + 768 /* factoriser bucket at the beginning */) * L1_SIZE];
     float inputBiases[L1_SIZE];
     float l1Weights[L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
     float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -58,8 +60,16 @@ int16_t quantize(float number) {
 
 void quantizeNetwork() {
     // Add factorized input weights to buckets, and quantize
-    for (int w = 0; w < INPUT_SIZE * L1_SIZE; w++) {
-        tmp.inputWeights[w] = quantize<INPUT_QUANT>(raw.inputWeights[w]);
+    for (int w = 0; w < THREAT_INPUT_SIZE * L1_SIZE; w++) {
+        tmp.inputWeights[w] = quantize<INPUT_QUANT>(raw.inputWeights[w + 768 * L1_SIZE /* factoriser bucket at the beginning */]);
+    }
+    for (int kb = 0; kb < KING_BUCKETS; kb++) {
+        for (int w = 0; w < 768 * L1_SIZE; w++) {
+            int idx = THREAT_INPUT_SIZE * L1_SIZE + kb * 768 * L1_SIZE + w;
+            int rawIdx = 768 * L1_SIZE + idx; // skip factoriser
+            int factoriserIdx = w;
+            tmp.inputWeights[idx] = quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]);
+        }
     }
 
     // Quantize input biases

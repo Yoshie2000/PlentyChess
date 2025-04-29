@@ -51,11 +51,11 @@ __attribute_noinline__ void NNUE::resetAccumulator(Board* board, Accumulator* ac
     memcpy(acc->colors[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
     ThreatInputs::FeatureList features;
-    ThreatInputs::addSideFeatures(board, side, features);
+    ThreatInputs::addSideFeatures(board, side, features, KING_BUCKET_LAYOUT);
     for (int featureIndex : features)
         addToAccumulator<side>(acc->colors, acc->colors, featureIndex);
 
-    acc->kingBucketInfo[side] = getKingBucket(lsb(board->byColor[side] & board->byPiece[Piece::KING]));
+    acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
     memcpy(acc->byColor[side], board->byColor, sizeof(board->byColor));
     memcpy(acc->byPiece[side], board->byPiece, sizeof(board->byPiece));
     acc->updated[side] = true;
@@ -115,7 +115,7 @@ void NNUE::finalizeMove(Board* board) {
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
     for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-        accumulator->kingBucketInfo[side] = getKingBucket(lsb(board->byPiece[Piece::KING] & board->byColor[side]));
+        accumulator->kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
         memcpy(accumulator->byColor[side], board->byColor, sizeof(board->byColor));
         memcpy(accumulator->byPiece[side], board->byPiece, sizeof(board->byPiece));
     }
@@ -124,30 +124,32 @@ void NNUE::finalizeMove(Board* board) {
 template<Color side>
 void NNUE::calculateAccumulators(Board* board) {
     Accumulator* current = &accumulatorStack[currentAccumulator];
-
-    if (current->updated[side])
-        return;
     
-    Accumulator* previous = current;
-    KingBucketInfo* currentKingBucket = &current->kingBucketInfo[side];
+    resetAccumulator<side>(board, current);
 
-    while (true) {
-        previous--;
-        KingBucketInfo* prevKingBucket = &previous->kingBucketInfo[side];
+    // if (current->updated[side])
+    //     return;
+    
+    // Accumulator* previous = current;
+    // KingBucketInfo* currentKingBucket = &current->kingBucketInfo[side];
 
-        if (needsRefresh(currentKingBucket, prevKingBucket)) {
-            resetAccumulator<side>(board, current);
-            break;
-        }
+    // while (true) {
+    //     previous--;
+    //     KingBucketInfo* prevKingBucket = &previous->kingBucketInfo[side];
 
-        if (previous->updated[side]) {
-            while (previous != current) {
-                incrementallyUpdateAccumulator<side>(previous, previous + 1, currentKingBucket);
-                previous++;
-            }
-            break;
-        }
-    }
+    //     if (needsRefresh(currentKingBucket, prevKingBucket)) {
+    //         resetAccumulator<side>(board, current);
+    //         break;
+    //     }
+
+    //     if (previous->updated[side]) {
+    //         while (previous != current) {
+    //             incrementallyUpdateAccumulator<side>(previous, previous + 1, currentKingBucket);
+    //             previous++;
+    //         }
+    //         break;
+    //     }
+    // }
 
     assert(current->updated[side]);
 }
@@ -173,16 +175,16 @@ __attribute_noinline__ void NNUE::calculatePieceFeatures(Accumulator* outputAcc,
         Color relativeColor = static_cast<Color>(dirtyPiece.pieceColor != side);
 
         if (dirtyPiece.origin == NO_SQUARE) {
-            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor);
+            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
             addFeatureList.add(featureIndex);
         }
         else if (dirtyPiece.target == NO_SQUARE) {
-            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor);
+            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
             subFeatureList.add(featureIndex);
         }
         else {
-            int subIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor);
-            int addIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor);
+            int subIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+            int addIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
             addFeatureList.add(addIndex);
             subFeatureList.add(subIndex);
         }

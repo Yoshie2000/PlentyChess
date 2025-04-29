@@ -344,10 +344,22 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 
 #endif
 
-constexpr int INPUT_SIZE = 2 * ThreatInputs::PieceOffsets::END + 768;
-constexpr int L1_SIZE = 256;
-constexpr int L2_SIZE = 16;
-constexpr int L3_SIZE = 32;
+constexpr uint8_t KING_BUCKET_LAYOUT[] = {
+  0,  1,  2,  3,  3,  2,  1,  0,
+  4,  5,  6,  7,  7,  6,  5,  4,
+  8,  8,  9,  9,  9,  9,  8,  8,
+ 10, 10, 10, 10, 10, 10, 10, 10,
+ 11, 11, 11, 11, 11, 11, 11, 11,
+ 11, 11, 11, 11, 11, 11, 11, 11, 
+ 11, 11, 11, 11, 11, 11, 11, 11, 
+ 11, 11, 11, 11, 11, 11, 11, 11, 
+};
+constexpr int KING_BUCKETS = 12;
+
+constexpr int INPUT_SIZE = 2 * ThreatInputs::PieceOffsets::END + 768 * KING_BUCKETS;
+constexpr int L1_SIZE = 2048;
+constexpr int L2_SIZE = 32;
+constexpr int L3_SIZE = 64;
 
 constexpr int OUTPUT_BUCKETS = 8;
 
@@ -386,16 +398,18 @@ struct DirtyThreat {
 };
 
 struct KingBucketInfo {
+  uint8_t bucket;
   bool mirrored;
 };
 
 constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
-  return bucket1->mirrored != bucket2->mirrored;
+  return bucket1->mirrored != bucket2->mirrored || bucket1->bucket != bucket2->bucket;
 }
 
-constexpr KingBucketInfo getKingBucket(Square kingSquare) {
+constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
   return KingBucketInfo{
-    fileOf(kingSquare) >= 4
+    static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
+    fileOf(kingSquare) >= 4,
   };
 }
 
