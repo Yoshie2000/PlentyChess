@@ -436,36 +436,49 @@ Eval NNUE::evaluate(Board* board) {
     }
 #endif
 
+    alignas(ALIGNMENT) float l4Neurons[L4_SIZE];
+    memcpy(l4Neurons, networkData->l3Biases[bucket], sizeof(l4Neurons));
+
+    for (int l3 = 0; l3 < L3_SIZE; l3++) {
+        float l3Activated = std::clamp(l3Neurons[l3], 0.0f, 1.0f);
+        l3Activated *= l3Activated;
+
+        for (int l4 = 0; l4 < L4_SIZE; l4++) {
+            l4Neurons[l4] = std::fma(l3Activated, networkData->l3Weights[bucket][l3 * L4_SIZE + l4], l4Neurons[l4]);
+        }
+    }
+
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
+    VecF* l4NeuronsVec = reinterpret_cast<VecF*>(l4Neurons);
     constexpr int chunks = 64 / sizeof(VecF);
 
     VecF resultSums[chunks];
     for (int i = 0; i < chunks; i++)
         resultSums[i] = psZero;
 
-    VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData->l3Weights[bucket]);
-    for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3 += chunks) {
+    VecF* l4WeightsVec = reinterpret_cast<VecF*>(networkData->l4Weights[bucket]);
+    for (int l4 = 0; l4 < L4_SIZE / FLOAT_VEC_SIZE; l4 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
-            VecF l3Activated = maxPs(minPs(l3NeuronsVec[l3 + chunk], psOne), psZero);
-            l3Activated = mulPs(l3Activated, l3Activated);
-            resultSums[chunk] = fmaddPs(l3Activated, l3WeightsVec[l3 + chunk], resultSums[chunk]);
+            VecF l4Activated = maxPs(minPs(l4NeuronsVec[l4 + chunk], psOne), psZero);
+            l4Activated = mulPs(l4Activated, l4Activated);
+            resultSums[chunk] = fmaddPs(l4Activated, l4WeightsVec[l4 + chunk], resultSums[chunk]);
         }
     }
 
-    float result = networkData->l3Biases[bucket] + reduceAddPs(resultSums);
+    float result = networkData->l4Biases[bucket] + reduceAddPs(resultSums);
 #else
     constexpr int chunks = sizeof(VecF) / sizeof(float);
     float resultSums[chunks] = {};
 
-    for (int l3 = 0; l3 < L3_SIZE; l3 += chunks) {
+    for (int l4 = 0; l4 < L4_SIZE; l4 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
-            float l3Activated = std::clamp(l3Neurons[l3 + chunk], 0.0f, 1.0f);
-            l3Activated *= l3Activated;
-            resultSums[chunk] = std::fma(l3Activated, networkData->l3Weights[bucket][l3 + chunk], resultSums[chunk]);
+            float l4Activated = std::clamp(l4Neurons[l4 + chunk], 0.0f, 1.0f);
+            l4Activated *= l4Activated;
+            resultSums[chunk] = std::fma(l4Activated, networkData->l4Weights[bucket][l4 + chunk], resultSums[chunk]);
         }
     }
 
-    float result = networkData->l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
+    float result = networkData->l4Biases[bucket] + reduceAddPsR(resultSums, chunks);
 #endif
 
     return result * NETWORK_SCALE;

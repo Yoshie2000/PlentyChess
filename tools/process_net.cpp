@@ -13,9 +13,10 @@
 #endif
 
 constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 1792;
-constexpr int L2_SIZE = 16;
-constexpr int L3_SIZE = 32;
+constexpr int L1_SIZE = 256;
+constexpr int L2_SIZE = 64;
+constexpr int L3_SIZE = 128;
+constexpr int L4_SIZE = 128;
 
 constexpr bool KING_BUCKETS_FACTORIZED = true;
 constexpr int KING_BUCKETS = 12;
@@ -34,8 +35,10 @@ struct RawNetworkData {
     float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
     float l2Weights[2 * L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
     float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-    float l3Weights[L3_SIZE][OUTPUT_BUCKETS];
-    float l3Biases[OUTPUT_BUCKETS];
+    float l3Weights[L3_SIZE][OUTPUT_BUCKETS][L4_SIZE];
+    float l3Biases[OUTPUT_BUCKETS][L4_SIZE];
+    float l4Weights[L4_SIZE][OUTPUT_BUCKETS];
+    float l4Biases[OUTPUT_BUCKETS];
 };
 
 struct NetworkData {
@@ -45,8 +48,10 @@ struct NetworkData {
     alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
     alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
     alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-    alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE];
-    alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
+    alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE * L4_SIZE];
+    alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS][L4_SIZE];
+    alignas(ALIGNMENT) float l4Weights[OUTPUT_BUCKETS][L4_SIZE];
+    alignas(ALIGNMENT) float l4Biases[OUTPUT_BUCKETS];
 };
 
 RawNetworkData raw;
@@ -91,6 +96,8 @@ void quantizeNetwork() {
     std::memcpy(tmp.l2Biases, raw.l2Biases, sizeof(raw.l2Biases));
     std::memcpy(tmp.l3Weights, raw.l3Weights, sizeof(raw.l3Weights));
     std::memcpy(tmp.l3Biases, raw.l3Biases, sizeof(raw.l3Biases));
+    std::memcpy(tmp.l4Weights, raw.l4Weights, sizeof(raw.l4Weights));
+    std::memcpy(tmp.l4Biases, raw.l4Biases, sizeof(raw.l4Biases));
 }
 
 void transposePermuteNetwork() {
@@ -144,7 +151,13 @@ void transposePermuteNetwork() {
         }
 
         for (int l3 = 0; l3 < L3_SIZE; l3++) {
-            out.l3Weights[b][l3] = reinterpret_cast<float*>(tmp.l3Weights)[l3 * OUTPUT_BUCKETS + b];
+            for (int l4 = 0; l4 < L4_SIZE; l4++) {
+                out.l3Weights[b][l3 * L4_SIZE + l4] = reinterpret_cast<float*>(tmp.l3Weights)[l3 * OUTPUT_BUCKETS * L4_SIZE + b * L4_SIZE + l4];
+            }
+        }
+
+        for (int l4 = 0; l4 < L4_SIZE; l4++) {
+            out.l4Weights[b][l4] = reinterpret_cast<float*>(tmp.l4Weights)[l4 * OUTPUT_BUCKETS + b];
         }
     }
 
@@ -154,6 +167,7 @@ void transposePermuteNetwork() {
     std::memcpy(out.l1Biases, tmp.l1Biases, sizeof(tmp.l1Biases));
     std::memcpy(out.l2Biases, tmp.l2Biases, sizeof(tmp.l2Biases));
     std::memcpy(out.l3Biases, tmp.l3Biases, sizeof(tmp.l3Biases));
+    std::memcpy(out.l4Biases, tmp.l4Biases, sizeof(tmp.l4Biases));
 }
 
 int main(int argc, char* argv[]) {
