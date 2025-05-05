@@ -38,67 +38,70 @@ TUNE_FLOAT_DISABLED(tmNodesFactor, 0.921048521228935f, 0.1f, 2.5f);
 TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 6);
 TUNE_INT_DISABLED(aspirationWindowDelta, 14, 1, 30);
 TUNE_INT_DISABLED(aspirationWindowDeltaBase, 10, 1, 30);
-TUNE_INT(aspirationWindowDeltaDivisor, 13002, 7500, 17500);
+TUNE_INT(aspirationWindowDeltaDivisor, 12681, 7500, 17500);
 TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT_DISABLED(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f);
 
 // Reduction / Margin tables
-TUNE_FLOAT(lmrReductionNoisyBase, -0.13908573295700846f, -2.0f, -0.1f);
-TUNE_FLOAT(lmrReductionNoisyFactor, 3.2138426839474468f, 2.0f, 4.0f);
-TUNE_FLOAT(lmrReductionQuietBase, 1.203634500924053f, 0.50f, 1.5f);
-TUNE_FLOAT(lmrReductionQuietFactor, 2.8792614798870306f, 2.0f, 4.0f);
+TUNE_FLOAT(lmrReductionNoisyBase, -0.15479789310247533f, -2.0f, -0.1f);
+TUNE_FLOAT(lmrReductionNoisyFactor, 3.3112850174104427f, 2.0f, 4.0f);
+TUNE_FLOAT(lmrReductionQuietBase, 1.1379245400518583f, 0.50f, 1.5f);
+TUNE_FLOAT(lmrReductionQuietFactor, 2.8997689712710466f, 2.0f, 4.0f);
 
-TUNE_FLOAT(seeMarginNoisy, -24.47291348333615f, -50.0f, -10.0f);
-TUNE_FLOAT(seeMarginQuiet, -76.22223052179581f, -100.0f, -50.0f);
-TUNE_FLOAT(lmpMarginWorseningBase, 2.0264034228074035f, -1.0f, 2.5f);
-TUNE_FLOAT(lmpMarginWorseningFactor, 0.36773070268987235f, 0.1f, 1.5f);
-TUNE_FLOAT(lmpMarginWorseningPower, 1.6488172531400145f, 1.0f, 3.0f);
-TUNE_FLOAT(lmpMarginImprovingBase, 2.9529829700559365f, 2.0f, 5.0f);
-TUNE_FLOAT(lmpMarginImprovingFactor, 0.8372651393568566f, 0.5f, 2.0f);
-TUNE_FLOAT(lmpMarginImprovingPower, 1.974333065229244f, 1.0f, 3.0f);
+TUNE_FLOAT(seeMarginNoisy, -24.40422689842072f, -50.0f, -10.0f);
+TUNE_FLOAT(seeMarginQuiet, -77.46039783122589f, -100.0f, -50.0f);
+TUNE_FLOAT(lmpMarginWorseningBase, 1.932336729298966f, -1.0f, 2.5f);
+TUNE_FLOAT(lmpMarginWorseningFactor, 0.4372991933478511f, 0.1f, 1.5f);
+TUNE_FLOAT(lmpMarginWorseningPower, 1.660804390081005f, 1.0f, 3.0f);
+TUNE_FLOAT(lmpMarginImprovingBase, 2.7242843289961067f, 2.0f, 5.0f);
+TUNE_FLOAT(lmpMarginImprovingFactor, 0.8277962583165434f, 0.5f, 2.0f);
+TUNE_FLOAT(lmpMarginImprovingPower, 1.9124128409053007f, 1.0f, 3.0f);
 
 // Search values
 TUNE_INT(qsFutilityOffset, 68, 1, 125);
-TUNE_INT(qsSeeMargin, -103, -200, 50);
+TUNE_INT(qsSeeMargin, -87, -200, 50);
 
 // Pre-search pruning
 TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
 
-TUNE_INT(staticHistoryFactor, -38, -500, -1);
-TUNE_INT(staticHistoryMin, -50, -1000, -1);
-TUNE_INT(staticHistoryMax, 160, 1, 1000);
+TUNE_INT(staticHistoryFactor, -61, -500, -1);
+TUNE_INT(staticHistoryMin, -161, -1000, -1);
+TUNE_INT(staticHistoryMax, 170, 1, 1000);
+TUNE_INT(staticHistoryTempo, 36, 1, 1000);
 
 TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
-TUNE_INT(rfpFactor, 97, 1, 250);
+TUNE_INT(rfpFactor, 96, 1, 250);
 
 TUNE_INT_DISABLED(razoringDepth, 5, 2, 20);
-TUNE_INT(razoringFactor, 238, 1, 1000);
+TUNE_INT(razoringFactor, 284, 1, 1000);
 
 TUNE_INT_DISABLED(nmpRedBase, 4, 1, 5);
 TUNE_INT_DISABLED(nmpDepthDiv, 3, 1, 6);
 TUNE_INT_DISABLED(nmpMin, 4, 1, 10);
-TUNE_INT(nmpDivisor, 186, 10, 1000);
-TUNE_INT(nmpEvalDepth, 21, 1, 100);
-TUNE_INT(nmpEvalBase, 161, 50, 300);
+TUNE_INT(nmpDivisor, 174, 10, 1000);
+TUNE_INT(nmpEvalDepth, 18, 1, 100);
+TUNE_INT(nmpEvalBase, 173, 50, 300);
 
-TUNE_INT(probCutBetaOffset, 204, 1, 500);
+TUNE_INT(probCutBetaOffset, 205, 1, 500);
 TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
 
 // In-search pruning
-TUNE_INT(earlyLmrHistoryFactorQuiet, 16277, 10000, 20000);
-TUNE_INT(earlyLmrHistoryFactorCapture, 14971, 10000, 20000);
+TUNE_INT(earlyLmrReductionTableFactor, 1014, 500, 2000);
+
+TUNE_INT(earlyLmrHistoryFactorQuiet, 16009, 10000, 20000);
+TUNE_INT(earlyLmrHistoryFactorCapture, 14637, 10000, 20000);
 
 TUNE_INT_DISABLED(fpDepth, 11, 1, 20);
-TUNE_INT(fpBase, 216, 1, 1000);
-TUNE_INT(fpFactor, 107, 1, 500);
+TUNE_INT(fpBase, 206, 1, 1000);
+TUNE_INT(fpFactor, 101, 1, 500);
 
 TUNE_INT_DISABLED(fpCaptDepth, 9, 1, 20);
-TUNE_INT(fpCaptBase, 411, 150, 750);
-TUNE_INT(fpCaptFactor, 376, 100, 600);
+TUNE_INT(fpCaptBase, 403, 150, 750);
+TUNE_INT(fpCaptFactor, 403, 100, 600);
 
 TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
-TUNE_INT(historyPruningFactorCapture, -1727, -8192, -128);
-TUNE_INT(historyPruningFactorQuiet, -6019, -8192, -128);
+TUNE_INT(historyPruningFactorCapture, -1879, -8192, -128);
+TUNE_INT(historyPruningFactorQuiet, -6129, -8192, -128);
 
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
 TUNE_INT_DISABLED(doubleExtensionDepthIncrease, 11, 2, 20);
@@ -108,36 +111,26 @@ TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 
-TUNE_INT(lmrCheck, 931, 0, 5000);
-TUNE_INT(lmrTtPv, 1597, 0, 5000);
-TUNE_INT(lmrCutnode, 1997, 0, 5000);
-TUNE_INT(lmrCorrection, 16074, 1000, 20000);
-TUNE_INT(lmrHistoryFactorQuiet, 24297, 10000, 30000);
-TUNE_INT(lmrHistoryFactorCapture, 310166, 250000, 400000);
+TUNE_INT(lmrCheck, 881, 0, 5000);
+TUNE_INT(lmrTtPv, 1943, 0, 5000);
+TUNE_INT(lmrCutnode, 1841, 0, 5000);
+TUNE_INT(lmrTtpvFaillow, 889, 0, 5000);
+TUNE_INT(lmrCorrection, 15162, 1000, 20000);
+TUNE_INT(lmrHistoryFactorQuiet, 25301, 10000, 30000);
+TUNE_INT(lmrHistoryFactorCapture, 309944, 250000, 400000);
+
+TUNE_INT(postlmrOppWorseningThreshold, 3031, 1500, 4500);
 
 TUNE_INT_DISABLED(lmrDeeperBase, 40, 1, 100);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
 
-TUNE_INT(lmrPassBonusBase, -313, -500, 500);
-TUNE_INT(lmrPassBonusFactor, 200, 1, 500);
-TUNE_INT(lmrPassBonusMax, 1107, 32, 4096);
+TUNE_INT(lmrPassBonusBase, -311, -500, 500);
+TUNE_INT(lmrPassBonusFactor, 190, 1, 500);
+TUNE_INT(lmrPassBonusMax, 1023, 32, 4096);
 
-TUNE_INT(historyBonusQuietBase, 42, -500, 500);
-TUNE_INT(historyBonusQuietFactor, 208, 1, 500);
-TUNE_INT(historyBonusQuietMax, 2219, 32, 4096);
-TUNE_INT(historyBonusCaptureBase, 25, -500, 500);
-TUNE_INT(historyBonusCaptureFactor, 166, 1, 500);
-TUNE_INT(historyBonusCaptureMax, 1836, 32, 4096);
-TUNE_INT(historyMalusQuietBase, 32, -500, 500);
-TUNE_INT(historyMalusQuietFactor, 226, 1, 500);
-TUNE_INT(historyMalusQuietMax, 1820, 32, 4096);
-TUNE_INT(historyMalusCaptureBase, 118, -500, 500);
-TUNE_INT(historyMalusCaptureFactor, 228, 1, 500);
-TUNE_INT(historyMalusCaptureMax, 1950, 32, 4096);
+TUNE_INT(historyDepthBetaOffset, 247, 1, 500);
 
-TUNE_INT(historyDepthBetaOffset, 239, 1, 500);
-
-TUNE_INT(correctionHistoryFactor, 159, 32, 512);
+TUNE_INT(correctionHistoryFactor, 163, 32, 512);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
@@ -575,7 +568,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Adjust quiet history based on how much the previous move changed static eval
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
-        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax);
+        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + staticHistoryTempo;
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
 
@@ -585,10 +578,12 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Post-LMR depth adjustments
     if ((stack - 1)->inLMR) {
-        if ((stack - 1)->reduction >= 3000 && stack->staticEval <= -(stack - 1)->staticEval) {
-            depth++;
-            (stack - 1)->reduction -= 1000;
-        }
+        int additionalReduction = 0;
+        if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
+            additionalReduction--;
+
+        depth -= additionalReduction;
+        (stack - 1)->reduction += 1000 * additionalReduction;
     }
 
     // Reverse futility pruning
@@ -739,7 +734,7 @@ movesLoop:
             && board->hasNonPawns()
             ) {
 
-            int lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth][moveCount] / 1000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            int lmrDepth = std::max(0, depth - earlyLmrReductionTableFactor * REDUCTIONS[!capture][depth][moveCount] / 1000000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
             if (!pvNode && !skipQuiets) {
 
@@ -867,7 +862,7 @@ movesLoop:
                 reduction += lmrCutnode;
             
             if (stack->ttPv && ttHit && ttValue <= alpha)
-                reduction += 1000;
+                reduction += lmrTtpvFaillow;
 
             reduction -= std::abs(correctionValue / lmrCorrection);
 
@@ -982,11 +977,6 @@ movesLoop:
 
                     int historyUpdateDepth = depth + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
 
-                    int quietBonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * historyUpdateDepth, historyBonusQuietMax);
-                    int quietMalus = std::min(historyMalusQuietBase + historyMalusQuietFactor * historyUpdateDepth, historyMalusQuietMax);
-                    int captureBonus = std::min(historyBonusCaptureBase + historyBonusCaptureFactor * historyUpdateDepth, historyBonusCaptureMax);
-                    int captureMalus = std::min(historyMalusCaptureBase + historyMalusCaptureFactor * historyUpdateDepth, historyMalusCaptureMax);
-
                     if (!capture) {
                         // Update quiet killer
                         stack->killer = move;
@@ -995,10 +985,10 @@ movesLoop:
                         if (stack->ply > 0)
                             history.setCounterMove((stack - 1)->move, move);
 
-                        history.updateQuietHistories(board, board->stack, stack, move, quietSearchCount[quietMoveCount - 1], quietBonus, quietMalus, quietMoves, quietSearchCount, quietMoveCount);
+                        history.updateQuietHistories(historyUpdateDepth, board, board->stack, stack, move, quietSearchCount[quietMoveCount - 1], quietMoves, quietSearchCount, quietMoveCount);
                     }
                     if (captureMoveCount > 0)
-                        history.updateCaptureHistory(board, move, captureSearchCount[captureMoveCount - 1], captureBonus, captureMalus, captureMoves, captureSearchCount, captureMoveCount);
+                        history.updateCaptureHistory(historyUpdateDepth, board, move, captureSearchCount[captureMoveCount - 1], captureMoves, captureSearchCount, captureMoveCount);
                     break;
                 }
 
