@@ -75,13 +75,14 @@ class MoveGen {
     int generatedBadCaptures; // Bad captures only count as "generated" when they are sorted out by SEE
     int returnedBadCaptures;
 
-    MoveGenStage stage;
     int depth;
 
     bool probCut;
     int probCutThreshold;
 
 public:
+
+    MoveGenStage stage;
 
     // Main search
     MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int depth);
