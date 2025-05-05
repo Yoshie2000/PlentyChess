@@ -24,8 +24,6 @@ TTEntry* TranspositionTable::probe(uint64_t hash, bool* found) {
 
     for (int i = 0; i < CLUSTER_SIZE; i++) {
         if (cluster->entries[i].hash == hash16 || !cluster->entries[i].isInitialised()) {
-            // Refresh generation
-            cluster->entries[i].flags = (uint8_t)(TT_GENERATION_COUNTER | (cluster->entries[i].flags & (GENERATION_DELTA - 1)));
             *found = cluster->entries[i].hash == hash16;
             return &cluster->entries[i];
         }
