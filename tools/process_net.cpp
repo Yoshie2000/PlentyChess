@@ -13,13 +13,13 @@
 #endif
 
 constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 256;
-constexpr int L2_SIZE = 64;
-constexpr int L3_SIZE = 128;
-constexpr int L4_SIZE = 128;
+constexpr int L1_SIZE = 4096;
+constexpr int L2_SIZE = 96;
+constexpr int L3_SIZE = 192;
+constexpr int L4_SIZE = 192;
 
 constexpr bool KING_BUCKETS_FACTORIZED = true;
-constexpr int KING_BUCKETS = 12;
+constexpr int KING_BUCKETS = 9;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int INPUT_QUANT = 362;
