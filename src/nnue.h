@@ -461,28 +461,28 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 #endif
 
 constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 1792;
+constexpr int L1_SIZE = 1536;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
-   0,  1,  2,  3,  3,  2,  1,  0,
-   4,  5,  6,  7,  7,  6,  5,  4,
-   8,  8,  9,  9,  9,  9,  8,  8,
+  0,  1,  2,  3,  3,  2,  1,  0,
+  4,  5,  6,  7,  7,  6,  5,  4,
+  8,  8,  9,  9,  9,  9,  8,  8,
   10, 10, 10, 10, 10, 10, 10, 10,
-  11, 11, 11, 11, 11, 11, 11, 11,
   11, 11, 11, 11, 11, 11, 11, 11, 
   11, 11, 11, 11, 11, 11, 11, 11, 
-  11, 11, 11, 11, 11, 11, 11, 11, 
+  12, 12, 12, 12, 12, 12, 12, 12, 
+  12, 12, 12, 12, 12, 12, 12, 12, 
 };
-constexpr int KING_BUCKETS = 12;
+constexpr int KING_BUCKETS = 13;
 constexpr bool KING_BUCKETS_FACTORIZED = true;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int NETWORK_SCALE = 287;
-constexpr int INPUT_QUANT = 362;
-constexpr int INPUT_SHIFT = 10;
-constexpr int L1_QUANT = 64;
+constexpr int NETWORK_SCALE = 400;
+constexpr int INPUT_QUANT = 255;
+constexpr int INPUT_SHIFT = 9;
+constexpr int L1_QUANT = 128;
 
 constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
 

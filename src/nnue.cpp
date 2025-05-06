@@ -400,7 +400,7 @@ Eval NNUE::evaluate(Board* board) {
     for (int l1 = 0; l1 < L1_SIZE; l1++) {
         if (!l1Neurons[l1])
             continue;
-            
+
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
             l2Neurons[l2] += l1Neurons[l1] * networkData->l1Weights[bucket][l1 * L2_SIZE + l2];
         }
@@ -460,7 +460,6 @@ Eval NNUE::evaluate(Board* board) {
     for (int l3 = 0; l3 < L3_SIZE / FLOAT_VEC_SIZE; l3 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
             VecF l3Activated = maxPs(minPs(l3NeuronsVec[l3 + chunk], psOne), psZero);
-            l3Activated = mulPs(l3Activated, l3Activated);
             resultSums[chunk] = fmaddPs(l3Activated, l3WeightsVec[l3 + chunk], resultSums[chunk]);
         }
     }
@@ -473,7 +472,6 @@ Eval NNUE::evaluate(Board* board) {
     for (int l3 = 0; l3 < L3_SIZE; l3 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
             float l3Activated = std::clamp(l3Neurons[l3 + chunk], 0.0f, 1.0f);
-            l3Activated *= l3Activated;
             resultSums[chunk] = std::fma(l3Activated, networkData->l3Weights[bucket][l3 + chunk], resultSums[chunk]);
         }
     }

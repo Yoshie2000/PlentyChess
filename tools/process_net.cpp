@@ -13,16 +13,16 @@
 #endif
 
 constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 1792;
+constexpr int L1_SIZE = 1536;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
 constexpr bool KING_BUCKETS_FACTORIZED = true;
-constexpr int KING_BUCKETS = 12;
+constexpr int KING_BUCKETS = 13;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int INPUT_QUANT = 362;
-constexpr int L1_QUANT = 64;
+constexpr int INPUT_QUANT = 255;
+constexpr int L1_QUANT = 128;
 
 constexpr int ALIGNMENT = 64;
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
@@ -121,30 +121,12 @@ void transposePermuteNetwork() {
 
     // Transpose L1 / L2 / L3 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-        for (int l1 = 0; l1 < L1_SIZE / INT8_PER_INT32; l1++) {
+        for (int l1 = 0; l1 < L1_SIZE; l1 += INT8_PER_INT32) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
                 for (int c = 0; c < INT8_PER_INT32; c++) {
-                    out.l1Weights[b][l1 * INT8_PER_INT32 * L2_SIZE + l2 * INT8_PER_INT32 + c] = reinterpret_cast<int8_t*>(tmp.l1Weights)[(l1 * INT8_PER_INT32 + c) * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
+                    out.l1Weights[b][l1 * L2_SIZE + l2 * INT8_PER_INT32 + c] = reinterpret_cast<int8_t*>(tmp.l1Weights[b])[(l1 + c) * L2_SIZE + l2];
                 }
             }
-        }
-#else
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
-            for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                out.l1Weights[b][l1 * L2_SIZE + l2] = reinterpret_cast<int8_t*>(tmp.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
-            }
-        }
-#endif
-
-        for (int l2 = 0; l2 < 2 * L2_SIZE; l2++) {
-            for (int l3 = 0; l3 < L3_SIZE; l3++) {
-                out.l2Weights[b][l2 * L3_SIZE + l3] = reinterpret_cast<float*>(tmp.l2Weights)[l2 * OUTPUT_BUCKETS * L3_SIZE + b * L3_SIZE + l3];
-            }
-        }
-
-        for (int l3 = 0; l3 < L3_SIZE; l3++) {
-            out.l3Weights[b][l3] = reinterpret_cast<float*>(tmp.l3Weights)[l3 * OUTPUT_BUCKETS + b];
         }
     }
 
@@ -152,7 +134,9 @@ void transposePermuteNetwork() {
     std::memcpy(out.inputWeights, tmp.inputWeights, sizeof(tmp.inputWeights));
     std::memcpy(out.inputBiases, tmp.inputBiases, sizeof(tmp.inputBiases));
     std::memcpy(out.l1Biases, tmp.l1Biases, sizeof(tmp.l1Biases));
+    std::memcpy(out.l2Weights, tmp.l2Weights, sizeof(tmp.l2Weights));
     std::memcpy(out.l2Biases, tmp.l2Biases, sizeof(tmp.l2Biases));
+    std::memcpy(out.l3Weights, tmp.l3Weights, sizeof(tmp.l3Weights));
     std::memcpy(out.l3Biases, tmp.l3Biases, sizeof(tmp.l3Biases));
 }
 
