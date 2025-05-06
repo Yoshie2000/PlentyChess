@@ -461,22 +461,22 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 #endif
 
 constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 256;
-constexpr int L2_SIZE = 64;
-constexpr int L3_SIZE = 128;
-constexpr int L4_SIZE = 128;
+constexpr int L1_SIZE = 4096;
+constexpr int L2_SIZE = 96;
+constexpr int L3_SIZE = 192;
+constexpr int L4_SIZE = 192;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
-   0,  1,  2,  3,  3,  2,  1,  0,
-   4,  5,  6,  7,  7,  6,  5,  4,
-   8,  8,  9,  9,  9,  9,  8,  8,
-  10, 10, 10, 10, 10, 10, 10, 10,
-  11, 11, 11, 11, 11, 11, 11, 11,
-  11, 11, 11, 11, 11, 11, 11, 11, 
-  11, 11, 11, 11, 11, 11, 11, 11, 
-  11, 11, 11, 11, 11, 11, 11, 11, 
+  0, 1, 2, 3, 3, 2, 1, 0,
+  4, 4, 5, 5, 5, 5, 4, 4,
+  6, 6, 6, 6, 6, 6, 6, 6,
+  7, 7, 7, 7, 7, 7, 7, 7,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8
 };
-constexpr int KING_BUCKETS = 12;
+constexpr int KING_BUCKETS = 9;
 constexpr bool KING_BUCKETS_FACTORIZED = true;
 constexpr int OUTPUT_BUCKETS = 8;
 
