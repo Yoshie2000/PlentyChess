@@ -583,7 +583,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
             additionalReduction--;
         
-        if (!(stack - 1)->ttPv && stack->ttPv && depth >= 6 && (stack - 1)->reduction <= 2000)
+        if (!(stack - 1)->ttPv && stack->ttPv && depth >= 6 && (stack - 1)->reduction <= 2000 && !improving)
             additionalReduction++;
 
         depth -= additionalReduction;
