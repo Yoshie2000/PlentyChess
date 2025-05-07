@@ -59,10 +59,10 @@ std::string formatEval(Eval value) {
         evalString = "mate " + std::to_string(-(EVAL_MATE + value) / 2);
     }
     else if (value >= EVAL_TBWIN_IN_MAX_PLY) {
-        evalString = "cp " + std::to_string(1000 * 100 - (EVAL_TBWIN - value) * 100);
+        evalString = "cp " + std::to_string(1000 * 100 - ((EVAL_TBWIN - value) / 2 + 1) * 100);
     }
     else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
-        evalString = "cp " + std::to_string(-1000 * 100 + (EVAL_TBWIN + value) * 100);
+        evalString = "cp " + std::to_string(-1000 * 100 + ((EVAL_TBWIN + value) / 2) * 100);
     }
     else {
         evalString = "cp " + std::to_string(100 * value / 280);
