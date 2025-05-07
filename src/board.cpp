@@ -1204,10 +1204,12 @@ bool Board::hasUpcomingRepetition(int ply) {
                 return true;
 
             // Check for 2-fold repetition
-            BoardStack* compareStack2 = compareStack->previous->previous;
+            BoardStack* compareStack2 = compareStack;
             for (int k = i + 4; k <= maxPlyOffset; k += 2) {
+                if (k == i + 4)
+                    compareStack2 = compareStack2->previous->previous;
                 compareStack2 = compareStack->previous->previous;
-                if (compareStack2->hash == compareStack->hash)
+                if (compareStack2->hash == stack->hash)
                     return true;
             }
         }
