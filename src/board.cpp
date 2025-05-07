@@ -1180,37 +1180,34 @@ bool Board::hasUpcomingRepetition(int ply) {
     if (maxPlyOffset < 3)
         return false;
 
-    uint64_t hash = stack->hash;
     BoardStack* compareStack = stack->previous;
+    uint64_t delta = stack->hash ^ compareStack->hash ^ ZOBRIST_STM_BLACK;
 
     int j = 0;
     for (int i = 3; i <= maxPlyOffset; i += 2) {
+        delta ^= compareStack->previous->hash ^ compareStack->previous->previous->hash ^ ZOBRIST_STM_BLACK;
         compareStack = compareStack->previous->previous;
 
-        uint64_t moveHash = hash ^ compareStack->hash;
+        if (delta)
+            continue;
+
+        uint64_t moveHash = stack->hash ^ compareStack->hash;
         if ((j = H1(moveHash), CUCKOO_HASHES[j] == moveHash) || (j = H2(moveHash), CUCKOO_HASHES[j] == moveHash)) {
             Move move = CUCKOO_MOVES[j];
             Square origin = moveOrigin(move);
             Square target = moveTarget(move);
 
-            if (BB::BETWEEN[origin][target] & (byColor[Color::WHITE] | byColor[Color::BLACK]))
+            if ((BB::BETWEEN[origin][target] ^ bitboard(target)) & (byColor[Color::WHITE] | byColor[Color::BLACK]))
                 continue;
 
-            if (ply > i)
+            if (ply >= i)
                 return true;
 
-            Square pieceSquare = pieces[origin] == Piece::NONE ? target : origin;
-            Color pieceColor = (byColor[Color::WHITE] & bitboard(pieceSquare)) ? Color::WHITE : Color::BLACK;
-            if (pieceColor != stm)
-                continue;
-
             // Check for 2-fold repetition
-            BoardStack* compareStack2 = compareStack;
+            BoardStack* compareStack2 = compareStack->previous->previous;
             for (int k = i + 4; k <= maxPlyOffset; k += 2) {
-                if (k == i + 4)
-                    compareStack2 = compareStack2->previous->previous;
                 compareStack2 = compareStack->previous->previous;
-                if (compareStack2->hash == stack->hash)
+                if (compareStack2->hash == compareStack->hash)
                     return true;
             }
         }
