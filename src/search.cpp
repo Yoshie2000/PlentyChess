@@ -362,6 +362,7 @@ movesLoopQsearch:
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+        stack->history = 0;
 
         playedQuiet |= move != ttMove && !capture;
 
@@ -587,8 +588,12 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
-        return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
+    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
+        int rfpEffectiveDepth = depth - (improving && !board->opponentHasGoodCapture());
+        int rfpMargin = rfpFactor * rfpEffectiveDepth + (stack - 1)->history / 1000;
+        if (eval - rfpMargin >= beta)
+            return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
+    }
 
     // Razoring
     if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
@@ -616,6 +621,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[board->stm][0][0];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0];
+        stack->history = 0;
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
 
         board->doNullMove(&boardStack);
@@ -669,6 +675,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             stack->movedPiece = board->pieces[origin];
             stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
             stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+            stack->history = history.getHistory(board, &boardStack, stack, move, board->isCapture(move));
             board->doMove(&boardStack, move, newHash, &nnue);
 
             Eval value = -qsearch<NON_PV_NODE>(board, stack + 1, -probCutBeta, -probCutBeta + 1);
@@ -839,6 +846,7 @@ movesLoop:
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+        stack->history = moveHistory;
 
         moveCount++;
         searchData.nodesSearched++;
@@ -1149,6 +1157,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].inCheck = false;
                 stackList[i].correctionValue = 0;
                 stackList[i].reduction = 0;
+                stackList[i].history = 0;
                 stackList[i].inLMR = false;
                 stackList[i].ttPv = false;
             }
@@ -1379,6 +1388,7 @@ void Worker::tdatagen() {
             stackList[i].inCheck = false;
             stackList[i].correctionValue = 0;
             stackList[i].reduction = 0;
+            stackList[i].history = 0;
             stackList[i].inLMR = false;
             stackList[i].ttPv = false;
         }
