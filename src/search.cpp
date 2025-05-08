@@ -254,8 +254,8 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         threadPool->stopSearching();
 
     // Check for stop
-    if (stopped || exiting || stack->ply >= MAX_PLY || board->isDraw(stack->ply))
-        return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &nnue) : drawEval(this);
+    if (stopped || exiting || stack->ply >= MAX_PLY - 1 || board->isDraw(stack->ply))
+        return (stack->ply >= MAX_PLY - 1 && !board->stack->checkers) ? evaluate(board, &nnue) : drawEval(this);
 
     stack->inCheck = board->stack->checkerCount > 0;
 
@@ -425,6 +425,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     if (depth <= 0) return qsearch<nodeType>(board, stack, alpha, beta);
+    if (depth >= MAX_PLY - 1) depth = MAX_PLY - 1;
 
     if (!rootNode) {
 
@@ -433,8 +434,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             threadPool->stopSearching();
 
         // Check for stop or max depth
-        if (stopped || exiting || stack->ply >= MAX_PLY || board->isDraw(stack->ply))
-            return (stack->ply >= MAX_PLY && !board->stack->checkers) ? evaluate(board, &nnue) : drawEval(this);
+        if (stopped || exiting || stack->ply >= MAX_PLY - 1 || board->isDraw(stack->ply))
+            return (stack->ply >= MAX_PLY - 1 && !board->stack->checkers) ? evaluate(board, &nnue) : drawEval(this);
 
         // Mate distance pruning
         alpha = std::max((int)alpha, (int)matedIn(stack->ply));
@@ -735,6 +736,7 @@ movesLoop:
             ) {
 
             int lmrDepth = std::max(0, depth - earlyLmrReductionTableFactor * REDUCTIONS[!capture][depth][moveCount] / 1000000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            lmrDepth = std::min(MAX_PLY - 1, lmrDepth);
 
             if (!pvNode && !skipQuiets) {
 
@@ -1120,7 +1122,7 @@ void Worker::iterativeDeepening() {
     }
     multiPvCount = std::min(multiPvCount, UCI::Options.multiPV.value);
 
-    int maxDepth = searchParameters->depth == 0 ? MAX_PLY - 1 : searchParameters->depth;
+    int maxDepth = searchParameters->depth == 0 ? MAX_PLY - 1 : std::min(MAX_PLY - 1, searchParameters->depth);
 
     Eval previousValue = EVAL_NONE;
     Move previousMove = MOVE_NONE;
@@ -1364,7 +1366,7 @@ void Worker::tdatagen() {
 
     rootMoveNodes.clear();
 
-    int maxDepth = searchParameters->depth ? searchParameters->depth : MAX_PLY - 1;
+    int maxDepth = searchParameters->depth == 0 ? MAX_PLY - 1 : std::min(MAX_PLY - 1, searchParameters->depth);
 
     for (int depth = 1; depth <= maxDepth; depth++) {
         for (int i = 0; i < MAX_PLY + STACK_OVERHEAD + 2; i++) {
