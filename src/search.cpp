@@ -664,7 +664,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
             Square origin = moveOrigin(move);
             Square target = moveTarget(move);
-            stack->capture = true;
+            stack->capture = board->isCapture(move);
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
             stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
