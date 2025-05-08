@@ -17,7 +17,7 @@ int64_t getTime() {
 bool timeOver(SearchParameters* parameters, SearchData* data) {
     if (parameters->ponder)
         return false;
-    return (data->maxTime && (data->nodesSearched % 1024) == 0 && getTime() >= data->maxTime) || (parameters->nodes && data->nodesSearched >= parameters->nodes * (1 + 9 * UCI::Options.datagen.value));
+    return (data->maxTime && (data->nodesSearched.load(std::memory_order_relaxed) % 1024) == 0 && getTime() >= data->maxTime) || (parameters->nodes && data->nodesSearched.load(std::memory_order_relaxed) >= parameters->nodes * (1 + 9 * UCI::Options.datagen.value));
 }
 
 bool timeOverDepthCleared(SearchParameters* parameters, SearchData* data, double factor) {
@@ -25,7 +25,7 @@ bool timeOverDepthCleared(SearchParameters* parameters, SearchData* data, double
         return false;
     int64_t adjustedOptTime = (int64_t)(data->startTime + (double)(data->optTime - data->startTime) * factor);
     int64_t currentTime = getTime();
-    return (data->maxTime && (currentTime >= adjustedOptTime || currentTime >= data->maxTime)) || (parameters->nodes && data->nodesSearched >= parameters->nodes * (1 + 9 * UCI::Options.datagen.value));
+    return (data->maxTime && (currentTime >= adjustedOptTime || currentTime >= data->maxTime)) || (parameters->nodes && data->nodesSearched.load(std::memory_order_relaxed) >= parameters->nodes * (1 + 9 * UCI::Options.datagen.value));
 }
 
 void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchData* data) {

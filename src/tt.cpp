@@ -1,7 +1,7 @@
 #include "tt.h"
 #include "move.h"
 
-void TTEntry::update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags) {
+void __attribute__((no_sanitize("thread"))) TTEntry::update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags) {
     // Update bestMove if not MOVE_NONE
     // Or even clear move for a different position
     if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
@@ -16,7 +16,7 @@ void TTEntry::update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval,
     }
 }
 
-TTEntry* TranspositionTable::probe(uint64_t hash, bool* found) {
+TTEntry* __attribute__((no_sanitize("thread"))) TranspositionTable::probe(uint64_t hash, bool* found) {
     TTCluster* cluster = &table[index(hash)];
     uint64_t hash16 = (uint16_t)hash;
 

@@ -23,7 +23,7 @@ void Worker::startSearching() {
     rootBoard.stack = rootStack;
 
     if (searchParameters->perft)
-        searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
+        searchData.nodesSearched.store(perft(&rootBoard, searchParameters->depth), std::memory_order_relaxed);
     else if (searchParameters->genfens)
         tgenfens();
     else if (UCI::Options.datagen.value)
