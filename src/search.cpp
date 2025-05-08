@@ -304,6 +304,12 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     }
     futilityValue = std::min(stack->staticEval + qsFutilityOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
 
+    // Adjust quiet history based on how much the previous move changed static eval
+    if ((stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
+        int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + staticHistoryTempo;
+        history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
+    }
+
     // Stand pat
     if (bestValue >= beta) {
         if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
@@ -862,7 +868,7 @@ movesLoop:
 
             if (cutNode)
                 reduction += lmrCutnode;
-            
+
             if (stack->ttPv && ttHit && ttValue <= alpha)
                 reduction += lmrTtpvFaillow;
 
