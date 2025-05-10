@@ -772,49 +772,57 @@ movesLoop:
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
         if (doExtensions
-            && depth >= 6
             && move == ttMove
             && !excluded
-            && (ttFlag & TT_LOWERBOUND)
             && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
-            && ttDepth >= depth - 3
             ) {
-            Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth;
-            int singularDepth = (depth - 1) / 2;
+            if (depth >= 6
+                && (ttFlag & TT_LOWERBOUND)
+                && ttDepth >= depth - 3
+                ) {
+                Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth;
+                int singularDepth = (depth - 1) / 2;
 
-            bool currTtPv = stack->ttPv;
-            stack->excludedMove = move;
-            Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
-            stack->excludedMove = MOVE_NONE;
-            stack->ttPv = currTtPv;
+                bool currTtPv = stack->ttPv;
+                stack->excludedMove = move;
+                Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
+                stack->excludedMove = MOVE_NONE;
+                stack->ttPv = currTtPv;
 
-            if (stopped || exiting)
-                return 0;
+                if (stopped || exiting)
+                    return 0;
 
-            if (singularValue < singularBeta) {
-                // This move is singular and we should investigate it further
-                extension = 1;
-                if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
-                    extension = 2;
-                    depth += depth < doubleExtensionDepthIncrease;
-                    if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
-                        extension = 3;
+                if (singularValue < singularBeta) {
+                    // This move is singular and we should investigate it further
+                    extension = 1;
+                    if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
+                        extension = 2;
+                        depth += depth < doubleExtensionDepthIncrease;
+                        if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
+                            extension = 3;
+                    }
                 }
+                // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
+                else if (singularBeta >= beta) {
+                    Eval value = std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
+                    ttEntry->update(board->stack->hash, ttMove, singularDepth, unadjustedEval, value, stack->ttPv, TT_LOWERBOUND);
+                    return value;
+                }
+                // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
+                else if (ttValue >= beta)
+                    extension = -3;
+                // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
+                else if (cutNode)
+                    extension = -2;
+                else if (ttValue <= alpha)
+                    extension = -1;
             }
-            // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
-            else if (singularBeta >= beta) {
-                Eval value = std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(board->stack->hash, ttMove, singularDepth, unadjustedEval, value, stack->ttPv, TT_LOWERBOUND);
-                return value;
-            }
-            // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
-            else if (ttValue >= beta)
-                extension = -3;
-            // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
-            else if (cutNode)
-                extension = -2;
-            else if (ttValue <= alpha)
-                extension = -1;
+            else if (depth < 6
+                && !board->stack->checkers
+                && !stack->staticEval + 25 <= alpha
+                && (ttFlag & TT_LOWERBOUND)
+                )
+                extension = 1;
         }
 
         uint64_t newHash = board->hashAfter(move);
@@ -862,7 +870,7 @@ movesLoop:
 
             if (cutNode)
                 reduction += lmrCutnode;
-            
+
             if (stack->ttPv && ttHit && ttValue <= alpha)
                 reduction += lmrTtpvFaillow;
 
