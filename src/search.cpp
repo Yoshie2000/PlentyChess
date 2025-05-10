@@ -859,6 +859,9 @@ movesLoop:
 
             if (!stack->ttPv)
                 reduction += lmrTtPv;
+            
+            if (pvNode)
+                reduction -= 500;
 
             if (cutNode)
                 reduction += lmrCutnode;
