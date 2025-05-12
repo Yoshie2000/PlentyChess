@@ -224,15 +224,15 @@ void updatePv(SearchStack* stack, Move move) {
 
 int valueToTT(int value, int ply) {
     if (value == EVAL_NONE) return EVAL_NONE;
-    if (value > EVAL_TBWIN_IN_MAX_PLY) value += ply;
-    else if (value < -EVAL_TBWIN_IN_MAX_PLY) value -= ply;
+    if (value >= EVAL_TBWIN_IN_MAX_PLY) value += ply;
+    else if (value <= -EVAL_TBWIN_IN_MAX_PLY) value -= ply;
     return value;
 }
 
 int valueFromTt(int value, int ply) {
     if (value == EVAL_NONE) return EVAL_NONE;
-    if (value > EVAL_TBWIN_IN_MAX_PLY) value -= ply;
-    else if (value < -EVAL_TBWIN_IN_MAX_PLY) value += ply;
+    if (value >= EVAL_TBWIN_IN_MAX_PLY) value -= ply;
+    else if (value <= -EVAL_TBWIN_IN_MAX_PLY) value += ply;
     return value;
 }
 
@@ -517,7 +517,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             }
 
             if (tbBound == TT_EXACTBOUND || (tbBound == TT_LOWERBOUND ? tbValue >= beta : tbValue <= alpha)) {
-                ttEntry->update(board->stack->hash, MOVE_NONE, MAX_PLY, EVAL_NONE, tbValue, stack->ttPv, tbBound);
+                ttEntry->update(board->stack->hash, MOVE_NONE, MAX_PLY, EVAL_NONE, valueToTT(tbValue, stack->ply), stack->ttPv, tbBound);
                 return tbValue;
             }
 
