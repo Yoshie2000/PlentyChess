@@ -347,16 +347,16 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
     }
 
     // Update king checking stuff
-    // Square enemyKing = lsb(byColor[stm] & byPiece[Piece::KING]);
-    // stack->checkers = attackersTo(enemyKing, byColor[Color::WHITE] | byColor[Color::BLACK]) & byColor[flip(stm)];
-    // stack->checkerCount = BB::popcount(stack->checkers);
+    Square enemyKing = lsb(byColor[stm] & byPiece[Piece::KING]);
+    stack->checkers = attackersTo(enemyKing, byColor[Color::WHITE] | byColor[Color::BLACK]) & byColor[flip(stm)];
+    stack->checkerCount = BB::popcount(stack->checkers);
 
-    // updateSliderPins(Color::WHITE);
-    // updateSliderPins(Color::BLACK);
+    updateSliderPins(Color::WHITE);
+    updateSliderPins(Color::BLACK);
 
-    // chess960 = isChess960;
+    chess960 = isChess960;
 
-    // calculateThreats();
+    calculateThreats();
 
     return i;
 }
