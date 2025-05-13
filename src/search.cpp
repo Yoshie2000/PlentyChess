@@ -951,7 +951,7 @@ movesLoop:
             rootMove->meanScore = rootMove->meanScore == EVAL_NONE ? value : (rootMove->meanScore + value) / 2;
 
             if (moveCount == 1 || value > alpha) {
-                rootMove->value = value;
+                rootMove->value = mainThread ? value : std::min(rootMove->value, beta);
                 rootMove->depth = searchData.rootDepth;
                 rootMove->selDepth = searchData.selDepth;
 
