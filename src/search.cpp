@@ -1015,7 +1015,7 @@ movesLoop:
     }
 
     if (bestMove == MOVE_NONE && !(stack - 1)->capture && (stack - 1)->move != MOVE_NONE && moveType((stack - 1)->move) != MOVE_PROMOTION) {
-        int bonus = std::min(50 + 50 * depth, 1000);
+        int bonus = std::min(24 + 227 * depth, 1997);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
 

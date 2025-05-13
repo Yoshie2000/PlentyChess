@@ -229,7 +229,7 @@ void History::updateQuietHistories(int depth, Board* board, BoardStack* boardSta
     int pawnHistMalus = std::min(historyMalusPawnBase + historyMalusPawnFactor * depth, historyMalusPawnMax);
     
     // Increase stats for this move
-    updateQuietHistory(move, board->stm, board, boardStack, quietHistBonus * moveSearchCount);
+    updateQuietHistory(move, board->stm, board, boardStack, quietHistBonus);
     updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, contHistBonus * moveSearchCount);
     updatePawnHistory(board, move, pawnHistBonus * moveSearchCount);
 
@@ -237,7 +237,7 @@ void History::updateQuietHistories(int depth, Board* board, BoardStack* boardSta
     for (int i = 0; i < quietMoveCount; i++) {
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
-        updateQuietHistory(qMove, board->stm, board, boardStack, -quietHistMalus * quietSearchCount[i]);
+        updateQuietHistory(qMove, board->stm, board, boardStack, -quietHistMalus);
         updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -contHistMalus * quietSearchCount[i]);
         updatePawnHistory(board, qMove, -pawnHistMalus * quietSearchCount[i]);
     }
