@@ -951,7 +951,8 @@ movesLoop:
             rootMove->meanScore = rootMove->meanScore == EVAL_NONE ? value : (rootMove->meanScore + value) / 2;
 
             if (moveCount == 1 || value > alpha) {
-                rootMove->value = mainThread ? value : std::min(rootMove->value, beta);
+                rootMove->value = value;
+                rootMove->votingValue = mainThread ? value : std::min(rootMove->value, beta);
                 rootMove->depth = searchData.rootDepth;
                 rootMove->selDepth = searchData.selDepth;
 
@@ -962,6 +963,7 @@ movesLoop:
             }
             else {
                 rootMove->value = -EVAL_INFINITE;
+                rootMove->votingValue = -EVAL_INFINITE;
             }
         }
 
@@ -1279,19 +1281,19 @@ Worker* Worker::chooseBestThread() {
 
         for (auto& worker : threadPool->workers) {
             for (auto& rm : worker->rootMoves) {
-                if (rm.value == -EVAL_INFINITE)
+                if (rm.votingValue == -EVAL_INFINITE)
                     break;
-                minValue = std::min(minValue, rm.value);
+                minValue = std::min(minValue, rm.votingValue);
             }
         }
         minValue++;
 
         for (auto& worker : threadPool->workers) {
             for (auto& rm : worker->rootMoves) {
-                if (rm.value == -EVAL_INFINITE)
+                if (rm.votingValue == -EVAL_INFINITE)
                     break;
                 // Votes weighted by depth and difference to the minimum value
-                votes[rm.move] += (rm.value - minValue + 10) * std::max(1, rm.depth - (worker->rootMoves[0].depth - rm.depth));
+                votes[rm.move] += (rm.votingValue - minValue + 10) * std::max(1, rm.depth - (worker->rootMoves[0].depth - rm.depth));
             }
         }
 
@@ -1299,11 +1301,11 @@ Worker* Worker::chooseBestThread() {
             Worker* thread = worker.get();
             for (size_t rmi = 0; rmi < thread->rootMoves.size(); rmi++) {
                 RootMove& rm = thread->rootMoves[rmi];
-                if (rm.value == -EVAL_INFINITE)
+                if (rm.votingValue == -EVAL_INFINITE)
                     break;
 
-                Eval thValue = rm.value;
-                Eval bestValue = bestThread->rootMoves[bestMoveIdx].value;
+                Eval thValue = rm.votingValue;
+                Eval bestValue = bestThread->rootMoves[bestMoveIdx].votingValue;
                 Move thMove = rm.move;
                 Move bestMove = bestThread->rootMoves[bestMoveIdx].move;
 
