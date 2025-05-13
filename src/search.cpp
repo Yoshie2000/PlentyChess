@@ -1223,7 +1223,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     if (bestMove == MOVE_NONE && !(stack - 1)->capture && (stack - 1)->move != MOVE_NONE && moveType((stack - 1)->move) != MOVE_PROMOTION) {
-        int bonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * depth, historyBonusQuietMax);
+        int bonus = std::min(50 + 50 * depth, 1000);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board, board->stack->previous, bonus);
     }
 
