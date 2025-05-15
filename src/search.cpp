@@ -263,7 +263,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
     Move ttMove = MOVE_NONE;
-    Eval ttValue = EVAL_NONE;
+    Eval ttValue = EVAL_NONE, ttUpperbound = EVAL_NONE, ttLowerbound = EVAL_NONE;
     Eval ttEval = EVAL_NONE;
     uint8_t ttFlag = TT_NOBOUND;
     bool ttPv = pvNode;
@@ -271,15 +271,23 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     ttEntry = TT.probe(board->stack->hash, &ttHit);
     if (ttHit) {
         ttMove = ttEntry->getMove();
-        ttValue = valueFromTt(ttEntry->getValue(), stack->ply);
         ttEval = ttEntry->getEval();
         ttFlag = ttEntry->getFlag();
+        ttUpperbound = ttEntry->getUpperbound();
+        ttLowerbound = ttEntry->getLowerbound();
+        ttValue = valueFromTt((ttFlag & TT_LOWERBOUND) ? ttLowerbound : ttUpperbound, stack->ply);
         ttPv = ttPv || ttEntry->getTtPv();
     }
 
     // TT cutoff
-    if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
-        return ttValue;
+    if (!pvNode && ttValue != EVAL_NONE) {
+        if (ttFlag == TT_UPPERBOUND && ttUpperbound <= alpha)
+            return ttUpperbound;
+        if (ttFlag == TT_LOWERBOUND && ttLowerbound >= beta)
+            return ttLowerbound;
+        if (ttFlag == TT_EXACTBOUND)
+            return ttValue;
+    }
 
     Move bestMove = MOVE_NONE;
     Eval bestValue, futilityValue, unadjustedEval;
@@ -294,7 +302,11 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         unadjustedEval = ttEval;
         stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, correctionValue);
 
-        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
+        if (ttFlag == TT_UPPERBOUND && ttUpperbound < bestValue)
+            bestValue = ttUpperbound;
+        if (ttFlag == TT_LOWERBOUND && ttLowerbound > bestValue)
+            bestValue = ttLowerbound;
+        if (ttFlag == TT_EXACTBOUND)
             bestValue = ttValue;
     }
     else {
@@ -459,7 +471,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
     Move ttMove = MOVE_NONE;
-    Eval ttValue = EVAL_NONE, ttEval = EVAL_NONE;
+    Eval ttValue = EVAL_NONE, ttUpperbound = EVAL_NONE, ttLowerbound = EVAL_NONE, ttEval = EVAL_NONE;
     int ttDepth = 0;
     uint8_t ttFlag = TT_NOBOUND;
     stack->ttPv = excluded ? stack->ttPv : pvNode;
@@ -468,17 +480,25 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         ttEntry = TT.probe(board->stack->hash, &ttHit);
         if (ttHit) {
             ttMove = rootNode && rootMoves[0].value > -EVAL_INFINITE ? rootMoves[0].move : ttEntry->getMove();
-            ttValue = valueFromTt(ttEntry->getValue(), stack->ply);
             ttEval = ttEntry->getEval();
             ttDepth = ttEntry->getDepth();
             ttFlag = ttEntry->getFlag();
+            ttUpperbound = ttEntry->getUpperbound();
+            ttLowerbound = ttEntry->getLowerbound();
+            ttValue = valueFromTt((ttFlag & TT_LOWERBOUND) ? ttLowerbound : ttUpperbound, stack->ply);
             stack->ttPv = stack->ttPv || ttEntry->getTtPv();
         }
     }
 
     // TT cutoff
-    if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
-        return ttValue;
+    if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE) {
+        if (ttFlag == TT_UPPERBOUND && ttUpperbound <= alpha)
+            return ttUpperbound;
+        if (ttFlag == TT_LOWERBOUND && ttLowerbound >= beta)
+            return ttLowerbound;
+        if (ttFlag == TT_EXACTBOUND)
+            return ttValue;
+    }
 
     // TB Probe
     if (!rootNode && !excluded && BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
@@ -549,7 +569,11 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
         eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
 
-        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
+        if (ttFlag == TT_UPPERBOUND && ttUpperbound < eval)
+            eval = ttUpperbound;
+        if (ttFlag == TT_LOWERBOUND && ttLowerbound > eval)
+            eval = ttLowerbound;
+        if (ttFlag == TT_EXACTBOUND)
             eval = ttValue;
     }
     else {

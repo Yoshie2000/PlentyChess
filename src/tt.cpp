@@ -10,7 +10,16 @@ void TTEntry::update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval,
     if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + 2 * wasPv + 4 > depth) {
         hash = (uint16_t)_hash;
         depth = _depth;
-        value = _value;
+
+        if ((getFlag() & TT_LOWERBOUND) && (_flags & TT_UPPERBOUND) && _value < lowerbound)
+            lowerbound = EVAL_NONE;
+        if ((getFlag() & TT_UPPERBOUND) && (_flags & TT_LOWERBOUND) && _value > upperbound)
+            upperbound = EVAL_NONE;
+        if (_flags & TT_LOWERBOUND)
+            lowerbound = _value;
+        if (_flags & TT_UPPERBOUND)
+            upperbound = _value;
+
         eval = _eval;
         flags = (uint8_t)(_flags + (wasPv << 2)) | TT_GENERATION_COUNTER;
     }

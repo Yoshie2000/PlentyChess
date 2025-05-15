@@ -42,7 +42,7 @@ constexpr uint8_t TT_UPPERBOUND = 1;
 constexpr uint8_t TT_LOWERBOUND = 2;
 constexpr uint8_t TT_EXACTBOUND = 3;
 
-constexpr int CLUSTER_SIZE = 3;
+constexpr int CLUSTER_SIZE = 5;
 
 constexpr int GENERATION_PADDING = 3; // Reserved bits for flag / ttPv
 constexpr int GENERATION_DELTA = (1 << GENERATION_PADDING);
@@ -54,16 +54,18 @@ extern uint8_t TT_GENERATION_COUNTER;
 struct TTEntry {
     uint16_t hash = 0;
     Move bestMove = 0;
-    uint8_t depth = 0;
-    uint8_t flags = 0;
     int16_t eval = 0;
-    int16_t value = 0;
+    int16_t lowerbound = EVAL_NONE;
+    int16_t upperbound = EVAL_NONE;
+    uint8_t flags = 0;
+    uint8_t depth = 0;
 
     constexpr Move getMove() { return bestMove; };
     constexpr int getDepth() { return depth; };
     constexpr uint8_t getFlag() { return flags & 0x3; };
     constexpr Eval getEval() { return eval; };
-    constexpr Eval getValue() { return value; };
+    constexpr Eval getUpperbound() { return upperbound; };
+    constexpr Eval getLowerbound() { return lowerbound; };
     constexpr bool getTtPv() { return flags & 0x4; };
 
     void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags);
@@ -72,10 +74,10 @@ struct TTEntry {
 
 struct TTCluster {
     TTEntry entries[CLUSTER_SIZE];
-    char padding[2];
+    char padding[4];
 };
 
-static_assert(sizeof(TTCluster) == 32, "TTCluster size not correct!");
+static_assert(sizeof(TTCluster) == 64, "TTCluster size not correct!");
 
 class TranspositionTable {
 
