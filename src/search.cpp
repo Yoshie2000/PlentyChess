@@ -861,7 +861,7 @@ movesLoop:
                 reduction += lmrTtPv;
 
             if (cutNode)
-                reduction += lmrCutnode;
+                reduction += lmrCutnode - 500 * (ttDepth >= depth && ttValue >= beta && (ttFlag & TT_LOWERBOUND));
             
             if (stack->ttPv && ttHit && ttValue <= alpha)
                 reduction += lmrTtpvFaillow;
