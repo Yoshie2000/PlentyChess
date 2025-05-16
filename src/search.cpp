@@ -478,7 +478,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // TT cutoff
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
-        return ttValue;
+        return ttValue >= beta && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY ? (ttValue * 3 + beta) / 4 : ttValue;
 
     // TB Probe
     if (!rootNode && !excluded && BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
