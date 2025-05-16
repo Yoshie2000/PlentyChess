@@ -693,10 +693,6 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     assert(board->stack);
 
-    // IIR 2: Electric boolagoo
-    if (!ttHit && depth >= iirMinDepth && pvNode)
-        depth--;
-
 movesLoop:
 
     if (stopped || exiting)
@@ -848,6 +844,10 @@ movesLoop:
 
         Eval value = 0;
         int newDepth = depth - 1 + extension;
+
+        // IIR 2: Electric boolagoo
+        if (!ttHit && depth >= iirMinDepth && pvNode && move != ttMove)
+            newDepth--;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
