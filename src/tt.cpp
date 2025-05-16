@@ -11,9 +11,9 @@ void TTEntry::update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval,
         hash = (uint16_t)_hash;
         depth = _depth;
 
-        if ((getFlag() & TT_LOWERBOUND) && (_flags & TT_UPPERBOUND) && _value < lowerbound)
+        if ((lowerbound != EVAL_NONE && (_flags & TT_UPPERBOUND) && _value < lowerbound) || (uint16_t)_hash != hash)
             lowerbound = EVAL_NONE;
-        if ((getFlag() & TT_UPPERBOUND) && (_flags & TT_LOWERBOUND) && _value > upperbound)
+        if ((upperbound != EVAL_NONE && (_flags & TT_LOWERBOUND) && _value > upperbound) || (uint16_t)_hash != hash)
             upperbound = EVAL_NONE;
         if (_flags & TT_LOWERBOUND)
             lowerbound = _value;

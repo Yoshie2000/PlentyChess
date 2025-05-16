@@ -281,9 +281,9 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     // TT cutoff
     if (!pvNode && ttValue != EVAL_NONE) {
-        if (ttFlag == TT_UPPERBOUND && ttUpperbound <= alpha)
+        if (ttFlag && ttUpperbound != EVAL_NONE && ttUpperbound <= alpha)
             return ttUpperbound;
-        if (ttFlag == TT_LOWERBOUND && ttLowerbound >= beta)
+        if (ttFlag && ttLowerbound != EVAL_NONE && ttLowerbound >= beta)
             return ttLowerbound;
         if (ttFlag == TT_EXACTBOUND)
             return ttValue;
@@ -302,9 +302,9 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         unadjustedEval = ttEval;
         stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, correctionValue);
 
-        if (ttFlag == TT_UPPERBOUND && ttUpperbound < bestValue)
+        if (ttFlag && ttUpperbound != EVAL_NONE && ttUpperbound < bestValue)
             bestValue = ttUpperbound;
-        if (ttFlag == TT_LOWERBOUND && ttLowerbound > bestValue)
+        if (ttFlag && ttLowerbound != EVAL_NONE && ttLowerbound > bestValue)
             bestValue = ttLowerbound;
         if (ttFlag == TT_EXACTBOUND)
             bestValue = ttValue;
@@ -492,9 +492,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // TT cutoff
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE) {
-        if (ttFlag == TT_UPPERBOUND && ttUpperbound <= alpha)
+        if (ttFlag && ttUpperbound != EVAL_NONE && ttUpperbound <= alpha)
             return ttUpperbound;
-        if (ttFlag == TT_LOWERBOUND && ttLowerbound >= beta)
+        if (ttFlag && ttLowerbound != EVAL_NONE && ttLowerbound >= beta)
             return ttLowerbound;
         if (ttFlag == TT_EXACTBOUND)
             return ttValue;
@@ -569,9 +569,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
         eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
 
-        if (ttFlag == TT_UPPERBOUND && ttUpperbound < eval)
+        if (ttFlag && ttUpperbound != EVAL_NONE && ttUpperbound < eval)
             eval = ttUpperbound;
-        if (ttFlag == TT_LOWERBOUND && ttLowerbound > eval)
+        if (ttFlag && ttLowerbound != EVAL_NONE && ttLowerbound > eval)
             eval = ttLowerbound;
         if (ttFlag == TT_EXACTBOUND)
             eval = ttValue;
