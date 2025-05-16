@@ -550,7 +550,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
-            eval = ttValue;
+            eval = ttFlag == TT_LOWERBOUND ? (3 * ttValue + eval) / 4 : ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
