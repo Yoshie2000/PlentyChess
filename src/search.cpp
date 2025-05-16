@@ -281,9 +281,9 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     // TT cutoff
     if (!pvNode && ttValue != EVAL_NONE) {
-        if (ttFlag && ttUpperbound != EVAL_NONE && ttUpperbound <= alpha)
+        if (ttFlag == TT_UPPERBOUND && ttUpperbound <= alpha)
             return ttUpperbound;
-        if (ttFlag && ttLowerbound != EVAL_NONE && ttLowerbound >= beta)
+        if (ttFlag == TT_LOWERBOUND && ttLowerbound >= beta)
             return ttLowerbound;
         if (ttFlag == TT_EXACTBOUND)
             return ttValue;
@@ -492,9 +492,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // TT cutoff
     if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE) {
-        if (ttFlag && ttUpperbound != EVAL_NONE && ttUpperbound <= alpha)
+        if (ttFlag == TT_UPPERBOUND && ttUpperbound <= alpha)
             return ttUpperbound;
-        if (ttFlag && ttLowerbound != EVAL_NONE && ttLowerbound >= beta)
+        if (ttFlag == TT_LOWERBOUND && ttLowerbound >= beta)
             return ttLowerbound;
         if (ttFlag == TT_EXACTBOUND)
             return ttValue;
