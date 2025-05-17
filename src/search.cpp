@@ -846,7 +846,7 @@ movesLoop:
         int newDepth = depth - 1 + extension;
 
         // IIR 2: Electric boolagoo
-        if (!ttHit && depth >= iirMinDepth && pvNode && move != ttMove)
+        if (!ttHit && depth >= iirMinDepth && pvNode)
             newDepth--;
 
         // Very basic LMR: Late moves are being searched with less depth
