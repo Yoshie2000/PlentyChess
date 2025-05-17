@@ -450,6 +450,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    int ttDepthExtension = 0;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -694,8 +695,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     assert(board->stack);
 
     // IIR 2: Electric boolagoo
-    if (!ttHit && depth >= iirMinDepth && pvNode)
+    if (!ttHit && depth >= iirMinDepth && pvNode) {
         depth--;
+        ttDepthExtension++;
+    }
 
 movesLoop:
 
@@ -1022,7 +1025,7 @@ movesLoop:
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(board->stack->hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), stack->ttPv, flags);
+        ttEntry->update(board->stack->hash, bestMove, depth + ttDepthExtension, unadjustedEval, valueToTT(bestValue, stack->ply), stack->ttPv, flags);
 
     // Adjust correction history
     if (!board->stack->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
