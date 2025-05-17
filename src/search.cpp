@@ -674,9 +674,14 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
             Eval value = -qsearch<NON_PV_NODE>(board, stack + 1, -probCutBeta, -probCutBeta + 1);
 
-            if (value >= probCutBeta)
+            if (value >= probCutBeta) {
+                stack->reduction = 4000;
+                stack->inLMR = true;
                 value = -search<NON_PV_NODE>(board, stack + 1, depth - 4, -probCutBeta, -probCutBeta + 1, !cutNode);
-
+                stack->reduction = 0;
+                stack->inLMR = false;
+            }
+                
             board->undoMove(move, &nnue);
 
             if (stopped || exiting)
