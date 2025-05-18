@@ -865,7 +865,8 @@ movesLoop:
             
             if (stack->ttPv && ttHit && ttValue <= alpha)
                 reduction += lmrTtpvFaillow;
-
+            
+            reduction += 50 * moveCount;
             reduction -= std::abs(correctionValue / lmrCorrection);
 
             if (capture)
