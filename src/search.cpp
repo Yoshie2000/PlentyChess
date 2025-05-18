@@ -854,6 +854,8 @@ movesLoop:
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !stack->ttPv || cutNode)) {
             int reduction = REDUCTIONS[!capture][depth][moveCount];
 
+            reduction -= 150;
+
             if (board->stack->checkers)
                 reduction -= lmrCheck;
 
