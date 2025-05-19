@@ -76,7 +76,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
     // "Special" moves pass SEE
     if (moveType(move) == MOVE_PROMOTION) {
         Piece promotionPiece = PROMOTION_PIECE[promotionType(move)];
-        return threshold <= SEE_VALUES[promotionPiece] - SEE_VALUES[PAWN];
+        return promotionPiece == Piece::QUEEN || (threshold <= SEE_VALUES[promotionPiece] - SEE_VALUES[PAWN]);
     } else if (moveType(move)) {
         return threshold <= 0;
     }        
