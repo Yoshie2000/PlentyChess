@@ -338,7 +338,7 @@ Move MoveGen::nextMove() {
             return move;
         }
 
-        if (probCut || onlyCaptures) {
+        if (onlyCaptures) {
             stage = STAGE_DONE;
             return MOVE_NONE;
         }
@@ -360,9 +360,20 @@ Move MoveGen::nextMove() {
         if (counterMove != MOVE_NONE && counterMove != ttMove && counterMove != killer && !board->isCapture(counterMove) && board->isPseudoLegal(counterMove))
             return counterMove;
 
+        if (probCut) {
+            stage = STAGE_DONE;
+            return MOVE_NONE;
+        }
+
         [[fallthrough]];
 
     case STAGE_GEN_QUIETS:
+
+        if (probCut) {
+            stage = STAGE_DONE;
+            return MOVE_NONE;
+        }
+
         beginIndex = generatedMoves;
         moves = moveList + generatedMoves;
         // If in double check, only generate king moves
