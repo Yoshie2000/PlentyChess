@@ -21,6 +21,7 @@
 #include "nnue.h"
 #include "uci.h"
 #include "fathom/src/tbprobe.h"
+#include <random>
 
 // Time management
 TUNE_FLOAT_DISABLED(tmInitialAdjustment, 1.0796307320901835f, 0.5f, 1.5f);
@@ -136,6 +137,12 @@ int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
 int LMP_MARGIN[MAX_PLY][2];
 
+constexpr int RANDOMISED_REDUCTION_SIZE = 1024;
+constexpr int RANDOMISED_REDUCTION_MEAN = 0;
+constexpr int RANDOMISED_REDUCTION_STDDEV = 15;
+constexpr int RANDOMISED_REDUCTION_MAX = 50;
+int RANDOMISED_REDUCTION[RANDOMISED_REDUCTION_SIZE];
+
 void initReductions() {
     REDUCTIONS[0][0][0] = 0;
     REDUCTIONS[1][0][0] = 0;
@@ -153,6 +160,14 @@ void initReductions() {
 
         LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
         LMP_MARGIN[depth][1] = lmpMarginImprovingBase + lmpMarginImprovingFactor * std::pow(depth, lmpMarginImprovingPower); // improving
+    }
+
+    std::mt19937 gen(7346348957);
+    std::normal_distribution<> dist(RANDOMISED_REDUCTION_MEAN, RANDOMISED_REDUCTION_STDDEV);
+
+    for (int i = 0; i < RANDOMISED_REDUCTION_SIZE; ++i) {
+        int value = static_cast<int>(std::round(dist(gen)));
+        RANDOMISED_REDUCTION[i] = std::clamp(value, -RANDOMISED_REDUCTION_MAX, RANDOMISED_REDUCTION_MAX);
     }
 }
 
@@ -862,7 +877,7 @@ movesLoop:
 
             if (cutNode)
                 reduction += lmrCutnode;
-            
+
             if (stack->ttPv && ttHit && ttValue <= alpha)
                 reduction += lmrTtpvFaillow;
 
@@ -872,6 +887,8 @@ movesLoop:
                 reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
             else
                 reduction -= 1000 * moveHistory / lmrHistoryFactorQuiet;
+            
+            reduction += RANDOMISED_REDUCTION[searchData.nodesSearched % RANDOMISED_REDUCTION_SIZE];
 
             int reducedDepth = std::clamp(newDepth - reduction / 1000, 1, newDepth + pvNode);
             stack->reduction = reduction;
