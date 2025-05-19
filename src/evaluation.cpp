@@ -74,8 +74,12 @@ bool SEE(Board* board, Move move, Eval threshold) {
     assert(board->isPseudoLegal(move));
 
     // "Special" moves pass SEE
-    if (move >> 12)
+    if (moveType(move) == MOVE_PROMOTION) {
+        Piece promotionPiece = PROMOTION_PIECE[promotionType(move)];
+        return threshold <= SEE_VALUES[promotionPiece] - SEE_VALUES[PAWN];
+    } else if (moveType(move)) {
         return threshold <= 0;
+    }        
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
