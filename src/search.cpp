@@ -578,8 +578,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         depth--;
 
     // Post-LMR depth adjustments
-    if ((stack - 1)->inLMR) {
+    if ((stack - 1)->inLMR && !excluded && !stack->ttPv) {
         int additionalReduction = 0;
+
         if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
             additionalReduction--;
 
