@@ -75,7 +75,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
 
     // "Special" moves pass SEE
     if (move >> 12)
-        return true;
+        return threshold <= 0;
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
