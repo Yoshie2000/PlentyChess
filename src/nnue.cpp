@@ -154,10 +154,8 @@ void NNUE::calculateAccumulators(Board* board) {
         KingBucketInfo* inputKingBucket = &inputAcc->kingBucketInfo[side];
         KingBucketInfo* outputKingBucket = &outputAcc->kingBucketInfo[side];
 
-        if (inputKingBucket->mirrored != outputKingBucket->mirrored) {
-            // Refresh threat features
+        if (inputKingBucket->mirrored != outputKingBucket->mirrored)
             refreshThreatFeatures<side>(outputAcc, outputKingBucket);
-        }
         else {
             // Incrementally update threat features
             ThreatInputs::FeatureList addThreatFeatureList;
@@ -166,17 +164,10 @@ void NNUE::calculateAccumulators(Board* board) {
             applyAccumulatorUpdates<side>((VecI16*)inputAcc->threatState[side], (VecI16*)outputAcc->threatState[side], addThreatFeatureList, subThreatFeatureList);
         }
 
-        if (inputKingBucket->bucket != outputKingBucket->bucket || inputKingBucket->mirrored != outputKingBucket->mirrored) {
-            // Refresh piece features
+        if (inputKingBucket->bucket != outputKingBucket->bucket || inputKingBucket->mirrored != outputKingBucket->mirrored)
             refreshPieceFeatures<side>(outputAcc, outputKingBucket);
-        }
-        else {
-            // Incrementally update piece features
-            ThreatInputs::FeatureList addPieceFeatureList;
-            ThreatInputs::FeatureList subPieceFeatureList;
-            calculatePieceFeatures<side>(outputAcc, outputKingBucket, addPieceFeatureList, subPieceFeatureList);
-            applyAccumulatorUpdates<side>((VecI16*)inputAcc->pieceState[side], (VecI16*)outputAcc->pieceState[side], addPieceFeatureList, subPieceFeatureList);
-        }
+        else
+            incrementallyUpdatePieceFeatures<side>(inputAcc, outputAcc, outputKingBucket);
 
         lastCalculatedAccumulator[side]++;
     }
@@ -226,7 +217,7 @@ __attribute_noinline__ void NNUE::refreshThreatFeatures(Accumulator* acc, KingBu
 }
 
 template<Color side>
-__attribute_noinline__ void NNUE::calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
+__attribute_noinline__ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
     for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
         DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
 
@@ -234,18 +225,18 @@ __attribute_noinline__ void NNUE::calculatePieceFeatures(Accumulator* outputAcc,
 
         if (dirtyPiece.origin == NO_SQUARE) {
             int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
-            addFeatureList.add(featureIndex);
+            addToAccumulator<side>(inputAcc->pieceState, outputAcc->pieceState, featureIndex);
         }
         else if (dirtyPiece.target == NO_SQUARE) {
             int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
-            subFeatureList.add(featureIndex);
+            subFromAccumulator<side>(inputAcc->pieceState, outputAcc->pieceState, featureIndex);
         }
         else {
             int subIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
             int addIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
-            addFeatureList.add(addIndex);
-            subFeatureList.add(subIndex);
+            addSubToAccumulator<side>(inputAcc->pieceState, outputAcc->pieceState, addIndex, subIndex);
         }
+        inputAcc = outputAcc;
     }
 }
 

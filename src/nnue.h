@@ -485,7 +485,7 @@ public:
   __attribute_noinline__ void refreshThreatFeatures(Accumulator* acc, KingBucketInfo* kingBucket);
 
   template<Color side>
-  __attribute_noinline__ void calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
+  __attribute_noinline__ void incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
   template<Color side>
   __attribute_noinline__ void calculateThreatFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
 
