@@ -1234,6 +1234,9 @@ void Worker::iterativeDeepening() {
             // Based on fraction of nodes that went into the best move
             tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched);
 
+            // Based on corrhist uncertainty
+            tmAdjustment *= 0.95f + std::min(0.15f, std::abs(history.getCorrectionValue(&rootBoard, stack)) / 75000000.0f);
+
             if (timeOverDepthCleared(searchParameters, &searchData, tmAdjustment)) {
                 threadPool->stopSearching();
                 return;
