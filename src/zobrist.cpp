@@ -15,6 +15,20 @@ uint64_t ZOBRIST_ENPASSENT[8];
 uint64_t CUCKOO_HASHES[8192];
 Move CUCKOO_MOVES[8192];
 
+struct xorshift64_state {
+    uint64_t a;
+};
+
+xorshift64_state state = { 7877869032597380199 };
+
+uint64_t xorshift64() {
+    uint64_t x = state.a;
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    return state.a = x;
+}
+
 void initZobrist() {
     std::mt19937 rng;
     rng.seed(934572);
@@ -23,18 +37,18 @@ void initZobrist() {
     for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
         for (Piece i = Piece::PAWN; i < Piece::TOTAL; ++i) {
             for (Square j = 0; j < 64; j++) {
-                ZOBRIST_PIECE_SQUARES[side][i][j] = dist(rng);
+                ZOBRIST_PIECE_SQUARES[side][i][j] = xorshift64();
             }
         }
     }
-    ZOBRIST_STM_BLACK = dist(rng);
-    ZOBRIST_NO_PAWNS = dist(rng);
+    ZOBRIST_STM_BLACK = xorshift64();
+    ZOBRIST_NO_PAWNS = xorshift64();
 
     ZOBRIST_CASTLING[0] = 0;
-    ZOBRIST_CASTLING[CASTLING_WHITE_KINGSIDE] = dist(rng);
-    ZOBRIST_CASTLING[CASTLING_WHITE_QUEENSIDE] = dist(rng);
-    ZOBRIST_CASTLING[CASTLING_BLACK_KINGSIDE] = dist(rng);
-    ZOBRIST_CASTLING[CASTLING_BLACK_QUEENSIDE] = dist(rng);
+    ZOBRIST_CASTLING[CASTLING_WHITE_KINGSIDE] = xorshift64();
+    ZOBRIST_CASTLING[CASTLING_WHITE_QUEENSIDE] = xorshift64();
+    ZOBRIST_CASTLING[CASTLING_BLACK_KINGSIDE] = xorshift64();
+    ZOBRIST_CASTLING[CASTLING_BLACK_QUEENSIDE] = xorshift64();
     ZOBRIST_CASTLING[CASTLING_WHITE_KINGSIDE | CASTLING_WHITE_QUEENSIDE] = ZOBRIST_CASTLING[CASTLING_WHITE_KINGSIDE] ^ ZOBRIST_CASTLING[CASTLING_WHITE_QUEENSIDE];
     ZOBRIST_CASTLING[CASTLING_WHITE_KINGSIDE | CASTLING_BLACK_KINGSIDE] = ZOBRIST_CASTLING[CASTLING_WHITE_KINGSIDE] ^ ZOBRIST_CASTLING[CASTLING_BLACK_KINGSIDE];
     ZOBRIST_CASTLING[CASTLING_WHITE_KINGSIDE | CASTLING_BLACK_QUEENSIDE] = ZOBRIST_CASTLING[CASTLING_WHITE_KINGSIDE] ^ ZOBRIST_CASTLING[CASTLING_BLACK_QUEENSIDE];
@@ -48,7 +62,7 @@ void initZobrist() {
     ZOBRIST_CASTLING[CASTLING_WHITE_KINGSIDE | CASTLING_WHITE_QUEENSIDE | CASTLING_BLACK_KINGSIDE | CASTLING_BLACK_QUEENSIDE] = ZOBRIST_CASTLING[CASTLING_WHITE_KINGSIDE] ^ ZOBRIST_CASTLING[CASTLING_WHITE_QUEENSIDE] ^ ZOBRIST_CASTLING[CASTLING_BLACK_KINGSIDE] ^ ZOBRIST_CASTLING[CASTLING_BLACK_QUEENSIDE];
 
     for (int i = 0; i < 8; i++) {
-        ZOBRIST_ENPASSENT[i] = dist(rng);
+        ZOBRIST_ENPASSENT[i] = xorshift64();
     }
 
     int count = 0;
@@ -76,6 +90,6 @@ void initZobrist() {
         }
     }
     if (count || count == 0) { // ensure usage to avoid warning
-       assert(count == 3668);
+        assert(count == 3668);
     }
 }
