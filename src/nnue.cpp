@@ -144,7 +144,7 @@ void NNUE::finalizeMove(Board* board) {
 }
 
 template<Color side>
-void NNUE::calculateAccumulators(Board* board) {
+__attribute_noinline__ void NNUE::calculateAccumulators() {
     // Incrementally update all accumulators for this side
     while (lastCalculatedAccumulator[side] < currentAccumulator) {
 
@@ -155,14 +155,9 @@ void NNUE::calculateAccumulators(Board* board) {
         KingBucketInfo* outputKingBucket = &outputAcc->kingBucketInfo[side];
 
         if (inputKingBucket->mirrored != outputKingBucket->mirrored)
-            refreshThreatFeatures<side>(outputAcc, outputKingBucket);
-        else {
-            // Incrementally update threat features
-            ThreatInputs::FeatureList addThreatFeatureList;
-            ThreatInputs::FeatureList subThreatFeatureList;
-            calculateThreatFeatures<side>(outputAcc, outputKingBucket, addThreatFeatureList, subThreatFeatureList);
-            applyAccumulatorUpdates<side>((VecI16*)inputAcc->threatState[side], (VecI16*)outputAcc->threatState[side], addThreatFeatureList, subThreatFeatureList);
-        }
+            refreshThreatFeatures<side>(outputAcc);
+        else
+            incrementallyUpdateThreatFeatures<side>(inputAcc, outputAcc, outputKingBucket);
 
         if (inputKingBucket->bucket != outputKingBucket->bucket || inputKingBucket->mirrored != outputKingBucket->mirrored)
             refreshPieceFeatures<side>(outputAcc, outputKingBucket);
@@ -174,7 +169,7 @@ void NNUE::calculateAccumulators(Board* board) {
 }
 
 template<Color side>
-void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
+__attribute_noinline__ void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
     FinnyEntry* finnyEntry = &finnyTable[kingBucket->mirrored][kingBucket->bucket];
 
     // Update matching finny table with the changed pieces
@@ -206,7 +201,7 @@ void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
 }
 
 template<Color side>
-__attribute_noinline__ void NNUE::refreshThreatFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
+__attribute_noinline__ void NNUE::refreshThreatFeatures(Accumulator* acc) {
     // Overwrite with biases
     memcpy(acc->threatState[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
@@ -241,7 +236,7 @@ __attribute_noinline__ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* 
 }
 
 template<Color side>
-__attribute_noinline__ void NNUE::calculateThreatFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
+__attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
         DirtyThreat dirtyThreat = outputAcc->dirtyThreats[dp];
 
@@ -257,66 +252,16 @@ __attribute_noinline__ void NNUE::calculateThreatFeatures(Accumulator* outputAcc
         int featureIndex = ThreatInputs::lookupThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy, hasSideOffset);
 
         if (featureIndex != -1) {
-            if (dirtyThreat.add) {
-                // int subIndex = subFeatureList.indexOf(featureIndex);
-                // if (subIndex == -1)
-                addFeatureList.add(featureIndex);
-                // else
-                //     subFeatureList.remove(subIndex);
-            }
-            else {
-                // int addIndex = addFeatureList.indexOf(featureIndex);
-                // if (addIndex == -1)
-                subFeatureList.add(featureIndex);
-                // else
-                //     addFeatureList.remove(addIndex);
-            }
+            if (dirtyThreat.add)
+                addToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, featureIndex);
+            else
+                subFromAccumulator<side>(inputAcc->threatState, outputAcc->threatState, featureIndex);
+            inputAcc = outputAcc;
         }
     }
-}
 
-template<Color side>
-__attribute_noinline__ void NNUE::applyAccumulatorUpdates(VecI16* inputVec, VecI16* outputVec, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
-    int commonEnd = std::min(addFeatureList.count(), subFeatureList.count());
-    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
-
-    constexpr int UNROLL_REGISTERS = std::min(16, L1_ITERATIONS);
-    VecI16 regs[UNROLL_REGISTERS];
-
-    for (int i = 0; i < L1_ITERATIONS / UNROLL_REGISTERS; ++i) {
-        int unrollOffset = i * UNROLL_REGISTERS;
-
-        VecI16* inputs = &inputVec[unrollOffset];
-        VecI16* outputs = &outputVec[unrollOffset];
-
-        for (int j = 0; j < UNROLL_REGISTERS; j++)
-            regs[j] = inputs[j];
-
-        for (int j = 0; j < commonEnd; j++) {
-            VecI16* addWeights = &weightsVec[unrollOffset + addFeatureList[j] * L1_SIZE / I16_VEC_SIZE];
-            VecI16* subWeights = &weightsVec[unrollOffset + subFeatureList[j] * L1_SIZE / I16_VEC_SIZE];
-
-            for (int k = 0; k < UNROLL_REGISTERS; k++)
-                regs[k] = subEpi16(addEpi16(regs[k], addWeights[k]), subWeights[k]);
-        }
-
-        for (int j = commonEnd; j < addFeatureList.count(); j++) {
-            VecI16* addWeights = &weightsVec[unrollOffset + addFeatureList[j] * L1_SIZE / I16_VEC_SIZE];
-
-            for (int k = 0; k < UNROLL_REGISTERS; k++)
-                regs[k] = addEpi16(regs[k], addWeights[k]);
-        }
-
-        for (int j = commonEnd; j < subFeatureList.count(); j++) {
-            VecI16* subWeights = &weightsVec[unrollOffset + subFeatureList[j] * L1_SIZE / I16_VEC_SIZE];
-
-            for (int k = 0; k < UNROLL_REGISTERS; k++)
-                regs[k] = subEpi16(regs[k], subWeights[k]);
-        }
-
-        for (int j = 0; j < UNROLL_REGISTERS; j++)
-            outputs[j] = regs[j];
-    }
+    if (!outputAcc->numDirtyThreats)
+        memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->inputBiases));
 }
 
 template<Color side>
@@ -364,8 +309,8 @@ alignas(ALIGNMENT) uint8_t l1Neurons[L1_SIZE];
 
 Eval NNUE::evaluate(Board* board) {
     // Make sure the current accumulators are up to date
-    calculateAccumulators<Color::WHITE>(board);
-    calculateAccumulators<Color::BLACK>(board);
+    calculateAccumulators<Color::WHITE>();
+    calculateAccumulators<Color::BLACK>();
 
     assert(lastCalculatedAccumulator[Color::WHITE] == currentAccumulator && lastCalculatedAccumulator[Color::BLACK] == currentAccumulator);
 

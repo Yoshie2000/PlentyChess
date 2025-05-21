@@ -474,20 +474,17 @@ public:
 
   Eval evaluate(Board* board);
   template<Color side>
-  __attribute_noinline__ void calculateAccumulators(Board* board);
-
-  template<Color side>
-  __attribute_noinline__ void applyAccumulatorUpdates(VecI16* inputVec, VecI16* outputVec, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
+  __attribute_noinline__ void calculateAccumulators();
 
   template<Color side>
   __attribute_noinline__ void refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket);
   template<Color side>
-  __attribute_noinline__ void refreshThreatFeatures(Accumulator* acc, KingBucketInfo* kingBucket);
+  __attribute_noinline__ void refreshThreatFeatures(Accumulator* acc);
 
   template<Color side>
   __attribute_noinline__ void incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
   template<Color side>
-  __attribute_noinline__ void calculateThreatFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
+  __attribute_noinline__ void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
   template<Color side>
   void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
