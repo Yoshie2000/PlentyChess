@@ -118,7 +118,8 @@ namespace ThreatInputs {
     int localThreatIndex(Square to, Bitboard attackedByFrom);
     Bitboard mirrorBitboard(Bitboard bitboard);
     
-    void addSideFeatures(Board* board, Color side, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT);
+    void addThreatFeatures(Board* board, Color side, FeatureList& features);
+    void addPieceFeatures(Board* board, Color side, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT);
     
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket);
     int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, int sideOffset);

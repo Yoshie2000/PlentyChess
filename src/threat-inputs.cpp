@@ -20,10 +20,9 @@ namespace ThreatInputs {
         return ((bitboard >> 4) & K4) | ((bitboard & K4) << 4);
     }
 
-    void addSideFeatures(Board* board, Color pov, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT) {
+    void addThreatFeatures(Board* board, Color pov, FeatureList& features) {
         // Check HM and get occupancies
         Square king = lsb(board->byColor[pov] & board->byPiece[Piece::KING]);
-        uint8_t kingBucket = KING_BUCKET_LAYOUT[king ^ (56 * pov)];
         bool hm = fileOf(king) >= 4;
 
         Bitboard occupancy = board->byColor[Color::WHITE] | board->byColor[Color::BLACK];
@@ -44,10 +43,7 @@ namespace ThreatInputs {
                 while (pieceBitboard) {
                     Square indexSquare = popLSB(&pieceBitboard);
                     Square square = indexSquare ^ (hm * 7);
-
-                    // Add the "standard" 768 piece feature
                     Square relativeSquare = square ^ (56 * pov);
-                    features.add(getPieceFeature(piece, relativeSquare, static_cast<Color>(side != pov), kingBucket));
 
                     // Add the threat features
                     Bitboard attacks = board->stack->threats.toSquare[indexSquare];
@@ -70,6 +66,30 @@ namespace ThreatInputs {
                         if (threatFeature != -1)
                             features.add(threatFeature);
                     }
+                }
+            }
+        }
+    }
+
+    void addPieceFeatures(Board* board, Color pov, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT) {
+        // Check HM and get occupancies
+        Square king = lsb(board->byColor[pov] & board->byPiece[Piece::KING]);
+        uint8_t kingBucket = KING_BUCKET_LAYOUT[king ^ (56 * pov)];
+        bool hm = fileOf(king) >= 4;
+
+        // Loop through sides and pieces
+        for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
+            for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
+                Bitboard pieceBitboard = board->byColor[side] & board->byPiece[piece];
+
+                // Add features for this piece
+                while (pieceBitboard) {
+                    Square indexSquare = popLSB(&pieceBitboard);
+                    Square square = indexSquare ^ (hm * 7);
+
+                    // Add the "standard" 768 piece feature
+                    Square relativeSquare = square ^ (56 * pov);
+                    features.add(getPieceFeature(piece, relativeSquare, static_cast<Color>(side != pov), kingBucket));
                 }
             }
         }
