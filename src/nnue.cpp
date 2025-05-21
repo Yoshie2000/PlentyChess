@@ -45,6 +45,16 @@ void NNUE::reset(Board* board) {
     currentAccumulator = 0;
     lastCalculatedAccumulator[Color::WHITE] = 0;
     lastCalculatedAccumulator[Color::BLACK] = 0;
+
+    // Also reset finny tables
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < KING_BUCKETS; j++) {
+            memset(finnyTable[i][j].byColor, 0, sizeof(finnyTable[i][j].byColor));
+            memset(finnyTable[i][j].byPiece, 0, sizeof(finnyTable[i][j].byPiece));
+            memset(finnyTable[i][j].pieceState[Color::WHITE], 0, sizeof(networkData->inputBiases));
+            memset(finnyTable[i][j].pieceState[Color::BLACK], 0, sizeof(networkData->inputBiases));
+        }
+    }
 }
 
 template<Color side>
@@ -174,49 +184,34 @@ void NNUE::calculateAccumulators(Board* board) {
 
 template<Color side>
 void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
-    memset(acc->pieceState[side], 0, sizeof(acc->pieceState[side]));
+    FinnyEntry* finnyEntry = &finnyTable[kingBucket->mirrored][kingBucket->bucket];
 
-    ThreatInputs::FeatureList addPieceFeatureList;
-    ThreatInputs::addPieceFeatures(acc->byColor[side], acc->byPiece[side], side, addPieceFeatureList, KING_BUCKET_LAYOUT);
-    for (int featureIndex : addPieceFeatureList)
-        addToAccumulator<side>(acc->pieceState, acc->pieceState, featureIndex);
-    // for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
-    //     for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
-    //         Bitboard bb = acc->byColor[side][c] & acc->byPiece[side][p];
+    // Update matching finny table with the changed pieces
+    for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
+        for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
+            Bitboard finnyBB = finnyEntry->byColor[side][c] & finnyEntry->byPiece[side][p];
+            Bitboard accBB = acc->byColor[side][c] & acc->byPiece[side][p];
 
-    //         while (bb) {
-    //             Square square = popLSB(&bb) ^ (7 * kingBucket->mirrored) ^ (56 * side);
-    //             addToAccumulator<side>(acc->pieceState, acc->pieceState, ThreatInputs::getPieceFeature(p, square, static_cast<Color>(side != c), kingBucket->bucket));
-    //         }
-    //     }
-    // }
+            Bitboard addBB = accBB & ~finnyBB;
+            Bitboard removeBB = ~accBB & finnyBB;
 
-    // FinnyEntry* finnyEntry = &finnyTable[acc->kingBucketInfo[side].mirrored][acc->kingBucketInfo[side].index];
+            while (addBB) {
+                Square square = popLSB(&addBB);
+                int featureIndex = ThreatInputs::getPieceFeature(p, square ^ (side * 56) ^ (kingBucket->mirrored * 7), static_cast<Color>(c != side), kingBucket->bucket);
+                addToAccumulator<side>(finnyEntry->pieceState, finnyEntry->pieceState, featureIndex);
+            }
+            while (removeBB) {
+                Square square = popLSB(&removeBB);
+                int featureIndex = ThreatInputs::getPieceFeature(p, square ^ (side * 56) ^ (kingBucket->mirrored * 7), static_cast<Color>(c != side), kingBucket->bucket);
+                subFromAccumulator<side>(finnyEntry->pieceState, finnyEntry->pieceState, featureIndex);
+            }
+        }
+    }
+    memcpy(finnyEntry->byColor[side], acc->byColor[side], sizeof(finnyEntry->byColor[side]));
+    memcpy(finnyEntry->byPiece[side], acc->byPiece[side], sizeof(finnyEntry->byPiece[side]));
 
-    // // Update matching finny table with the changed pieces
-    // for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
-    //     for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
-    //         Bitboard finnyBB = finnyEntry->byColor[side][c] & finnyEntry->byPiece[side][p];
-    //         Bitboard accBB = acc->byColor[side][c] & acc->byPiece[side][p];
-
-    //         Bitboard addBB = accBB & ~finnyBB;
-    //         Bitboard removeBB = ~accBB & finnyBB;
-
-    //         while (addBB) {
-    //             Square square = popLSB(&addBB);
-    //             addPieceToAccumulator<side>(finnyEntry->colors, finnyEntry->colors, &acc->kingBucketInfo[side], square, p, c);
-    //         }
-    //         while (removeBB) {
-    //             Square square = popLSB(&removeBB);
-    //             removePieceFromAccumulator<side>(finnyEntry->colors, finnyEntry->colors, &acc->kingBucketInfo[side], square, p, c);
-    //         }
-    //     }
-    // }
-    // memcpy(finnyEntry->byColor[side], acc->byColor[side], sizeof(finnyEntry->byColor[side]));
-    // memcpy(finnyEntry->byPiece[side], acc->byPiece[side], sizeof(finnyEntry->byPiece[side]));
-
-    // // Copy result to the current accumulator
-    // memcpy(acc->colors[side], finnyEntry->colors[side], sizeof(acc->colors[side]));
+    // Copy result to the current accumulator
+    memcpy(acc->pieceState[side], finnyEntry->pieceState[side], sizeof(acc->pieceState[side]));
 }
 
 template<Color side>

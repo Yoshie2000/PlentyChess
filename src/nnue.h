@@ -425,6 +425,13 @@ struct Accumulator {
   Threats threats[2];
 };
 
+struct FinnyEntry {
+  alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
+
+  Bitboard byColor[2][2];
+  Bitboard byPiece[2][Piece::TOTAL];
+};
+
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
@@ -448,6 +455,8 @@ public:
   Accumulator accumulatorStack[MAX_PLY + 8];
   int currentAccumulator;
   int lastCalculatedAccumulator[2];
+
+  FinnyEntry finnyTable[2][KING_BUCKETS];
 
   void addPiece(Square square, Piece piece, Color pieceColor);
   void removePiece(Square square, Piece piece, Color pieceColor);
