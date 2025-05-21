@@ -414,7 +414,8 @@ constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
 }
 
 struct Accumulator {
-  alignas(ALIGNMENT) int16_t colors[2][L1_SIZE];
+  alignas(ALIGNMENT) int16_t threatState[2][L1_SIZE];
+  alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
 
   DirtyPiece dirtyPieces[4];
   int numDirtyPieces;
@@ -472,7 +473,7 @@ public:
   template<Color side>
   __attribute_noinline__ void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
   template<Color side>
-  __attribute_noinline__ void applyAccumulatorUpdates(Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
+  __attribute_noinline__ void applyAccumulatorUpdates(VecI16* inputVec, VecI16* outputVec, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
 
   template<Color side>
   __attribute_noinline__ void calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);

@@ -48,12 +48,19 @@ void NNUE::reset(Board* board) {
 template<Color side>
 __attribute_noinline__ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     // Overwrite with biases
-    memcpy(acc->colors[side], networkData->inputBiases, sizeof(networkData->inputBiases));
+    memcpy(acc->threatState[side], networkData->inputBiases, sizeof(networkData->inputBiases));
+    // Overwrite with zeroes
+    memset(acc->pieceState[side], 0, sizeof(acc->pieceState[side]));
 
-    ThreatInputs::FeatureList features;
-    ThreatInputs::addSideFeatures(board, side, features, KING_BUCKET_LAYOUT);
-    for (int featureIndex : features)
-        addToAccumulator<side>(acc->colors, acc->colors, featureIndex);
+    ThreatInputs::FeatureList threatFeatures;
+    ThreatInputs::addThreatFeatures(board, side, threatFeatures);
+    for (int featureIndex : threatFeatures)
+        addToAccumulator<side>(acc->threatState, acc->threatState, featureIndex);
+    
+    ThreatInputs::FeatureList pieceFeatures;
+    ThreatInputs::addPieceFeatures(board, side, pieceFeatures, KING_BUCKET_LAYOUT);
+    for (int featureIndex : pieceFeatures)
+        addToAccumulator<side>(acc->pieceState, acc->pieceState, featureIndex);
 
     acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
     memcpy(acc->byColor[side], board->byColor, sizeof(board->byColor));
@@ -156,13 +163,15 @@ void NNUE::calculateAccumulators(Board* board) {
 
 template<Color side>
 __attribute_noinline__ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
-    ThreatInputs::FeatureList addFeatureList;
-    ThreatInputs::FeatureList subFeatureList;
+    ThreatInputs::FeatureList addThreatFeatureList;
+    ThreatInputs::FeatureList subThreatFeatureList;
+    calculateThreatFeatures<side>(outputAcc, kingBucket, addThreatFeatureList, subThreatFeatureList);
+    applyAccumulatorUpdates<side>((VecI16*)inputAcc->threatState[side], (VecI16*)outputAcc->threatState[side], addThreatFeatureList, subThreatFeatureList);
 
-    calculatePieceFeatures<side>(outputAcc, kingBucket, addFeatureList, subFeatureList);
-    calculateThreatFeatures<side>(outputAcc, kingBucket, addFeatureList, subFeatureList);
-
-    applyAccumulatorUpdates<side>(inputAcc, outputAcc, addFeatureList, subFeatureList);
+    ThreatInputs::FeatureList addPieceFeatureList;
+    ThreatInputs::FeatureList subPieceFeatureList;
+    calculatePieceFeatures<side>(outputAcc, kingBucket, addPieceFeatureList, subPieceFeatureList);
+    applyAccumulatorUpdates<side>((VecI16*)inputAcc->pieceState[side], (VecI16*)outputAcc->pieceState[side], addPieceFeatureList, subPieceFeatureList);
 
     outputAcc->updated[side] = true;
 }
@@ -227,10 +236,8 @@ __attribute_noinline__ void NNUE::calculateThreatFeatures(Accumulator* outputAcc
 }
 
 template<Color side>
-__attribute_noinline__ void NNUE::applyAccumulatorUpdates(Accumulator* inputAcc, Accumulator* outputAcc, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
+__attribute_noinline__ void NNUE::applyAccumulatorUpdates(VecI16* inputVec, VecI16* outputVec, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList) {
     int commonEnd = std::min(addFeatureList.count(), subFeatureList.count());
-    VecI16* inputVec = (VecI16*)inputAcc->colors[side];
-    VecI16* outputVec = (VecI16*)outputAcc->colors[side];
     VecI16* weightsVec = (VecI16*)networkData->inputWeights;
 
     constexpr int UNROLL_REGISTERS = std::min(16, L1_ITERATIONS);
@@ -330,8 +337,10 @@ Eval NNUE::evaluate(Board* board) {
 
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
-    VecI16* stmAcc = reinterpret_cast<VecI16*>(accumulator->colors[board->stm]);
-    VecI16* oppAcc = reinterpret_cast<VecI16*>(accumulator->colors[1 - board->stm]);
+    VecI16* stmThreatAcc = reinterpret_cast<VecI16*>(accumulator->threatState[board->stm]);
+    VecI16* stmPieceAcc = reinterpret_cast<VecI16*>(accumulator->pieceState[board->stm]);
+    VecI16* oppThreatAcc = reinterpret_cast<VecI16*>(accumulator->threatState[1 - board->stm]);
+    VecI16* oppPieceAcc = reinterpret_cast<VecI16*>(accumulator->pieceState[1 - board->stm]);
 
     VecIu8* l1NeuronsVec = reinterpret_cast<VecIu8*>(l1Neurons);
     VecI16 i16Zero = set1Epi16(0);
@@ -341,26 +350,26 @@ Eval NNUE::evaluate(Board* board) {
     constexpr int pairwiseOffset = L1_SIZE / I16_VEC_SIZE / 2;
     for (int l1 = 0; l1 < pairwiseOffset; l1 += 2) {
         // STM
-        VecI16 clipped1 = minEpi16(maxEpi16(stmAcc[l1], i16Zero), i16Quant);
-        VecI16 clipped2 = minEpi16(stmAcc[l1 + pairwiseOffset], i16Quant);
+        VecI16 clipped1 = minEpi16(maxEpi16(addEpi16(stmThreatAcc[l1], stmPieceAcc[l1]), i16Zero), i16Quant);
+        VecI16 clipped2 = minEpi16(addEpi16(stmThreatAcc[l1 + pairwiseOffset], stmPieceAcc[l1 + pairwiseOffset]), i16Quant);
         VecI16 shift = slliEpi16(clipped1, inverseShift);
         VecI16 mul1 = mulhiEpi16(shift, clipped2);
 
-        clipped1 = minEpi16(maxEpi16(stmAcc[l1 + 1], i16Zero), i16Quant);
-        clipped2 = minEpi16(stmAcc[l1 + 1 + pairwiseOffset], i16Quant);
+        clipped1 = minEpi16(maxEpi16(addEpi16(stmThreatAcc[l1 + 1], stmPieceAcc[l1 + 1]), i16Zero), i16Quant);
+        clipped2 = minEpi16(addEpi16(stmThreatAcc[l1 + pairwiseOffset + 1], stmPieceAcc[l1 + pairwiseOffset + 1]), i16Quant);
         shift = slliEpi16(clipped1, inverseShift);
         VecI16 mul2 = mulhiEpi16(shift, clipped2);
 
         l1NeuronsVec[l1 / 2] = packusEpi16(mul1, mul2);
 
         // NSTM
-        clipped1 = minEpi16(maxEpi16(oppAcc[l1], i16Zero), i16Quant);
-        clipped2 = minEpi16(oppAcc[l1 + pairwiseOffset], i16Quant);
+        clipped1 = minEpi16(maxEpi16(addEpi16(oppThreatAcc[l1], oppPieceAcc[l1]), i16Zero), i16Quant);
+        clipped2 = minEpi16(addEpi16(oppThreatAcc[l1 + pairwiseOffset], oppPieceAcc[l1 + pairwiseOffset]), i16Quant);
         shift = slliEpi16(clipped1, inverseShift);
         mul1 = mulhiEpi16(shift, clipped2);
 
-        clipped1 = minEpi16(maxEpi16(oppAcc[l1 + 1], i16Zero), i16Quant);
-        clipped2 = minEpi16(oppAcc[l1 + 1 + pairwiseOffset], i16Quant);
+        clipped1 = minEpi16(maxEpi16(addEpi16(oppThreatAcc[l1 + 1], oppPieceAcc[l1 + 1]), i16Zero), i16Quant);
+        clipped2 = minEpi16(addEpi16(oppThreatAcc[l1 + pairwiseOffset + 1], oppPieceAcc[l1 + pairwiseOffset + 1]), i16Quant);
         shift = slliEpi16(clipped1, inverseShift);
         mul2 = mulhiEpi16(shift, clipped2);
 
