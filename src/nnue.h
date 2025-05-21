@@ -402,10 +402,6 @@ struct KingBucketInfo {
   bool mirrored;
 };
 
-constexpr bool needsRefresh(KingBucketInfo* bucket1, KingBucketInfo* bucket2) {
-  return bucket1->mirrored != bucket2->mirrored || bucket1->bucket != bucket2->bucket;
-}
-
 constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
   return KingBucketInfo{
     static_cast<uint8_t>(KING_BUCKET_LAYOUT[kingSquare ^ (56 * color)]),
@@ -425,8 +421,8 @@ struct Accumulator {
   KingBucketInfo kingBucketInfo[2];
   Bitboard byColor[2][2];
   Bitboard byPiece[2][Piece::TOTAL];
-
-  bool updated[2];
+  Piece pieces[2][64];
+  Threats threats[2];
 };
 
 struct NetworkData {
@@ -451,6 +447,7 @@ public:
 
   Accumulator accumulatorStack[MAX_PLY + 8];
   int currentAccumulator;
+  int lastCalculatedAccumulator[2];
 
   void addPiece(Square square, Piece piece, Color pieceColor);
   void removePiece(Square square, Piece piece, Color pieceColor);
@@ -468,12 +465,15 @@ public:
 
   Eval evaluate(Board* board);
   template<Color side>
-  void calculateAccumulators(Board* board);
+  __attribute_noinline__ void calculateAccumulators(Board* board);
 
   template<Color side>
-  __attribute_noinline__ void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
-  template<Color side>
   __attribute_noinline__ void applyAccumulatorUpdates(VecI16* inputVec, VecI16* outputVec, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);
+
+  template<Color side>
+  __attribute_noinline__ void refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket);
+  template<Color side>
+  __attribute_noinline__ void refreshThreatFeatures(Accumulator* acc, KingBucketInfo* kingBucket);
 
   template<Color side>
   __attribute_noinline__ void calculatePieceFeatures(Accumulator* outputAcc, KingBucketInfo* kingBucket, ThreatInputs::FeatureList& addFeatureList, ThreatInputs::FeatureList& subFeatureList);

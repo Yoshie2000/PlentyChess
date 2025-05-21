@@ -20,24 +20,24 @@ namespace ThreatInputs {
         return ((bitboard >> 4) & K4) | ((bitboard & K4) << 4);
     }
 
-    void addThreatFeatures(Board* board, Color pov, FeatureList& features) {
+    void addThreatFeatures(Bitboard* byColor, Bitboard* byPiece, Piece* pieces, Threats* threats, Color pov, FeatureList& features) {
         // Check HM and get occupancies
-        Square king = lsb(board->byColor[pov] & board->byPiece[Piece::KING]);
+        Square king = lsb(byColor[pov] & byPiece[Piece::KING]);
         bool hm = fileOf(king) >= 4;
 
-        Bitboard occupancy = board->byColor[Color::WHITE] | board->byColor[Color::BLACK];
+        Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
         if (hm) occupancy = mirrorBitboard(occupancy);
-        Bitboard nonPovOccupancy = board->byColor[flip(pov)];
+        Bitboard nonPovOccupancy = byColor[flip(pov)];
         if (hm) nonPovOccupancy = mirrorBitboard(nonPovOccupancy);
 
         // Loop through sides and pieces
         for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
 
-            Bitboard enemyOccupancy = board->byColor[flip(side)];
+            Bitboard enemyOccupancy = byColor[flip(side)];
             if (hm) enemyOccupancy = mirrorBitboard(enemyOccupancy);
 
             for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
-                Bitboard pieceBitboard = board->byColor[side] & board->byPiece[piece];
+                Bitboard pieceBitboard = byColor[side] & byPiece[piece];
 
                 // Add features for this piece
                 while (pieceBitboard) {
@@ -46,15 +46,15 @@ namespace ThreatInputs {
                     Square relativeSquare = square ^ (56 * pov);
 
                     // Add the threat features
-                    Bitboard attacks = board->stack->threats.toSquare[indexSquare];
+                    Bitboard attacks = threats->toSquare[indexSquare];
                     if (hm) attacks = mirrorBitboard(attacks);
                     attacks &= occupancy;
                     while (attacks) {
                         Square attackingSquare = popLSB(&attacks);
                         Square attackingIndexSquare = attackingSquare ^ (hm * 7);
                         Square relativeAttackingSquare = attackingSquare ^ (56 * pov);
-                        Piece attackingPiece = board->pieces[attackingIndexSquare];
-                        Color attackingSide = (board->byColor[Color::WHITE] & bitboard(attackingIndexSquare)) ? Color::WHITE : Color::BLACK;
+                        Piece attackingPiece = pieces[attackingIndexSquare];
+                        Color attackingSide = (byColor[Color::WHITE] & bitboard(attackingIndexSquare)) ? Color::WHITE : Color::BLACK;
 
                         Color relativeSide = static_cast<Color>(pov != side);
                         bool enemy = attackingSide != side;
@@ -71,16 +71,16 @@ namespace ThreatInputs {
         }
     }
 
-    void addPieceFeatures(Board* board, Color pov, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT) {
+    void addPieceFeatures(Bitboard* byColor, Bitboard* byPiece, Color pov, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT) {
         // Check HM and get occupancies
-        Square king = lsb(board->byColor[pov] & board->byPiece[Piece::KING]);
+        Square king = lsb(byColor[pov] & byPiece[Piece::KING]);
         uint8_t kingBucket = KING_BUCKET_LAYOUT[king ^ (56 * pov)];
         bool hm = fileOf(king) >= 4;
 
         // Loop through sides and pieces
         for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
             for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
-                Bitboard pieceBitboard = board->byColor[side] & board->byPiece[piece];
+                Bitboard pieceBitboard = byColor[side] & byPiece[piece];
 
                 // Add features for this piece
                 while (pieceBitboard) {
