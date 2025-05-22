@@ -601,10 +601,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     BoardStack boardStack;
 
     // Null move pruning
-    if (!pvNode
+    if (!rootNode
         && eval >= beta
         && eval >= stack->staticEval
-        && stack->staticEval + nmpEvalDepth * depth - nmpEvalBase >= beta
+        && stack->staticEval + nmpEvalDepth * (depth + depth * pvNode) - nmpEvalBase >= beta
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY
         && !excluded
         && (stack - 1)->movedPiece != Piece::NONE
