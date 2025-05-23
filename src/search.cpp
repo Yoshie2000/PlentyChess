@@ -579,8 +579,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         depth--;
 
     // Post-LMR depth adjustments
-    if ((stack - 1)->inLMR) {
+    if ((stack - 1)->inLMR && !excluded) {
         int additionalReduction = 0;
+        
         if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
             additionalReduction--;
 
@@ -784,9 +785,11 @@ movesLoop:
             int singularDepth = (depth - 1) / 2;
 
             bool currTtPv = stack->ttPv;
+            Eval currStaticEval = stack->staticEval;
             stack->excludedMove = move;
             Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
             stack->excludedMove = MOVE_NONE;
+            stack->staticEval = currStaticEval;
             stack->ttPv = currTtPv;
 
             if (stopped || exiting)
