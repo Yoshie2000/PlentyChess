@@ -17,9 +17,9 @@ constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int THREAT_INPUT_SIZE = 79856;
 constexpr int INPUT_SIZE = THREAT_INPUT_SIZE + KING_BUCKETS * 768;
-constexpr int L1_SIZE = 2048;
-constexpr int L2_SIZE = 32;
-constexpr int L3_SIZE = 64;
+constexpr int L1_SIZE = 256;
+constexpr int L2_SIZE = 16;
+constexpr int L3_SIZE = 32;
 
 constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
@@ -30,9 +30,9 @@ constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
 struct RawNetworkData {
     float inputWeights[(INPUT_SIZE + 768 /* factoriser bucket at the beginning */) * L1_SIZE];
     float inputBiases[L1_SIZE];
-    float l1Weights[L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
+    float l1Weights[2 * L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
     float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    float l2Weights[L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
+    float l2Weights[2 * L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
     float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
     float l3Weights[L3_SIZE][OUTPUT_BUCKETS];
     float l3Biases[OUTPUT_BUCKETS];
@@ -41,9 +41,9 @@ struct RawNetworkData {
 struct NetworkData {
     alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
-    alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+    alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
     alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+    alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
     alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
     alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE];
     alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
@@ -79,9 +79,9 @@ void quantizeNetwork() {
 
     // // Quantize L1 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+        for (int l1 = 0; l1 < 2 * L1_SIZE; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                tmp.l1Weights[b][l2 * L1_SIZE + l1] = quantize<L1_QUANT>(((float*)raw.l1Weights)[b * L1_SIZE * L2_SIZE + l2 * L1_SIZE + l1]);
+                tmp.l1Weights[b][l2 * 2 * L1_SIZE + l1] = quantize<L1_QUANT>(((float*)raw.l1Weights)[b * 2 * L1_SIZE * L2_SIZE + l2 * 2 * L1_SIZE + l1]);
             }
         }
     }
@@ -101,7 +101,7 @@ void transposePermuteNetwork() {
     // Transpose L1 / L2 / L3 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
 #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-        for (int l1 = 0; l1 < L1_SIZE / INT8_PER_INT32; l1++) {
+        for (int l1 = 0; l1 < 2 * L1_SIZE / INT8_PER_INT32; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
                 for (int c = 0; c < INT8_PER_INT32; c++) {
                     out.l1Weights[b][l1 * INT8_PER_INT32 * L2_SIZE + l2 * INT8_PER_INT32 + c] = reinterpret_cast<int8_t*>(tmp.l1Weights)[(l1 * INT8_PER_INT32 + c) * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
@@ -109,14 +109,14 @@ void transposePermuteNetwork() {
             }
         }
 #else
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+        for (int l1 = 0; l1 < 2 * L1_SIZE; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
                 out.l1Weights[b][l1 * L2_SIZE + l2] = reinterpret_cast<int8_t*>(tmp.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
             }
         }
 #endif
 
-        for (int l2 = 0; l2 < L2_SIZE; l2++) {
+        for (int l2 = 0; l2 < 2 * L2_SIZE; l2++) {
             for (int l3 = 0; l3 < L3_SIZE; l3++) {
                 out.l2Weights[b][l2 * L3_SIZE + l3] = reinterpret_cast<float*>(tmp.l2Weights)[l2 * OUTPUT_BUCKETS * L3_SIZE + b * L3_SIZE + l3];
             }

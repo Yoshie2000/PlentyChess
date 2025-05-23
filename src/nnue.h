@@ -357,9 +357,9 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
 constexpr int KING_BUCKETS = 12;
 
 constexpr int INPUT_SIZE = 2 * ThreatInputs::PieceOffsets::END + 768 * KING_BUCKETS;
-constexpr int L1_SIZE = 2048;
-constexpr int L2_SIZE = 32;
-constexpr int L3_SIZE = 64;
+constexpr int L1_SIZE = 256;
+constexpr int L2_SIZE = 16;
+constexpr int L3_SIZE = 32;
 
 constexpr int OUTPUT_BUCKETS = 8;
 
@@ -367,8 +367,7 @@ constexpr int NETWORK_SCALE = 400;
 constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
 
-constexpr int INPUT_SHIFT = 9;
-constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
+constexpr float L1_NORMALISATION = static_cast<float>(1 << 1) / static_cast<float>(INPUT_QUANT * L1_QUANT);
 
 constexpr int ALIGNMENT = 64;
 
@@ -435,9 +434,9 @@ struct FinnyEntry {
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
-  alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+  alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
   alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-  alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+  alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
   alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
   alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE];
   alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
@@ -502,20 +501,20 @@ public:
 
 class NNZ {
 public:
-  int64_t activations[L1_SIZE / 2] = {};
+  int64_t activations[L1_SIZE] = {};
 
   void addActivations(uint8_t* neurons) {
-    for (int i = 0; i < L1_SIZE; i++) {
-      activations[i % (L1_SIZE / 2)] += bool(neurons[i]);
+    for (int i = 0; i < 2 * L1_SIZE; i++) {
+      activations[i % L1_SIZE] += bool(neurons[i]);
     }
   }
 
   int16_t oldInputWeights[INPUT_SIZE * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
-  int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+  int8_t  oldL1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
   NetworkData nnzOutNet;
 
-  int order[L1_SIZE / 2];
+  int order[L1_SIZE];
 
   void permuteNetwork() {
     std::ifstream infile("./quantised.bin", std::ios::binary);
@@ -530,28 +529,25 @@ public:
     memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
-    for (int i = 0; i < L1_SIZE / 2; i++) {
+    for (int i = 0; i < L1_SIZE; i++) {
       order[i] = i;
     }
-    std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
+    std::stable_sort(order, order + L1_SIZE, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
 
-    for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
+    for (int l1 = 0; l1 < L1_SIZE; l1++) {
 
       // Input weights
       for (int ip = 0; ip < INPUT_SIZE; ip++) {
         nnzOutNet.inputWeights[ip * L1_SIZE + l1] = oldInputWeights[ip * L1_SIZE + order[l1]];
-        nnzOutNet.inputWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
       }
 
       // Input biases
       nnzOutNet.inputBiases[l1] = oldInputBiases[order[l1]];
-      nnzOutNet.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[order[l1] + L1_SIZE / 2];
 
       // L1 weights
       for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
           reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
         }
       }
     }
