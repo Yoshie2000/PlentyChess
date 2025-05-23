@@ -534,12 +534,12 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Static evaluation
-    Eval eval = EVAL_NONE, probCutBeta = EVAL_NONE;
+    Eval eval = EVAL_NONE, probCutBeta = EVAL_NONE, improvingStaticEval = EVAL_NONE;
 
     Eval correctionValue = history.getCorrectionValue(board, stack, excluded);
     stack->correctionValue = correctionValue;
     if (board->stack->checkers) {
-        stack->staticEval = EVAL_NONE;
+        stack->staticEval = stack->unadjustedEval = EVAL_NONE;
         goto movesLoop;
     }
     else if (excluded) {
@@ -561,11 +561,12 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Improving
+    improvingStaticEval = excluded ? history.correctStaticEval(stack->unadjustedEval, history.getCorrectionValue(board, stack, false)) : stack->staticEval;
     if ((stack - 2)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 2)->staticEval;
+        improving = improvingStaticEval > (stack - 2)->staticEval;
     }
     else if ((stack - 4)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 4)->staticEval;
+        improving = improvingStaticEval > (stack - 4)->staticEval;
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
