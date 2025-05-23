@@ -13,10 +13,10 @@ class History {
     Move counterMoves[64][64];
     int16_t captureHistory[2][Piece::TOTAL][64][Piece::TOTAL];
 
-    int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
-    int16_t nonPawnCorrectionHistory[2][2][CORRECTION_HISTORY_SIZE];
-    int16_t minorCorrectionHistory[2][CORRECTION_HISTORY_SIZE];
-    int16_t majorCorrectionHistory[2][CORRECTION_HISTORY_SIZE];
+    int16_t correctionHistory[2][2][CORRECTION_HISTORY_SIZE];
+    int16_t nonPawnCorrectionHistory[2][2][2][CORRECTION_HISTORY_SIZE];
+    int16_t minorCorrectionHistory[2][2][CORRECTION_HISTORY_SIZE];
+    int16_t majorCorrectionHistory[2][2][CORRECTION_HISTORY_SIZE];
 
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
@@ -27,9 +27,9 @@ public:
 
     void initHistory();
 
-    Eval getCorrectionValue(Board* board, SearchStack* searchStack);
+    Eval getCorrectionValue(Board* board, SearchStack* searchStack, bool excluded);
     Eval correctStaticEval(Eval eval, Eval correctionValue);
-    void updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus);
+    void updateCorrectionHistory(Board* board, SearchStack* searchStack, bool excluded, int16_t bonus);
 
     int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
 

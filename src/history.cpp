@@ -71,12 +71,12 @@ void History::initHistory() {
     }
 }
 
-Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
-    int64_t pawnEntry = correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t nonPawnEntry = nonPawnCorrectionHistory[board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[board->stm][Color::BLACK][board->stack->nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t minorEntry = minorCorrectionHistory[board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t majorEntry = majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
+Eval History::getCorrectionValue(Board* board, SearchStack* searchStack, bool excluded) {
+    int64_t pawnEntry = correctionHistory[excluded][board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
+    int64_t nonPawnEntry = nonPawnCorrectionHistory[excluded][board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[excluded][board->stm][Color::BLACK][board->stack->nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
+    int64_t minorEntry = minorCorrectionHistory[excluded][board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)];
+    int64_t majorEntry = majorCorrectionHistory[excluded][board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)];
+    int64_t contEntry = !excluded && (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
 
     return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
 }
@@ -87,25 +87,25 @@ Eval History::correctStaticEval(Eval eval, Eval correctionValue) {
     return adjustedEval;
 }
 
-void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus) {
+void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, bool excluded, int16_t bonus) {
     // Pawn
-    Eval scaledBonus = bonus - correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    Eval scaledBonus = bonus - correctionHistory[excluded][board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    correctionHistory[excluded][board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 
     // Non-Pawn
-    scaledBonus = bonus - nonPawnCorrectionHistory[board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    nonPawnCorrectionHistory[board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
-    scaledBonus = bonus - nonPawnCorrectionHistory[board->stm][Color::BLACK][board->stack->nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    nonPawnCorrectionHistory[board->stm][Color::BLACK][board->stack->nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    scaledBonus = bonus - nonPawnCorrectionHistory[excluded][board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    nonPawnCorrectionHistory[excluded][board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    scaledBonus = bonus - nonPawnCorrectionHistory[excluded][board->stm][Color::BLACK][board->stack->nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    nonPawnCorrectionHistory[excluded][board->stm][Color::BLACK][board->stack->nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 
     // Minor / Major
-    scaledBonus = bonus - minorCorrectionHistory[board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    minorCorrectionHistory[board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
-    scaledBonus = bonus - majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    scaledBonus = bonus - minorCorrectionHistory[excluded][board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    minorCorrectionHistory[excluded][board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    scaledBonus = bonus - majorCorrectionHistory[excluded][board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    majorCorrectionHistory[excluded][board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 
     // Continuation
-    if ((searchStack - 1)->movedPiece != Piece::NONE) {
+    if (!excluded && (searchStack - 1)->movedPiece != Piece::NONE) {
         scaledBonus = bonus - *(searchStack - 1)->contCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
         *(searchStack - 1)->contCorrHist += scaledBonus;
     }
