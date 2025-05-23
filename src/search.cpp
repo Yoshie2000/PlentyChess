@@ -606,7 +606,6 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         && eval >= stack->staticEval
         && stack->staticEval + nmpEvalDepth * depth - nmpEvalBase >= beta
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY
-        && !excluded
         && (stack - 1)->movedPiece != Piece::NONE
         && depth >= 3
         && stack->ply >= searchData.nmpPlies
