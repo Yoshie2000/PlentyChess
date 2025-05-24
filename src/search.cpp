@@ -544,7 +544,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
     else if (excluded) {
         // stack->unadjustedEval is still set from the parent call
-        eval = stack->staticEval = history.correctStaticEval(stack->unadjustedEval, correctionValue);
+        eval = stack->staticEval = history.correctStaticEval(history.correctStaticEval(stack->unadjustedEval, correctionValue), history.getCorrectionValue(board, stack, false));
     }
     else if (ttHit) {
         stack->unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
