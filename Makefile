@@ -3,21 +3,25 @@ CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
 CXXFLAGS_EXTRA = 
 
 SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp src/threat-inputs.cpp src/fathom/src/tbprobe.c
-OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
+OBJS = $(patsubst %.cpp,%.o, $(patsubst %.c,%.o, $(SOURCES)))
 
 # Compiler detection for PGO
 COMPILER_VERSION := $(shell $(CXX) --version)
-ifneq (, $(findstring profile-build,$(MAKECMDGOALS)))
+ifneq (, $(filter profile-build _pgo,$(MAKECMDGOALS)))
 	ifneq (, $(findstring clang,$(COMPILER_VERSION)))
-		PGO_GENERATE := -fprofile-instr-generate
+		PGO_GENERATE := -fprofile-instr-generate -DPROFILE_GENERATE
 		PGO_USE := -fprofile-instr-use=default.profdata
 		PGO_MERGE := llvm-profdata merge -output=default.profdata default.profraw
 		PGO_FILES := default.profraw default.profdata
 
 		ifneq ($(OS), Windows_NT)
-			ifeq (,$(shell which llvm-profdata))
+		    ifneq (,$(shell xcrun -f llvm-profdata 2>/dev/null))
+		        PGO_MERGE := xcrun $(PGO_MERGE)
+		    else
+			    ifeq (,$(shell which llvm-profdata))
 $(warning llvm-profdata not found, disabling profile-build)
-				PGO_SKIP := true
+				    PGO_SKIP := true
+				endif
 			endif
 		else
 			ifeq (,$(shell where llvm-profdata))

@@ -75,5 +75,7 @@ void initZobrist() {
             }
         }
     }
-    assert(count == 3668);
+    if (count || count == 0) { // ensure usage to avoid warning
+       assert(count == 3668);
+    }
 }

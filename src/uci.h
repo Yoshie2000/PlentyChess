@@ -4,7 +4,7 @@
 
 #include "nnue.h"
 
-constexpr auto VERSION = "4.0.15";
+constexpr auto VERSION = "5.0.21";
 
 template<int... Is>
 struct seq { };
@@ -64,10 +64,15 @@ namespace UCI {
     struct UCIOptions {
         UCIOption<UCI_SPIN> hash = {
             "Hash",
+#ifdef PROFILE_GENERATE
+            64,
+            64,
+#else
             16,
             16,
+#endif
             1,
-            98304
+            1048576
         };
 
         UCIOption<UCI_SPIN> threads = {
@@ -75,7 +80,7 @@ namespace UCI {
             1,
             1,
             1,
-            512
+            4096
         };
 
         UCIOption<UCI_SPIN> multiPV = {
