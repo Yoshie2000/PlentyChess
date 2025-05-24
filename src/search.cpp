@@ -539,7 +539,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Eval correctionValue = history.getCorrectionValue(board, stack, excluded);
     stack->correctionValue = correctionValue;
     if (board->stack->checkers) {
-        stack->staticEval = EVAL_NONE;
+        stack->staticEval = stack->unadjustedEval = EVAL_NONE;
         goto movesLoop;
     }
     else if (excluded) {
@@ -1032,6 +1032,14 @@ movesLoop:
     if (!board->stack->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
         int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         history.updateCorrectionHistory(board, stack, excluded, bonus);
+    }
+
+    if (excluded) {
+        Eval nonExcludedStaticEval = history.correctStaticEval(stack->unadjustedEval, history.getCorrectionValue(board, stack, false));
+        if (!board->stack->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > nonExcludedStaticEval) && (!failLow || bestValue <= nonExcludedStaticEval)) {
+            int bonus = std::clamp((int)(bestValue - nonExcludedStaticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+            history.updateCorrectionHistory(board, stack, false, bonus);
+        }
     }
 
     assert(bestValue > -EVAL_INFINITE && bestValue < EVAL_INFINITE);
