@@ -852,13 +852,13 @@ movesLoop:
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !stack->ttPv || cutNode)) {
-            int reduction = REDUCTIONS[!capture][depth][moveCount];
+            int reduction = REDUCTIONS[!capture][depth][moveCount] + 1943;
 
             if (board->stack->checkers)
                 reduction -= lmrCheck;
 
-            if (!stack->ttPv)
-                reduction += lmrTtPv;
+            if (stack->ttPv)
+                reduction -= 1100 + 850 * pvNode;
 
             if (cutNode)
                 reduction += lmrCutnode;
