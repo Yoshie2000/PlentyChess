@@ -449,7 +449,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
-    bool improving = false, skipQuiets = false, excluded = excludedMove != MOVE_NONE;
+    bool improving = false, excluded = excludedMove != MOVE_NONE;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -720,14 +720,12 @@ movesLoop:
         if (rootNode && std::find(excludedRootMoves.begin(), excludedRootMoves.end(), move) != excludedRootMoves.end())
             continue;
 
-        bool capture = board->isCapture(move);
-        if (!capture && skipQuiets)
-            continue;
-
         if (!board->isLegal(move))
             continue;
-
+        
         uint64_t nodesBeforeMove = searchData.nodesSearched;
+        
+        bool capture = board->isCapture(move);
         int moveHistory = history.getHistory(board, board->stack, stack, move, capture);
 
         if (!rootNode
@@ -738,16 +736,17 @@ movesLoop:
             int lmrDepth = std::max(0, depth - earlyLmrReductionTableFactor * REDUCTIONS[!capture][depth][moveCount] / 1000000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
             lmrDepth = std::min(MAX_PLY - 1, lmrDepth);
 
-            if (!pvNode && !skipQuiets) {
+            if (!pvNode && !movegen.skipQuiets) {
 
                 // Movecount pruning (LMP)
                 if (moveCount >= LMP_MARGIN[depth][improving]) {
-                    skipQuiets = true;
+                    movegen.skipQuietMoves();
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha)
-                    skipQuiets = true;
+                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha) {
+                    movegen.skipQuietMoves();
+                }
             }
 
             // Futility pruning for captures

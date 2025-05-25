@@ -83,6 +83,8 @@ class MoveGen {
 
 public:
 
+    bool skipQuiets;
+
     // Main search
     MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int depth);
     // qSearch
@@ -91,6 +93,10 @@ public:
     MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int depth);
 
     Move nextMove();
+
+    void skipQuietMoves() {
+        skipQuiets = true;
+    }
 
 private:
 
