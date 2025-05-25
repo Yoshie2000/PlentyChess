@@ -734,7 +734,7 @@ movesLoop:
             ) {
 
             int lmrDepth = std::max(0, depth - earlyLmrReductionTableFactor * REDUCTIONS[!capture][depth][moveCount] / 1000000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
-            lmrDepth = std::min(MAX_PLY - 1, lmrDepth);
+            lmrDepth = std::min(depth + 1, lmrDepth);
 
             if (!pvNode && !movegen.skipQuiets) {
 
