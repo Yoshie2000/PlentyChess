@@ -734,7 +734,6 @@ movesLoop:
             ) {
 
             int lmrDepth = std::max(0, depth - earlyLmrReductionTableFactor * REDUCTIONS[!capture][depth][moveCount] / 1000000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
-            lmrDepth = std::min(depth + 1, lmrDepth);
 
             if (!pvNode && !movegen.skipQuiets) {
 
@@ -755,6 +754,8 @@ movesLoop:
                 if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
                     continue;
             }
+
+            lmrDepth = std::min(std::min(depth + 1, MAX_PLY - 1), lmrDepth);
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
