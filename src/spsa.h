@@ -18,9 +18,9 @@ struct SPSAValue {
 
     void printParam() {
         if (isFloat)
-            printf("%s, float, %f, %f, %f, %f, 0.002\n", varName.c_str(), (float)*varPointer, (float)minimumValue, (float)maximumValue, (float)((maximumValue - minimumValue) / 20.0));
+            printf("%s, float, %f, %f, %f, %f, 0.002\n", varName.c_str(), (float)*varPointer, (float)minimumValue, (float)maximumValue, (float)((maximumValue - minimumValue) / 40.0));
         else
-            printf("%s, int, %d, %d, %d, %f, 0.002\n", varName.c_str(), (int)*varPointer, (int)minimumValue, (int)maximumValue, (float)((maximumValue - minimumValue) / 20.0));
+            printf("%s, int, %d, %d, %d, %f, 0.002\n", varName.c_str(), (int)*varPointer, (int)minimumValue, (int)maximumValue, (float)((maximumValue - minimumValue) / 40.0));
     }
 
     void printUCIOption() {
@@ -92,7 +92,7 @@ public:
 
 };
 
-#define TUNE_ENABLED false
+#define TUNE_ENABLED true
 
 // Some fancy macro stuff to call the tune() methods inline from anywhere
 #define STRINGIFY(x) #x
