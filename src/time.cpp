@@ -4,11 +4,11 @@
 #include "uci.h"
 #include "spsa.h"
 
-TUNE_INT_DISABLED(maxTimeFactor, 751, 500, 1000);
-TUNE_INT_DISABLED(totalTimeDivisor, 141, 50, 500);
+TUNE_INT_DISABLED(maxTimeFactor, 747, 500, 1000);
+TUNE_INT_DISABLED(totalTimeDivisor, 137, 50, 500);
 TUNE_INT_DISABLED(totalTimeIncrementDivisor, 15, 5, 50);
-TUNE_FLOAT_DISABLED(optTimeFactor, 0.8399453763852353f, 0.5f, 1.5f);
-TUNE_FLOAT_DISABLED(maxTimeFactor2, 2.745510930271531f, 1.5f, 3.5f);
+TUNE_FLOAT_DISABLED(optTimeFactor, 0.837510858919496f, 0.5f, 1.5f);
+TUNE_FLOAT_DISABLED(maxTimeFactor2, 2.798931326086588f, 1.5f, 3.5f);
 
 int64_t getTime() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
