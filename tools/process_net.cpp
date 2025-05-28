@@ -156,56 +156,60 @@ void transposePermuteNetwork() {
     std::memcpy(out.l3Biases, tmp.l3Biases, sizeof(tmp.l3Biases));
 }
 
+#include <filesystem>
+
 int main(int argc, char* argv[]) {
     if (argc < 4) {
         std::cerr << "Usage: " << argv[0] << " <infile_is_floats> <infile> <outfile>\n";
         return -1;
     }
-    std::string infile_is_floats = argv[1];
-    bool in_is_floats = infile_is_floats == "true";
+    // std::string infile_is_floats = argv[1];
+    // bool in_is_floats = infile_is_floats == "true";
     std::string infile_name = argv[2];
     std::string outfilefile_name = argv[3];
 
-    if (in_is_floats) {
-        // Read the network
-        std::ifstream infile(infile_name, std::ios::binary);
-        if (!infile) {
-            std::cerr << "Error opening float file for reading (" << infile_name << ")" << std::endl;
-            return -1;
-        }
-        infile.read(reinterpret_cast<char*>(&raw), sizeof(raw));
-        infile.close();
+    std::filesystem::copy_file(infile_name, outfilefile_name, std::filesystem::copy_options::overwrite_existing);
 
-        quantizeNetwork();
+    // if (in_is_floats) {
+    //     // Read the network
+    //     std::ifstream infile(infile_name, std::ios::binary);
+    //     if (!infile) {
+    //         std::cerr << "Error opening float file for reading (" << infile_name << ")" << std::endl;
+    //         return -1;
+    //     }
+    //     infile.read(reinterpret_cast<char*>(&raw), sizeof(raw));
+    //     infile.close();
 
-        // Write the network
-        std::ofstream outfile("quantised.bin", std::ios::binary);
-        if (!outfile) {
-            std::cerr << "Error opening quantised file for writing" << std::endl;
-            return -1;
-        }
-        outfile.write(reinterpret_cast<char*>(&tmp), sizeof(tmp));
-        outfile.close();
-    }
-    else {
-        // Read the network
-        std::ifstream infile(infile_name, std::ios::binary);
-        if (!infile) {
-            std::cerr << "Error opening quantised file for reading (" << infile_name << ")" << std::endl;
-            return -1;
-        }
-        infile.read(reinterpret_cast<char*>(&tmp), sizeof(tmp));
-        infile.close();
-    }
+    //     quantizeNetwork();
 
-    transposePermuteNetwork();
+    //     // Write the network
+    //     std::ofstream outfile("quantised.bin", std::ios::binary);
+    //     if (!outfile) {
+    //         std::cerr << "Error opening quantised file for writing" << std::endl;
+    //         return -1;
+    //     }
+    //     outfile.write(reinterpret_cast<char*>(&tmp), sizeof(tmp));
+    //     outfile.close();
+    // }
+    // else {
+    //     // Read the network
+    //     std::ifstream infile(infile_name, std::ios::binary);
+    //     if (!infile) {
+    //         std::cerr << "Error opening quantised file for reading (" << infile_name << ")" << std::endl;
+    //         return -1;
+    //     }
+    //     infile.read(reinterpret_cast<char*>(&tmp), sizeof(tmp));
+    //     infile.close();
+    // }
 
-    // Write the network
-    std::ofstream outfile(outfilefile_name, std::ios::binary);
-    if (!outfile) {
-        std::cerr << "Error opening file for writing" << std::endl;
-        return -1;
-    }
-    outfile.write(reinterpret_cast<char*>(&out), sizeof(out));
-    outfile.close();
+    // transposePermuteNetwork();
+
+    // // Write the network
+    // std::ofstream outfile(outfilefile_name, std::ios::binary);
+    // if (!outfile) {
+    //     std::cerr << "Error opening file for writing" << std::endl;
+    //     return -1;
+    // }
+    // outfile.write(reinterpret_cast<char*>(&out), sizeof(out));
+    // outfile.close();
 }
