@@ -1,9 +1,14 @@
 CXX = clang++
 CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
 CXXFLAGS_EXTRA = 
+LDFLAGS = 
 
 SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp src/fathom/src/tbprobe.c
 OBJS = $(patsubst %.cpp,%.o, $(patsubst %.c,%.o, $(SOURCES)))
+
+ifeq (, $(findstring clang,$(COMPILER_VERSION)))
+	LDFLAGS := $(LDFLAGS) -fuse-ld=lld -flto=auto
+endif
 
 # Compiler detection for PGO
 COMPILER_VERSION := $(shell $(CXX) --version)
@@ -165,7 +170,7 @@ endif
 
 _pgo:	CXXFLAGS_EXTRA := $(PGO_GENERATE)
 _pgo:	$(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(LDFLAGS) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 		./$(PROGRAM) bench
 		$(RM) src/*.o *~ engine
 		$(PGO_MERGE)
@@ -173,7 +178,7 @@ _pgo:	$(OBJS)
 		$(RM) -rf $(PGO_FILES)
 
 _nopgo:	$(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(LDFLAGS) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 
 clean:	
 		$(RM) src/*.o *~ engine processed.bin
