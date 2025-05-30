@@ -759,11 +759,11 @@ movesLoop:
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && std::min(depth + 1, lmrDepth) < historyPruningDepth && moveHistory < hpFactor * depth)
+            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth)
                 continue;
 
             // SEE Pruning
-            if (!SEE(board, move, (2 + pvNode) * SEE_MARGIN[!capture ? lmrDepth : depth][!capture] / 2))
+            if (!SEE(board, move, (2 + pvNode) * SEE_MARGIN[!capture ? std::min(depth + 1, lmrDepth) : depth][!capture] / 2))
                 continue;
 
         }
