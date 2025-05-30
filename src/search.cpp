@@ -755,7 +755,7 @@ movesLoop:
                     continue;
             }
 
-            lmrDepth = std::min(std::min(depth + 1, MAX_PLY - 1), lmrDepth);
+            lmrDepth = std::min(std::min(depth, MAX_PLY - 1), lmrDepth);
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
