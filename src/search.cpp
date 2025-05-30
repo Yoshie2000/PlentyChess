@@ -49,7 +49,7 @@ TUNE_FLOAT(lmrReductionQuietBase, 1.1379245400518583f, 0.50f, 1.5f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.8997689712710466f, 2.0f, 4.0f);
 
 TUNE_FLOAT(seeMarginNoisy, -24.40422689842072f, -50.0f, -10.0f);
-TUNE_FLOAT(seeMarginQuiet, -77.46039783122589f, -100.0f, -50.0f);
+TUNE_FLOAT(seeMarginQuiet, -30.984f, -100.0f, -50.0f);
 TUNE_FLOAT(lmpMarginWorseningBase, 1.932336729298966f, -1.0f, 2.5f);
 TUNE_FLOAT(lmpMarginWorseningFactor, 0.4372991933478511f, 0.1f, 1.5f);
 TUNE_FLOAT(lmpMarginWorseningPower, 1.660804390081005f, 1.0f, 3.0f);
@@ -149,7 +149,7 @@ void initReductions() {
 
     for (int depth = 0; depth < MAX_PLY; depth++) {
         SEE_MARGIN[depth][0] = seeMarginNoisy * depth * depth; // non-quiet
-        SEE_MARGIN[depth][1] = seeMarginQuiet * depth; // quiet
+        SEE_MARGIN[depth][1] = seeMarginQuiet * depth * (1 + log(depth + 1)); // quiet
 
         LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
         LMP_MARGIN[depth][1] = lmpMarginImprovingBase + lmpMarginImprovingFactor * std::pow(depth, lmpMarginImprovingPower); // improving
