@@ -148,7 +148,7 @@ void initReductions() {
     }
 
     for (int depth = 0; depth < MAX_PLY; depth++) {
-        SEE_MARGIN[depth][0] = seeMarginNoisy * depth * depth; // non-quiet
+        SEE_MARGIN[depth][0] = seeMarginNoisy * depth * (1 + log(depth + 1)); // non-quiet
         SEE_MARGIN[depth][1] = seeMarginQuiet * depth; // quiet
 
         LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
