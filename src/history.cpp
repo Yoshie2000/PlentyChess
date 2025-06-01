@@ -46,6 +46,22 @@ TUNE_INT(minorCorrectionFactor, 3681, 1000, 7500);
 TUNE_INT(majorCorrectionFactor, 3125, 1000, 7500);
 TUNE_INT(continuationCorrectionFactor, 5129, 1000, 7500);
 
+// History weights
+TUNE_INT(quietHistWeight, 1000, 0, 2000);
+TUNE_INT(contHistWeight, 2000, 0, 4000);
+TUNE_INT(pawnHistWeight, 1000, 0, 2000);
+
+TUNE_INT(contHistWeightPly1, 2000, 0, 4000);
+TUNE_INT(contHistWeightPly2, 1000, 0, 2000);
+TUNE_INT(contHistWeightPly4, 1000, 0, 2000);
+TUNE_INT(contHistWeightPly6, 500, 0, 2000);
+
+TUNE_INT(contHistUpdateWeightPly1, 1000, 0, 2000);
+TUNE_INT(contHistUpdateWeightPly2, 1000, 0, 2000);
+TUNE_INT(contHistUpdateWeightPly3, 250, 0, 1000);
+TUNE_INT(contHistUpdateWeightPly4, 1000, 0, 2000);
+TUNE_INT(contHistUpdateWeightPly6, 500, 0, 2000);
+
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
     for (Square s1 = 0; s1 < 64; s1++) {
@@ -116,7 +132,9 @@ int History::getHistory(Board* board, BoardStack* boardStack, SearchStack* searc
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(move, board->stm, board, boardStack) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
+        return quietHistWeight * getQuietHistory(move, board->stm, board, boardStack) / 1000
+             + contHistWeight * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) / 1000
+             + pawnHistWeight *  getPawnHistory(board, move) / 1000;
     }
 }
 
@@ -148,16 +166,16 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
     int pieceTo = 2 * 64 * piece + 2 * target + side;
 
     if ((stack - 1)->movedPiece != Piece::NONE)
-        score += 2 * (stack - 1)->contHist[pieceTo];
+        score += contHistWeightPly1 * (stack - 1)->contHist[pieceTo] / 1000;
 
     if ((stack - 2)->movedPiece != Piece::NONE)
-        score += (stack - 2)->contHist[pieceTo];
+        score += contHistWeightPly2 * (stack - 2)->contHist[pieceTo] / 1000;
 
     if ((stack - 4)->movedPiece != Piece::NONE)
-        score += (stack - 4)->contHist[pieceTo];
+        score += contHistWeightPly4 * (stack - 4)->contHist[pieceTo] / 1000;
     
     if ((stack - 6)->movedPiece != Piece::NONE)
-        score += (stack - 6)->contHist[pieceTo] / 2;
+        score += contHistWeightPly6 * (stack - 6)->contHist[pieceTo] / 1000;
 
     return score;
 }
@@ -170,19 +188,19 @@ void History::updateContinuationHistory(SearchStack* stack, Color side, Piece pi
     int pieceTo = 2 * 64 * piece + 2 * target + side;
 
     if ((stack - 1)->movedPiece != Piece::NONE)
-        (stack - 1)->contHist[pieceTo] += scaledBonus;
+        (stack - 1)->contHist[pieceTo] += contHistUpdateWeightPly1 * scaledBonus / 1000;
 
     if ((stack - 2)->movedPiece != Piece::NONE)
-        (stack - 2)->contHist[pieceTo] += scaledBonus;
+        (stack - 2)->contHist[pieceTo] += contHistUpdateWeightPly2 * scaledBonus / 1000;
 
     if ((stack - 3)->movedPiece != Piece::NONE)
-        (stack - 3)->contHist[pieceTo] += scaledBonus / 4;
+        (stack - 3)->contHist[pieceTo] += contHistUpdateWeightPly3 * scaledBonus / 1000;
 
     if ((stack - 4)->movedPiece != Piece::NONE)
-        (stack - 4)->contHist[pieceTo] += scaledBonus;
+        (stack - 4)->contHist[pieceTo] += contHistUpdateWeightPly4 * scaledBonus / 1000;
     
     if ((stack - 6)->movedPiece != Piece::NONE)
-        (stack - 6)->contHist[pieceTo] += scaledBonus / 2;
+        (stack - 6)->contHist[pieceTo] += contHistUpdateWeightPly6 * scaledBonus / 1000;
 }
 
 int16_t* History::getCaptureHistory(Board* board, Move move) {
