@@ -73,7 +73,7 @@ TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
 TUNE_INT(rfpFactor, 96, 1, 250);
 
 TUNE_INT_DISABLED(razoringDepth, 5, 2, 20);
-TUNE_INT(razoringFactor, 284, 1, 1000);
+TUNE_INT(razoringFactor, 350, 1, 1000);
 
 TUNE_INT_DISABLED(nmpRedBase, 4, 1, 5);
 TUNE_INT_DISABLED(nmpDepthDiv, 3, 1, 6);
