@@ -611,6 +611,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         && depth >= 3
         && stack->ply >= searchData.nmpPlies
         && board->hasNonPawns()
+        && !(depth >= 5 && ttDepth >= depth - 3 && (ttFlag & TT_LOWERBOUND) && ttValue != EVAL_NONE && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY)
         ) {
         stack->capture = false;
         stack->move = MOVE_NULL;
