@@ -47,20 +47,20 @@ TUNE_INT(majorCorrectionFactor, 3125, 1000, 7500);
 TUNE_INT(continuationCorrectionFactor, 5129, 1000, 7500);
 
 // History weights
-TUNE_INT(quietHistWeight, 1000, 0, 2000);
-TUNE_INT(contHistWeight, 2000, 0, 4000);
-TUNE_INT(pawnHistWeight, 1000, 0, 2000);
+TUNE_INT(quietHistWeight, 1000, 500, 1500);
+TUNE_INT(contHistWeight, 2000, 1000, 3000);
+TUNE_INT(pawnHistWeight, 1000, 500, 1500);
 
-TUNE_INT(contHistWeightPly1, 2000, 0, 4000);
-TUNE_INT(contHistWeightPly2, 1000, 0, 2000);
-TUNE_INT(contHistWeightPly4, 1000, 0, 2000);
-TUNE_INT(contHistWeightPly6, 500, 0, 2000);
+TUNE_INT(contHistWeightPly1, 2000, 1000, 3000);
+TUNE_INT(contHistWeightPly2, 1000, 500, 1500);
+TUNE_INT(contHistWeightPly4, 1000, 500, 1500);
+TUNE_INT(contHistWeightPly6, 500, 250, 750);
 
-TUNE_INT(contHistUpdateWeightPly1, 1000, 0, 2000);
-TUNE_INT(contHistUpdateWeightPly2, 1000, 0, 2000);
-TUNE_INT(contHistUpdateWeightPly3, 250, 0, 1000);
-TUNE_INT(contHistUpdateWeightPly4, 1000, 0, 2000);
-TUNE_INT(contHistUpdateWeightPly6, 500, 0, 2000);
+TUNE_INT(contHistUpdateWeightPly1, 1000, 500, 1500);
+TUNE_INT(contHistUpdateWeightPly2, 1000, 500, 1500);
+TUNE_INT(contHistUpdateWeightPly3, 250, 125, 375);
+TUNE_INT(contHistUpdateWeightPly4, 1000, 500, 1500);
+TUNE_INT(contHistUpdateWeightPly6, 500, 250, 750);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
