@@ -14,6 +14,8 @@ void TTEntry::update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval,
         eval = _eval;
         flags = (uint8_t)(_flags + (wasPv << 2)) | TT_GENERATION_COUNTER;
     }
+    else if (depth >= 5 && flags != TT_EXACTBOUND)
+        depth--;
 }
 
 TTEntry* TranspositionTable::probe(uint64_t hash, bool* found) {
