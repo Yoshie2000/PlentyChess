@@ -130,7 +130,7 @@ TUNE_INT(lmrPassBonusMax, 1023, 32, 4096);
 
 TUNE_INT(historyDepthBetaOffset, 247, 1, 500);
 
-TUNE_INT(correctionHistoryFactor, 163, 32, 512);
+TUNE_INT(correctionHistoryFactor, 180, 32, 512);
 
 int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];

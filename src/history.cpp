@@ -40,11 +40,11 @@ TUNE_INT(historyMalusCaptureFactor, 243, 1, 500);
 TUNE_INT(historyMalusCaptureMax, 1904, 32, 4096);
 
 // Correction history
-TUNE_INT(pawnCorrectionFactor, 5920, 1000, 7500);
-TUNE_INT(nonPawnCorrectionFactor, 5576, 1000, 7500);
-TUNE_INT(minorCorrectionFactor, 3681, 1000, 7500);
-TUNE_INT(majorCorrectionFactor, 3125, 1000, 7500);
-TUNE_INT(continuationCorrectionFactor, 5129, 1000, 7500);
+TUNE_INT(pawnCorrectionFactor, 6216, 1000, 7500);
+TUNE_INT(nonPawnCorrectionFactor, 5854, 1000, 7500);
+TUNE_INT(minorCorrectionFactor, 3865, 1000, 7500);
+TUNE_INT(majorCorrectionFactor, 3281, 1000, 7500);
+TUNE_INT(continuationCorrectionFactor, 5385, 1000, 7500);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
