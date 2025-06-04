@@ -8,59 +8,59 @@
 #include "spsa.h"
 
 // Quiet history
-TUNE_INT(historyBonusQuietBase, 24, -500, 500);
-TUNE_INT(historyBonusQuietFactor, 227, 1, 500);
-TUNE_INT(historyBonusQuietMax, 1997, 32, 4096);
-TUNE_INT(historyMalusQuietBase, 69, -500, 500);
+TUNE_INT(historyBonusQuietBase, -9, -500, 500);
+TUNE_INT(historyBonusQuietFactor, 240, 1, 500);
+TUNE_INT(historyBonusQuietMax, 2030, 32, 4096);
+TUNE_INT(historyMalusQuietBase, 94, -500, 500);
 TUNE_INT(historyMalusQuietFactor, 196, 1, 500);
-TUNE_INT(historyMalusQuietMax, 1583, 32, 4096);
+TUNE_INT(historyMalusQuietMax, 1626, 32, 4096);
 
 // Continuation history
-TUNE_INT(historyBonusContinuationBase, 0, -500, 500);
-TUNE_INT(historyBonusContinuationFactor, 216, 1, 500);
-TUNE_INT(historyBonusContinuationMax, 2316, 32, 4096);
-TUNE_INT(historyMalusContinuationBase, 94, -500, 500);
-TUNE_INT(historyMalusContinuationFactor, 211, 1, 500);
-TUNE_INT(historyMalusContinuationMax, 1556, 32, 4096);
+TUNE_INT(historyBonusContinuationBase, 28, -500, 500);
+TUNE_INT(historyBonusContinuationFactor, 211, 1, 500);
+TUNE_INT(historyBonusContinuationMax, 2545, 32, 4096);
+TUNE_INT(historyMalusContinuationBase, 57, -500, 500);
+TUNE_INT(historyMalusContinuationFactor, 230, 1, 500);
+TUNE_INT(historyMalusContinuationMax, 1275, 32, 4096);
 
 // Pawn history
-TUNE_INT(historyBonusPawnBase, -2, -500, 500);
-TUNE_INT(historyBonusPawnFactor, 203, 1, 500);
-TUNE_INT(historyBonusPawnMax, 2424, 32, 4096);
-TUNE_INT(historyMalusPawnBase, 64, -500, 500);
-TUNE_INT(historyMalusPawnFactor, 251, 1, 500);
-TUNE_INT(historyMalusPawnMax, 1909, 32, 4096);
+TUNE_INT(historyBonusPawnBase, -20, -500, 500);
+TUNE_INT(historyBonusPawnFactor, 194, 1, 500);
+TUNE_INT(historyBonusPawnMax, 2365, 32, 4096);
+TUNE_INT(historyMalusPawnBase, 18, -500, 500);
+TUNE_INT(historyMalusPawnFactor, 266, 1, 500);
+TUNE_INT(historyMalusPawnMax, 2175, 32, 4096);
 
 // Capture history
-TUNE_INT(historyBonusCaptureBase, 31, -500, 500);
-TUNE_INT(historyBonusCaptureFactor, 141, 1, 500);
-TUNE_INT(historyBonusCaptureMax, 1834, 32, 4096);
-TUNE_INT(historyMalusCaptureBase, 150, -500, 500);
-TUNE_INT(historyMalusCaptureFactor, 243, 1, 500);
-TUNE_INT(historyMalusCaptureMax, 1904, 32, 4096);
+TUNE_INT(historyBonusCaptureBase, 24, -500, 500);
+TUNE_INT(historyBonusCaptureFactor, 160, 1, 500);
+TUNE_INT(historyBonusCaptureMax, 1775, 32, 4096);
+TUNE_INT(historyMalusCaptureBase, 142, -500, 500);
+TUNE_INT(historyMalusCaptureFactor, 225, 1, 500);
+TUNE_INT(historyMalusCaptureMax, 2045, 32, 4096);
 
 // Correction history
-TUNE_INT(pawnCorrectionFactor, 5920, 1000, 7500);
-TUNE_INT(nonPawnCorrectionFactor, 5576, 1000, 7500);
-TUNE_INT(minorCorrectionFactor, 3681, 1000, 7500);
-TUNE_INT(majorCorrectionFactor, 3125, 1000, 7500);
-TUNE_INT(continuationCorrectionFactor, 5129, 1000, 7500);
+TUNE_INT(pawnCorrectionFactor, 6206, 1000, 7500);
+TUNE_INT(nonPawnCorrectionFactor, 5499, 1000, 7500);
+TUNE_INT(minorCorrectionFactor, 3512, 1000, 7500);
+TUNE_INT(majorCorrectionFactor, 3074, 1000, 7500);
+TUNE_INT(continuationCorrectionFactor, 5309, 1000, 7500);
 
 // History weights
-TUNE_INT(quietHistWeight, 1000, 500, 1500);
-TUNE_INT(contHistWeight, 2000, 1000, 3000);
-TUNE_INT(pawnHistWeight, 1000, 500, 1500);
+TUNE_INT(quietHistWeight, 960, 500, 1500);
+TUNE_INT(contHistWeight, 2016, 1000, 3000);
+TUNE_INT(pawnHistWeight, 987, 500, 1500);
 
-TUNE_INT(contHistWeightPly1, 2000, 1000, 3000);
-TUNE_INT(contHistWeightPly2, 1000, 500, 1500);
-TUNE_INT(contHistWeightPly4, 1000, 500, 1500);
-TUNE_INT(contHistWeightPly6, 500, 250, 750);
+TUNE_INT(contHistWeightPly1, 1987, 1000, 3000);
+TUNE_INT(contHistWeightPly2, 995, 500, 1500);
+TUNE_INT(contHistWeightPly4, 975, 500, 1500);
+TUNE_INT(contHistWeightPly6, 503, 250, 750);
 
-TUNE_INT(contHistUpdateWeightPly1, 1000, 500, 1500);
-TUNE_INT(contHistUpdateWeightPly2, 1000, 500, 1500);
-TUNE_INT(contHistUpdateWeightPly3, 250, 125, 375);
-TUNE_INT(contHistUpdateWeightPly4, 1000, 500, 1500);
-TUNE_INT(contHistUpdateWeightPly6, 500, 250, 750);
+TUNE_INT(contHistUpdateWeightPly1, 962, 500, 1500);
+TUNE_INT(contHistUpdateWeightPly2, 989, 500, 1500);
+TUNE_INT(contHistUpdateWeightPly3, 256, 125, 375);
+TUNE_INT(contHistUpdateWeightPly4, 953, 500, 1500);
+TUNE_INT(contHistUpdateWeightPly6, 508, 250, 750);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
