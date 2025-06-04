@@ -92,8 +92,8 @@ TUNE_INT(earlyLmrHistoryFactorQuiet, 16009, 10000, 20000);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14637, 10000, 20000);
 
 TUNE_INT_DISABLED(fpDepth, 11, 1, 20);
-TUNE_INT(fpBase, 206, 1, 1000);
-TUNE_INT(fpFactor, 101, 1, 500);
+TUNE_INT(fpBase, 150, 1, 1000);
+TUNE_INT(fpFactor, 80, 1, 500);
 
 TUNE_INT_DISABLED(fpCaptDepth, 9, 1, 20);
 TUNE_INT(fpCaptBase, 403, 150, 750);
