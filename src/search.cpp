@@ -447,7 +447,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Initialize some stuff
     Move bestMove = MOVE_NONE;
     Move excludedMove = stack->excludedMove;
-    Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
+    Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE, improvingMargin = EVAL_NONE;
     Eval oldAlpha = alpha;
     bool improving = false, excluded = excludedMove != MOVE_NONE;
 
@@ -562,9 +562,11 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
+        improvingMargin = stack->staticEval - (stack - 2)->staticEval;
     }
     else if ((stack - 4)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 4)->staticEval;
+        improvingMargin = stack->staticEval - (stack - 4)->staticEval;
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
@@ -643,7 +645,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // ProbCut
-    probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
+    probCutBeta = std::min(beta + probCutBetaOffset - (improving ? std::min(improvingMargin, 50) : 0), EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
         && !excluded
         && depth > probCutDepth
