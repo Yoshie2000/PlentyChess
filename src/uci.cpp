@@ -197,7 +197,7 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
 
 #ifdef PROFILE_GENERATE
         TT.newSearch();
-        parameters.depth = 25;
+        parameters.depth = 20;
 #else
         parameters.depth = 13;
 #endif

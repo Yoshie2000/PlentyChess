@@ -65,7 +65,7 @@ std::string formatEval(Eval value) {
         evalString = "cp " + std::to_string(-1000 * 100 + ((EVAL_TBWIN + value) / 2) * 100);
     }
     else {
-        evalString = "cp " + std::to_string(100 * value / 280);
+        evalString = "cp " + std::to_string(100 * value / 312);
     }
     return evalString;
 }
