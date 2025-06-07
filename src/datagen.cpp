@@ -17,7 +17,7 @@ std::vector<Move> generateLegalMoves(Board* board) {
     return legalMoves;
 }
 
-bool playRandomMoves(Board* board, Thread* thread, int remainingMoves) {
+bool playRandomMoves(Board* board, Worker* thread, int remainingMoves) {
     std::vector<Move> legalMoves = generateLegalMoves(board);
 
     if (legalMoves.empty())
@@ -78,7 +78,7 @@ inline void rtrim(std::string &s) {
     }).base(), s.end());
 }
 
-void Thread::tgenfens() {
+void Worker::tgenfens() {
     std::srand(searchParameters->genfensSeed);
 
     size_t bookSize = 0;

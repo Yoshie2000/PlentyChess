@@ -7,12 +7,44 @@
 #include "evaluation.h"
 #include "spsa.h"
 
-TUNE_INT(pawnCorrectionFactor, 820, 10, 5000);
-TUNE_INT(nonPawnCorrectionFactor, 737, 10, 5000);
-TUNE_INT(minorCorrectionFactor, 578, 10, 5000);
-TUNE_INT(majorCorrectionFactor, 790, 10, 5000);
-TUNE_INT(continuationCorrectionFactor, 759, 10, 5000);
-TUNE_INT(correctionHistoryDivisor, 10331, 5000, 20000);
+// Quiet history
+TUNE_INT(historyBonusQuietBase, 24, -500, 500);
+TUNE_INT(historyBonusQuietFactor, 227, 1, 500);
+TUNE_INT(historyBonusQuietMax, 1997, 32, 4096);
+TUNE_INT(historyMalusQuietBase, 69, -500, 500);
+TUNE_INT(historyMalusQuietFactor, 196, 1, 500);
+TUNE_INT(historyMalusQuietMax, 1583, 32, 4096);
+
+// Continuation history
+TUNE_INT(historyBonusContinuationBase, 0, -500, 500);
+TUNE_INT(historyBonusContinuationFactor, 216, 1, 500);
+TUNE_INT(historyBonusContinuationMax, 2316, 32, 4096);
+TUNE_INT(historyMalusContinuationBase, 94, -500, 500);
+TUNE_INT(historyMalusContinuationFactor, 211, 1, 500);
+TUNE_INT(historyMalusContinuationMax, 1556, 32, 4096);
+
+// Pawn history
+TUNE_INT(historyBonusPawnBase, -2, -500, 500);
+TUNE_INT(historyBonusPawnFactor, 203, 1, 500);
+TUNE_INT(historyBonusPawnMax, 2424, 32, 4096);
+TUNE_INT(historyMalusPawnBase, 64, -500, 500);
+TUNE_INT(historyMalusPawnFactor, 251, 1, 500);
+TUNE_INT(historyMalusPawnMax, 1909, 32, 4096);
+
+// Capture history
+TUNE_INT(historyBonusCaptureBase, 31, -500, 500);
+TUNE_INT(historyBonusCaptureFactor, 141, 1, 500);
+TUNE_INT(historyBonusCaptureMax, 1834, 32, 4096);
+TUNE_INT(historyMalusCaptureBase, 150, -500, 500);
+TUNE_INT(historyMalusCaptureFactor, 243, 1, 500);
+TUNE_INT(historyMalusCaptureMax, 1904, 32, 4096);
+
+// Correction history
+TUNE_INT(pawnCorrectionFactor, 5920, 1000, 7500);
+TUNE_INT(nonPawnCorrectionFactor, 5576, 1000, 7500);
+TUNE_INT(minorCorrectionFactor, 3681, 1000, 7500);
+TUNE_INT(majorCorrectionFactor, 3125, 1000, 7500);
+TUNE_INT(continuationCorrectionFactor, 5129, 1000, 7500);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
@@ -28,20 +60,30 @@ void History::initHistory() {
     memset(minorCorrectionHistory, 0, sizeof(minorCorrectionHistory));
     memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
     memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
-    memset(pawnHistory, -1000, sizeof(pawnHistory));
+    for (int i = 0; i < PAWN_HISTORY_SIZE; i++) {
+        for (int j = 0; j < 2; j++) {
+            for (int k = 0; k < Piece::TOTAL; k++) {
+                for (int l = 0; l < 64; l++) {
+                    pawnHistory[i][j][k][l] = -1000;
+                }
+            }
+        }
+    }
 }
 
-Eval History::correctStaticEval(Eval eval, Board* board, SearchStack* searchStack) {
+Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
     int64_t pawnEntry = correctionHistory[board->stm][board->stack->pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t nonPawnEntry = nonPawnCorrectionHistory[board->stm][Color::WHITE][board->stack->nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[board->stm][Color::BLACK][board->stack->nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t minorEntry = minorCorrectionHistory[board->stm][board->stack->minorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t majorEntry = majorCorrectionHistory[board->stm][board->stack->majorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
 
-    int64_t history = (pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor) / 1000;
+    return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
+}
 
-    Eval adjustedEval = eval + (history * std::abs(history)) / correctionHistoryDivisor;
-    adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_TB_WIN_IN_MAX_PLY + 1, (int)EVAL_TB_WIN_IN_MAX_PLY - 1);
+Eval History::correctStaticEval(Eval eval, Eval correctionValue) {
+    Eval adjustedEval = eval + correctionValue / 65536;
+    adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return adjustedEval;
 }
 
@@ -163,31 +205,41 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
     *captHistScore += scaledBonus;
 }
 
-void History::updateCaptureHistory(Board* board, Move move, int moveSearchCount, int16_t bonus, int16_t malus, Move* captureMoves, int* captureSearchCount, int captureMoveCount) {
+void History::updateCaptureHistory(int depth, Board* board, Move move, int moveSearchCount, Move* captureMoves, int* captureSearchCount, int captureMoveCount) {
+    int captHistBonus = std::min(historyBonusCaptureBase + historyBonusCaptureFactor * depth, historyBonusCaptureMax);
+    int captHistMalus = std::min(historyMalusCaptureBase + historyMalusCaptureFactor * depth, historyMalusCaptureMax);
+
     if (board->isCapture(move)) {
-        updateSingleCaptureHistory(board, move, bonus * moveSearchCount);
+        updateSingleCaptureHistory(board, move, captHistBonus * moveSearchCount);
     }
 
     for (int i = 0; i < captureMoveCount; i++) {
         Move cMove = captureMoves[i];
         if (move == cMove) continue;
-        updateSingleCaptureHistory(board, cMove, -malus * captureSearchCount[i]);
+        updateSingleCaptureHistory(board, cMove, -captHistMalus * captureSearchCount[i]);
     }
 }
 
-void History::updateQuietHistories(Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int moveSearchCount, int16_t bonus, int16_t malus, Move* quietMoves, int* quietSearchCount, int quietMoveCount) {
+void History::updateQuietHistories(int depth, Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int moveSearchCount, Move* quietMoves, int* quietSearchCount, int quietMoveCount) {
+    int quietHistBonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * depth, historyBonusQuietMax);
+    int quietHistMalus = std::min(historyMalusQuietBase + historyMalusQuietFactor * depth, historyMalusQuietMax);
+    int contHistBonus = std::min(historyBonusContinuationBase + historyBonusContinuationFactor * depth, historyBonusContinuationMax);
+    int contHistMalus = std::min(historyMalusContinuationBase + historyMalusContinuationFactor * depth, historyMalusContinuationMax);
+    int pawnHistBonus = std::min(historyBonusPawnBase + historyBonusPawnFactor * depth, historyBonusPawnMax);
+    int pawnHistMalus = std::min(historyMalusPawnBase + historyMalusPawnFactor * depth, historyMalusPawnMax);
+    
     // Increase stats for this move
-    updateQuietHistory(move, board->stm, board, boardStack, bonus * moveSearchCount);
-    updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, bonus * moveSearchCount);
-    updatePawnHistory(board, move, bonus * moveSearchCount);
+    updateQuietHistory(move, board->stm, board, boardStack, quietHistBonus * moveSearchCount);
+    updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, contHistBonus * moveSearchCount);
+    updatePawnHistory(board, move, pawnHistBonus * moveSearchCount);
 
     // Decrease stats for all other quiets
     for (int i = 0; i < quietMoveCount; i++) {
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
-        updateQuietHistory(qMove, board->stm, board, boardStack, -malus * quietSearchCount[i]);
-        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -malus * quietSearchCount[i]);
-        updatePawnHistory(board, qMove, -malus * quietSearchCount[i]);
+        updateQuietHistory(qMove, board->stm, board, boardStack, -quietHistMalus * quietSearchCount[i]);
+        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -contHistMalus * quietSearchCount[i]);
+        updatePawnHistory(board, qMove, -pawnHistMalus * quietSearchCount[i]);
     }
 }
 

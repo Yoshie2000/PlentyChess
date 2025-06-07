@@ -1,9 +1,41 @@
-CXX = g++
-CXXFLAGS = -std=c++17 -lstdc++fs -Wall -pedantic -Wextra -fcommon -pthread -O3 -funroll-all-loops
+CXX = clang++
+CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
 CXXFLAGS_EXTRA = 
 
-SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp src/fathom/src/tbprobe.c src/rescore.cpp
-OBJS = $(patsubst %.cpp,%.o, $(SOURCES))
+SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp src/fathom/src/tbprobe.c
+OBJS = $(patsubst %.cpp,%.o, $(patsubst %.c,%.o, $(SOURCES)))
+
+# Compiler detection for PGO
+COMPILER_VERSION := $(shell $(CXX) --version)
+ifneq (, $(filter profile-build _pgo,$(MAKECMDGOALS)))
+	ifneq (, $(findstring clang,$(COMPILER_VERSION)))
+		PGO_GENERATE := -fprofile-instr-generate -DPROFILE_GENERATE
+		PGO_USE := -fprofile-instr-use=default.profdata
+		PGO_MERGE := llvm-profdata merge -output=default.profdata default.profraw
+		PGO_FILES := default.profraw default.profdata
+
+		ifneq ($(OS), Windows_NT)
+		    ifneq (,$(shell xcrun -f llvm-profdata 2>/dev/null))
+		        PGO_MERGE := xcrun $(PGO_MERGE)
+		    else
+			    ifeq (,$(shell which llvm-profdata))
+$(warning llvm-profdata not found, disabling profile-build)
+				    PGO_SKIP := true
+				endif
+			endif
+		else
+			ifeq (,$(shell where llvm-profdata))
+$(warning llvm-profdata not found, disabling profile-build)
+				PGO_SKIP := true
+			endif
+		endif
+	else
+		PGO_GENERATE := -fprofile-generate
+		PGO_USE := -fprofile-use
+		PGO_MERGE := 
+		PGO_FILES := pgo src/*.gcda *.gcda
+	endif
+endif
 
 # Debug vs. Production flags
 PROGRAM = engine
@@ -19,19 +51,38 @@ ifdef INCLUDE_DEBUG_SYMBOLS
 endif
 
 # CPU Flags
-ifeq ($(arch), avx512vnni)
-	CXXFLAGS := $(CXXFLAGS) -march=cascadelake
+ifeq ($(arch), arm64)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
+else ifeq ($(arch), avx512vnni)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=cascadelake
 else ifeq ($(arch), avx512)
-	CXXFLAGS := $(CXXFLAGS) -march=skylake-avx512
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=skylake-avx512
 else ifeq ($(arch), avx2)
-	CXXFLAGS := $(CXXFLAGS) -march=haswell
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=haswell
 else ifeq ($(arch), fma)
-	CXXFLAGS := $(CXXFLAGS) -mssse3 -mfma
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -mfma
 else ifeq ($(arch), ssse3)
-	CXXFLAGS := $(CXXFLAGS) -mssse3
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3
 else ifeq ($(arch), generic)
-	CXXFLAGS := $(CXXFLAGS)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
+else ifneq ($(origin arch), undefined)
+$(error Architecture not supported: $(arch))
 else
+	ifneq ($(OS), Windows_NT)
+		ARCH_CMD := $(shell uname -m)
+		ifeq ($(ARCH_CMD), x86_64)
+			CXXFLAGS := $(CXXFLAGS) -DARCH_X86
+		else ifeq ($(ARCH_CMD), aarch64)
+			CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
+		else ifeq ($(ARCH_CMD), arm64)
+			CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
+		else
+$(error Architecture not supported: $(ARCH_CMD))
+		endif
+	else
+		CXXFLAGS := $(CXXFLAGS) -DARCH_X86
+	endif
+
 	CXXFLAGS := $(CXXFLAGS) -march=native
 	ifeq ($(OS), Windows_NT)
 		HAS_BMI2 := $(shell .\detect_flags.bat $(CXX) __BMI2__)
@@ -70,7 +121,7 @@ endif
 
 # Network flags
 ifndef EVALFILE
-	NET_ID := $(file < network.txt)
+	NET_ID := $(shell cat network.txt)
 	EVALFILE := $(NET_ID).bin
 	EVALFILE_NOT_DEFINED = true
 endif
@@ -99,20 +150,29 @@ endif
 
 all:
 		$(MAKE) process-net
-		$(MAKE) nopgo SKIP_PROCESS_NET=true
+		$(MAKE) _nopgo SKIP_PROCESS_NET=true
+
+profile-build:
+ifneq ($(PGO_SKIP), true)
+		$(MAKE) process-net
+		$(MAKE) _pgo SKIP_PROCESS_NET=true
+else
+		$(MAKE) all
+endif
 
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
 
-pgo:	CXXFLAGS_EXTRA := -fprofile-generate="pgo"
-pgo:	process-net $(OBJS)
+_pgo:	CXXFLAGS_EXTRA := $(PGO_GENERATE)
+_pgo:	$(OBJS)
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 		./$(PROGRAM) bench
-		$(MAKE) clean
-		$(MAKE) CXXFLAGS_EXTRA="-fprofile-use="pgo"" nopgo
-		$(RM) -rf pgo
+		$(RM) src/*.o *~ engine
+		$(PGO_MERGE)
+		$(MAKE) CXXFLAGS_EXTRA="$(PGO_USE)" _nopgo
+		$(RM) -rf $(PGO_FILES)
 
-nopgo:	process-net $(OBJS)
+_nopgo:	$(OBJS)
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 
 clean:	

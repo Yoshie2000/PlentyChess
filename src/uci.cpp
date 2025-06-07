@@ -19,11 +19,11 @@
 #include "spsa.h"
 #include "history.h"
 #include "fathom/src/tbprobe.h"
-#include "rescore.h"
 
 namespace UCI {
     UCIOptions Options;
     NNUE nnue;
+    bool optionsDirty = false;
 }
 
 ThreadPool threads;
@@ -192,10 +192,15 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
 
     int i = 0;
     for (const std::string& fen : benchPositions) {
-        //threads.ucinewgame();
         board->parseFen(fen, i++ >= 44);
         SearchParameters parameters;
+
+#ifdef PROFILE_GENERATE
+        TT.newSearch();
+        parameters.depth = 20;
+#else
         parameters.depth = 13;
+#endif
 
         std::cerr << "\nPosition: " << position++ << '/' << totalPositions << " (" << fen << ")" << std::endl;
 
@@ -401,23 +406,26 @@ void setoption(std::string line) {
     if (matchesToken(line, "name")) {
         line = line.substr(5);
         name = line.substr(0, line.find(' '));
-        line = line.substr(name.length() + 1);
+        line = line.substr(std::min(line.size(), name.length() + 1));
     }
 
     if (matchesToken(line, "value")) {
         line = line.substr(6);
-        value = line.find(' ') != std::string::npos && name != "SyzygyPath" ? line.substr(0, line.find(' ')) : line;
+        value = line.find(' ') != std::string::npos ? line.substr(0, line.find(' ')) : line;
+    }
+
+    if (name == "Hash" || name == "Threads") {
+        UCI::optionsDirty = true;
     }
 
     UCI::Options.forEach(setUciOption(name, value));
     SPSA::trySetParam(name, value);
 
     if (name == "SyzygyPath") {
-        tb_init(value.c_str());
-        if (TB_LARGEST)
-            std::cout << "info string Syzygy tablebases loaded. Pieces: " << TB_LARGEST << std::endl;
-        else
-            std::cout << "info string Syzygy tablebases failed to load" << std::endl;
+        std::string path = UCI::Options.syzygyPath.value;
+        tb_init(path.c_str());
+        if (!TB_LARGEST)
+            std::cout << "info string Tablebases failed to load" << std::endl;
     }
 }
 
@@ -539,18 +547,6 @@ void uciLoop(int argc, char* argv[]) {
 
     std::cout << "UCI thread running" << std::endl;
 
-    if (argc > 2 && matchesToken(argv[1], "rescore")) {
-        tb_init("/home/patrick/Syzygy/345:/home/patrick/Syzygy/6");
-        UCI::Options.datagen.value = true;
-        if (TB_LARGEST)
-            std::cout << "info string Syzygy tablebases loaded. Pieces: " << TB_LARGEST << std::endl;
-        else
-            std::cout << "info string Syzygy tablebases failed to load" << std::endl;
-        
-        std::string path(argv[2]);
-        rescore(path, threads);
-        return;
-    }
 #if defined(PROCESS_NET)
     bench(&stackQueue, &board);
     nnz.permuteNetwork();
@@ -592,6 +588,7 @@ void uciLoop(int argc, char* argv[]) {
             threads.resize(UCI::Options.threads.value);
             TT.resize(UCI::Options.hash.value);
             threads.ucinewgame();
+            UCI::optionsDirty = false;
         }
         else if (matchesToken(line, "uci")) {
             std::cout << "id name PlentyChess " << static_cast<std::string>(VERSION) << "\nid author Yoshie2000\n" << std::endl;
@@ -599,8 +596,14 @@ void uciLoop(int argc, char* argv[]) {
             SPSA::printUCI();
             std::cout << std::endl << "uciok" << std::endl;
         }
-        else if (matchesToken(line, "go")) go(line, &board, &stackQueue);
-        else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
+        else if (matchesToken(line, "go")) {
+            if (UCI::optionsDirty) {
+                threads.resize(UCI::Options.threads.value);
+                TT.resize(UCI::Options.hash.value);
+                UCI::optionsDirty = false;
+            }
+            go(line, &board, &stackQueue);
+        } else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
         else if (matchesToken(line, "setoption")) setoption(line.substr(10));
 
         /* NON UCI COMMANDS */

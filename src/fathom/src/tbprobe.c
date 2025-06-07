@@ -2456,7 +2456,7 @@ void tb_expand_mate(Pos *pos, struct TbRootMove *move, Value moveScore, unsigned
   }
 
   // Now try to expand until the actual mate.
-  if (popcount(pos->white | pos->black) <= cardinalityDTM) {
+  if (popcount(pos->white | pos->black) <= (int) cardinalityDTM) {
     while (v != -TB_VALUE_MATE && move->pvSize < TB_MAX_PLY) {
       v = v > 0 ? -v - 1 : -v + 1;
       wdl = -wdl;

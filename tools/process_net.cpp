@@ -3,17 +3,24 @@
 #include <cstring>
 #include <cmath>
 #include <fstream>
+#include <cstdint>
+
+#if defined(ARCH_X86)
+#include <immintrin.h>
+#include <xmmintrin.h>
+#else
+#include <arm_neon.h>
+#endif
 
 constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 1536;
+constexpr int L1_SIZE = 1792;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
 constexpr bool KING_BUCKETS_FACTORIZED = true;
-constexpr int KING_BUCKETS = 9;
+constexpr int KING_BUCKETS = 12;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int NETWORK_SCALE = 400;
 constexpr int INPUT_QUANT = 362;
 constexpr int L1_QUANT = 64;
 
@@ -25,7 +32,7 @@ struct RawNetworkData {
     float inputBiases[L1_SIZE];
     float l1Weights[L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
     float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    float l2Weights[L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
+    float l2Weights[2 * L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
     float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
     float l3Weights[L3_SIZE][OUTPUT_BUCKETS];
     float l3Biases[OUTPUT_BUCKETS];
@@ -36,7 +43,7 @@ struct NetworkData {
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
     alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
     alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+    alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
     alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
     alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE];
     alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
@@ -87,6 +94,31 @@ void quantizeNetwork() {
 }
 
 void transposePermuteNetwork() {
+#if defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
+    // Transpose input weights for packus
+    constexpr int weightsPerBlock = sizeof(__m128i) / sizeof(int16_t);
+#if (defined(__AVX512F__) && defined(__AVX512BW__))
+    constexpr int packusBlocks = 8;
+    constexpr int permutation[packusBlocks] = { 0, 2, 4, 6, 1, 3, 5, 7 };
+#else
+    constexpr int packusBlocks = 4;
+    constexpr int permutation[packusBlocks] = { 0, 2, 1, 3 };
+#endif
+    __m128i regs[packusBlocks];
+
+    for (int limit : { 1, KING_BUCKETS* INPUT_SIZE }) {
+        __m128i* vec = reinterpret_cast<__m128i*>(limit == 1 ? (int16_t*) tmp.inputBiases : (int16_t*) tmp.inputWeights);
+
+        for (int i = 0; i < limit * L1_SIZE / weightsPerBlock; i += packusBlocks) {
+            for (int j = 0; j < packusBlocks; j++)
+                regs[j] = vec[i + j];
+
+            for (int j = 0; j < packusBlocks; j++)
+                vec[i + j] = regs[permutation[j]];
+        }
+    }
+#endif
+
     // Transpose L1 / L2 / L3 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
 #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
@@ -105,7 +137,7 @@ void transposePermuteNetwork() {
         }
 #endif
 
-        for (int l2 = 0; l2 < L2_SIZE; l2++) {
+        for (int l2 = 0; l2 < 2 * L2_SIZE; l2++) {
             for (int l3 = 0; l3 < L3_SIZE; l3++) {
                 out.l2Weights[b][l2 * L3_SIZE + l3] = reinterpret_cast<float*>(tmp.l2Weights)[l2 * OUTPUT_BUCKETS * L3_SIZE + b * L3_SIZE + l3];
             }
@@ -154,7 +186,8 @@ int main(int argc, char* argv[]) {
         }
         outfile.write(reinterpret_cast<char*>(&tmp), sizeof(tmp));
         outfile.close();
-    } else {
+    }
+    else {
         // Read the network
         std::ifstream infile(infile_name, std::ios::binary);
         if (!infile) {

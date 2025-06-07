@@ -22,8 +22,8 @@ Bitboard BISHOP_MOVES[5248] = { bitboard(0) };
 MagicEntry ROOK_MAGICS[64] = {};
 MagicEntry BISHOP_MAGICS[64] = {};
 
-Bitboard ROOK_MOVES[64][4096] = { bitboard(0) };
-Bitboard BISHOP_MOVES[64][4096] = { bitboard(0) };
+Bitboard ROOK_MOVES[64][4096] = { {bitboard(0)} };
+Bitboard BISHOP_MOVES[64][4096] = { {bitboard(0)} };
 
 #endif
 
