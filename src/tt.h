@@ -20,14 +20,10 @@
 
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     void* ptr;
-#if defined(__MINGW32__)
-    int offset = alignment - 1;
-    void* p = (void*)malloc(requiredBytes + offset);
-    ptr = (void*)(((size_t)(p)+offset) & ~(alignment - 1));
-#elif defined (__GNUC__)
-    ptr = std::aligned_alloc(alignment, requiredBytes);
+#if defined(_WIN32)
+    ptr = _aligned_malloc(requiredBytes, alignment);
 #else
-#error "Compiler not supported"
+    ptr = std::aligned_alloc(alignment, requiredBytes);
 #endif
 
 #if defined(__linux__)

@@ -6,17 +6,28 @@
 
 #include "nnue.h"
 #include "board.h"
-#include "incbin/incbin.h"
 
 #if defined(ARCH_ARM)
 #include <arm_neon.h>
 #endif
 
+#ifdef _MSC_VER
+    #define SP_MSVC
+    #pragma push_macro("_MSC_VER")
+    #undef _MSC_VER
+#endif
+
+#include "incbin/incbin.h"
 // This will define the following variables:
 // const unsigned char        gNETWORKData[];
 // const unsigned char *const gNETWORKEnd;
 // const unsigned int         gNETWORKSize;
 INCBIN(NETWORK, EVALFILE);
+
+#ifdef SP_MSVC
+    #pragma pop_macro("_MSC_VER")
+    #undef SP_MSVC
+#endif
 
 NetworkData* networkData;
 alignas(ALIGNMENT) uint16_t nnzLookup[256][8];

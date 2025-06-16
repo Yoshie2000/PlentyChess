@@ -1,5 +1,7 @@
+CC  = clang
+CFLAGS = -mpopcnt -Wall -pedantic -Wextra -fcommon -pthread -O3 -flto=auto -fuse-ld=lld
 CXX = clang++
-CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
+CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -flto=auto -fuse-ld=lld
 CXXFLAGS_EXTRA = 
 
 SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp src/fathom/src/tbprobe.c
@@ -55,14 +57,19 @@ ifeq ($(arch), arm64)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
 else ifeq ($(arch), avx512vnni)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=cascadelake
+	CFLAGS := $(CFLAGS) -march=cascadelake
 else ifeq ($(arch), avx512)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=skylake-avx512
+	CFLAGS := $(CFLAGS) -march=skylake-avx512
 else ifeq ($(arch), avx2)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=haswell
+	CFLAGS := $(CFLAGS) -march=haswell
 else ifeq ($(arch), fma)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -mfma
+	CFLAGS := $(CFLAGS) -mssse3 -mfma
 else ifeq ($(arch), ssse3)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3
+	CFLAGS := $(CFLAGS) -mssse3
 else ifeq ($(arch), generic)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
 else ifneq ($(origin arch), undefined)
@@ -84,6 +91,7 @@ $(error Architecture not supported: $(ARCH_CMD))
 	endif
 
 	CXXFLAGS := $(CXXFLAGS) -march=native
+	CFLAGS := $(CFLAGS) -march=native
 	ifeq ($(OS), Windows_NT)
 		HAS_BMI2 := $(shell .\detect_flags.bat $(CXX) __BMI2__)
 		IS_ZEN1  := $(shell .\detect_flags.bat $(CXX) __znver1)
@@ -105,6 +113,7 @@ endif
 
 ifdef BMI2
 	CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2 -mbmi2
+	CFLAGS := $(CFLAGS) -mbmi2
 endif
 
 ifdef PROCESS_NET
@@ -116,7 +125,7 @@ endif
 
 # Windows only flags
 ifeq ($(OS), Windows_NT)
-	CXXFLAGS := $(CXXFLAGS) -lstdc++ -static -Wl,--no-as-needed
+	CXXFLAGS := $(CXXFLAGS) -lstdc++ -static
 endif
 
 # Network flags
@@ -176,4 +185,4 @@ _nopgo:	$(OBJS)
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 
 clean:	
-		$(RM) src/*.o *~ engine processed.bin
+		$(RM) src/*.o src/fathom/src/*.o *~ engine processed.bin
