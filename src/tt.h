@@ -20,14 +20,10 @@
 
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     void* ptr;
-#if defined(__MINGW32__)
-    int offset = alignment - 1;
-    void* p = (void*)malloc(requiredBytes + offset);
-    ptr = (void*)(((size_t)(p)+offset) & ~(alignment - 1));
-#elif defined (__GNUC__)
-    ptr = std::aligned_alloc(alignment, requiredBytes);
+#if defined(_WIN32)
+    ptr = _aligned_malloc(requiredBytes, alignment);
 #else
-#error "Compiler not supported"
+    ptr = std::aligned_alloc(alignment, requiredBytes);
 #endif
 
 #if defined(__linux__)
@@ -35,6 +31,14 @@ inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
 #endif 
 
     return ptr;
+}
+
+inline void alignedFree(void* ptr) {
+#if defined(_WIN32)
+    _aligned_free(ptr);
+#else
+    std::free(ptr);
+#endif
 }
 
 constexpr uint8_t TT_NOBOUND = 0;
@@ -93,7 +97,7 @@ public:
     }
 
     ~TranspositionTable() {
-        std::free(table);
+        alignedFree(table);
     }
 
     void newSearch() {
@@ -106,7 +110,7 @@ public:
             return;
         
         if (table)
-            std::free(table);
+            alignedFree(table);
         
         clusterCount = newClusterCount;
         table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
