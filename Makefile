@@ -1,7 +1,8 @@
 CC  = clang
-CFLAGS = -mpopcnt -Wall -pedantic -Wextra -fcommon -pthread -O3 -flto=auto -fuse-ld=lld
 CXX = clang++
-CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -flto=auto -fuse-ld=lld
+CFLAGS = -mpopcnt -w -pthread -O3 -flto=auto
+CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -flto=auto
+LDFLAGS = 
 CXXFLAGS_EXTRA = 
 
 SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp src/fathom/src/tbprobe.c
@@ -125,7 +126,13 @@ endif
 
 # Windows only flags
 ifeq ($(OS), Windows_NT)
-	CXXFLAGS := $(CXXFLAGS) -lstdc++ -static
+	CXXFLAGS := $(CXXFLAGS) -static
+	LDFLAGS := $(LDFLAGS) -lstdc++
+endif
+# Non-MacOS flags
+UNAME_S := $(shell uname -s)
+ifneq ($(UNAME_S), Darwin)
+	LDFLAGS := $(LDFLAGS) -fuse-ld=lld
 endif
 
 # Network flags
@@ -174,7 +181,7 @@ endif
 
 _pgo:	CXXFLAGS_EXTRA := $(PGO_GENERATE)
 _pgo:	$(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(LDFLAGS) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 		./$(PROGRAM) bench
 		$(RM) src/*.o *~ engine
 		$(PGO_MERGE)
@@ -182,7 +189,7 @@ _pgo:	$(OBJS)
 		$(RM) -rf $(PGO_FILES)
 
 _nopgo:	$(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(LDFLAGS) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 
 clean:	
 		$(RM) src/*.o src/fathom/src/*.o *~ engine processed.bin

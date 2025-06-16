@@ -33,6 +33,14 @@ inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     return ptr;
 }
 
+inline void alignedFree(void* ptr) {
+#if defined(_WIN32)
+    _aligned_free(ptr);
+#else
+    std::free(ptr);
+#endif
+}
+
 constexpr uint8_t TT_NOBOUND = 0;
 constexpr uint8_t TT_UPPERBOUND = 1;
 constexpr uint8_t TT_LOWERBOUND = 2;
@@ -89,7 +97,7 @@ public:
     }
 
     ~TranspositionTable() {
-        std::free(table);
+        alignedFree(table);
     }
 
     void newSearch() {
@@ -102,7 +110,7 @@ public:
             return;
         
         if (table)
-            std::free(table);
+            alignedFree(table);
         
         clusterCount = newClusterCount;
         table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
