@@ -1,5 +1,5 @@
-CC  = clang
-CXX = clang++
+CC  := clang
+CXX := clang++
 CFLAGS = -mpopcnt -w -pthread -O3 -flto=auto
 CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -flto=auto
 LDFLAGS = 
