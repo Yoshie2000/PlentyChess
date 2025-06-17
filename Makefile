@@ -1,4 +1,4 @@
-CC  = clang
+CC  = clang++
 CXX = clang++
 CFLAGS = -mpopcnt -w -pthread -O3 -flto=auto
 CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -flto=auto
@@ -104,8 +104,8 @@ $(error Architecture not supported: $(ARCH_CMD))
 	endif
 # On Zen1/2 systems, which have slow PEXT instructions, we don't want to build with BMI2
 	ifeq ($(HAS_BMI2),1)
-		ifneq ($(IS_ZEN1),1)
-			ifneq ($(IS_ZEN2),1)
+		ifeq ($(IS_ZEN1),0)
+			ifeq ($(IS_ZEN2),0)
 				CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2
 			endif
 		endif
