@@ -1,5 +1,5 @@
-CC  = clang++
 CXX = clang++
+CC  = $(CXX)
 CFLAGS = -mpopcnt -w -pthread -O3 -flto=auto
 CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -flto=auto
 LDFLAGS = 
@@ -127,12 +127,18 @@ endif
 # Windows only flags
 ifeq ($(OS), Windows_NT)
 	CXXFLAGS := $(CXXFLAGS) -static
-	LDFLAGS := $(LDFLAGS) -lstdc++
-endif
-# Non-MacOS flags
-UNAME_S := $(shell uname -s)
-ifneq ($(UNAME_S), Darwin)
-	LDFLAGS := $(LDFLAGS) -fuse-ld=lld
+	LDFLAGS := $(LDFLAGS) -lstdc++ -fuse-ld=lld
+else
+	UNAME_S := $(shell uname -s)
+# Use LLD on Linux with clang if supported
+	ifneq ($(UNAME_S), Darwin)
+		ifeq ($(shell $(CXX) -fuse-ld=lld -Wl,--version >/dev/null 2>&1 && echo yes),yes)
+			COMPILER := $(shell $(CXX) --version | head -n 1)
+			ifeq (,$(findstring g++,$(COMPILER)))
+				LDFLAGS := $(LDFLAGS) -fuse-ld=lld
+			endif
+		endif
+	endif
 endif
 
 # Network flags
