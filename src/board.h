@@ -93,7 +93,8 @@ struct Board {
     void updateSliderPins(Color side);
 
     constexpr bool hasNonPawns() {
-        return BB::popcount(byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP] | byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]) > 0;
+        Bitboard nonPawns = byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP] | byPiece[Piece::ROOK] | byPiece[Piece::QUEEN];
+        return BB::popcount(byColor[stm] & nonPawns) > 0;
     }
 
     constexpr bool opponentHasGoodCapture() {

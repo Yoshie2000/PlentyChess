@@ -833,6 +833,9 @@ movesLoop:
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
 
+        // std::cout << "search loop " << moveToString(move, board->chess960) << " " << board->hasNonPawns() << std::endl;
+        // g3g2 s 1 -518 -439 -31000
+
         if (move == excludedMove)
             continue;
         if (rootNode && std::find(excludedRootMoves.begin(), excludedRootMoves.end(), move) != excludedRootMoves.end())
@@ -852,6 +855,7 @@ movesLoop:
             ) {
 
             int lmrDepth = std::max(0, depth - earlyLmrReductionTableFactor * REDUCTIONS[!capture][depth][moveCount] / 1000000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            // std::cout << "lmrdepth " << lmrDepth << std::endl;
 
             if (!pvNode && !movegen.skipQuiets) {
 
@@ -881,8 +885,11 @@ movesLoop:
                 continue;
 
             // SEE Pruning
-            if (!SEE(board, move, (2 + pvNode) * SEE_MARGIN[!capture ? lmrDepth : depth][!capture] / 2))
+            // std::cout << "see with margin " << ((2 + pvNode) * SEE_MARGIN[!capture ? lmrDepth : depth][!capture] / 2) << std::endl;
+            if (!SEE(board, move, (2 + pvNode) * SEE_MARGIN[!capture ? lmrDepth : depth][!capture] / 2)) {
+                // std::cout << "pruned" << std::endl;
                 continue;
+            }
 
         }
 
@@ -963,7 +970,7 @@ movesLoop:
         moveCount++;
         searchData.nodesSearched++;
 
-        // std::cout << moveToString(move, board->chess960) << " s " << depth << std::endl;
+        // std::cout << moveToString(move, board->chess960) << " s " << depth << " " << alpha << " " << beta << " " << bestValue << std::endl;
         Board* boardCopy = doMove(board, newHash, move);
 
         Eval value = 0;
@@ -1111,6 +1118,7 @@ movesLoop:
                     }
                     if (captureMoveCount > 0)
                         history.updateCaptureHistory(historyUpdateDepth, board, move, captureSearchCount[captureMoveCount - 1], captureMoves, captureSearchCount, captureMoveCount);
+                    // std::cout << "beta cut " << beta << " " << bestValue << std::endl;
                     break;
                 }
 
