@@ -679,6 +679,7 @@ void Board::doNullMove() {
 
     rule50_ply++;
     nullmove_ply = 0;
+    hashes.hash ^= ZOBRIST_STM_BLACK;
 
     // En passent square
     if (enpassantTarget != 0) {

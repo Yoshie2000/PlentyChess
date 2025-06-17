@@ -482,6 +482,7 @@ movesLoopQsearch:
 
         playedQuiet |= move != ttMove && !capture;
 
+        // std::cout << moveToString(move, board->chess960) << " qs" << std::endl;
         Board* boardCopy = doMove(board, newHash, move);
         Eval value = -qsearch<nodeType>(boardCopy, stack + 1, -beta, -alpha);
         undoMove();
@@ -733,8 +734,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         stack->contHist = history.continuationHistory[board->stm][0][0];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0];
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
-
+        
+        // std::cout << "null " << depth << std::endl;
         Board* boardCopy = doNullMove(board);
+        // std::cout << boardCopy->hashes.hash << std::endl;
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
         undoNullMove();
 
@@ -786,6 +789,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
             stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
 
+            // std::cout << moveToString(move, board->chess960) << " pc " << depth << std::endl;
             Board* boardCopy = doMove(board, newHash, move);
 
             Eval value = -qsearch<NON_PV_NODE>(boardCopy, stack + 1, -probCutBeta, -probCutBeta + 1);
@@ -959,6 +963,7 @@ movesLoop:
         moveCount++;
         searchData.nodesSearched++;
 
+        // std::cout << moveToString(move, board->chess960) << " s " << depth << std::endl;
         Board* boardCopy = doMove(board, newHash, move);
 
         Eval value = 0;
