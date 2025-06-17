@@ -132,7 +132,11 @@ endif
 # Non-MacOS flags
 UNAME_S := $(shell uname -s)
 ifneq ($(UNAME_S), Darwin)
-	LDFLAGS := $(LDFLAGS) -fuse-ld=lld
+	ifneq ($(UNAME_S), Linux)
+		LDFLAGS := $(LDFLAGS) -fuse-ld=lld
+	else ifeq ($(shell $(CXX) -fuse-ld=lld -Wl,--version >/dev/null 2>&1 && echo yes),yes)
+		LDFLAGS := $(LDFLAGS) -fuse-ld=lld
+	endif
 endif
 
 # Network flags
