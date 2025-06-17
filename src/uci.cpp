@@ -385,6 +385,8 @@ void position(std::string line, Board& board, std::vector<uint64_t>& boardHistor
                 UCI::nnue.reset(&boardCopy);
             }
 
+            board = boardCopy;
+
             if (line.length() > i)
                 line = line.substr(i + 1);
             if (line.length() >= lastStrlen) break;
