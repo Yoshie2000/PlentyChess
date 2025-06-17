@@ -29,22 +29,22 @@ constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
 
 
 int getMaterialScale(Board* board) {
-    int pawnCount = board->stack->pieceCount[Color::WHITE][Piece::PAWN] + board->stack->pieceCount[Color::BLACK][Piece::PAWN];
-    int knightCount = board->stack->pieceCount[Color::WHITE][Piece::KNIGHT] + board->stack->pieceCount[Color::BLACK][Piece::KNIGHT];
-    int bishopCount = board->stack->pieceCount[Color::WHITE][Piece::BISHOP] + board->stack->pieceCount[Color::BLACK][Piece::BISHOP];
-    int rookCount = board->stack->pieceCount[Color::WHITE][Piece::ROOK] + board->stack->pieceCount[Color::BLACK][Piece::ROOK];
-    int queenCount = board->stack->pieceCount[Color::WHITE][Piece::QUEEN] + board->stack->pieceCount[Color::BLACK][Piece::QUEEN];
+    int pawnCount = BB::popcount(board->byPiece[Piece::PAWN]);
+    int knightCount = BB::popcount(board->byPiece[Piece::KNIGHT]);
+    int bishopCount = BB::popcount(board->byPiece[Piece::BISHOP]);
+    int rookCount = BB::popcount(board->byPiece[Piece::ROOK]);
+    int queenCount = BB::popcount(board->byPiece[Piece::QUEEN]);
 
     int materialValue = PIECE_VALUES[Piece::PAWN] * pawnCount + PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
 Eval evaluate(Board* board, NNUE* nnue) {
-    assert(!board->stack->checkers);
+    assert(!board->checkers);
 
     Eval eval = nnue->evaluate(board);
     eval = (eval * getMaterialScale(board)) / 1024;
-    eval = eval * (300 - board->stack->rule50_ply) / 300;
+    eval = eval * (300 - board->rule50_ply) / 300;
 
     eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return (eval / 16) * 16;
@@ -98,8 +98,8 @@ bool SEE(Board* board, Move move, Eval threshold) {
 
     Square whiteKing = lsb(board->byColor[Color::WHITE] & board->byPiece[Piece::KING]);
     Square blackKing = lsb(board->byColor[Color::BLACK] & board->byPiece[Piece::KING]);
-    Bitboard blockers = board->stack->blockers[Color::WHITE] | board->stack->blockers[Color::BLACK];
-    Bitboard alignedBlockers = (board->stack->blockers[Color::WHITE] & BB::LINE[target][whiteKing]) | (board->stack->blockers[Color::BLACK] & BB::LINE[target][blackKing]);
+    Bitboard blockers = board->blockers[Color::WHITE] | board->blockers[Color::BLACK];
+    Bitboard alignedBlockers = (board->blockers[Color::WHITE] & BB::LINE[target][whiteKing]) | (board->blockers[Color::BLACK] & BB::LINE[target][blackKing]);
 
     // Make captures until one side has none left / fails to beat the threshold
     while (true) {
