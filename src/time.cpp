@@ -14,23 +14,23 @@ int64_t getTime() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-bool timeOver(SearchParameters* parameters, SearchData* data) {
-    if (parameters->ponder)
+bool timeOver(SearchParameters& parameters, SearchData& data) {
+    if (parameters.ponder)
         return false;
-    return (data->maxTime && (data->nodesSearched % 1024) == 0 && getTime() >= data->maxTime) || (parameters->nodes && data->nodesSearched >= parameters->nodes * (1 + 9 * UCI::Options.datagen.value));
+    return (data.maxTime && (data.nodesSearched % 1024) == 0 && getTime() >= data.maxTime) || (parameters.nodes && data.nodesSearched >= parameters.nodes * (1 + 9 * UCI::Options.datagen.value));
 }
 
-bool timeOverDepthCleared(SearchParameters* parameters, SearchData* data, double factor) {
-    if (parameters->ponder)
+bool timeOverDepthCleared(SearchParameters& parameters, SearchData& data, double factor) {
+    if (parameters.ponder)
         return false;
-    int64_t adjustedOptTime = (int64_t)(data->startTime + (double)(data->optTime - data->startTime) * factor);
+    int64_t adjustedOptTime = (int64_t)(data.startTime + (double)(data.optTime - data.startTime) * factor);
     int64_t currentTime = getTime();
-    return (data->maxTime && (currentTime >= adjustedOptTime || currentTime >= data->maxTime)) || (parameters->nodes && data->nodesSearched >= parameters->nodes * (1 + 9 * UCI::Options.datagen.value));
+    return (data.maxTime && (currentTime >= adjustedOptTime || currentTime >= data.maxTime)) || (parameters.nodes && data.nodesSearched >= parameters.nodes * (1 + 9 * UCI::Options.datagen.value));
 }
 
-void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchData* data) {
-    data->startTime = getTime();
-    data->maxTime = 0;
+void initTimeManagement(Board& rootBoard, SearchParameters& parameters, SearchData& data) {
+    data.startTime = getTime();
+    data.maxTime = 0;
 
     if (UCI::Options.datagen.value)
         return;
@@ -39,12 +39,12 @@ void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchDa
     int64_t increment = 0;
 
     // Figure out time / increment
-    if (parameters->movetime) {
-        time = parameters->movetime;
+    if (parameters.movetime) {
+        time = parameters.movetime;
     }
-    else if (parameters->wtime && parameters->btime) {
-        time = rootBoard->stm == Color::WHITE ? parameters->wtime : parameters->btime;
-        increment = rootBoard->stm == Color::WHITE ? parameters->winc : parameters->binc;
+    else if (parameters.wtime && parameters.btime) {
+        time = rootBoard.stm == Color::WHITE ? parameters.wtime : parameters.btime;
+        increment = rootBoard.stm == Color::WHITE ? parameters.winc : parameters.binc;
     }
 
     // Safety in case nothing (or something negative) was specified
@@ -54,22 +54,22 @@ void initTimeManagement(Board* rootBoard, SearchParameters* parameters, SearchDa
     time -= std::min((int64_t)UCI::Options.moveOverhead.value, time / 2);
 
     // Figure out how we should spend this time
-    if (parameters->movetime) {
-        data->optTime = data->startTime + time;
-        data->maxTime = data->startTime + time;
+    if (parameters.movetime) {
+        data.optTime = data.startTime + time;
+        data.maxTime = data.startTime + time;
     }
-    else if (parameters->movestogo) {
-        int64_t totalTime = time / parameters->movestogo;
+    else if (parameters.movestogo) {
+        int64_t totalTime = time / parameters.movestogo;
         int64_t maxTime = maxTimeFactor * time / 1000;
 
-        data->optTime = data->startTime + std::min<int64_t>(maxTime, optTimeFactor * totalTime);
-        data->maxTime = data->startTime + std::min<int64_t>(maxTime, maxTimeFactor2 * totalTime);
+        data.optTime = data.startTime + std::min<int64_t>(maxTime, optTimeFactor * totalTime);
+        data.maxTime = data.startTime + std::min<int64_t>(maxTime, maxTimeFactor2 * totalTime);
     }
-    else if (parameters->wtime && parameters->btime) {
+    else if (parameters.wtime && parameters.btime) {
         int64_t totalTime = 10 * time / totalTimeDivisor + 10 * increment / totalTimeIncrementDivisor;
         int64_t maxTime = maxTimeFactor * time / 1000;
 
-        data->optTime = data->startTime + std::min<int64_t>(maxTime, optTimeFactor * totalTime);
-        data->maxTime = data->startTime + std::min<int64_t>(maxTime, maxTimeFactor2 * totalTime);
+        data.optTime = data.startTime + std::min<int64_t>(maxTime, optTimeFactor * totalTime);
+        data.maxTime = data.startTime + std::min<int64_t>(maxTime, maxTimeFactor2 * totalTime);
     }
 }
