@@ -1,7 +1,7 @@
 CXX = clang++
 CC  = $(CXX)
-CFLAGS = -mpopcnt -w -pthread -O3 -flto=auto
-CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -flto=auto
+CFLAGS = -mpopcnt -w -pthread -O3
+CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
 LDFLAGS = 
 CXXFLAGS_EXTRA = 
 
@@ -128,7 +128,16 @@ endif
 ifeq ($(OS), Windows_NT)
 	CXXFLAGS := $(CXXFLAGS) -static
 	LDFLAGS := $(LDFLAGS) -lstdc++ -fuse-ld=lld
+	
+	CLANG_IS_MSVC := $(findstring msvc,$(shell $(CXX) --version))
+	ifeq ($(CLANG_IS_MSVC),msvc)
+		CFLAGS := $(CFLAGS) -flto=auto
+        	CXXFLAGS := $(CXXFLAGS) -flto=auto
+	endif
 else
+	CFLAGS := $(CFLAGS) -flto=auto
+	CXXFLAGS := $(CXXFLAGS) -flto=auto
+
 	UNAME_S := $(shell uname -s)
 # Use LLD on Linux with clang if supported
 	ifneq ($(UNAME_S), Darwin)
