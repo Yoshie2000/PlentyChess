@@ -147,6 +147,8 @@ else
 				LDFLAGS := $(LDFLAGS) -fuse-ld=lld
 			endif
 		endif
+	else
+	    CFLAGS := $(filter-out -mpopcnt,$(CFLAGS))
 	endif
 endif
 
