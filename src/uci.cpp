@@ -440,12 +440,12 @@ void setoption(std::string line) {
     UCI::Options.forEach(setUciOption(name, value));
     SPSA::trySetParam(name, value);
 
-    if (name == "SyzygyPath") {
-        std::string path = UCI::Options.syzygyPath.value;
-        tb_init(path.c_str());
-        if (!TB_LARGEST)
-            std::cout << "info string Tablebases failed to load" << std::endl;
-    }
+    // if (name == "SyzygyPath") {
+    //     std::string path = UCI::Options.syzygyPath.value;
+    //     tb_init(path.c_str());
+    //     if (!TB_LARGEST)
+    //         std::cout << "info string Tablebases failed to load" << std::endl;
+    // }
 }
 
 void go(std::string line, Board& board, std::vector<uint64_t>& boardHistory) {
