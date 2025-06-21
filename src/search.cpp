@@ -634,7 +634,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             }
 
             if (tbBound == TT_EXACTBOUND || (tbBound == TT_LOWERBOUND ? tbValue >= beta : tbValue <= alpha)) {
-                ttEntry->update(board->hashes.hash, MOVE_NONE, MAX_PLY, EVAL_NONE, valueToTT(tbValue, stack->ply), stack->ttPv, tbBound);
+                ttEntry->update(board->hashes.hash, MOVE_NONE, depth, EVAL_NONE, valueToTT(tbValue, stack->ply), stack->ttPv, tbBound);
                 return tbValue;
             }
 
