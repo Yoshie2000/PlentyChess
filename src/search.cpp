@@ -564,7 +564,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Initialize some stuff
     Move bestMove = MOVE_NONE;
     Move excludedMove = stack->excludedMove;
-    Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
+    Eval bestValue = -EVAL_INFINITE, tbLowerbound = -EVAL_INFINITE, tbUpperbound = EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, excluded = excludedMove != MOVE_NONE;
 
@@ -640,11 +640,11 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
             if (pvNode) {
                 if (tbBound == TT_LOWERBOUND) {
-                    bestValue = tbValue;
-                    alpha = std::max(alpha, bestValue);
+                    tbLowerbound = tbValue;
+                    alpha = std::max(alpha, tbLowerbound);
                 }
                 else {
-                    maxValue = tbValue;
+                    tbUpperbound = tbValue;
                 }
             }
         }
@@ -1130,7 +1130,7 @@ movesLoop:
     }
 
     if (pvNode)
-        bestValue = std::min(bestValue, maxValue);
+        bestValue = std::clamp(bestValue, tbLowerbound, tbUpperbound);
 
     // Insert into TT
     bool failLow = alpha == oldAlpha;
