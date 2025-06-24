@@ -273,7 +273,7 @@ bool Worker::hasUpcomingRepetition(Board* board, int ply) {
     int maxPlyOffset = std::min(board->rule50_ply, board->nullmove_ply);
     if (maxPlyOffset < 3)
         return false;
-    
+
     assert(boardHistory.size() >= 2);
 
     uint64_t* compareHash = &boardHistory[boardHistory.size() - 2];
@@ -733,7 +733,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         stack->contHist = history.continuationHistory[board->stm][0][0];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0];
         int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
-        
+
         Board* boardCopy = doNullMove(board);
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
         undoNullMove();
@@ -836,9 +836,9 @@ movesLoop:
 
         if (!board->isLegal(move))
             continue;
-        
+
         uint64_t nodesBeforeMove = searchData.nodesSearched;
-        
+
         bool capture = board->isCapture(move);
         int moveHistory = history.getHistory(board, stack, move, capture);
 
@@ -977,7 +977,7 @@ movesLoop:
 
             if (cutNode)
                 reduction += lmrCutnode;
-            
+
             if (stack->ttPv && ttHit && ttValue <= alpha)
                 reduction += lmrTtpvFaillow;
 
@@ -1390,70 +1390,55 @@ void Worker::sortRootMoves() {
 
 Worker* Worker::chooseBestThread() {
     Worker* bestThread = this;
-    size_t bestMoveIdx = 0;
 
     if (threadPool->workers.size() > 1 && UCI::Options.multiPV.value == 1) {
         std::map<Move, int64_t> votes;
         Eval minValue = EVAL_INFINITE;
 
         for (auto& worker : threadPool->workers) {
-            for (auto& rm : worker->rootMoves) {
-                if (rm.value == -EVAL_INFINITE)
-                    break;
-                minValue = std::min(minValue, rm.value);
-            }
+            if (worker->rootMoves[0].value == -EVAL_INFINITE)
+                break;
+            minValue = std::min(minValue, worker->rootMoves[0].value);
         }
-        minValue++;
 
         for (auto& worker : threadPool->workers) {
-            for (auto& rm : worker->rootMoves) {
-                if (rm.value == -EVAL_INFINITE)
-                    break;
-                // Votes weighted by depth and difference to the minimum value
-                votes[rm.move] += (rm.value - minValue + 10) * std::max(1, rm.depth - (worker->rootMoves[0].depth - rm.depth));
-            }
+            auto& rm = worker->rootMoves[0];
+            if (rm.value == -EVAL_INFINITE)
+                break;
+            votes[rm.move] += (rm.value - minValue + 11) * rm.depth;
         }
 
         for (auto& worker : threadPool->workers) {
             Worker* thread = worker.get();
-            for (size_t rmi = 0; rmi < thread->rootMoves.size(); rmi++) {
-                RootMove& rm = thread->rootMoves[rmi];
-                if (rm.value == -EVAL_INFINITE)
-                    break;
+            RootMove& rm = thread->rootMoves[0];
+            if (rm.value == -EVAL_INFINITE)
+                break;
 
-                Eval thValue = rm.value;
-                Eval bestValue = bestThread->rootMoves[bestMoveIdx].value;
-                Move thMove = rm.move;
-                Move bestMove = bestThread->rootMoves[bestMoveIdx].move;
+            Eval thValue = rm.value;
+            Eval bestValue = bestThread->rootMoves[0].value;
+            Move thMove = rm.move;
+            Move bestMove = bestThread->rootMoves[0].move;
 
-                // In case of checkmate, take the shorter mate / longer getting mated
-                if (std::abs(bestValue) >= EVAL_TBWIN_IN_MAX_PLY) {
-                    if (thValue > bestValue) {
-                        bestThread = thread;
-                        bestMoveIdx = rmi;
-                    }
-                }
-                // We have found a mate, take it without voting
-                else if (thValue >= EVAL_TBWIN_IN_MAX_PLY) {
+            // In case of checkmate, take the shorter mate / longer getting mated
+            if (std::abs(bestValue) >= EVAL_TBWIN_IN_MAX_PLY) {
+                if (thValue > bestValue) {
                     bestThread = thread;
-                    bestMoveIdx = rmi;
                 }
-                // No mate found by any thread so far, take the thread with more votes
-                else if (votes[thMove] > votes[bestMove]) {
-                    bestThread = thread;
-                    bestMoveIdx = rmi;
-                }
-                // In case of same move, choose the thread with the highest score
-                else if (thMove == bestMove && std::abs(thValue) > std::abs(bestValue) && rm.pv.size() > 2) {
-                    bestThread = thread;
-                    bestMoveIdx = rmi;
-                }
+            }
+            // We have found a mate, take it without voting
+            else if (thValue >= EVAL_TBWIN_IN_MAX_PLY) {
+                bestThread = thread;
+            }
+            // No mate found by any thread so far, take the thread with more votes
+            else if (votes[thMove] > votes[bestMove]) {
+                bestThread = thread;
+            }
+            // In case of same move, choose the thread with the highest score
+            else if (thMove == bestMove && std::abs(thValue) > std::abs(bestValue) && rm.pv.size() > 2) {
+                bestThread = thread;
             }
         }
     }
-
-    if (bestMoveIdx)
-        std::swap(bestThread->rootMoves[0], bestThread->rootMoves[bestMoveIdx]);
 
     return bestThread;
 }
