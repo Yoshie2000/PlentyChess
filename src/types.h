@@ -98,6 +98,7 @@ struct SearchStack {
     int correctionValue;
     int reduction;
     bool inLMR, ttPv;
+    int moveCount;
 
     Move excludedMove;
     Move killer;

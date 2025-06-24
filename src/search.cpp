@@ -377,6 +377,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue) : drawEval(this);
 
     stack->inCheck = board->checkerCount > 0;
+    stack->moveCount = 0;
 
     // TT Lookup
     bool ttHit = false;
@@ -470,6 +471,7 @@ movesLoopQsearch:
         uint64_t newHash = board->hashAfter(move);
         TT.prefetch(newHash);
         moveCount++;
+        stack->moveCount = moveCount;
         searchData.nodesSearched++;
 
         Square origin = moveOrigin(move);
@@ -571,6 +573,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
     stack->inCheck = board->checkerCount > 0;
+    stack->moveCount = 0;
 
     // TT Lookup
     bool ttHit = false;
@@ -594,8 +597,15 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // TT cutoff
-    if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND))) {
+
+        if (ttValue >= beta && ttDepth > depth && (stack - 1)->move != MOVE_NONE && (stack - 1)->move != MOVE_NULL && !(stack - 1)->capture && (stack - 1)->moveCount <= 3) {
+            int malus = std::min(94 + 211 * depth, 1556);
+            history.updateContinuationHistory(stack - 1, (board - 1)->stm, (stack - 1)->movedPiece, (stack - 1)->move, -malus);
+        }
+
         return ttValue;
+    }
 
     // TB Probe
     if (!rootNode && !excluded && BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
@@ -957,6 +967,7 @@ movesLoop:
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
 
         moveCount++;
+        stack->moveCount = moveCount;
         searchData.nodesSearched++;
 
         Board* boardCopy = doMove(board, newHash, move);
@@ -1272,6 +1283,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
                 stackList[i].ttPv = false;
+                stackList[i].moveCount = 0;
             }
 
             searchData.rootDepth = depth;
@@ -1491,6 +1503,7 @@ void Worker::tdatagen() {
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
             stackList[i].ttPv = false;
+            stackList[i].moveCount = 0;
         }
 
         searchData.rootDepth = depth;
