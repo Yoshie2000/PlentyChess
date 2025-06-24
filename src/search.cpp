@@ -457,7 +457,7 @@ movesLoopQsearch:
                 continue;
             }
 
-            if (!SEE(board, move, qsSeeMargin))
+            if (!SEE(board, move, qsSeeMargin - history.getHistory(board, stack, move, capture) / 80))
                 break;
 
             if ((moveType(move) != MOVE_PROMOTION) && moveCount > 2)
