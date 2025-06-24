@@ -1204,7 +1204,7 @@ void Worker::tsearch() {
         threadPool->stopSearching();
         threadPool->waitForHelpersFinished();
 
-        Worker* bestThread = chooseBestThread();
+        Worker* bestThread = this;
 
         if (bestThread != this || UCI::Options.minimal.value) {
             printUCI(bestThread);
