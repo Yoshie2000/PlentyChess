@@ -19,7 +19,7 @@
 # define INCBIN_ALIGNMENT_INDEX 6
 #elif defined(__AVX__)      || \
       defined(__AVX2__)
-# define INCBIN_ALIGNMENT_INDEX 5
+# define INCBIN_ALIGNMENT_INDEX 6
 #elif defined(__SSE__)      || \
       defined(__SSE2__)     || \
       defined(__SSE3__)     || \
@@ -29,11 +29,11 @@
       defined(__neon__)     || \
       defined(__ARM_NEON)   || \
       defined(__ALTIVEC__)
-# define INCBIN_ALIGNMENT_INDEX 4
+# define INCBIN_ALIGNMENT_INDEX 6
 #elif ULONG_MAX != 0xffffffffu
-# define INCBIN_ALIGNMENT_INDEX 3
+# define INCBIN_ALIGNMENT_INDEX 6
 # else
-# define INCBIN_ALIGNMENT_INDEX 2
+# define INCBIN_ALIGNMENT_INDEX 6
 #endif
 
 /* Lookup table of (1 << n) where `n' is `INCBIN_ALIGNMENT_INDEX' */
