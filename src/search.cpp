@@ -651,27 +651,27 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Static evaluation
-    Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
+    Eval unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
 
     Eval correctionValue = history.getCorrectionValue(board, stack);
     stack->correctionValue = correctionValue;
     if (board->checkers) {
-        stack->staticEval = EVAL_NONE;
+        stack->staticEval = stack->eval = EVAL_NONE;
         goto movesLoop;
     }
     else if (excluded) {
-        unadjustedEval = eval = stack->staticEval;
+        unadjustedEval = stack->eval = stack->staticEval;
     }
     else if (ttHit) {
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
+        stack->eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
 
-        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
-            eval = ttValue;
+        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < stack->eval) || (ttFlag == TT_LOWERBOUND && ttValue > stack->eval) || (ttFlag == TT_EXACTBOUND)))
+            stack->eval = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
+        stack->eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
 
         ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, stack->ttPv, TT_NOBOUND);
     }
@@ -689,6 +689,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + staticHistoryTempo;
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, bonus);
     }
+    if (!excluded && (stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1 && stack->eval != stack->staticEval && (stack - 1)->eval != (stack - 1)->staticEval) {
+        int bonus = std::clamp(staticHistoryFactor * int(stack->eval + (stack - 1)->eval) / 10, staticHistoryMin, staticHistoryMax) + staticHistoryTempo;
+        history.updateSingleCaptureHistory(board - 1, (stack - 1)->move, bonus);
+    }
 
     // IIR
     if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
@@ -705,11 +709,11 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
-        return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
+    if (!rootNode && depth < rfpDepth && std::abs(stack->eval) < EVAL_TBWIN_IN_MAX_PLY && stack->eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
+        return std::min((stack->eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Razoring
-    if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
+    if (!rootNode && depth < razoringDepth && stack->eval + (razoringFactor * depth) < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
         if (razorValue <= alpha && std::abs(razorValue) < EVAL_TBWIN_IN_MAX_PLY)
             return razorValue;
@@ -717,8 +721,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // Null move pruning
     if (!pvNode
-        && eval >= beta
-        && eval >= stack->staticEval
+        && stack->eval >= beta
+        && stack->eval >= stack->staticEval
         && stack->staticEval + nmpEvalDepth * depth - nmpEvalBase >= beta
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY
         && !excluded
@@ -732,7 +736,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[board->stm][0][0];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0];
-        int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
+        int R = nmpRedBase + depth / nmpDepthDiv + std::min((stack->eval - beta) / nmpDivisor, nmpMin);
 
         Board* boardCopy = doNullMove(board);
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
@@ -857,7 +861,7 @@ movesLoop:
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha) {
+                if (!capture && lmrDepth < fpDepth && stack->eval + fpBase + fpFactor * lmrDepth <= alpha) {
                     movegen.skipQuietMoves();
                 }
             }
@@ -865,7 +869,7 @@ movesLoop:
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
                 Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
+                if (lmrDepth < fpCaptDepth && stack->eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
                     continue;
             }
 
@@ -1092,7 +1096,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int historyUpdateDepth = depth + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
+                    int historyUpdateDepth = depth + (stack->eval <= alpha) + (value - historyDepthBetaOffset > beta);
 
                     if (!capture) {
                         // Update quiet killer
@@ -1262,6 +1266,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].pvLength = 0;
                 stackList[i].ply = i - STACK_OVERHEAD;
                 stackList[i].staticEval = EVAL_NONE;
+                stackList[i].eval = EVAL_NONE;
                 stackList[i].excludedMove = MOVE_NONE;
                 stackList[i].killer = MOVE_NONE;
                 stackList[i].movedPiece = Piece::NONE;
@@ -1481,6 +1486,7 @@ void Worker::tdatagen() {
             stackList[i].pvLength = 0;
             stackList[i].ply = i - STACK_OVERHEAD;
             stackList[i].staticEval = EVAL_NONE;
+            stackList[i].eval = EVAL_NONE;
             stackList[i].excludedMove = MOVE_NONE;
             stackList[i].killer = MOVE_NONE;
             stackList[i].movedPiece = Piece::NONE;
