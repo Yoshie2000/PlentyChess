@@ -716,7 +716,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Null move pruning
-    if (!pvNode
+    if (cutNode
         && eval >= beta
         && eval >= stack->staticEval
         && stack->staticEval + nmpEvalDepth * depth - nmpEvalBase >= beta
