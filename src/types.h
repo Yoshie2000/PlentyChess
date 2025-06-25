@@ -90,7 +90,7 @@ struct SearchStack {
 
     int ply;
 
-    Eval staticEval;
+    Eval staticEval, eval;
 
     Move move;
     Piece movedPiece;
