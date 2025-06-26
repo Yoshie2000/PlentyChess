@@ -479,7 +479,7 @@ constexpr int KING_BUCKETS = 12;
 constexpr bool KING_BUCKETS_FACTORIZED = true;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int NETWORK_SCALE = 287;
+constexpr int NETWORK_SCALE = 353;
 constexpr int INPUT_QUANT = 362;
 constexpr int INPUT_SHIFT = 10;
 constexpr int L1_QUANT = 64;
