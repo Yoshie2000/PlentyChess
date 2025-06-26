@@ -53,6 +53,70 @@ ifdef INCLUDE_DEBUG_SYMBOLS
 	CXXFLAGS := $(CXXFLAGS) -g -ggdb
 endif
 
+ifeq ($(arch),)
+# Autodetect architecture if none is provided
+
+# First detect x86 / arm
+	ifneq ($(OS), Windows_NT)
+		ARCH_CMD := $(shell uname -m)
+		ifeq ($(ARCH_CMD), aarch64)
+			arch := arm64
+		else ifeq ($(ARCH_CMD), arm64)
+			arch := arm64
+		else ifneq ($(ARCH_CMD), x86_64)
+$(error Architecture not supported: $(ARCH_CMD))
+		endif
+	endif
+endif
+# If not arm, determine optimal x86 compile
+ifeq ($(arch),)
+# Detect CPU flags
+	ifeq ($(OS), Windows_NT)
+		HAS_SSSE3 := $(shell .\detect_flags.bat $(CXX) __SSSE3)
+		HAS_FMA := $(shell .\detect_flags.bat $(CXX) __FMA)
+		HAS_AVX2 := $(shell .\detect_flags.bat $(CXX) __AVX2)
+		HAS_BMI2 := $(shell .\detect_flags.bat $(CXX) __BMI2)
+		HAS_AVX512 := $(shell .\detect_flags.bat $(CXX) __AVX512)
+		IS_ZEN1  := $(shell .\detect_flags.bat $(CXX) __znver1)
+		IS_ZEN2  := $(shell .\detect_flags.bat $(CXX) __znver2)
+		IS_ZEN5  := $(shell .\detect_flags.bat $(CXX) __znver5)
+	else
+		HAS_SSSE3 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__SSSE3")
+		HAS_FMA := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__FMA")
+		HAS_AVX2 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__AVX2")
+		HAS_BMI2 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__BMI2")
+		HAS_AVX512 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__AVX512")
+		IS_ZEN1  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver1")
+		IS_ZEN2  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver2")
+		IS_ZEN5  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver5")
+	endif
+
+# On Zen1/2 systems, which have slow PEXT instructions, we don't want to build with BMI2
+	ifeq ($(HAS_BMI2),1)
+		ifeq ($(IS_ZEN1),0)
+			ifeq ($(IS_ZEN2),0)
+				BMI2 := true
+			endif
+		endif
+	endif
+
+# Detect avx512vnni
+	ifneq ($(IS_ZEN5),0)
+		arch := avx512vnni
+	else ifneq ($(HAS_AVX512),0)
+		arch := avx512
+	else ifneq ($(HAS_AVX2),0)
+		arch := avx2
+	else ifneq ($(HAS_FMA),0)
+		arch := fma
+	else ifneq ($(HAS_SSSE3),0)
+		arch := ssse3
+	else
+		arch := generic
+	endif
+
+endif
+
 # CPU Flags
 ifeq ($(arch), arm64)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
@@ -73,43 +137,8 @@ else ifeq ($(arch), ssse3)
 	CFLAGS := $(CFLAGS) -mssse3
 else ifeq ($(arch), generic)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
-else ifneq ($(origin arch), undefined)
-$(error Architecture not supported: $(arch))
 else
-	ifneq ($(OS), Windows_NT)
-		ARCH_CMD := $(shell uname -m)
-		ifeq ($(ARCH_CMD), x86_64)
-			CXXFLAGS := $(CXXFLAGS) -DARCH_X86
-		else ifeq ($(ARCH_CMD), aarch64)
-			CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
-		else ifeq ($(ARCH_CMD), arm64)
-			CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
-		else
-$(error Architecture not supported: $(ARCH_CMD))
-		endif
-	else
-		CXXFLAGS := $(CXXFLAGS) -DARCH_X86
-	endif
-
-	CXXFLAGS := $(CXXFLAGS) -march=native
-	CFLAGS := $(CFLAGS) -march=native
-	ifeq ($(OS), Windows_NT)
-		HAS_BMI2 := $(shell .\detect_flags.bat $(CXX) __BMI2__)
-		IS_ZEN1  := $(shell .\detect_flags.bat $(CXX) __znver1)
-		IS_ZEN2  := $(shell .\detect_flags.bat $(CXX) __znver2)
-	else
-		HAS_BMI2 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__BMI2__")
-		IS_ZEN1  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver1")
-		IS_ZEN2  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver2")
-	endif
-# On Zen1/2 systems, which have slow PEXT instructions, we don't want to build with BMI2
-	ifeq ($(HAS_BMI2),1)
-		ifeq ($(IS_ZEN1),0)
-			ifeq ($(IS_ZEN2),0)
-				CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2
-			endif
-		endif
-	endif
+$(error Architecture not supported: $(arch))
 endif
 
 ifdef BMI2
