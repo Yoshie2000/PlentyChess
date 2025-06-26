@@ -61,8 +61,10 @@ ifeq ($(arch),)
 		ARCH_CMD := $(shell uname -m)
 		ifeq ($(ARCH_CMD), aarch64)
 			arch := arm64
+$(info Autodetected architecture: arm64)
 		else ifeq ($(ARCH_CMD), arm64)
 			arch := arm64
+$(info Autodetected architecture: arm64)
 		else ifneq ($(ARCH_CMD), x86_64)
 $(error Architecture not supported: $(ARCH_CMD))
 		endif
@@ -114,6 +116,8 @@ ifeq ($(arch),)
 	else
 		arch := generic
 	endif
+
+$(info Autodetected architecture: $(arch))
 
 endif
 
