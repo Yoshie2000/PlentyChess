@@ -690,7 +690,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, bonus);
     }
     if (!excluded && (stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1 && stack->eval != stack->staticEval && (stack - 1)->eval != (stack - 1)->staticEval) {
-        int bonus = std::clamp(staticHistoryFactor * int(stack->eval + (stack - 1)->eval) / 10, staticHistoryMin, staticHistoryMax);
+        int bonus = std::clamp(-50 * int(stack->eval + (stack - 1)->eval) / 10, -235, -35) + 35;
         history.updateSingleCaptureHistory(board - 1, (stack - 1)->move, bonus);
     }
 
