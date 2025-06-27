@@ -52,7 +52,7 @@ bool playRandomMoves(Board& board, Worker* thread, int remainingMoves) {
         }
     }
     Board boardCopy = board;
-    boardCopy.doMove(move, boardCopy.hashAfter(move), &thread->nnue);
+    boardCopy.doMove(move, boardCopy.hashAfter(move));
 
     return playRandomMoves(boardCopy, thread, remainingMoves - 1);
 }

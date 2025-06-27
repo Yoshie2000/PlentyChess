@@ -425,15 +425,13 @@ void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Squa
     }
 }
 
-void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
+void Board::doMove(Move move, uint64_t newHash) {
     // Increment ply counters
     rule50_ply++;
     nullmove_ply++;
     if (stm == Color::BLACK)
         ply++;
     hashes.hash = newHash;
-
-    nnue->incrementAccumulator();
 
     // Calculate general information about the move
     Square origin = moveOrigin(move);
@@ -464,8 +462,6 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
         if (capturedPiece != Piece::NONE) {
             byColor[flip(stm)] ^= captureTargetBB; // take away the captured piece
             byPiece[capturedPiece] ^= captureTargetBB;
-
-            nnue->removePiece(captureTarget, capturedPiece, flip(stm));
 
             if (capturedPiece == Piece::ROOK) {
                 Square rookSquare = piece == Piece::ROOK ? origin : captureTarget;
@@ -500,11 +496,6 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
         else
             hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][promotionPiece][captureTarget];
 
-        // Promotion, we don't move the current piece, instead we remove it from the origin square
-        // and place the promotionPiece on the target square. This saves one accumulator update
-        nnue->removePiece(origin, piece, stm);
-        nnue->addPiece(target, promotionPiece, stm);
-
         break;
 
     case MOVE_CASTLING: {
@@ -533,16 +524,12 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
         hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::KING][target];
         hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookTarget];
 
-        nnue->movePiece(origin, target, Piece::KING, stm);
-        nnue->movePiece(rookOrigin, rookTarget, Piece::ROOK, stm);
-
         capturedPiece = Piece::NONE;
     }
                       break;
 
     case MOVE_ENPASSANT:
         movePiece(piece, origin, target, fromTo);
-        nnue->movePiece(origin, target, piece, stm);
         rule50_ply = 0;
 
         captureTarget = target - UP[stm];
@@ -558,13 +545,10 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
         byColor[flip(stm)] ^= captureTargetBB; // take away the captured piece
         byPiece[Piece::PAWN] ^= captureTargetBB;
 
-        nnue->removePiece(captureTarget, Piece::PAWN, flip(stm));
-
         break;
 
     default: // Normal moves
         movePiece(piece, origin, target, fromTo);
-        nnue->movePiece(origin, target, piece, stm);
 
         if (piece == Piece::PAWN) {
             // Double push
@@ -611,8 +595,6 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
                     hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
             }
 
-            nnue->removePiece(captureTarget, capturedPiece, flip(stm));
-
             rule50_ply = 0;
         }
 
@@ -656,22 +638,22 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
         break;
     }
 
-    // Update king checking stuff
-    assert((byColor[flip(stm)] & byPiece[Piece::KING]) > 0);
-    assert((byColor[stm] & byPiece[Piece::KING]) > 0);
-
-    Square enemyKing = lsb(byColor[flip(stm)] & byPiece[Piece::KING]);
-    checkers = attackersTo(enemyKing, byColor[Color::WHITE] | byColor[Color::BLACK]) & byColor[stm];
-    checkerCount = checkers ? BB::popcount(checkers) : 0;
-    updateSliderPins(Color::WHITE);
-    updateSliderPins(Color::BLACK);
-
-    nnue->finalizeMove(this);
-
     stm = flip(stm);
     lastMove = move;
 
     calculateThreats();
+
+    assert((byColor[flip(stm)] & byPiece[Piece::KING]) > 0);
+    assert((byColor[stm] & byPiece[Piece::KING]) > 0);
+
+    Square newStmKing = lsb(byColor[stm] & byPiece[Piece::KING]);
+    if ((threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats | threats.queenThreats) & bitboard(newStmKing))
+        checkers = attackersTo(newStmKing, byColor[Color::WHITE] | byColor[Color::BLACK]) & byColor[flip(stm)];
+    else
+        checkers = 0;
+    checkerCount = checkers ? BB::popcount(checkers) : 0;
+    updateSliderPins(Color::WHITE);
+    updateSliderPins(Color::BLACK);
 }
 
 void Board::doNullMove() {
@@ -1026,7 +1008,7 @@ uint64_t Board::hashAfter(Move move) {
     return hash;
 }
 
-void Board::updateSliderPins(Color side) {
+__attribute_noinline__ void Board::updateSliderPins(Color side) {
     assert((byColor[side] & byPiece[Piece::KING]) > 0);
 
     Square king = lsb(byColor[side] & byPiece[Piece::KING]);

@@ -8,8 +8,6 @@
 #include "bitboard.h"
 #include "types.h"
 
-class NNUE;
-
 constexpr uint8_t CASTLING_WHITE_KINGSIDE = 0x1;
 constexpr uint8_t CASTLING_WHITE_QUEENSIDE = 0x2;
 constexpr uint8_t CASTLING_BLACK_KINGSIDE = 0x4;
@@ -70,7 +68,7 @@ struct Board {
     std::string fen();
 
     void movePiece(Piece piece, Square origin, Square target, Bitboard fromTo);
-    void doMove(Move move, uint64_t newHash, NNUE* nnue);
+    void doMove(Move move, uint64_t newHash);
     void doNullMove();
 
     void calculateThreats();

@@ -359,13 +359,11 @@ void position(std::string line, Board& board, std::vector<uint64_t>& boardHistor
     boardHistory.push_back(board.hashes.hash);
 
     // Make further moves
-    UCI::nnue.reset(&board);
     if (matchesToken(line, "moves")) {
         line = line.substr(6);
 
         char move[5];
         size_t lastStrlen = line.length();
-        int moveCount = 0;
         while (line.length() >= 4) {
             lastStrlen = line.length();
 
@@ -378,13 +376,8 @@ void position(std::string line, Board& board, std::vector<uint64_t>& boardHistor
             Move m = stringToMove(move, &board);
 
             Board boardCopy = board;
-            boardCopy.doMove(m, board.hashAfter(m), &UCI::nnue);
+            boardCopy.doMove(m, board.hashAfter(m));
             boardHistory.push_back(boardCopy.hashes.hash);
-
-            if (moveCount++ > 200) {
-                UCI::nnue.reset(&boardCopy);
-            }
-
             board = boardCopy;
 
             if (line.length() > i)

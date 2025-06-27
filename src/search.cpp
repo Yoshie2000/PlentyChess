@@ -157,7 +157,7 @@ void initReductions() {
     }
 }
 
-uint64_t perftInternal(Board& board, NNUE* nnue, int depth) {
+uint64_t perftInternal(Board& board, int depth) {
     if (depth == 0) return 1;
 
     Move moves[MAX_MOVES] = { MOVE_NONE };
@@ -172,9 +172,8 @@ uint64_t perftInternal(Board& board, NNUE* nnue, int depth) {
             continue;
 
         Board boardCopy = board;
-        boardCopy.doMove(move, boardCopy.hashAfter(move), nnue);
-        uint64_t subNodes = perftInternal(boardCopy, nnue, depth - 1);
-        UCI::nnue.decrementAccumulator();
+        boardCopy.doMove(move, boardCopy.hashAfter(move));
+        uint64_t subNodes = perftInternal(boardCopy, depth - 1);
 
         nodes += subNodes;
     }
@@ -197,9 +196,8 @@ uint64_t perft(Board& board, int depth) {
             continue;
 
         Board boardCopy = board;
-        boardCopy.doMove(move, boardCopy.hashAfter(move), &UCI::nnue);
-        uint64_t subNodes = perftInternal(boardCopy, &UCI::nnue, depth - 1);
-        UCI::nnue.decrementAccumulator();
+        boardCopy.doMove(move, boardCopy.hashAfter(move));
+        uint64_t subNodes = perftInternal(boardCopy, depth - 1);
 
         std::cout << moveToString(move, UCI::Options.chess960.value) << ": " << subNodes << std::endl;
 
@@ -241,11 +239,48 @@ Eval drawEval(Worker* thread) {
 }
 
 Board* Worker::doMove(Board* board, uint64_t newHash, Move move) {
+    nnue.incrementAccumulator();
+    Square origin = moveOrigin(move);
+    Square target = moveTarget(move);
+    Piece piece = board->pieces[origin];
+    Piece capturedPiece = board->pieces[target];
+    switch (moveType(move)) {
+        case MOVE_PROMOTION:
+            if (capturedPiece != Piece::NONE)
+                nnue.removePiece(target, capturedPiece, flip(board->stm));
+            nnue.removePiece(origin, piece, board->stm);
+            nnue.addPiece(target, PROMOTION_PIECE[promotionType(move)], board->stm);
+            break;
+        
+        case MOVE_CASTLING: {
+            Square rookOrigin, rookTarget;
+            uint8_t castling = board->castling;
+            board->calculateCastlingSquares(origin, &target, &rookOrigin, &rookTarget, &castling);
+
+            nnue.movePiece(origin, target, Piece::KING, board->stm);
+            nnue.movePiece(rookOrigin, rookTarget, Piece::ROOK, board->stm);
+        }
+            break;
+        
+        case MOVE_ENPASSANT:
+            nnue.movePiece(origin, target, Piece::PAWN, board->stm);
+            nnue.removePiece(target - UP[board->stm], Piece::PAWN, flip(board->stm));
+
+            break;
+        default:
+            if (capturedPiece != Piece::NONE)
+                nnue.removePiece(target, capturedPiece, flip(board->stm));
+            nnue.movePiece(origin, target, piece, board->stm);
+            break;
+    }
+
     Board* boardCopy = board + 1;
     *boardCopy = *board;
-
-    boardCopy->doMove(move, newHash, &nnue);
+    boardCopy->doMove(move, newHash);
     boardHistory.push_back(newHash);
+
+    nnue.finalizeMove(boardCopy);
+
     return boardCopy;
 }
 
