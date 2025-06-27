@@ -516,7 +516,7 @@ movesLoopQsearch:
     int flags = bestValue >= beta ? TT_LOWERBOUND : TT_UPPERBOUND;
     ttEntry->update(board->hashes.hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
-    return bestValue;
+    return bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY ? (3 * bestValue + beta) / 4 : bestValue;
 }
 
 template <NodeType nt>
