@@ -1128,8 +1128,8 @@ movesLoop:
         bestValue = (bestValue * depth + beta) / (depth + 1);
 
     if (moveCount == 0) {
-        if (board->checkers && excluded)
-            return -EVAL_INFINITE;
+        if (excluded)
+            return alpha;
         // Mate / Stalemate
         bestValue = board->checkers ? matedIn(stack->ply) : 0;
     }
