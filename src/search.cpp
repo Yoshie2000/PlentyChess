@@ -966,27 +966,32 @@ movesLoop:
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !stack->ttPv || cutNode)) {
+        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !pvNode)) {
             int reduction = REDUCTIONS[!capture][depth][moveCount];
 
-            if (boardCopy->checkers)
-                reduction -= lmrCheck;
+            if (stack->ttPv && !pvNode && !cutNode && capture) {
+                // Do very slight LMR for captures in ttPv-allnodes
+                reduction /= 2;
+            } else {
+                if (boardCopy->checkers)
+                    reduction -= lmrCheck;
 
-            if (!stack->ttPv)
-                reduction += lmrTtPv;
+                if (!stack->ttPv)
+                    reduction += lmrTtPv;
 
-            if (cutNode)
-                reduction += lmrCutnode;
+                if (cutNode)
+                    reduction += lmrCutnode;
 
-            if (stack->ttPv && ttHit && ttValue <= alpha)
-                reduction += lmrTtpvFaillow;
+                if (stack->ttPv && ttHit && ttValue <= alpha)
+                    reduction += lmrTtpvFaillow;
 
-            reduction -= std::abs(correctionValue / lmrCorrection);
+                reduction -= std::abs(correctionValue / lmrCorrection);
 
-            if (capture)
-                reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
-            else
-                reduction -= 1000 * moveHistory / lmrHistoryFactorQuiet;
+                if (capture)
+                    reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
+                else
+                    reduction -= 1000 * moveHistory / lmrHistoryFactorQuiet;
+            }
 
             int reducedDepth = std::clamp(newDepth - reduction / 1000, 1, newDepth + pvNode);
             stack->reduction = reduction;
