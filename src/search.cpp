@@ -972,6 +972,10 @@ movesLoop:
             if (stack->ttPv && !pvNode && !cutNode && capture) {
                 // Do very slight LMR for captures in ttPv-allnodes
                 reduction /= 2;
+
+                if (boardCopy->checkers)
+                    reduction -= lmrCheck;
+
             } else {
                 if (boardCopy->checkers)
                     reduction -= lmrCheck;
