@@ -112,13 +112,105 @@ TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
 
-TUNE_INT(lmrCheck, 881, 0, 5000);
-TUNE_INT(lmrTtPv, 1943, 0, 5000);
-TUNE_INT(lmrCutnode, 1841, 0, 5000);
-TUNE_INT(lmrTtpvFaillow, 889, 0, 5000);
-TUNE_INT(lmrCorrection, 15162, 1000, 20000);
-TUNE_INT(lmrHistoryFactorQuiet, 25301, 10000, 30000);
-TUNE_INT(lmrHistoryFactorCapture, 309944, 250000, 400000);
+TUNE_INT(lmrBaseWeight0, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight1, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight2, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight3, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight4, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight5, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight6, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight7, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight8, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight9, 500, 0, 2000);
+TUNE_INT(lmrBaseWeight10, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight11, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight12, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight13, 500, 0, 2000);
+TUNE_INT(lmrBaseWeight14, 1000, 0, 2000);
+TUNE_INT(lmrBaseWeight15, 1000, 0, 2000);
+int* lmrBaseReductionWeights[16] = { &lmrBaseWeight0, &lmrBaseWeight1, &lmrBaseWeight2, &lmrBaseWeight3, &lmrBaseWeight4, &lmrBaseWeight5, &lmrBaseWeight6, &lmrBaseWeight7, &lmrBaseWeight8, &lmrBaseWeight9, &lmrBaseWeight10, &lmrBaseWeight11, &lmrBaseWeight12, &lmrBaseWeight13, &lmrBaseWeight14, &lmrBaseWeight15 };
+
+TUNE_INT(lmrCheck0, 881, 0, 5000);
+TUNE_INT(lmrCheck1, 881, 0, 5000);
+TUNE_INT(lmrCheck2, 881, 0, 5000);
+TUNE_INT(lmrCheck3, 881, 0, 5000);
+TUNE_INT(lmrCheck4, 881, 0, 5000);
+TUNE_INT(lmrCheck5, 881, 0, 5000);
+TUNE_INT(lmrCheck6, 881, 0, 5000);
+TUNE_INT(lmrCheck7, 881, 0, 5000);
+TUNE_INT(lmrCheck8, 881, 0, 5000);
+TUNE_INT(lmrCheck9, 881, 0, 5000);
+TUNE_INT(lmrCheck10, 881, 0, 5000);
+TUNE_INT(lmrCheck11, 881, 0, 5000);
+TUNE_INT(lmrCheck12, 881, 0, 5000);
+TUNE_INT(lmrCheck13, 881, 0, 5000);
+TUNE_INT(lmrCheck14, 881, 0, 5000);
+TUNE_INT(lmrCheck15, 881, 0, 5000);
+int* lmrCheckWeights[16] = { &lmrCheck0, &lmrCheck1, &lmrCheck2, &lmrCheck3, &lmrCheck4, &lmrCheck5, &lmrCheck6, &lmrCheck7, &lmrCheck8, &lmrCheck9, &lmrCheck10, &lmrCheck11, &lmrCheck12, &lmrCheck13, &lmrCheck14, &lmrCheck15 };
+
+TUNE_INT(lmrTtPv0, 1943, 0, 5000);
+TUNE_INT(lmrTtPv1, 1943, 0, 5000);
+TUNE_INT(lmrTtPv2, 1943, 0, 5000);
+TUNE_INT(lmrTtPv3, 1943, 0, 5000);
+int* lmrTtPvWeights[4] = { &lmrTtPv0, &lmrTtPv1, &lmrTtPv2, &lmrTtPv3 };
+
+TUNE_INT(lmrCutnode0, 1841, 0, 5000);
+TUNE_INT(lmrCutnode1, 1841, 0, 5000);
+TUNE_INT(lmrCutnode2, 1841, 0, 5000);
+TUNE_INT(lmrCutnode3, 1841, 0, 5000);
+TUNE_INT(lmrCutnode4, 1841, 0, 5000);
+TUNE_INT(lmrCutnode5, 1841, 0, 5000);
+TUNE_INT(lmrCutnode6, 1841, 0, 5000);
+TUNE_INT(lmrCutnode7, 1841, 0, 5000);
+int* lmrCutnodeWeights[8] = { &lmrCutnode0, &lmrCutnode1, &lmrCutnode2, &lmrCutnode3, &lmrCutnode4, &lmrCutnode5, &lmrCutnode6, &lmrCutnode7 };
+
+TUNE_INT(lmrTtpvFaillow0, 889, 0, 5000);
+TUNE_INT(lmrTtpvFaillow1, 889, 0, 5000);
+TUNE_INT(lmrTtpvFaillow2, 889, 0, 5000);
+TUNE_INT(lmrTtpvFaillow3, 889, 0, 5000);
+TUNE_INT(lmrTtpvFaillow4, 889, 0, 5000);
+TUNE_INT(lmrTtpvFaillow5, 889, 0, 5000);
+TUNE_INT(lmrTtpvFaillow6, 889, 0, 5000);
+TUNE_INT(lmrTtpvFaillow7, 889, 0, 5000);
+int* lmrTtpvFaillowWeights[8] = { &lmrTtpvFaillow0, &lmrTtpvFaillow1, &lmrTtpvFaillow2, &lmrTtpvFaillow3, &lmrTtpvFaillow4, &lmrTtpvFaillow5, &lmrTtpvFaillow6, &lmrTtpvFaillow7 };
+
+TUNE_INT(lmrCorrection0, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection1, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection2, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection3, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection4, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection5, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection6, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection7, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection8, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection9, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection10, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection11, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection12, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection13, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection14, 15162, 1000, 20000);
+TUNE_INT(lmrCorrection15, 15162, 1000, 20000);
+int* lmrCorrectionWeights[16] = { &lmrCorrection0, &lmrCorrection1, &lmrCorrection2, &lmrCorrection3, &lmrCorrection4, &lmrCorrection5, &lmrCorrection6, &lmrCorrection7, &lmrCorrection8, &lmrCorrection9, &lmrCorrection10, &lmrCorrection11, &lmrCorrection12, &lmrCorrection13, &lmrCorrection14, &lmrCorrection15 };
+
+TUNE_INT(lmrHistoryFactorQuiet0, 25301, 10000, 30000);
+TUNE_INT(lmrHistoryFactorQuiet1, 25301, 10000, 30000);
+TUNE_INT(lmrHistoryFactorQuiet2, 25301, 10000, 30000);
+TUNE_INT(lmrHistoryFactorQuiet3, 25301, 10000, 30000);
+TUNE_INT(lmrHistoryFactorQuiet4, 25301, 10000, 30000);
+TUNE_INT(lmrHistoryFactorQuiet5, 25301, 10000, 30000);
+TUNE_INT(lmrHistoryFactorQuiet6, 25301, 10000, 30000);
+TUNE_INT(lmrHistoryFactorQuiet7, 25301, 10000, 30000);
+int* lmrHistoryFactorQuietWeights[8] = { &lmrHistoryFactorQuiet0, &lmrHistoryFactorQuiet1, &lmrHistoryFactorQuiet2, &lmrHistoryFactorQuiet3, &lmrHistoryFactorQuiet4, &lmrHistoryFactorQuiet5, &lmrHistoryFactorQuiet6, &lmrHistoryFactorQuiet7 };
+
+TUNE_INT(lmrHistoryFactorCapture0, 309944, 250000, 400000);
+TUNE_INT(lmrHistoryFactorCapture1, 309944, 250000, 400000);
+TUNE_INT(lmrHistoryFactorCapture2, 309944, 250000, 400000);
+TUNE_INT(lmrHistoryFactorCapture3, 309944, 250000, 400000);
+TUNE_INT(lmrHistoryFactorCapture4, 309944, 250000, 400000);
+TUNE_INT(lmrHistoryFactorCapture5, 309944, 250000, 400000);
+TUNE_INT(lmrHistoryFactorCapture6, 309944, 250000, 400000);
+TUNE_INT(lmrHistoryFactorCapture7, 309944, 250000, 400000);
+int* lmrHistoryFactorCaptureWeights[8] = { &lmrHistoryFactorCapture0, &lmrHistoryFactorCapture1, &lmrHistoryFactorCapture2, &lmrHistoryFactorCapture3, &lmrHistoryFactorCapture4, &lmrHistoryFactorCapture5, &lmrHistoryFactorCapture6, &lmrHistoryFactorCapture7 };
 
 TUNE_INT(postlmrOppWorseningThreshold, 3031, 1500, 4500);
 
@@ -236,22 +328,22 @@ int valueFromTt(int value, int ply, int rule50) {
         // Downgrade potentially false mate score
         if (value >= EVAL_MATE_IN_MAX_PLY && EVAL_MATE - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         return value - ply;
     }
     else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
         // Downgrade potentially false mate score
         if (value <= -EVAL_MATE_IN_MAX_PLY && EVAL_MATE + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         return value + ply;
     }
     return value;
@@ -987,32 +1079,56 @@ movesLoop:
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !pvNode)) {
+        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
             int reduction = REDUCTIONS[!capture][depth][moveCount];
 
-            if (stack->ttPv && !pvNode && !cutNode && capture) {
-                // Do very slight LMR for captures in ttPv-allnodes
-                reduction /= 2;
-            } else {
-                if (boardCopy->checkers)
-                    reduction -= lmrCheck;
+            // Up to 2^4 = 16 ways of doing LMR
+            int lmrTypeIndex = 8 * int(stack->ttPv) + 4 * int(pvNode) + 2 * int(cutNode) + int(capture);
+            // Each way gets a different weight of the base reduction
+            reduction = *lmrBaseReductionWeights[lmrTypeIndex] * reduction / 1000;
 
-                if (!stack->ttPv)
-                    reduction += lmrTtPv;
+            if (boardCopy->checkers)
+                reduction -= *lmrCheckWeights[lmrTypeIndex];
 
-                if (cutNode)
-                    reduction += lmrCutnode;
+            if (!stack->ttPv)
+                reduction += *lmrTtPvWeights[2 * int(cutNode) + int(capture)];
 
-                if (stack->ttPv && ttHit && ttValue <= alpha)
-                    reduction += lmrTtpvFaillow;
+            if (cutNode)
+                reduction += *lmrCutnodeWeights[4 * int(stack->ttPv) + 2 * int(cutNode) + int(capture)];
 
-                reduction -= std::abs(correctionValue / lmrCorrection);
+            if (stack->ttPv && ttHit && ttValue <= alpha)
+                reduction += *lmrTtpvFaillowWeights[4 * int(pvNode) + 2 * int(cutNode) + int(capture)];
 
-                if (capture)
-                    reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
-                else
-                    reduction -= 1000 * moveHistory / lmrHistoryFactorQuiet;
-            }
+            reduction -= std::abs(correctionValue / *lmrCorrectionWeights[lmrTypeIndex]);
+
+            if (capture)
+                reduction -= moveHistory * std::abs(moveHistory) / *lmrHistoryFactorCaptureWeights[4 * int(stack->ttPv) + 2 * int(pvNode) + int(cutNode)];
+            else
+                reduction -= 1000 * moveHistory / *lmrHistoryFactorQuietWeights[4 * int(stack->ttPv) + 2 * int(pvNode) + int(cutNode)];
+
+            // if (stack->ttPv && !cutNode && capture) {
+            //     // Do very slight LMR for captures in ttPv-allnodes and pvnodes
+            //     reduction /= 2;
+            // } else {
+            //     if (boardCopy->checkers)
+            //         reduction -= lmrCheck;
+
+            //     if (!stack->ttPv)
+            //         reduction += lmrTtPv;
+
+            //     if (cutNode)
+            //         reduction += lmrCutnode;
+
+            //     if (stack->ttPv && ttHit && ttValue <= alpha)
+            //         reduction += lmrTtpvFaillow;
+
+            //     reduction -= std::abs(correctionValue / lmrCorrection);
+
+            //     if (capture)
+            //         reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
+            //     else
+            //         reduction -= 1000 * moveHistory / lmrHistoryFactorQuiet;
+            // }
 
             int reducedDepth = std::clamp(newDepth - reduction / 1000, 1, newDepth + pvNode);
             stack->reduction = reduction;
