@@ -229,10 +229,31 @@ int valueToTT(int value, int ply) {
     return value;
 }
 
-int valueFromTt(int value, int ply) {
+int valueFromTt(int value, int ply, int rule50) {
     if (value == EVAL_NONE) return EVAL_NONE;
-    if (value >= EVAL_TBWIN_IN_MAX_PLY) value -= ply;
-    else if (value <= -EVAL_TBWIN_IN_MAX_PLY) value += ply;
+
+    if (value >= EVAL_TBWIN_IN_MAX_PLY) {
+        // Downgrade potentially false mate score
+        if (value >= EVAL_MATE_IN_MAX_PLY && EVAL_MATE - value > 100 - rule50)
+            return EVAL_TBWIN_IN_MAX_PLY - 1;
+        
+        // Downgrade potentially false TB score
+        if (EVAL_TBWIN - value > 100 - rule50)
+            return EVAL_TBWIN_IN_MAX_PLY - 1;
+        
+        return value - ply;
+    }
+    else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
+        // Downgrade potentially false mate score
+        if (value <= -EVAL_MATE_IN_MAX_PLY && EVAL_MATE + value > 100 - rule50)
+            return -EVAL_TBWIN_IN_MAX_PLY + 1;
+        
+        // Downgrade potentially false TB score
+        if (EVAL_TBWIN + value > 100 - rule50)
+            return -EVAL_TBWIN_IN_MAX_PLY + 1;
+        
+        return value + ply;
+    }
     return value;
 }
 
@@ -390,7 +411,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     ttEntry = TT.probe(board->hashes.hash, &ttHit);
     if (ttHit) {
         ttMove = ttEntry->getMove();
-        ttValue = valueFromTt(ttEntry->getValue(), stack->ply);
+        ttValue = valueFromTt(ttEntry->getValue(), stack->ply, board->rule50_ply);
         ttEval = ttEntry->getEval();
         ttFlag = ttEntry->getFlag();
         ttPv = ttPv || ttEntry->getTtPv();
@@ -413,7 +434,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         unadjustedEval = ttEval;
         stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, correctionValue);
 
-        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
+        if (ttValue != EVAL_NONE && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
             bestValue = ttValue;
     }
     else {
@@ -585,7 +606,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         ttEntry = TT.probe(board->hashes.hash, &ttHit);
         if (ttHit) {
             ttMove = rootNode && rootMoves[0].value > -EVAL_INFINITE ? rootMoves[0].move : ttEntry->getMove();
-            ttValue = valueFromTt(ttEntry->getValue(), stack->ply);
+            ttValue = valueFromTt(ttEntry->getValue(), stack->ply, board->rule50_ply);
             ttEval = ttEntry->getEval();
             ttDepth = ttEntry->getDepth();
             ttFlag = ttEntry->getFlag();
