@@ -1006,13 +1006,13 @@ movesLoop:
                 if (stack->ttPv && ttHit && ttValue <= alpha)
                     reduction += lmrTtpvFaillow;
 
-                reduction -= std::abs(correctionValue / lmrCorrection);
-
                 if (capture)
                     reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
                 else
                     reduction -= 1000 * moveHistory / lmrHistoryFactorQuiet;
             }
+
+            reduction -= std::abs(correctionValue / lmrCorrection);
 
             int reducedDepth = std::clamp(newDepth - reduction / 1000, 1, newDepth + pvNode);
             stack->reduction = reduction;
