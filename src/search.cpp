@@ -1004,7 +1004,7 @@ movesLoop:
                     reduction += lmrCutnode;
 
                 if (stack->ttPv && ttHit && ttValue <= alpha)
-                    reduction += lmrTtpvFaillow;
+                    reduction += lmrTtpvFaillow + 500 * (ttDepth >= depth);
 
                 reduction -= std::abs(correctionValue / lmrCorrection);
 
