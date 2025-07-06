@@ -461,21 +461,22 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 #endif
 
 constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 1792;
-constexpr int L2_SIZE = 16;
-constexpr int L3_SIZE = 32;
+constexpr int L1_SIZE = 4096;
+constexpr int L2_SIZE = 96;
+constexpr int L3_SIZE = 192;
+constexpr int L4_SIZE = 192;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
-   0,  1,  2,  3,  3,  2,  1,  0,
-   4,  5,  6,  7,  7,  6,  5,  4,
-   8,  8,  9,  9,  9,  9,  8,  8,
-  10, 10, 10, 10, 10, 10, 10, 10,
-  11, 11, 11, 11, 11, 11, 11, 11,
-  11, 11, 11, 11, 11, 11, 11, 11, 
-  11, 11, 11, 11, 11, 11, 11, 11, 
-  11, 11, 11, 11, 11, 11, 11, 11, 
+  0, 1, 2, 3, 3, 2, 1, 0,
+  4, 4, 5, 5, 5, 5, 4, 4,
+  6, 6, 6, 6, 6, 6, 6, 6,
+  7, 7, 7, 7, 7, 7, 7, 7,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  8, 8, 8, 8, 8, 8, 8, 8
 };
-constexpr int KING_BUCKETS = 12;
+constexpr int KING_BUCKETS = 9;
 constexpr bool KING_BUCKETS_FACTORIZED = true;
 constexpr int OUTPUT_BUCKETS = 8;
 
@@ -544,8 +545,10 @@ struct NetworkData {
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
   alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
   alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
+  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE * L4_SIZE];
+  alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS][L4_SIZE];
+  alignas(ALIGNMENT) float   l4Weights[OUTPUT_BUCKETS][L4_SIZE];
+  alignas(ALIGNMENT) float   l4Biases[OUTPUT_BUCKETS];
 };
 
 extern NetworkData* networkData;
