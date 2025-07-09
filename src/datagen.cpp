@@ -31,6 +31,8 @@ bool playRandomMoves(Board* board, Worker* thread, int remainingMoves) {
         thread->searchParameters->depth = 10;
         thread->searchParameters->nodes = 1000000;
         thread->rootBoard = *board;
+        thread->stopped = false;
+        thread->exiting = false;
         thread->tdatagen();
 
         Eval verificationScore = thread->rootMoves[0].value;
