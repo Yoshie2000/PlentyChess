@@ -6,7 +6,6 @@
 class MCTSNode {
 
 public:
-    alignas(64) BoardStack boardStack;
     Board board;
     History* history;
     Eval staticEval;

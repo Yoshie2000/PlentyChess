@@ -4,7 +4,7 @@
 
 #include "nnue.h"
 
-constexpr auto VERSION = "3.0.0-dev";
+constexpr auto VERSION = "6.0.9";
 
 template<int... Is>
 struct seq { };
@@ -27,7 +27,7 @@ void for_each_in_tuple(std::tuple<Ts...> const& t, Func f) {
 
 namespace UCI {
 
-    extern NNUE nnue;
+    extern bool optionsDirty;
 
     enum UCIOptionType {
         UCI_SPIN,
@@ -62,6 +62,27 @@ namespace UCI {
     };
 
     struct UCIOptions {
+        UCIOption<UCI_SPIN> hash = {
+            "Hash",
+#ifdef PROFILE_GENERATE
+            64,
+            64,
+#else
+            16,
+            16,
+#endif
+            1,
+            1048576
+        };
+
+        UCIOption<UCI_SPIN> threads = {
+            "Threads",
+            1,
+            1,
+            1,
+            4096
+        };
+
         UCIOption<UCI_SPIN> multiPV = {
             "MultiPV",
             1,
@@ -90,14 +111,41 @@ namespace UCI {
             false
         };
 
+        UCIOption<UCI_CHECK> datagen = {
+            "Datagen",
+            false,
+            false
+        };
+
+        UCIOption<UCI_CHECK> minimal = {
+            "Minimal",
+            false,
+            false
+        };
+
+        UCIOption<UCI_STRING> syzygyPath = {
+            "SyzygyPath",
+            "",
+            ""
+        };
+
+        UCIOption<UCI_SPIN> syzygyProbeLimit = {
+            "SyzygyProbeLimit",
+            7,
+            7,
+            0,
+            7
+        };
+
         template <typename Func>
         void forEach(Func&& f) {
-            auto optionsTuple = std::make_tuple(&multiPV, &moveOverhead, &chess960, &ponder);
+            auto optionsTuple = std::make_tuple(&hash, &threads, &multiPV, &moveOverhead, &chess960, &ponder, &datagen, &minimal, &syzygyPath, &syzygyProbeLimit);
             for_each_in_tuple(optionsTuple, f);
         }
     };
 
     extern UCIOptions Options;
+    extern NNUE nnue;
 
 }
 

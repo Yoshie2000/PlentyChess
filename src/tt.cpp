@@ -7,13 +7,15 @@ void TTEntry::update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval,
     if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
         bestMove = _bestMove;
 
-    if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || depth == NO_DEPTH || _depth + 2 * wasPv + 4 > depth) {
+    if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + 2 * wasPv + 4 > depth) {
         hash = (uint16_t)_hash;
         depth = _depth;
         value = _value;
         eval = _eval;
         flags = (uint8_t)(_flags + (wasPv << 2)) | TT_GENERATION_COUNTER;
     }
+    else if (depth >= 5 && flags != TT_EXACTBOUND)
+        depth--;
 }
 
 TTEntry* TranspositionTable::probe(uint64_t hash, bool* found) {
@@ -23,7 +25,7 @@ TTEntry* TranspositionTable::probe(uint64_t hash, bool* found) {
     TTEntry* replace = &cluster->entries[0];
 
     for (int i = 0; i < CLUSTER_SIZE; i++) {
-        if (cluster->entries[i].hash == hash16 || cluster->entries[i].depth == NO_DEPTH) {
+        if (cluster->entries[i].hash == hash16 || !cluster->entries[i].isInitialised()) {
             // Refresh generation
             cluster->entries[i].flags = (uint8_t)(TT_GENERATION_COUNTER | (cluster->entries[i].flags & (GENERATION_DELTA - 1)));
             *found = cluster->entries[i].hash == hash16;
@@ -34,7 +36,7 @@ TTEntry* TranspositionTable::probe(uint64_t hash, bool* found) {
             // Check if this entry would be better suited for replacement than the current replace entry
             int replaceValue = replace->depth - ((GENERATION_CYCLE + TT_GENERATION_COUNTER - replace->flags) & GENERATION_MASK);
             int entryValue = cluster->entries[i].depth - ((GENERATION_CYCLE + TT_GENERATION_COUNTER - cluster->entries[i].flags) & GENERATION_MASK);
-            if ((cluster->entries[i].depth == NO_DEPTH && replace->depth != NO_DEPTH) || replaceValue > entryValue)
+            if ((!cluster->entries[i].isInitialised() && replace->isInitialised()) || replaceValue > entryValue)
                 replace = &cluster->entries[i];
         }
     }

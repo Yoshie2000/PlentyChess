@@ -6,6 +6,7 @@
 #include <deque>
 #include <functional>
 #include <map>
+#include <atomic>
 
 #include "board.h"
 #include "search.h"
@@ -15,6 +16,7 @@
 
 struct RootMove {
     Eval value = -EVAL_INFINITE;
+    Eval meanScore = EVAL_NONE;
     int depth = 0;
     int selDepth = 0;
     Move move = MOVE_NULL;
@@ -23,17 +25,15 @@ struct RootMove {
 
 class ThreadPool;
 
-class Thread {
+class Worker {
 
-    std::thread thread;
-    std::mutex mutex;
-
-    Board rootBoard;
-    BoardStack* rootStack;
-    std::deque<BoardStack>* rootStackQueue;
+    std::vector<uint64_t> boardHistory;
 
 public:
 
+    Board rootBoard;
+    
+    std::mutex mutex;
     std::condition_variable cv;
 
     bool searching = false;
@@ -41,7 +41,7 @@ public:
     bool exiting = false;
 
     SearchData searchData;
-    SearchParameters* searchParameters;
+    SearchParameters searchParameters;
     History history;
     NNUE nnue;
 
@@ -54,7 +54,7 @@ public:
     std::map<Move, uint64_t> rootMoveNodes;
     std::vector<Move> excludedRootMoves;
 
-    Thread(ThreadPool* threadPool, int threadId);
+    Worker(ThreadPool* threadPool, int threadId);
 
     void startSearching();
     void waitForSearchFinished();
@@ -63,14 +63,25 @@ public:
 
     void ucinewgame();
 
+    void tdatagen();
+
 private:
+
+    void tgenfens();
 
     void tsearch();
     void mctsSearch();
     void iterativeDeepening();
     void sortRootMoves();
-    void printUCI(Thread* thread, int multiPvCount = 1);
-    Thread* chooseBestThread();
+    void printUCI(Worker* thread, int multiPvCount = 1);
+    Worker* chooseBestThread();
+
+    Board* doMove(Board* board, uint64_t newHash, Move move);
+    void undoMove();
+    Board* doNullMove(Board* board);
+    void undoNullMove();
+    bool hasUpcomingRepetition(Board* board, int ply);
+    bool isDraw(Board* board, int ply);
 
     template <NodeType nt>
     Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, bool cutNode);
@@ -84,13 +95,16 @@ class ThreadPool {
 
 public:
 
-    std::vector<std::unique_ptr<Thread>> threads;
+    std::vector<std::unique_ptr<Worker>> workers;
+    std::vector<std::unique_ptr<std::thread>> threads;
 
-    std::deque<BoardStack> rootStackQueue;
     SearchParameters searchParameters;
     Board rootBoard;
+    std::vector<uint64_t> rootBoardHistory;
 
-    ThreadPool() : threads(0), rootStackQueue(), searchParameters{} {
+    std::atomic<size_t> startedThreads;
+
+    ThreadPool() : workers(0), threads(0), searchParameters{}, rootBoardHistory() {
         resize(1);
     }
 
@@ -98,68 +112,90 @@ public:
         exit();
     }
 
-    void resize(int numThreads) {
+    void resize(size_t numThreads) {
+        if (threads.size() == numThreads)
+            return;
+        
         exit();
         threads.clear();
-        for (int i = 0; i < numThreads; i++) {
-            threads.push_back(std::make_unique<Thread>(this, i));
+        workers.clear();
+        workers.resize(numThreads);
+
+        startedThreads = 0;
+
+        for (size_t i = 0; i < numThreads; i++) {
+            threads.push_back(std::make_unique<std::thread>([this, i]() {
+                workers[i] = std::make_unique<Worker>(this, i);
+                workers[i]->idle();
+            }));
         }
+
+        while (startedThreads < numThreads) {}
     }
 
-    void startSearching(Board board, std::deque<BoardStack> stackQueue, SearchParameters parameters) {
+    void startSearching(Board board, std::vector<uint64_t> boardHistory, SearchParameters parameters) {
         stopSearching();
         waitForSearchFinished();
 
         rootBoard = std::move(board);
-        rootStackQueue = std::move(stackQueue);
+        rootBoardHistory = std::move(boardHistory);
         searchParameters = std::move(parameters);
 
-        for (auto& thread : threads) {
-            thread.get()->rootMoves.clear();
-            thread.get()->stopped = false;
-            thread.get()->searching = true;
+        for (auto& worker : workers) {
+            worker.get()->rootMoves.clear();
+            worker.get()->stopped = false;
+            std::lock_guard<std::mutex> lock(worker.get()->mutex);
+            worker.get()->searching = true;
         }
 
-        for (auto& thread : threads) {
-            thread.get()->cv.notify_all();
+        for (auto& worker : workers) {
+            worker.get()->cv.notify_all();
         }
     }
 
     void stopSearching() {
-        for (auto& thread : threads) {
-            thread.get()->stopped = true;
+        for (auto& worker : workers) {
+            worker.get()->stopped = true;
         }
     }
 
     void waitForSearchFinished() {
-        for (auto& thread : threads) {
-            thread.get()->waitForSearchFinished();
+        for (auto& worker : workers) {
+            worker.get()->waitForSearchFinished();
         }
     }
 
     void waitForHelpersFinished() {
-        for (std::size_t i = 1; i < threads.size(); i++) {
-            threads[i].get()->waitForSearchFinished();
+        for (std::size_t i = 1; i < workers.size(); i++) {
+            workers[i].get()->waitForSearchFinished();
         }
     }
 
     void exit() {
-        for (auto& thread : threads) {
-            thread.get()->exit();
+        for (auto& worker : workers) {
+            worker.get()->exit();
         }
     }
 
     void ucinewgame() {
         TT.clear();
-        for (auto& thread : threads) {
-            thread.get()->ucinewgame();
+        for (auto& worker : workers) {
+            worker.get()->ucinewgame();
         }
     }
 
     uint64_t nodesSearched() {
         uint64_t sum = 0;
-        for (auto& thread : threads) {
-            sum += thread.get()->searchData.nodesSearched;
+        for (auto& worker : workers) {
+            sum += worker.get()->searchData.nodesSearched;
+        }
+        return sum;
+    }
+
+    uint64_t tbhits() {
+        uint64_t sum = 0;
+        for (auto& worker : workers) {
+            sum += worker.get()->searchData.tbHits;
         }
         return sum;
     }

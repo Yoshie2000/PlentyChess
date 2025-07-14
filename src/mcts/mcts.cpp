@@ -6,9 +6,9 @@
 #include "../thread.h"
 #include "../uci.h"
 
-void Thread::mctsSearch() {
+void Worker::mctsSearch() {
     MCTSNode root(&rootBoard, &history);
-    MCTSNode* bestChild = root.bestMove(searchParameters->rollouts);
+    MCTSNode* bestChild = root.bestMove(searchParameters.rollouts);
     Move move = bestChild->parentMove;
 
     // for (MCTSNode child : root.children) {
@@ -19,7 +19,6 @@ void Thread::mctsSearch() {
 }
 
 MCTSNode::MCTSNode(Board* prevBoard, History* history, Move move, double probability, MCTSNode* parent) :
-    boardStack(*prevBoard->stack),
     board(*prevBoard),
     history(history),
     staticEval(EVAL_NONE),
@@ -32,7 +31,7 @@ MCTSNode::MCTSNode(Board* prevBoard, History* history, Move move, double probabi
     totalEval(0),
     terminal(false),
     remainingMoves() {
-    board.doMove(&boardStack, move, board.hashAfter(move), nullptr);
+    board.doMove(move, board.hashAfter(move), nullptr);
 
     if (board.isDraw()) {
         terminal = true;
@@ -44,7 +43,6 @@ MCTSNode::MCTSNode(Board* prevBoard, History* history, Move move, double probabi
 }
 
 MCTSNode::MCTSNode(Board* rootBoard, History* history) :
-    boardStack(*rootBoard->stack),
     board(*rootBoard),
     history(history),
     staticEval(EVAL_NONE),
@@ -75,7 +73,7 @@ std::vector<std::pair<Move, double>> MCTSNode::generateMoves() {
 
     // Probe the TT
     bool ttHit;
-    TTEntry* ttEntry = TT.probe(board.stack->hash, &ttHit);
+    TTEntry* ttEntry = TT.probe(board.hashes.hash, &ttHit);
     if (ttHit) {
         staticEval = ttEntry->getEval();
     }
@@ -144,7 +142,7 @@ double MCTSNode::rollout() {
     if (terminal) {
         if (board.isDraw())
             return 0;
-        return board.stack->checkers ? (board.stm == Color::WHITE ? -2 : 2) : 0;
+        return board.checkers ? (board.stm == Color::WHITE ? -2 : 2) : 0;
     }
 
     assert(!terminal);

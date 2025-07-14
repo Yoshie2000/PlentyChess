@@ -3,7 +3,6 @@
 #include <stdint.h>
 
 constexpr int MAX_PLY = 246;
-constexpr int NO_DEPTH = 255;
 constexpr int MAX_MOVES = 218;
 constexpr int MAX_CAPTURES = 74;
 
@@ -96,9 +95,13 @@ struct SearchStack {
     Move move;
     Piece movedPiece;
     bool inCheck, capture;
+    int correctionValue;
+    int reduction;
+    bool inLMR, ttPv;
 
     Move excludedMove;
     Move killer;
 
     int16_t* contHist;
+    int16_t* contCorrHist;
 };

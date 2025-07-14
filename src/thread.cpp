@@ -8,22 +8,28 @@
 #include "thread.h"
 #include "search.h"
 #include "history.h"
+#include "uci.h"
 
-Thread::Thread(ThreadPool* threadPool, int threadId) : threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
+Worker::Worker(ThreadPool* threadPool, int threadId) : threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
     history.initHistory();
-    thread = std::thread(&Thread::idle, this);
 }
 
-void Thread::startSearching() {
+void Worker::startSearching() {
+    rootBoard = threadPool->rootBoard;
+    boardHistory.clear();
+    boardHistory.reserve(MAX_PLY + 1);
+    for (uint64_t hash : threadPool->rootBoardHistory) {
+        boardHistory.push_back(hash);
+    }
     memcpy(&rootBoard, &threadPool->rootBoard, sizeof(Board));
-    rootStackQueue = &threadPool->rootStackQueue;
-    searchParameters = &threadPool->searchParameters;
+    searchParameters = threadPool->searchParameters;
 
-    rootStack = &rootStackQueue->back();
-    rootBoard.stack = rootStack;
-
-    if (searchParameters->perft)
-        searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
+    if (searchParameters.perft)
+        searchData.nodesSearched = perft(rootBoard, searchParameters.depth);
+    else if (searchParameters.genfens)
+        tgenfens();
+    else if (UCI::Options.datagen.value)
+        tdatagen();
     else
         tsearch();
     
@@ -31,12 +37,14 @@ void Thread::startSearching() {
         mctsSearch();
 }
 
-void Thread::waitForSearchFinished() {
+void Worker::waitForSearchFinished() {
     std::unique_lock<std::mutex> lock(mutex);
     cv.wait(lock, [&] { return !searching; });
 }
 
-void Thread::idle() {
+void Worker::idle() {
+    threadPool->startedThreads++;
+
     while (!exiting) {
         std::unique_lock<std::mutex> lock(mutex);
         cv.wait(lock, [&] { return searching; });
@@ -51,14 +59,17 @@ void Thread::idle() {
     }
 }
 
-void Thread::exit() {
-    searching = true;
-    exiting = true;
+void Worker::exit() {
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        searching = true;
+        exiting = true;
+    }
     cv.notify_all();
-    if (thread.joinable())
-        thread.join();
+    if (threadPool->threads[threadId]->joinable())
+        threadPool->threads[threadId]->join();
 }
 
-void Thread::ucinewgame() {
+void Worker::ucinewgame() {
     history.initHistory();
 }

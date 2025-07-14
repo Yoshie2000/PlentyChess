@@ -16,17 +16,14 @@
 #include "types.h"
 #include "move.h"
 #include "evaluation.h"
+#include "uci.h"
 
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     void* ptr;
-#if defined(__MINGW32__)
-    int offset = alignment - 1;
-    void* p = (void*)malloc(requiredBytes + offset);
-    ptr = (void*)(((size_t)(p)+offset) & ~(alignment - 1));
-#elif defined (__GNUC__)
-    ptr = std::aligned_alloc(alignment, requiredBytes);
+#if defined(_WIN32)
+    ptr = _aligned_malloc(requiredBytes, alignment);
 #else
-#error "Compiler not supported"
+    ptr = std::aligned_alloc(alignment, requiredBytes);
 #endif
 
 #if defined(__linux__)
@@ -34,6 +31,14 @@ inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
 #endif 
 
     return ptr;
+}
+
+inline void alignedFree(void* ptr) {
+#if defined(_WIN32)
+    _aligned_free(ptr);
+#else
+    std::free(ptr);
+#endif
 }
 
 constexpr uint8_t TT_NOBOUND = 0;
@@ -52,20 +57,21 @@ extern uint8_t TT_GENERATION_COUNTER;
 
 struct TTEntry {
     uint16_t hash = 0;
-    Move bestMove = MOVE_NONE;
-    uint8_t depth = NO_DEPTH;
-    uint8_t flags = TT_NOBOUND;
-    int16_t eval = EVAL_NONE;
-    int16_t value = EVAL_NONE;
+    Move bestMove = 0;
+    uint8_t depth = 0;
+    uint8_t flags = 0;
+    int16_t eval = 0;
+    int16_t value = 0;
 
     constexpr Move getMove() { return bestMove; };
-    constexpr int getDepth() { return depth == NO_DEPTH ? 0 : depth; };
+    constexpr int getDepth() { return depth; };
     constexpr uint8_t getFlag() { return flags & 0x3; };
     constexpr Eval getEval() { return eval; };
     constexpr Eval getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
 
     void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags);
+    bool isInitialised() { return hash != 0; };
 };
 
 struct TTCluster {
@@ -78,16 +84,20 @@ static_assert(sizeof(TTCluster) == 32, "TTCluster size not correct!");
 class TranspositionTable {
 
     TTCluster* table = nullptr;
-    size_t clusterCount;
+    size_t clusterCount = 0;
 
 public:
 
     TranspositionTable() {
+#ifdef PROFILE_GENERATE
+        resize(64);
+#else
         resize(16);
+#endif
     }
 
     ~TranspositionTable() {
-        std::free(table);
+        alignedFree(table);
     }
 
     void newSearch() {
@@ -95,10 +105,14 @@ public:
     }
 
     void resize(size_t mb) {
+        size_t newClusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
+        if (newClusterCount == clusterCount)
+            return;
+        
         if (table)
-            std::free(table);
-
-        clusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
+            alignedFree(table);
+        
+        clusterCount = newClusterCount;
         table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
 
         clear();
@@ -120,7 +134,7 @@ public:
         int count = 0;
         for (int i = 0; i < 1000; i++) {
             for (int j = 0; j < CLUSTER_SIZE; j++) {
-                if ((table[i].entries[j].flags & GENERATION_MASK) == TT_GENERATION_COUNTER && table[i].entries[j].eval != EVAL_NONE)
+                if ((table[i].entries[j].flags & GENERATION_MASK) == TT_GENERATION_COUNTER && table[i].entries[j].isInitialised())
                     count++;
             }
         }
@@ -128,8 +142,19 @@ public:
     }
 
     void clear() {
-        for (size_t i = 0; i < clusterCount; i++) {
-            table[i] = TTCluster();
+        size_t threadCount = UCI::Options.threads.value;
+        std::vector<std::thread> ts;
+
+        for (size_t thread = 0; thread < threadCount; thread++) {
+            size_t startCluster = thread * (clusterCount / threadCount);
+            size_t endCluster = thread == threadCount - 1 ? clusterCount : (thread + 1) * (clusterCount / threadCount);
+            ts.push_back(std::thread([this, startCluster, endCluster]() {
+                std::memset(static_cast<void*>(&table[startCluster]), 0, sizeof(TTCluster) * (endCluster - startCluster));
+            }));
+        }
+
+        for (auto& t : ts) {
+            t.join();
         }
     }
 

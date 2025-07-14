@@ -17,12 +17,17 @@ extern int LMP_MARGIN[MAX_PLY][2];
 
 void initReductions();
 
-uint64_t perft(Board* board, int depth);
+uint64_t perft(Board& board, int depth);
 
 struct SearchParameters {
     bool perft; // Perft (requires depth)
+
     bool mcts; // MCTS mode (after a/b)
     int rollouts; // MCTS rollouts
+    
+    bool genfens; // Are we running a genfens search
+    int genfensSeed; // Seed for genfens
+    int genfensFens; // Number of fens for genfens
 
     std::vector<Move> searchmoves; // TODO: Search only these moves at root
     bool ponder; // Search in pondering mode => after "ponderhit", continue on ponder move
@@ -41,8 +46,13 @@ struct SearchParameters {
 
     SearchParameters() {
         perft = false;
+
         mcts = false;
         rollouts = 0;
+        
+        genfens = false;
+        genfensSeed = 0;
+        genfensFens = 0;
 
         searchmoves = std::vector<Move>();
         ponder = false;
@@ -68,6 +78,7 @@ struct SearchData {
     int selDepth;
 
     uint64_t nodesSearched;
+    uint64_t tbHits;
 
     int64_t startTime;
     int64_t optTime;
@@ -77,6 +88,7 @@ struct SearchData {
         nmpPlies = 0;
         rootDepth = 0;
         nodesSearched = 0;
+        tbHits = 0;
         startTime = 0;
         optTime = 0;
         maxTime = 0;
