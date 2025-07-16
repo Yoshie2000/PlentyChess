@@ -40,7 +40,6 @@ TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 6);
 TUNE_INT_DISABLED(aspirationWindowDelta, 14, 1, 30);
 TUNE_INT_DISABLED(aspirationWindowDeltaBase, 10, 1, 30);
 TUNE_INT(aspirationWindowDeltaDivisor, 12681, 7500, 17500);
-TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT_DISABLED(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f);
 
 // Reduction / Margin tables
@@ -1339,7 +1338,7 @@ void Worker::iterativeDeepening() {
                 // Our window was too low, increase beta for next iteration
                 else if (value >= beta) {
                     beta = std::min(value + delta, (int)EVAL_INFINITE);
-                    failHighs = std::min(failHighs + 1, aspirationWindowMaxFailHighs);
+                    failHighs++;
                 }
                 // Our window was good, increase depth for next iteration
                 else
@@ -1555,7 +1554,7 @@ void Worker::tdatagen() {
             // Our window was too low, increase beta for next iteration
             else if (value >= beta) {
                 beta = std::min(value + delta, (int)EVAL_INFINITE);
-                failHighs = std::min(failHighs + 1, aspirationWindowMaxFailHighs);
+                failHighs++;
             }
             // Our window was good, increase depth for next iteration
             else
