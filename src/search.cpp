@@ -1320,7 +1320,7 @@ void Worker::iterativeDeepening() {
 
             int failHighs = 0;
             while (true) {
-                int searchDepth = std::max(1, depth - failHighs);
+                int searchDepth = std::max(depth / 2, depth - failHighs);
                 value = search<ROOT_NODE>(board, stack, searchDepth, alpha, beta, false);
 
                 sortRootMoves();
@@ -1536,7 +1536,7 @@ void Worker::tdatagen() {
 
         int failHighs = 0;
         while (true) {
-            int searchDepth = std::max(1, depth - failHighs);
+            int searchDepth = std::max(depth / 2, depth - failHighs);
             value = search<ROOT_NODE>(board, stack, searchDepth, alpha, beta, false);
 
             sortRootMoves();
