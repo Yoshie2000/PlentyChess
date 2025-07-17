@@ -886,7 +886,7 @@ movesLoop:
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
                 Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
+                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth + moveHistory / 150 <= alpha)
                     continue;
             }
 
