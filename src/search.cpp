@@ -1030,20 +1030,23 @@ movesLoop:
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth);
             newDepth += doDeeperSearch - doShallowerSearch;
-
+            
+            bool research = false;
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - 4 >= newDepth && (ttFlag & TT_UPPERBOUND))) {
+                research = true;
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
                 if (capture && captureMoveCount < 32)
                     captureSearchCount[captureMoveCount]++;
                 else if (!capture && quietMoveCount < 32)
                     quietSearchCount[quietMoveCount]++;
-
-                if (!capture) {
-                    int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth : reducedDepth), lmrPassBonusMax);
-                    history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
-                }
             }
+
+            if (!capture && (value > alpha || research)) {
+                int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha && research ? depth : reducedDepth), lmrPassBonusMax);
+                history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
+            }
+
         }
         else if (!pvNode || moveCount > 1) {
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
