@@ -59,6 +59,8 @@ constexpr MoveGenStage STAGE_DONE = 100;
 
 class MoveGen {
 
+public:
+
     Board* board;
     History* history;
     SearchStack* searchStack;
@@ -80,8 +82,6 @@ class MoveGen {
 
     bool probCut;
     int probCutThreshold;
-
-public:
 
     bool skipQuiets;
 
