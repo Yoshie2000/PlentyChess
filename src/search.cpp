@@ -994,7 +994,7 @@ movesLoop:
                 // Do very slight LMR for captures in ttPv-allnodes
                 reduction /= 2;
 
-                reduction -= moveHistory * std::abs(moveHistory) / 619888;
+                reduction -= moveHistory * std::abs(moveHistory) / 1239776;
             } else {
                 if (boardCopy->checkers)
                     reduction -= lmrCheck;
