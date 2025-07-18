@@ -990,7 +990,7 @@ movesLoop:
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !pvNode)) {
             int reduction = REDUCTIONS[!capture][depth][moveCount];
 
-            if (stack->ttPv && !pvNode && !cutNode && capture) {
+            if (stack->ttPv && !cutNode && capture) {
                 // Do very slight LMR for captures in ttPv-allnodes
                 reduction /= 2;
             } else {
