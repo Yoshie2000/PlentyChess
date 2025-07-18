@@ -33,59 +33,48 @@ struct Threats {
     Bitboard kingThreats;
 };
 
-struct BoardStack {
-    Piece capturedPiece;
-    Bitboard enpassantTarget; // one-hot encoding -> 0 means no en passant possible
-
-    uint8_t rule50_ply;
-    uint8_t nullmove_ply;
+struct Hashes {
     uint64_t hash;
     uint64_t pawnHash;
     uint64_t nonPawnHash[2];
     uint64_t minorHash;
     uint64_t majorHash;
-
-    Bitboard blockers[2];
-    Bitboard checkers;
-    uint8_t checkerCount;
-
-    Move move;
-
-    Threats threats;
-
-    // MEMCPY GOES FROM HERE
-    int pieceCount[2][Piece::TOTAL];
-
-    uint8_t castling; // 0000 -> black queenside, black kingside, white queenside, white kingside
-    // TO HERE
-
-    BoardStack* previous;
 };
 
 struct Board {
+    Threats threats;
+    Hashes hashes;
+
     Bitboard byPiece[Piece::TOTAL];
     Bitboard byColor[2];
+    Bitboard enpassantTarget;
+    Bitboard blockers[2];
+    Bitboard checkers;
+    Move lastMove;
+    uint8_t checkerCount;
     Piece pieces[64];
 
     Color stm;
-    uint8_t ply;
-    bool chess960;
+
+    uint8_t castling;
     Square castlingSquares[4]; // For each castling right, stores the square of the corresponding rook
 
-    struct BoardStack* stack;
+    uint8_t ply;
+    uint8_t rule50_ply;
+    uint8_t nullmove_ply;
+
+    bool chess960;
 
     void startpos();
     size_t parseFen(std::string fen, bool chess960);
     std::string fen();
 
     void movePiece(Piece piece, Square origin, Square target, Bitboard fromTo);
-    void doMove(BoardStack* newStack, Move move, uint64_t newHash, NNUE* nnue);
-    void undoMove(Move move, NNUE* nnue);
-    void doNullMove(BoardStack* newStack);
-    void undoNullMove();
+    void doMove(Move move, uint64_t newHash, NNUE* nnue);
+    void doNullMove();
 
     void calculateThreats();
-    bool isSquareThreatened(Square square, BoardStack* bs);
+    bool isSquareThreatened(Square square);
 
     constexpr bool isCapture(Move move) {
         MoveType type = moveType(move);
@@ -103,11 +92,9 @@ struct Board {
 
     void updateSliderPins(Color side);
 
-    bool hasUpcomingRepetition(int ply);
-    bool isDraw(int ply);
-
     constexpr bool hasNonPawns() {
-        return stack->pieceCount[stm][Piece::KNIGHT] > 0 || stack->pieceCount[stm][Piece::BISHOP] > 0 || stack->pieceCount[stm][Piece::ROOK] > 0 || stack->pieceCount[stm][Piece::QUEEN] > 0;
+        Bitboard nonPawns = byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP] | byPiece[Piece::ROOK] | byPiece[Piece::QUEEN];
+        return BB::popcount(byColor[stm] & nonPawns) > 0;
     }
 
     constexpr bool opponentHasGoodCapture() {
@@ -117,10 +104,10 @@ struct Board {
         Bitboard minors = byColor[stm] & (byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP]);
         minors |= rooks;
 
-        Bitboard minorThreats = stack->threats.knightThreats | stack->threats.bishopThreats | stack->threats.pawnThreats;
-        Bitboard rookThreats = minorThreats | stack->threats.rookThreats;
+        Bitboard minorThreats = threats.knightThreats | threats.bishopThreats | threats.pawnThreats;
+        Bitboard rookThreats = minorThreats | threats.rookThreats;
 
-        return (queens & rookThreats) | (rooks & minorThreats) | (minors & stack->threats.pawnThreats);
+        return (queens & rookThreats) | (rooks & minorThreats) | (minors & threats.pawnThreats);
     }
 
     Bitboard attackersTo(Square square, Bitboard occupied);

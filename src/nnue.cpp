@@ -6,17 +6,28 @@
 
 #include "nnue.h"
 #include "board.h"
-#include "incbin/incbin.h"
 
 #if defined(ARCH_ARM)
 #include <arm_neon.h>
 #endif
 
+#ifdef _MSC_VER
+    #define SP_MSVC
+    #pragma push_macro("_MSC_VER")
+    #undef _MSC_VER
+#endif
+
+#include "incbin/incbin.h"
 // This will define the following variables:
 // const unsigned char        gNETWORKData[];
 // const unsigned char *const gNETWORKEnd;
 // const unsigned int         gNETWORKSize;
 INCBIN(NETWORK, EVALFILE);
+
+#ifdef SP_MSVC
+    #pragma pop_macro("_MSC_VER")
+    #undef SP_MSVC
+#endif
 
 NetworkData* networkData;
 alignas(ALIGNMENT) uint16_t nnzLookup[256][8];
@@ -399,8 +410,8 @@ Eval NNUE::evaluate(Board* board) {
     alignas(ALIGNMENT) float l3Neurons[L3_SIZE];
     memcpy(l3Neurons, networkData->l2Biases[bucket], sizeof(l3Neurons));
 
-#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     alignas(ALIGNMENT) float l2Floats[2 * L2_SIZE];
+#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
 
     VecF psNorm = set1Ps(L1_NORMALISATION);
     VecF psZero = set1Ps(0.0f);
@@ -425,13 +436,15 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
 #else
-    for (int l2 = 0; l2 < 2 * L2_SIZE; l2++) {
+    for (int l2 = 0; l2 < L2_SIZE; l2++) {
         float l2Result = static_cast<float>(l2Neurons[l2]) * L1_NORMALISATION + networkData->l1Biases[bucket][l2];
-        float l2Activated = std::clamp(l2Result, 0.0f, 1.0f);
-        l2Activated *= l2Activated;
+        l2Floats[l2] = std::clamp(l2Result, 0.0f, 1.0f);
+        l2Floats[l2 + L2_SIZE] = std::clamp(l2Result * l2Result, 0.0f, 1.0f);
+    }
 
+    for (int l2 = 0; l2 < 2 * L2_SIZE; l2++) {
         for (int l3 = 0; l3 < L3_SIZE; l3++) {
-            l3Neurons[l3] = std::fma(l2Activated, networkData->l2Weights[bucket][l2 * L3_SIZE + l3], l3Neurons[l3]);
+            l3Neurons[l3] = std::fma(l2Floats[l2], networkData->l2Weights[bucket][l2 * L3_SIZE + l3], l3Neurons[l3]);
         }
     }
 #endif

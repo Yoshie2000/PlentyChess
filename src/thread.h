@@ -27,12 +27,11 @@ class ThreadPool;
 
 class Worker {
 
-    std::deque<BoardStack>* rootStackQueue;
+    std::vector<uint64_t> boardHistory;
 
 public:
 
     Board rootBoard;
-    BoardStack* rootStack;
     
     std::mutex mutex;
     std::condition_variable cv;
@@ -42,7 +41,7 @@ public:
     bool exiting = false;
 
     SearchData searchData;
-    SearchParameters* searchParameters;
+    SearchParameters searchParameters;
     History history;
     NNUE nnue;
 
@@ -76,6 +75,13 @@ private:
     void printUCI(Worker* thread, int multiPvCount = 1);
     Worker* chooseBestThread();
 
+    Board* doMove(Board* board, uint64_t newHash, Move move);
+    void undoMove();
+    Board* doNullMove(Board* board);
+    void undoNullMove();
+    bool hasUpcomingRepetition(Board* board, int ply);
+    bool isDraw(Board* board, int ply);
+
     template <NodeType nt>
     Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, bool cutNode);
 
@@ -91,13 +97,13 @@ public:
     std::vector<std::unique_ptr<Worker>> workers;
     std::vector<std::unique_ptr<std::thread>> threads;
 
-    std::deque<BoardStack> rootStackQueue;
     SearchParameters searchParameters;
     Board rootBoard;
+    std::vector<uint64_t> rootBoardHistory;
 
     std::atomic<size_t> startedThreads;
 
-    ThreadPool() : workers(0), threads(0), rootStackQueue(), searchParameters{} {
+    ThreadPool() : workers(0), threads(0), searchParameters{}, rootBoardHistory() {
         resize(1);
     }
 
@@ -126,12 +132,12 @@ public:
         while (startedThreads < numThreads) {}
     }
 
-    void startSearching(Board board, std::deque<BoardStack> stackQueue, SearchParameters parameters) {
+    void startSearching(Board board, std::vector<uint64_t> boardHistory, SearchParameters parameters) {
         stopSearching();
         waitForSearchFinished();
 
         rootBoard = std::move(board);
-        rootStackQueue = std::move(stackQueue);
+        rootBoardHistory = std::move(boardHistory);
         searchParameters = std::move(parameters);
 
         for (auto& worker : workers) {
