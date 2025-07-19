@@ -697,7 +697,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, stack->ttPv, TT_NOBOUND);
     }
 
-    if (ttValue != EVAL_NONE && ttValue >= beta + 200 && (ttFlag & TT_UPPERBOUND) && stack->staticEval >= unadjustedEval && unadjustedEval >= beta)
+    if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ttValue >= beta + 200 && (ttFlag & TT_UPPERBOUND) && stack->staticEval >= unadjustedEval && unadjustedEval >= beta)
         return ttValue;
 
     // Improving
