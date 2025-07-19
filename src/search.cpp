@@ -878,7 +878,7 @@ movesLoop:
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth + moveHistory / 1265050 <= alpha) {
+                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth + moveHistory / 25300 <= alpha) {
                     movegen.skipQuietMoves();
                 }
             }
