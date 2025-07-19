@@ -697,9 +697,6 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, stack->ttPv, TT_NOBOUND);
     }
 
-    if (!pvNode && ttDepth >= depth && ttValue != EVAL_NONE && ttValue >= beta + 100 && (ttFlag & TT_UPPERBOUND) && stack->staticEval >= unadjustedEval && unadjustedEval >= beta + 100)
-        return ttValue;
-
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
@@ -729,7 +726,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
+    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture()) - (stack->staticEval >= unadjustedEval && unadjustedEval >= beta)) >= beta)
         return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Razoring
