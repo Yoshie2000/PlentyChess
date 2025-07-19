@@ -729,7 +729,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     // Reverse futility pruning
     if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
         int rfpEffectiveDepth = depth - (improving && !board->opponentHasGoodCapture());
-        int rfpMargin = rfpFactor * rfpEffectiveDepth + (stack - 1)->history / ((stack - 1)->capture ? 1000 : 10000);
+        int rfpMargin = rfpFactor * rfpEffectiveDepth + (stack - 1)->history / ((stack - 1)->capture ? 9999999999 : 25300);
         if (eval - rfpMargin >= beta)
             return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
     }
