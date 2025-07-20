@@ -996,9 +996,12 @@ movesLoop:
             } else {
                 if (boardCopy->checkers)
                     reduction -= lmrCheck;
-
-                if (!stack->ttPv)
-                    reduction += lmrTtPv;
+                
+                reduction += lmrTtPv;
+                if (pvNode)
+                    reduction -= 2000;
+                else if (stack->ttPv)
+                    reduction -= 1500;
 
                 if (cutNode)
                     reduction += lmrCutnode;
