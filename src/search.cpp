@@ -915,7 +915,7 @@ movesLoop:
             && ttDepth >= depth - 300
             ) {
             Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth / 100;
-            int singularDepth = (depth - 1) / 2;
+            int singularDepth = (depth - 100) / 2;
 
             bool currTtPv = stack->ttPv;
             stack->excludedMove = move;
