@@ -562,7 +562,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             return alpha;
     }
 
-    if (depth < 100) return qsearch<nodeType>(board, stack, alpha, beta);
+    if (depth <= 0) return qsearch<nodeType>(board, stack, alpha, beta);
     if (depth >= MAX_DEPTH) depth = MAX_DEPTH;
 
     if (!rootNode) {
