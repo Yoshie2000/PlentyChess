@@ -1145,9 +1145,6 @@ movesLoop:
     if (stopped || exiting)
         return 0;
 
-    if (!pvNode && bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && std::abs(alpha) < EVAL_TBWIN_IN_MAX_PLY)
-        bestValue = (bestValue * depth + 100 * beta) / (depth + 100);
-
     if (moveCount == 0) {
         if (board->checkers && excluded)
             return -EVAL_INFINITE;
