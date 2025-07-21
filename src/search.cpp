@@ -63,44 +63,44 @@ TUNE_INT(qsFutilityOffset, 68, 1, 125);
 TUNE_INT(qsSeeMargin, -87, -200, 50);
 
 // Pre-search pruning
-TUNE_INT_DISABLED(iirMinDepth, 4, 1, 10);
+TUNE_INT_DISABLED(iirMinDepth, 400, 100, 1000);
 
 TUNE_INT(staticHistoryFactor, -61, -500, -1);
 TUNE_INT(staticHistoryMin, -161, -1000, -1);
 TUNE_INT(staticHistoryMax, 170, 1, 1000);
 TUNE_INT(staticHistoryTempo, 36, 1, 1000);
 
-TUNE_INT_DISABLED(rfpDepth, 8, 2, 20);
+TUNE_INT_DISABLED(rfpDepth, 800, 200, 2000);
 TUNE_INT(rfpFactor, 96, 1, 250);
 
-TUNE_INT_DISABLED(razoringDepth, 5, 2, 20);
+TUNE_INT_DISABLED(razoringDepth, 400, 200, 2000);
 TUNE_INT(razoringFactor, 284, 1, 1000);
 
-TUNE_INT_DISABLED(nmpRedBase, 4, 1, 5);
+TUNE_INT_DISABLED(nmpRedBase, 400, 100, 800);
 TUNE_INT_DISABLED(nmpDepthDiv, 3, 1, 6);
-TUNE_INT_DISABLED(nmpMin, 4, 1, 10);
+TUNE_INT_DISABLED(nmpMin, 400, 1, 10);
 TUNE_INT(nmpDivisor, 174, 10, 1000);
 TUNE_INT(nmpEvalDepth, 18, 1, 100);
 TUNE_INT(nmpEvalBase, 173, 50, 300);
 
 TUNE_INT(probCutBetaOffset, 205, 1, 500);
-TUNE_INT_DISABLED(probCutDepth, 5, 1, 15);
+TUNE_INT_DISABLED(probCutDepth, 500, 100, 1000);
 
 // In-search pruning
-TUNE_INT(earlyLmrReductionTableFactor, 1014, 500, 2000);
+TUNE_INT(earlyLmrReductionTableFactor, 101, 500, 2000);
 
 TUNE_INT(earlyLmrHistoryFactorQuiet, 16009, 10000, 20000);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14637, 10000, 20000);
 
-TUNE_INT_DISABLED(fpDepth, 11, 1, 20);
+TUNE_INT_DISABLED(fpDepth, 1100, 100, 2000);
 TUNE_INT(fpBase, 206, 1, 1000);
 TUNE_INT(fpFactor, 101, 1, 500);
 
-TUNE_INT_DISABLED(fpCaptDepth, 9, 1, 20);
+TUNE_INT_DISABLED(fpCaptDepth, 900, 100, 2000);
 TUNE_INT(fpCaptBase, 403, 150, 750);
 TUNE_INT(fpCaptFactor, 403, 100, 600);
 
-TUNE_INT_DISABLED(historyPruningDepth, 4, 1, 15);
+TUNE_INT_DISABLED(historyPruningDepth, 400, 100, 1000);
 TUNE_INT(historyPruningFactorCapture, -1879, -8192, -128);
 TUNE_INT(historyPruningFactorQuiet, -6129, -8192, -128);
 
@@ -110,17 +110,17 @@ TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
-TUNE_INT_DISABLED(lmrMinDepth, 3, 1, 10);
+TUNE_INT_DISABLED(lmrMinDepth, 300, 100, 600);
 
-TUNE_INT(lmrCheck, 881, 0, 5000);
-TUNE_INT(lmrTtPv, 1943, 0, 5000);
-TUNE_INT(lmrCutnode, 1841, 0, 5000);
-TUNE_INT(lmrTtpvFaillow, 889, 0, 5000);
-TUNE_INT(lmrCorrection, 15162, 1000, 20000);
+TUNE_INT(lmrCheck, 88, 0, 500);
+TUNE_INT(lmrTtPv, 194, 0, 500);
+TUNE_INT(lmrCutnode, 184, 0, 500);
+TUNE_INT(lmrTtpvFaillow, 89, 0, 500);
+TUNE_INT(lmrCorrection, 151620, 10000, 200000);
 TUNE_INT(lmrHistoryFactorQuiet, 25301, 10000, 30000);
-TUNE_INT(lmrHistoryFactorCapture, 309944, 250000, 400000);
+TUNE_INT(lmrHistoryFactorCapture, 3099400, 2500000, 4000000);
 
-TUNE_INT(postlmrOppWorseningThreshold, 3031, 1500, 4500);
+TUNE_INT(postlmrOppWorseningThreshold, 303, 150, 450);
 
 TUNE_INT_DISABLED(lmrDeeperBase, 40, 1, 100);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
@@ -143,12 +143,12 @@ void initReductions() {
 
     for (int i = 1; i < MAX_PLY; i++) {
         for (int j = 1; j < MAX_MOVES; j++) {
-            REDUCTIONS[0][i][j] = 1000 * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // non-quiet
-            REDUCTIONS[1][i][j] = 1000 * (lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor); // quiet
+            REDUCTIONS[0][i][j] = 100 * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // non-quiet
+            REDUCTIONS[1][i][j] = 100 * (lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor); // quiet
         }
     }
 
-    for (int depth = 0; depth < MAX_PLY; depth++) {
+    for (int16_t depth = 0; depth < MAX_PLY; depth++) {
         SEE_MARGIN[depth][0] = seeMarginNoisy * depth * depth; // non-quiet
         SEE_MARGIN[depth][1] = seeMarginQuiet * depth; // quiet
 
@@ -157,7 +157,7 @@ void initReductions() {
     }
 }
 
-uint64_t perftInternal(Board& board, NNUE* nnue, int depth) {
+uint64_t perftInternal(Board& board, NNUE* nnue, int16_t depth) {
     if (depth == 0) return 1;
 
     Move moves[MAX_MOVES] = { MOVE_NONE };
@@ -181,7 +181,7 @@ uint64_t perftInternal(Board& board, NNUE* nnue, int depth) {
     return nodes;
 }
 
-uint64_t perft(Board& board, int depth) {
+uint64_t perft(Board& board, int16_t depth) {
     clock_t begin = clock();
     UCI::nnue.reset(&board);
 
@@ -541,7 +541,7 @@ movesLoopQsearch:
 }
 
 template <NodeType nt>
-Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, bool cutNode) {
+Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha, Eval beta, bool cutNode) {
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
     constexpr NodeType nodeType = nt == ROOT_NODE ? PV_NODE : NON_PV_NODE;
@@ -562,8 +562,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             return alpha;
     }
 
-    if (depth <= 0) return qsearch<nodeType>(board, stack, alpha, beta);
-    if (depth >= MAX_PLY - 1) depth = MAX_PLY - 1;
+    if (depth < 100) return qsearch<nodeType>(board, stack, alpha, beta);
+    if (depth >= MAX_DEPTH) depth = MAX_DEPTH;
 
     if (!rootNode) {
 
@@ -615,7 +615,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // TT cutoff
-    if (!pvNode && ttDepth >= depth + (ttValue >= beta) && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (!pvNode && ttDepth >= depth + 100 * (ttValue >= beta) && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
     // TB Probe
@@ -712,25 +712,25 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     }
 
     // IIR
-    if ((!ttHit || ttDepth + 4 < depth) && depth >= iirMinDepth)
-        depth--;
+    if ((!ttHit || ttDepth + 400 < depth) && depth >= iirMinDepth)
+        depth -= 100;
 
     // Post-LMR depth adjustments
     if ((stack - 1)->inLMR) {
         int additionalReduction = 0;
         if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
-            additionalReduction--;
+            additionalReduction -= 100;
 
         depth -= additionalReduction;
-        (stack - 1)->reduction += 1000 * additionalReduction;
+        (stack - 1)->reduction += additionalReduction;
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth < rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - (improving && !board->opponentHasGoodCapture())) >= beta)
+    if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - 100 * (improving && !board->opponentHasGoodCapture())) / 100 >= beta)
         return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Razoring
-    if (!rootNode && depth < razoringDepth && eval + (razoringFactor * depth) < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
+    if (!rootNode && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
         if (razorValue <= alpha && std::abs(razorValue) < EVAL_TBWIN_IN_MAX_PLY)
             return razorValue;
@@ -740,11 +740,11 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
     if (!pvNode
         && eval >= beta
         && eval >= stack->staticEval
-        && stack->staticEval + nmpEvalDepth * depth - nmpEvalBase >= beta
+        && stack->staticEval + nmpEvalDepth * depth / 100 - nmpEvalBase >= beta
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY
         && !excluded
         && (stack - 1)->movedPiece != Piece::NONE
-        && depth >= 3
+        && depth >= 300
         && stack->ply >= searchData.nmpPlies
         && board->hasNonPawns()
         ) {
@@ -753,7 +753,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[board->stm][0][0];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0];
-        int R = nmpRedBase + depth / nmpDepthDiv + std::min((eval - beta) / nmpDivisor, nmpMin);
+        int R = nmpRedBase + depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
         Board* boardCopy = doNullMove(board);
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
@@ -766,10 +766,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             if (nullValue >= EVAL_TBWIN_IN_MAX_PLY)
                 nullValue = beta;
 
-            if (searchData.nmpPlies || depth < 15)
+            if (searchData.nmpPlies || depth < 1500)
                 return nullValue;
 
-            searchData.nmpPlies = stack->ply + (depth - R) * 2 / 3;
+            searchData.nmpPlies = stack->ply + (depth - R) * 2 / 300;
             Eval verificationValue = search<NON_PV_NODE>(board, stack, depth - R, beta - 1, beta, false);
             searchData.nmpPlies = 0;
 
@@ -784,13 +784,13 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
         && !excluded
         && depth > probCutDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
-        && !(ttDepth >= depth - 3 && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
+        && !(ttDepth >= depth - 300 && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
 
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
 
         Move probcutTtMove = ttMove != MOVE_NONE && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : MOVE_NONE;
-        MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth);
+        MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth / 100);
         Move move;
         while ((move = movegen.nextMove()) != MOVE_NONE) {
             if (move == excludedMove || !board->isLegal(move))
@@ -812,7 +812,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
             Eval value = -qsearch<NON_PV_NODE>(boardCopy, stack + 1, -probCutBeta, -probCutBeta + 1);
 
             if (value >= probCutBeta)
-                value = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - 4, -probCutBeta, -probCutBeta + 1, !cutNode);
+                value = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - 400, -probCutBeta, -probCutBeta + 1, !cutNode);
 
             undoMove();
 
@@ -821,7 +821,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
             if (value >= probCutBeta) {
                 value = std::min(value, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(board->hashes.hash, move, depth - 3, unadjustedEval, valueToTT(value, stack->ply), stack->ttPv, TT_LOWERBOUND);
+                ttEntry->update(board->hashes.hash, move, depth - 300, unadjustedEval, valueToTT(value, stack->ply), stack->ttPv, TT_LOWERBOUND);
                 return value;
             }
         }
@@ -830,7 +830,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int depth, Eval alpha, Eva
 
     // IIR 2: Electric boolagoo
     if (!ttHit && depth >= iirMinDepth && pvNode)
-        depth--;
+        depth -= 100;
 
 movesLoop:
 
@@ -845,7 +845,7 @@ movesLoop:
     int captureMoveCount = 0;
 
     // Moves loop
-    MoveGen movegen(board, &history, stack, ttMove, depth);
+    MoveGen movegen(board, &history, stack, ttMove, depth / 100);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -868,17 +868,17 @@ movesLoop:
             && board->hasNonPawns()
             ) {
 
-            int lmrDepth = std::max(0, depth - earlyLmrReductionTableFactor * REDUCTIONS[!capture][depth][moveCount] / 1000000 - !improving + moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            int16_t lmrDepth = std::max(0, depth - earlyLmrReductionTableFactor * REDUCTIONS[!capture][depth / 100][moveCount] / 100 - 100 * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
             if (!pvNode && !movegen.skipQuiets) {
 
                 // Movecount pruning (LMP)
-                if (moveCount >= LMP_MARGIN[depth][improving]) {
+                if (moveCount >= LMP_MARGIN[depth / 100][improving]) {
                     movegen.skipQuietMoves();
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth <= alpha) {
+                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth / 100 <= alpha) {
                     movegen.skipQuietMoves();
                 }
             }
@@ -886,19 +886,19 @@ movesLoop:
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
                 Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth <= alpha)
+                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
                     continue;
             }
 
-            lmrDepth = std::min(std::min(depth + 1, MAX_PLY - 1), lmrDepth);
+            lmrDepth = std::min(std::min<int16_t>(depth + 100, MAX_DEPTH), lmrDepth);
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth)
+            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100)
                 continue;
 
             // SEE Pruning
-            if (!SEE(board, move, (2 + pvNode) * SEE_MARGIN[!capture ? lmrDepth : depth][!capture] / 2))
+            if (!SEE(board, move, (2 + pvNode) * SEE_MARGIN[!capture ? lmrDepth / 100 : depth / 100][!capture] / 2))
                 continue;
 
         }
@@ -907,14 +907,14 @@ movesLoop:
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
         if (doExtensions
-            && depth >= 6
+            && depth >= 600
             && move == ttMove
             && !excluded
             && (ttFlag & TT_LOWERBOUND)
             && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
-            && ttDepth >= depth - 3
+            && ttDepth >= depth - 300
             ) {
-            Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth;
+            Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth / 100;
             int singularDepth = (depth - 1) / 2;
 
             bool currTtPv = stack->ttPv;
@@ -931,7 +931,7 @@ movesLoop:
                 extension = 1;
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
                     extension = 2;
-                    depth += depth < doubleExtensionDepthIncrease;
+                    depth += 100 * (depth < doubleExtensionDepthIncrease);
                     if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
                         extension = 3;
                 }
@@ -983,12 +983,12 @@ movesLoop:
         Board* boardCopy = doMove(board, newHash, move);
 
         Eval value = 0;
-        int newDepth = depth - 1 + extension;
+        int newDepth = depth - 100 + 100 * extension;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !pvNode)) {
-            int reduction = REDUCTIONS[!capture][depth][moveCount];
+            int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount];
 
             if (stack->ttPv && !pvNode && !cutNode && capture) {
                 // Do very slight LMR for captures in ttPv-allnodes
@@ -1011,15 +1011,15 @@ movesLoop:
                 if (capture)
                     reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
                 else
-                    reduction -= 1000 * moveHistory / lmrHistoryFactorQuiet;
+                    reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
             }
 
-            int reducedDepth = std::clamp(newDepth - reduction / 1000, 1, newDepth + pvNode);
+            int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100 * pvNode);
             stack->reduction = reduction;
             stack->inLMR = true;
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
             stack->inLMR = false;
-            reducedDepth = std::clamp(newDepth - stack->reduction / 1000, 1, newDepth + pvNode);
+            reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100 * pvNode);
             stack->reduction = 0;
 
             if (capture && captureMoveCount < 32)
@@ -1027,11 +1027,11 @@ movesLoop:
             else if (!capture && quietMoveCount < 32)
                 quietSearchCount[quietMoveCount]++;
 
-            bool doShallowerSearch = !rootNode && value < bestValue + newDepth;
-            bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth);
-            newDepth += doDeeperSearch - doShallowerSearch;
+            bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100;
+            bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
+            newDepth += 100 * doDeeperSearch - 100 * doShallowerSearch;
 
-            if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - 4 >= newDepth && (ttFlag & TT_UPPERBOUND))) {
+            if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - 400 >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
                 if (capture && captureMoveCount < 32)
@@ -1040,7 +1040,7 @@ movesLoop:
                     quietSearchCount[quietMoveCount]++;
 
                 if (!capture) {
-                    int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth : reducedDepth), lmrPassBonusMax);
+                    int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth / 100 : reducedDepth / 100), lmrPassBonusMax);
                     history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
                 }
             }
@@ -1118,7 +1118,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int historyUpdateDepth = depth + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
+                    int historyUpdateDepth = depth / 100 + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
 
                     if (!capture) {
                         // Update quiet killer
@@ -1135,8 +1135,8 @@ movesLoop:
                     break;
                 }
 
-                if (depth > 4 && depth < 10 && beta < EVAL_TBWIN_IN_MAX_PLY && value > -EVAL_TBWIN_IN_MAX_PLY)
-                    depth--;
+                if (depth > 400 && depth < 1000 && beta < EVAL_TBWIN_IN_MAX_PLY && value > -EVAL_TBWIN_IN_MAX_PLY)
+                    depth -= 100;
             }
         }
 
@@ -1146,7 +1146,7 @@ movesLoop:
         return 0;
 
     if (!pvNode && bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && std::abs(alpha) < EVAL_TBWIN_IN_MAX_PLY)
-        bestValue = (bestValue * depth + beta) / (depth + 1);
+        bestValue = (bestValue * depth + 100 * beta) / (depth + 100);
 
     if (moveCount == 0) {
         if (board->checkers && excluded)
@@ -1167,7 +1167,7 @@ movesLoop:
 
     // Adjust correction history
     if (!board->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
-        int bonus = std::clamp((int)(bestValue - stack->staticEval) * depth * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+        int bonus = std::clamp((int(bestValue - stack->staticEval) * depth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         history.updateCorrectionHistory(board, stack, bonus);
     }
 
@@ -1263,7 +1263,7 @@ void Worker::iterativeDeepening() {
     }
     multiPvCount = std::min(multiPvCount, UCI::Options.multiPV.value);
 
-    int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : std::min(MAX_PLY - 1, searchParameters.depth);
+    int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : std::min<int16_t>(MAX_PLY - 1, searchParameters.depth);
 
     Eval previousValue = EVAL_NONE;
     Move previousMove = MOVE_NONE;
@@ -1280,7 +1280,7 @@ void Worker::iterativeDeepening() {
 
     rootMoveNodes.clear();
 
-    for (int depth = 1; depth <= maxDepth; depth++) {
+    for (int16_t depth = 1; depth <= maxDepth; depth++) {
         excludedRootMoves.clear();
         for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
 
@@ -1322,7 +1322,7 @@ void Worker::iterativeDeepening() {
             int failHighs = 0;
             while (true) {
                 int searchDepth = std::max(1, depth - failHighs);
-                value = search<ROOT_NODE>(board, stack, searchDepth, alpha, beta, false);
+                value = search<ROOT_NODE>(board, stack, searchDepth * 100, alpha, beta, false);
 
                 sortRootMoves();
 
@@ -1500,9 +1500,9 @@ void Worker::tdatagen() {
 
     rootMoveNodes.clear();
 
-    int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : std::min(MAX_PLY - 1, searchParameters.depth);
+    int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : std::min<int16_t>(MAX_PLY - 1, searchParameters.depth);
 
-    for (int depth = 1; depth <= maxDepth; depth++) {
+    for (int16_t depth = 1; depth <= maxDepth; depth++) {
         for (int i = 0; i < MAX_PLY + STACK_OVERHEAD + 2; i++) {
             stackList[i].pvLength = 0;
             stackList[i].ply = i - STACK_OVERHEAD;
@@ -1538,7 +1538,7 @@ void Worker::tdatagen() {
         int failHighs = 0;
         while (true) {
             int searchDepth = std::max(1, depth - failHighs);
-            value = search<ROOT_NODE>(board, stack, searchDepth, alpha, beta, false);
+            value = search<ROOT_NODE>(board, stack, searchDepth * 100, alpha, beta, false);
 
             sortRootMoves();
 

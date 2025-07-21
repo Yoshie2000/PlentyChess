@@ -17,7 +17,7 @@
 struct RootMove {
     Eval value = -EVAL_INFINITE;
     Eval meanScore = EVAL_NONE;
-    int depth = 0;
+    int16_t depth = 0;
     int selDepth = 0;
     Move move = MOVE_NULL;
     std::vector<Move> pv;
@@ -83,7 +83,7 @@ private:
     bool isDraw(Board* board, int ply);
 
     template <NodeType nt>
-    Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, bool cutNode);
+    Eval search(Board* board, SearchStack* stack, int16_t depth, Eval alpha, Eval beta, bool cutNode);
 
     template <NodeType nodeType>
     Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta);
