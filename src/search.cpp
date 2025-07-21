@@ -82,8 +82,8 @@ TUNE_INT(razoringFactor, 284, 1, 1000);
 
 TUNE_INT(nmpMinDepth, 300, 0, 600);
 TUNE_INT(nmpRedBase, 400, 100, 800);
-TUNE_INT(nmpDepthDiv, 300, 1, 6);
-TUNE_INT(nmpMin, 400, 1, 10);
+TUNE_INT(nmpDepthDiv, 300, 100, 600);
+TUNE_INT(nmpMin, 400, 100, 800);
 TUNE_INT(nmpDivisor, 174, 10, 1000);
 TUNE_INT(nmpEvalDepth, 18, 1, 100);
 TUNE_INT(nmpEvalBase, 173, 50, 300);
@@ -94,7 +94,7 @@ TUNE_INT(probCutDepth, 500, 100, 1000);
 TUNE_INT(iir2Reduction, 100, 0, 200);
 
 // In-search pruning
-TUNE_INT(earlyLmrReductionTableFactor, 101, 500, 2000);
+TUNE_INT(earlyLmrReductionTableFactor, 101, 100, 200);
 
 TUNE_INT(earlyLmrHistoryFactorQuiet, 16009, 10000, 20000);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14637, 10000, 20000);
@@ -934,7 +934,7 @@ movesLoop:
             && ttDepth >= depth - extensionTtDepthOffset
             ) {
             Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth / 100;
-            int singularDepth = (depth - 1) / 2;
+            int singularDepth = (depth - 100) / 2;
 
             bool currTtPv = stack->ttPv;
             stack->excludedMove = move;
