@@ -84,7 +84,7 @@ TUNE_INT(nmpEvalDepth, 18, 1, 100);
 TUNE_INT(nmpEvalBase, 173, 50, 300);
 
 TUNE_INT(probCutBetaOffset, 205, 1, 500);
-TUNE_INT_DISABLED(probCutDepth, 500, 100, 1000);
+TUNE_INT_DISABLED(probCutDepth, 600, 100, 1000);
 
 // In-search pruning
 TUNE_INT(earlyLmrReductionTableFactor, 101, 500, 2000);
@@ -92,20 +92,20 @@ TUNE_INT(earlyLmrReductionTableFactor, 101, 500, 2000);
 TUNE_INT(earlyLmrHistoryFactorQuiet, 16009, 10000, 20000);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14637, 10000, 20000);
 
-TUNE_INT_DISABLED(fpDepth, 1100, 100, 2000);
+TUNE_INT_DISABLED(fpDepth, 1000, 100, 2000);
 TUNE_INT(fpBase, 206, 1, 1000);
 TUNE_INT(fpFactor, 101, 1, 500);
 
-TUNE_INT_DISABLED(fpCaptDepth, 900, 100, 2000);
+TUNE_INT_DISABLED(fpCaptDepth, 800, 100, 2000);
 TUNE_INT(fpCaptBase, 403, 150, 750);
 TUNE_INT(fpCaptFactor, 403, 100, 600);
 
-TUNE_INT_DISABLED(historyPruningDepth, 400, 100, 1000);
+TUNE_INT_DISABLED(historyPruningDepth, 300, 100, 1000);
 TUNE_INT(historyPruningFactorCapture, -1879, -8192, -128);
 TUNE_INT(historyPruningFactorQuiet, -6129, -8192, -128);
 
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
-TUNE_INT_DISABLED(doubleExtensionDepthIncrease, 1100, 200, 2000);
+TUNE_INT_DISABLED(doubleExtensionDepthIncrease, 1000, 200, 2000);
 TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
@@ -712,7 +712,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // IIR
-    if ((!ttHit || ttDepth + 400 < depth) && depth >= iirMinDepth)
+    if ((!ttHit || ttDepth + 300 <= depth) && depth >= iirMinDepth)
         depth -= 100;
 
     // Post-LMR depth adjustments
@@ -766,7 +766,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             if (nullValue >= EVAL_TBWIN_IN_MAX_PLY)
                 nullValue = beta;
 
-            if (searchData.nmpPlies || depth < 1500)
+            if (searchData.nmpPlies || depth <= 1400)
                 return nullValue;
 
             searchData.nmpPlies = stack->ply + (depth - R) * 2 / 300;
@@ -782,7 +782,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
         && !excluded
-        && depth > probCutDepth
+        && depth >= probCutDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
         && !(ttDepth >= depth - 300 && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
 
@@ -878,7 +878,7 @@ movesLoop:
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth / 100 <= alpha) {
+                if (!capture && lmrDepth <= fpDepth && eval + fpBase + fpFactor * lmrDepth / 100 <= alpha) {
                     movegen.skipQuietMoves();
                 }
             }
@@ -886,7 +886,7 @@ movesLoop:
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
                 Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
+                if (lmrDepth <= fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
                     continue;
             }
 
@@ -894,7 +894,7 @@ movesLoop:
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100)
+            if (!pvNode && lmrDepth <= historyPruningDepth && moveHistory < hpFactor * depth / 100)
                 continue;
 
             // SEE Pruning
@@ -931,7 +931,7 @@ movesLoop:
                 extension = 1;
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
                     extension = 2;
-                    depth += 100 * (depth < doubleExtensionDepthIncrease);
+                    depth += 100 * (depth <= doubleExtensionDepthIncrease);
                     if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
                         extension = 3;
                 }
@@ -1135,7 +1135,7 @@ movesLoop:
                     break;
                 }
 
-                if (depth > 400 && depth < 1000 && beta < EVAL_TBWIN_IN_MAX_PLY && value > -EVAL_TBWIN_IN_MAX_PLY)
+                if (depth >= 500 && depth <= 900 && beta < EVAL_TBWIN_IN_MAX_PLY && value > -EVAL_TBWIN_IN_MAX_PLY)
                     depth -= 100;
             }
         }
