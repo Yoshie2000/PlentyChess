@@ -63,6 +63,7 @@ TUNE_INT(qsFutilityOffset, 68, 1, 125);
 TUNE_INT(qsSeeMargin, -82, -200, 50);
 
 // Pre-search pruning
+TUNE_INT(ttCutOffset, 50, -100, 200);
 TUNE_INT(ttCutFailHighMargin, 100, 0, 200);
 
 TUNE_INT(iirMinDepth, 379, 100, 1000);
@@ -634,7 +635,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // TT cutoff
-    if (!pvNode && ttDepth >= depth - 50 + ttCutFailHighMargin * (ttValue >= beta) && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (!pvNode && ttDepth >= depth - ttCutOffset + ttCutFailHighMargin * (ttValue >= beta) && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
     // TB Probe
