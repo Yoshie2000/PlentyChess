@@ -73,7 +73,7 @@ TUNE_INT(iirReduction, 95, 0, 200);
 TUNE_INT(staticHistoryFactor, -65, -500, -1);
 TUNE_INT(staticHistoryMin, -179, -1000, -1);
 TUNE_INT(staticHistoryMax, 164, 1, 1000);
-TUNE_INT(staticHistoryTempo, 26, 1, 1000);
+TUNE_INT(staticHistoryTempo, 26, 1, 100);
 
 TUNE_INT(rfpDepth, 843, 200, 2000);
 TUNE_INT(rfpFactor, 88, 1, 250);
@@ -85,17 +85,18 @@ TUNE_INT(nmpMinDepth, 323, 0, 600);
 TUNE_INT(nmpRedBase, 398, 100, 800);
 TUNE_INT(nmpDepthDiv, 308, 100, 600);
 TUNE_INT(nmpMin, 400, 100, 800);
-TUNE_INT(nmpDivisor, 199, 10, 1000);
+TUNE_INT(nmpDivisor, 199, 10, 600);
 TUNE_INT(nmpEvalDepth, 14, 1, 100);
 TUNE_INT(nmpEvalBase, 173, 50, 300);
 
+TUNE_INT(probcutReduction, 300, 0, 600);
 TUNE_INT(probCutBetaOffset, 207, 1, 500);
 TUNE_INT(probCutDepth, 481, 100, 1000);
 
 TUNE_INT(iir2Reduction, 101, 0, 200);
 
 // In-search pruning
-TUNE_INT(earlyLmrReductionTableFactor, 102, 100, 200);
+TUNE_INT(earlyLmrImproving, 100, 1, 500);
 
 TUNE_INT(earlyLmrHistoryFactorQuiet, 16131, 10000, 20000);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14641, 10000, 20000);
@@ -116,7 +117,7 @@ TUNE_INT(extensionMinDepth, 629, 0, 1200);
 TUNE_INT(extensionTtDepthOffset, 350, 0, 600);
 TUNE_INT(doubleExtensionDepthIncreaseFactor, 96, 0, 200);
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
-TUNE_INT_DISABLED(doubleExtensionDepthIncrease, 1100, 200, 2000);
+TUNE_INT(doubleExtensionDepthIncrease, 1100, 200, 2000);
 TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
@@ -804,7 +805,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         && !excluded
         && depth > probCutDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
-        && !(ttDepth >= depth - 300 && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
+        && !(ttDepth >= depth - probcutReduction && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
 
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
@@ -832,7 +833,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             Eval value = -qsearch<NON_PV_NODE>(boardCopy, stack + 1, -probCutBeta, -probCutBeta + 1);
 
             if (value >= probCutBeta)
-                value = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - 400, -probCutBeta, -probCutBeta + 1, !cutNode);
+                value = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - probcutReduction - 100, -probCutBeta, -probCutBeta + 1, !cutNode);
 
             undoMove();
 
@@ -841,7 +842,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
             if (value >= probCutBeta) {
                 value = std::min(value, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(board->hashes.hash, move, depth - 300, unadjustedEval, valueToTT(value, stack->ply), stack->ttPv, TT_LOWERBOUND);
+                ttEntry->update(board->hashes.hash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), stack->ttPv, TT_LOWERBOUND);
                 return value;
             }
         }
@@ -888,7 +889,7 @@ movesLoop:
             && board->hasNonPawns()
             ) {
 
-            int16_t lmrDepth = std::max(0, depth - earlyLmrReductionTableFactor * REDUCTIONS[!capture][depth / 100][moveCount] / 100 - 100 * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            int16_t lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth / 100][moveCount] - earlyLmrImproving * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
             if (!pvNode && !movegen.skipQuiets) {
 
