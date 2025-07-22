@@ -105,7 +105,7 @@ TUNE_INT(historyPruningFactorCapture, -1879, -8192, -128);
 TUNE_INT(historyPruningFactorQuiet, -6129, -8192, -128);
 
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
-TUNE_INT_DISABLED(doubleExtensionDepthIncrease, 11, 2, 20);
+TUNE_INT_DISABLED(doubleExtensionDepthIncrease, 1100, 200, 2000);
 TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
