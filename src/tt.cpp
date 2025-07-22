@@ -1,5 +1,11 @@
 #include "tt.h"
 #include "move.h"
+#include "spsa.h"
+
+TUNE_INT(ttReplaceTtpvBonus, 200, 0, 400);
+TUNE_INT(ttReplaceOffset, 400, 0, 800);
+TUNE_INT(ttDepthAgingMinDepth, 500, 0, 1000);
+TUNE_INT(ttDepthAgingReduction, 100, 0, 200);
 
 void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags) {
     // Update bestMove if not MOVE_NONE
@@ -7,15 +13,15 @@ void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval,
     if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
         bestMove = _bestMove;
 
-    if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + 200 * wasPv + 400 > depth) {
+    if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + ttReplaceTtpvBonus * wasPv + ttReplaceOffset > depth) {
         hash = (uint16_t)_hash;
         depth = _depth;
         value = _value;
         eval = _eval;
         flags = (uint8_t)(_flags + (wasPv << 2)) | TT_GENERATION_COUNTER;
     }
-    else if (depth >= 500 && flags != TT_EXACTBOUND)
-        depth -= 100;
+    else if (depth >= ttDepthAgingMinDepth && flags != TT_EXACTBOUND)
+        depth -= ttDepthAgingReduction;
 }
 
 TTEntry* TranspositionTable::probe(uint64_t hash, bool* found) {
