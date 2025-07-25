@@ -1,0 +1,21 @@
+fractional reduction table formula (captures)
+current: f(x)=100 (-0.14695267379283905+((log(e,x) log(e,x))/(3.29139304161071777)))
+future: g(100x)=-15+(((log(e,x) log(e,x))^(2))/(10.2))
+
+fractional reduction table formula (quiet)
+
+fractional see table formula (captures)
+current: f(x)=-21.8964481353759766 x^(2)
+future: g(100x)=-((x^(2))/(450))
+
+fractional see table formula (quiets)
+current: f(x)=-76.083831787109375 x
+future: g(100x)=-100*((x)/(130))
+
+fractional LMP formula (worsening)
+current: f(x)=1.8740227222442627+0.476268798112869263 x^(1.58844435214996338)
+future: g(100x)=((x^(2))/(100000))+((x)/(125))+2
+
+fractional LMP formula (improving)
+current: f(x)=2.57597017288208008+0.867434918880462646 x^(1.92250382900238037)
+future: g(100x)=((x^(2))/(15500))+((x)/(125))+2
