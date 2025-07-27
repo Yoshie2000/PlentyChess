@@ -1182,7 +1182,7 @@ Move tbProbeMoveRoot(unsigned result) {
     int promotion = TB_GET_PROMOTES(result);
 
     if (promotion)
-        return createMove(origin, target) | MOVE_PROMOTION | (PROMOTION_PIECE[promotion - 1] << 14);
+        return createMove(origin, target) | MOVE_PROMOTION | ((promotion - 1) << 14);
 
     if (TB_GET_EP(result))
         return createMove(origin, target) | MOVE_ENPASSANT;
