@@ -2,10 +2,10 @@
 #include "move.h"
 #include "spsa.h"
 
-TUNE_INT(ttReplaceTtpvBonus, 200, 0, 400);
-TUNE_INT(ttReplaceOffset, 400, 0, 800);
-TUNE_INT(ttDepthAgingMinDepth, 500, 0, 1000);
-TUNE_INT(ttDepthAgingReduction, 100, 0, 200);
+TUNE_INT(ttReplaceTtpvBonus, 209, 0, 400);
+TUNE_INT(ttReplaceOffset, 415, 0, 800);
+TUNE_INT(ttDepthAgingMinDepth, 488, 0, 1000);
+TUNE_INT(ttDepthAgingReduction, 94, 0, 200);
 
 void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags) {
     // Update bestMove if not MOVE_NONE
