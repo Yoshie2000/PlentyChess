@@ -8,43 +8,43 @@
 #include "spsa.h"
 
 // Quiet history
-TUNE_INT(historyBonusQuietBase, 24, -500, 500);
-TUNE_INT(historyBonusQuietFactor, 227, 1, 500);
-TUNE_INT(historyBonusQuietMax, 1997, 32, 4096);
+TUNE_INT(historyBonusQuietBase, 61, -500, 500);
+TUNE_INT(historyBonusQuietFactor, 239, 1, 500);
+TUNE_INT(historyBonusQuietMax, 1977, 32, 4096);
 TUNE_INT(historyMalusQuietBase, 69, -500, 500);
-TUNE_INT(historyMalusQuietFactor, 196, 1, 500);
-TUNE_INT(historyMalusQuietMax, 1583, 32, 4096);
+TUNE_INT(historyMalusQuietFactor, 213, 1, 500);
+TUNE_INT(historyMalusQuietMax, 1564, 32, 4096);
 
 // Continuation history
-TUNE_INT(historyBonusContinuationBase, 0, -500, 500);
-TUNE_INT(historyBonusContinuationFactor, 216, 1, 500);
-TUNE_INT(historyBonusContinuationMax, 2316, 32, 4096);
-TUNE_INT(historyMalusContinuationBase, 94, -500, 500);
-TUNE_INT(historyMalusContinuationFactor, 211, 1, 500);
-TUNE_INT(historyMalusContinuationMax, 1556, 32, 4096);
+TUNE_INT(historyBonusContinuationBase, -56, -500, 500);
+TUNE_INT(historyBonusContinuationFactor, 197, 1, 500);
+TUNE_INT(historyBonusContinuationMax, 2420, 32, 4096);
+TUNE_INT(historyMalusContinuationBase, 95, -500, 500);
+TUNE_INT(historyMalusContinuationFactor, 207, 1, 500);
+TUNE_INT(historyMalusContinuationMax, 1308, 32, 4096);
 
 // Pawn history
-TUNE_INT(historyBonusPawnBase, -2, -500, 500);
-TUNE_INT(historyBonusPawnFactor, 203, 1, 500);
-TUNE_INT(historyBonusPawnMax, 2424, 32, 4096);
-TUNE_INT(historyMalusPawnBase, 64, -500, 500);
-TUNE_INT(historyMalusPawnFactor, 251, 1, 500);
-TUNE_INT(historyMalusPawnMax, 1909, 32, 4096);
+TUNE_INT(historyBonusPawnBase, 14, -500, 500);
+TUNE_INT(historyBonusPawnFactor, 180, 1, 500);
+TUNE_INT(historyBonusPawnMax, 2425, 32, 4096);
+TUNE_INT(historyMalusPawnBase, 82, -500, 500);
+TUNE_INT(historyMalusPawnFactor, 268, 1, 500);
+TUNE_INT(historyMalusPawnMax, 2049, 32, 4096);
 
 // Capture history
-TUNE_INT(historyBonusCaptureBase, 31, -500, 500);
-TUNE_INT(historyBonusCaptureFactor, 141, 1, 500);
-TUNE_INT(historyBonusCaptureMax, 1834, 32, 4096);
-TUNE_INT(historyMalusCaptureBase, 150, -500, 500);
-TUNE_INT(historyMalusCaptureFactor, 243, 1, 500);
-TUNE_INT(historyMalusCaptureMax, 1904, 32, 4096);
+TUNE_INT(historyBonusCaptureBase, 15, -500, 500);
+TUNE_INT(historyBonusCaptureFactor, 124, 1, 500);
+TUNE_INT(historyBonusCaptureMax, 1732, 32, 4096);
+TUNE_INT(historyMalusCaptureBase, 127, -500, 500);
+TUNE_INT(historyMalusCaptureFactor, 236, 1, 500);
+TUNE_INT(historyMalusCaptureMax, 2092, 32, 4096);
 
 // Correction history
-TUNE_INT(pawnCorrectionFactor, 5920, 1000, 7500);
-TUNE_INT(nonPawnCorrectionFactor, 5576, 1000, 7500);
-TUNE_INT(minorCorrectionFactor, 3681, 1000, 7500);
-TUNE_INT(majorCorrectionFactor, 3125, 1000, 7500);
-TUNE_INT(continuationCorrectionFactor, 5129, 1000, 7500);
+TUNE_INT(pawnCorrectionFactor, 5969, 1000, 7500);
+TUNE_INT(nonPawnCorrectionFactor, 5638, 1000, 7500);
+TUNE_INT(minorCorrectionFactor, 3630, 1000, 7500);
+TUNE_INT(majorCorrectionFactor, 2931, 1000, 7500);
+TUNE_INT(continuationCorrectionFactor, 5269, 1000, 7500);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
@@ -205,7 +205,7 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
     *captHistScore += scaledBonus;
 }
 
-void History::updateCaptureHistory(int depth, Board* board, Move move, int moveSearchCount, Move* captureMoves, int* captureSearchCount, int captureMoveCount) {
+void History::updateCaptureHistory(int16_t depth, Board* board, Move move, int moveSearchCount, Move* captureMoves, int* captureSearchCount, int captureMoveCount) {
     int captHistBonus = std::min(historyBonusCaptureBase + historyBonusCaptureFactor * depth, historyBonusCaptureMax);
     int captHistMalus = std::min(historyMalusCaptureBase + historyMalusCaptureFactor * depth, historyMalusCaptureMax);
 
@@ -220,7 +220,7 @@ void History::updateCaptureHistory(int depth, Board* board, Move move, int moveS
     }
 }
 
-void History::updateQuietHistories(int depth, Board* board, SearchStack* stack, Move move, int moveSearchCount, Move* quietMoves, int* quietSearchCount, int quietMoveCount) {
+void History::updateQuietHistories(int16_t depth, Board* board, SearchStack* stack, Move move, int moveSearchCount, Move* quietMoves, int* quietSearchCount, int quietMoveCount) {
     int quietHistBonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * depth, historyBonusQuietMax);
     int quietHistMalus = std::min(historyMalusQuietBase + historyMalusQuietFactor * depth, historyMalusQuietMax);
     int contHistBonus = std::min(historyBonusContinuationBase + historyBonusContinuationFactor * depth, historyBonusContinuationMax);

@@ -76,7 +76,7 @@ class MoveGen {
     int returnedBadCaptures;
 
     MoveGenStage stage;
-    int depth;
+    int16_t depth;
 
     bool probCut;
     int probCutThreshold;
@@ -86,11 +86,11 @@ public:
     bool skipQuiets;
 
     // Main search
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int depth);
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int16_t depth);
     // qSearch
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int depth);
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int16_t depth);
     // ProbCut
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int depth);
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int16_t depth);
 
     Move nextMove();
 
