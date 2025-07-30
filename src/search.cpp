@@ -1035,12 +1035,12 @@ movesLoop:
                     reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
             }
 
-            int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + lmrPvNodeExtension * pvNode);
+            int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
             stack->inLMR = true;
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
             stack->inLMR = false;
-            reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + lmrPvNodeExtension * pvNode);
+            reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
             stack->reduction = 0;
 
             if (capture && captureMoveCount < 32)
