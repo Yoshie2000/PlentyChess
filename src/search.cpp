@@ -961,12 +961,13 @@ movesLoop:
                 extension = 100 + EXTENSION_TABLE[singularMargin];
                 
                 // Calculate a reasonable maximum
-                int maxExtension = 125;
+                int maxExtension = 100;
                 if (!pvNode)
-                    maxExtension += 75 + 150 * !board->isCapture(move);
+                    maxExtension += 75 + 100 * !board->isCapture(move);
                 extension = std::min(extension, maxExtension);
 
-                depth += doubleExtensionDepthIncreaseFactor * (!pvNode && depth < doubleExtensionDepthIncrease);
+                if (!pvNode && extension >= 200 && depth < doubleExtensionDepthIncrease)
+                    depth += doubleExtensionDepthIncreaseFactor;
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
