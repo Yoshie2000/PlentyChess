@@ -963,7 +963,7 @@ movesLoop:
                 // Calculate a reasonable maximum
                 int maxExtension = 100;
                 if (!pvNode)
-                    maxExtension += 75 + 100 * !board->isCapture(move);
+                    maxExtension += 100 + 100 * !board->isCapture(move);
                 extension = std::min(extension, maxExtension);
 
                 if (!pvNode && extension >= 200 && depth < doubleExtensionDepthIncrease)
