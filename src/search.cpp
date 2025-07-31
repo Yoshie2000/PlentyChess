@@ -895,7 +895,7 @@ movesLoop:
 
                 // Movecount pruning (LMP)
                 if (moveCount >= LMP_MARGIN[depth / 100][improving]) {
-                    if (movegen.skipQuiets)
+                    if (movegen.skipQuiets && depth >= 300)
                         depth -= 25;
                     movegen.skipQuietMoves();
                 }
