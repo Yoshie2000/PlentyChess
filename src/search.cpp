@@ -891,10 +891,12 @@ movesLoop:
 
             int16_t lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth / 100][moveCount] - earlyLmrImproving * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
-            if (!pvNode && !movegen.skipQuiets) {
+            if (!pvNode) {
 
                 // Movecount pruning (LMP)
                 if (moveCount >= LMP_MARGIN[depth / 100][improving]) {
+                    if (movegen.skipQuiets)
+                        depth -= 25;
                     movegen.skipQuietMoves();
                 }
 
