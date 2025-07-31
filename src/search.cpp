@@ -954,10 +954,12 @@ movesLoop:
                 extension = 100;
                 if (!pvNode) {
                     extension = 200 - 100 * std::max(0, doubleExtensionMargin - extensionMargin) / doubleExtensionMargin;
-                    depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
 
-                    if (!board->isCapture(move) && extensionMargin > doubleExtensionMargin)
+                    if (!board->isCapture(move) && extensionMargin > doubleExtensionMargin) {
                         extension = 300 - 100 * std::max(0, tripleExtensionMargin - extensionMargin) / tripleExtensionMargin;
+
+                        depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
+                    }
                 }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
