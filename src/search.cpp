@@ -156,7 +156,7 @@ int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
 int LMP_MARGIN[MAX_PLY][2];
 
-constexpr int EXTENSION_LOOKUP_SIZE = 100;
+constexpr int EXTENSION_LOOKUP_SIZE = 256;
 int EXTENSION_TABLE[EXTENSION_LOOKUP_SIZE];
 
 void initReductions() {
@@ -956,18 +956,17 @@ movesLoop:
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
 
+                // Calculate base extension via log table
                 int singularMargin = std::clamp(singularBeta - singularValue, 0, EXTENSION_LOOKUP_SIZE - 1);
-
-                if (board->isCapture(move))
-                    singularMargin -= 50;
-
-                singularMargin = std::clamp(singularMargin, 0, EXTENSION_LOOKUP_SIZE - 1);
                 extension = 100 + EXTENSION_TABLE[singularMargin];
-
+                
+                // Calculate a reasonable maximum
+                int maxExtension = 125;
                 if (!pvNode)
-                    depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
-                else
-                    extension = std::min(extension, 125);
+                    maxExtension += 75 + 150 * !board->isCapture(move);
+                extension = std::min(extension, maxExtension);
+
+                depth += doubleExtensionDepthIncreaseFactor * (!pvNode && depth < doubleExtensionDepthIncrease);
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
