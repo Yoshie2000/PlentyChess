@@ -116,9 +116,7 @@ TUNE_INT(historyPruningFactorQuiet, -6332, -8192, -128);
 TUNE_INT(extensionMinDepth, 653, 0, 1200);
 TUNE_INT(extensionTtDepthOffset, 402, 0, 600);
 TUNE_INT(doubleExtensionDepthIncreaseFactor, 88, 0, 200);
-TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
 TUNE_INT(doubleExtensionDepthIncrease, 1152, 200, 2000);
-TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
@@ -158,6 +156,9 @@ int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
 int LMP_MARGIN[MAX_PLY][2];
 
+constexpr int EXTENSION_LOOKUP_SIZE = 100;
+int EXTENSION_TABLE[EXTENSION_LOOKUP_SIZE];
+
 void initReductions() {
     REDUCTIONS[0][0][0] = 0;
     REDUCTIONS[1][0][0] = 0;
@@ -175,6 +176,11 @@ void initReductions() {
 
         LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
         LMP_MARGIN[depth][1] = lmpMarginImprovingBase + lmpMarginImprovingFactor * std::pow(depth, lmpMarginImprovingPower); // improving
+    }
+
+    EXTENSION_TABLE[0] = 0;
+    for (int i = 1; i < EXTENSION_LOOKUP_SIZE; i++) {
+        EXTENSION_TABLE[i] = 10000.0 * log(i) / 185;
     }
 }
 
@@ -949,13 +955,19 @@ movesLoop:
 
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
-                extension = 1;
-                if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
-                    extension = 2;
+
+                int singularMargin = std::clamp(singularBeta - singularValue, 0, EXTENSION_LOOKUP_SIZE - 1);
+
+                if (board->isCapture(move))
+                    singularMargin -= 50;
+
+                singularMargin = std::clamp(singularMargin, 0, EXTENSION_LOOKUP_SIZE - 1);
+                extension = 100 + EXTENSION_TABLE[singularMargin];
+
+                if (!pvNode)
                     depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
-                    if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
-                        extension = 3;
-                }
+                else
+                    extension = std::min(extension, 125);
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
@@ -965,12 +977,12 @@ movesLoop:
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
-                extension = -3;
+                extension = -300;
             // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
             else if (cutNode)
-                extension = -2;
+                extension = -200;
             else if (ttValue <= alpha)
-                extension = -1;
+                extension = -100;
         }
 
         uint64_t newHash = board->hashAfter(move);
@@ -1004,7 +1016,7 @@ movesLoop:
         Board* boardCopy = doMove(board, newHash, move);
 
         Eval value = 0;
-        int newDepth = depth - 100 + 100 * extension;
+        int newDepth = depth - 100 + extension;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
