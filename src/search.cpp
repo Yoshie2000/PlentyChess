@@ -1015,7 +1015,7 @@ movesLoop:
                 // Do very slight LMR for captures in ttPv-allnodes
                 reduction /= 2;
 
-                if (ttMove == MOVE_NONE)
+                if (ttMove != MOVE_NONE && board->isCapture(ttMove))
                     reduction += 1000;
 
             } else {
