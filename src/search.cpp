@@ -1067,6 +1067,9 @@ movesLoop:
             }
         }
         else if (!pvNode || moveCount > 1) {
+            if (extension == 0)
+                newDepth += correctionValue >= 300000;
+
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
             if (capture && captureMoveCount < 32)
