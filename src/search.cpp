@@ -1033,6 +1033,8 @@ movesLoop:
                     reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
                 else
                     reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
+                
+                reduction += (searchData.nodesSearched % 16) - 8;
             }
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
