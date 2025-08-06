@@ -1078,8 +1078,8 @@ movesLoop:
         // PV moves will be researched at full depth if good enough
         if (pvNode && (moveCount == 1 || value > alpha)) {
             if (extension < 0)
-                newDepth += std::abs(correctionValue) >= 300000;
-                
+                newDepth += 1000 * (std::abs(correctionValue) >= 300000);
+
             value = -search<PV_NODE>(boardCopy, stack + 1, newDepth, -beta, -alpha, false);
 
             if (capture && captureMoveCount < 32)
