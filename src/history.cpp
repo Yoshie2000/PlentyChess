@@ -206,8 +206,8 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
 }
 
 void History::updateCaptureHistory(int16_t depth, Board* board, Move move, int moveSearchCount, Move* captureMoves, int* captureSearchCount, int captureMoveCount) {
-    int captHistBonus = std::min(historyBonusCaptureBase + historyBonusCaptureFactor * depth, historyBonusCaptureMax);
-    int captHistMalus = std::min(historyMalusCaptureBase + historyMalusCaptureFactor * depth, historyMalusCaptureMax);
+    int captHistBonus = std::min(historyBonusCaptureBase + historyBonusCaptureFactor * depth / 100, historyBonusCaptureMax);
+    int captHistMalus = std::min(historyMalusCaptureBase + historyMalusCaptureFactor * depth / 100, historyMalusCaptureMax);
 
     if (board->isCapture(move)) {
         updateSingleCaptureHistory(board, move, captHistBonus * moveSearchCount);
@@ -221,12 +221,12 @@ void History::updateCaptureHistory(int16_t depth, Board* board, Move move, int m
 }
 
 void History::updateQuietHistories(int16_t depth, Board* board, SearchStack* stack, Move move, int moveSearchCount, Move* quietMoves, int* quietSearchCount, int quietMoveCount) {
-    int quietHistBonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * depth, historyBonusQuietMax);
-    int quietHistMalus = std::min(historyMalusQuietBase + historyMalusQuietFactor * depth, historyMalusQuietMax);
-    int contHistBonus = std::min(historyBonusContinuationBase + historyBonusContinuationFactor * depth, historyBonusContinuationMax);
-    int contHistMalus = std::min(historyMalusContinuationBase + historyMalusContinuationFactor * depth, historyMalusContinuationMax);
-    int pawnHistBonus = std::min(historyBonusPawnBase + historyBonusPawnFactor * depth, historyBonusPawnMax);
-    int pawnHistMalus = std::min(historyMalusPawnBase + historyMalusPawnFactor * depth, historyMalusPawnMax);
+    int quietHistBonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * depth / 100, historyBonusQuietMax);
+    int quietHistMalus = std::min(historyMalusQuietBase + historyMalusQuietFactor * depth / 100, historyMalusQuietMax);
+    int contHistBonus = std::min(historyBonusContinuationBase + historyBonusContinuationFactor * depth / 100, historyBonusContinuationMax);
+    int contHistMalus = std::min(historyMalusContinuationBase + historyMalusContinuationFactor * depth / 100, historyMalusContinuationMax);
+    int pawnHistBonus = std::min(historyBonusPawnBase + historyBonusPawnFactor * depth / 100, historyBonusPawnMax);
+    int pawnHistMalus = std::min(historyMalusPawnBase + historyMalusPawnFactor * depth / 100, historyMalusPawnMax);
     
     // Increase stats for this move
     updateQuietHistory(move, board->stm, board, quietHistBonus * moveSearchCount);

@@ -1139,7 +1139,7 @@ movesLoop:
 
                 if (bestValue >= beta) {
 
-                    int historyUpdateDepth = depth / 100 + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
+                    int historyUpdateDepth = depth + 100 * (eval <= alpha) + 100 * (value - historyDepthBetaOffset > beta);
 
                     if (!capture) {
                         // Update quiet killer
