@@ -1067,8 +1067,8 @@ movesLoop:
             }
         }
         else if (!pvNode || moveCount > 1) {
-            if (extension == 0)
-                newDepth += std::abs(correctionValue) >= 250000;
+            if (extension < 0)
+                newDepth += std::abs(correctionValue) >= 300000;
 
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
