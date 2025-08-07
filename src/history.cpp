@@ -60,6 +60,7 @@ void History::initHistory() {
     memset(minorCorrectionHistory, 0, sizeof(minorCorrectionHistory));
     memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
     memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
+    memset(nnCorrectionHistory, 0, sizeof(nnCorrectionHistory));
     for (int i = 0; i < PAWN_HISTORY_SIZE; i++) {
         for (int j = 0; j < 2; j++) {
             for (int k = 0; k < Piece::TOTAL; k++) {
@@ -77,8 +78,9 @@ Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
     int64_t minorEntry = minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t majorEntry = majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
+    int64_t nnEntry = nnCorrectionHistory[board->stm][searchStack->nnHash & (NN_HISTORY_SIZE - 1)];
 
-    return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
+    return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor + nnEntry * 3000;
 }
 
 Eval History::correctStaticEval(Eval eval, Eval correctionValue) {
@@ -104,6 +106,10 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
     scaledBonus = bonus - majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
     majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 
+    // NN
+    scaledBonus = bonus - nnCorrectionHistory[board->stm][searchStack->nnHash & (NN_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    nnCorrectionHistory[board->stm][searchStack->nnHash & (NN_HISTORY_SIZE - 1)] += scaledBonus;
+
     // Continuation
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
         scaledBonus = bonus - *(searchStack - 1)->contCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
@@ -116,7 +122,7 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(move, board->stm, board) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move) + getNNHistory(board, searchStack, move);
+        return getQuietHistory(move, board->stm, board) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
     }
 }
 
@@ -138,15 +144,6 @@ int16_t History::getPawnHistory(Board* board, Move move) {
 void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
     int16_t scaledBonus = bonus - getPawnHistory(board, move) * std::abs(bonus) / 32000;
     pawnHistory[board->hashes.pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
-}
-
-int16_t History::getNNHistory(Board* board, SearchStack* searchStack, Move move) {
-    return nnHistory[searchStack->nnHash & (NN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)];
-}
-
-void History::updateNNHistory(Board* board, SearchStack* searchStack, Move move, int16_t bonus) {
-    int16_t scaledBonus = bonus - getNNHistory(board, searchStack, move) * std::abs(bonus) / 32000;
-    nnHistory[searchStack->nnHash & (NN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
 }
 
 int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move) {
@@ -241,7 +238,6 @@ void History::updateQuietHistories(int16_t depth, Board* board, SearchStack* sta
     updateQuietHistory(move, board->stm, board, quietHistBonus * moveSearchCount);
     updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, contHistBonus * moveSearchCount);
     updatePawnHistory(board, move, pawnHistBonus * moveSearchCount);
-    updateNNHistory(board, stack, move, pawnHistBonus * moveSearchCount);
 
     // Decrease stats for all other quiets
     for (int i = 0; i < quietMoveCount; i++) {
@@ -250,7 +246,6 @@ void History::updateQuietHistories(int16_t depth, Board* board, SearchStack* sta
         updateQuietHistory(qMove, board->stm, board, -quietHistMalus * quietSearchCount[i]);
         updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -contHistMalus * quietSearchCount[i]);
         updatePawnHistory(board, qMove, -pawnHistMalus * quietSearchCount[i]);
-        updateNNHistory(board, stack, qMove, -pawnHistMalus * quietSearchCount[i]);
     }
 }
 

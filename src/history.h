@@ -18,9 +18,9 @@ class History {
     int16_t nonPawnCorrectionHistory[2][2][CORRECTION_HISTORY_SIZE];
     int16_t minorCorrectionHistory[2][CORRECTION_HISTORY_SIZE];
     int16_t majorCorrectionHistory[2][CORRECTION_HISTORY_SIZE];
+    int16_t nnCorrectionHistory[2][NN_HISTORY_SIZE];
 
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
-    int16_t nnHistory[NN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
 public:
 
@@ -37,9 +37,6 @@ public:
 
     int16_t getPawnHistory(Board* board, Move move);
     void updatePawnHistory(Board* board, Move move, int16_t bonus);
-
-    int16_t getNNHistory(Board* board, SearchStack* searchStack, Move move);
-    void updateNNHistory(Board* board, SearchStack* searchStack, Move move, int16_t bonus);
 
     int16_t getQuietHistory(Move move, Color stm, Board* board);
     void updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus);
