@@ -1008,10 +1008,10 @@ movesLoop:
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !pvNode)) {
+        if (moveCount > lmrMcBase + lmrMcPv * rootNode + 2 * (pvNode && capture) - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
             int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount];
 
-            if (stack->ttPv && !pvNode && !cutNode && capture) {
+            if (stack->ttPv && !cutNode && capture) {
                 // Do very slight LMR for captures in ttPv-allnodes
                 reduction /= 2;
             } else {
