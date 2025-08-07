@@ -116,7 +116,7 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(move, board->stm, board) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
+        return getQuietHistory(move, board->stm, board) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move) + getNNHistory(board, searchStack, move);
     }
 }
 
@@ -138,6 +138,15 @@ int16_t History::getPawnHistory(Board* board, Move move) {
 void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
     int16_t scaledBonus = bonus - getPawnHistory(board, move) * std::abs(bonus) / 32000;
     pawnHistory[board->hashes.pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
+}
+
+int16_t History::getNNHistory(Board* board, SearchStack* searchStack, Move move) {
+    return nnHistory[searchStack->nnHash & (NN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)];
+}
+
+void History::updateNNHistory(Board* board, SearchStack* searchStack, Move move, int16_t bonus) {
+    int16_t scaledBonus = bonus - getNNHistory(board, searchStack, move) * std::abs(bonus) / 32000;
+    nnHistory[searchStack->nnHash & (NN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
 }
 
 int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move) {
@@ -232,6 +241,7 @@ void History::updateQuietHistories(int16_t depth, Board* board, SearchStack* sta
     updateQuietHistory(move, board->stm, board, quietHistBonus * moveSearchCount);
     updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, contHistBonus * moveSearchCount);
     updatePawnHistory(board, move, pawnHistBonus * moveSearchCount);
+    updateNNHistory(board, stack, move, pawnHistBonus * moveSearchCount);
 
     // Decrease stats for all other quiets
     for (int i = 0; i < quietMoveCount; i++) {
@@ -240,6 +250,7 @@ void History::updateQuietHistories(int16_t depth, Board* board, SearchStack* sta
         updateQuietHistory(qMove, board->stm, board, -quietHistMalus * quietSearchCount[i]);
         updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -contHistMalus * quietSearchCount[i]);
         updatePawnHistory(board, qMove, -pawnHistMalus * quietSearchCount[i]);
+        updateNNHistory(board, stack, qMove, -pawnHistMalus * quietSearchCount[i]);
     }
 }
 

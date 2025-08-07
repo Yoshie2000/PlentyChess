@@ -7,6 +7,7 @@ extern uint64_t ZOBRIST_STM_BLACK;
 extern uint64_t ZOBRIST_NO_PAWNS;
 extern uint64_t ZOBRIST_CASTLING[16]; // 2^4
 extern uint64_t ZOBRIST_ENPASSENT[8]; // 8 files
+extern uint64_t ZOBRIST_NN_HASH[16];
 
 extern uint64_t CUCKOO_HASHES[8192];
 extern Move CUCKOO_MOVES[8192];

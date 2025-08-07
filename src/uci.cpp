@@ -624,7 +624,7 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "debug")) board.debugBoard();
         else if (matchesToken(line, "eval")) {
             UCI::nnue.reset(&board);
-            std::cout << UCI::nnue.evaluate(&board) << std::endl;
+            std::cout << UCI::nnue.evaluate(&board).first << std::endl;
         }
         else if (matchesToken(line, "seetest")) seetest(board);
         else std::cout << "Unknown command" << std::endl;

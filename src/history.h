@@ -4,6 +4,7 @@
 #include "board.h"
 
 constexpr int PAWN_HISTORY_SIZE = 8192;
+constexpr int NN_HISTORY_SIZE = 1 << (8 * sizeof(NNHash));
 constexpr int CORRECTION_HISTORY_SIZE = 16384;
 constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 
@@ -19,6 +20,7 @@ class History {
     int16_t majorCorrectionHistory[2][CORRECTION_HISTORY_SIZE];
 
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
+    int16_t nnHistory[NN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
 public:
 
@@ -35,6 +37,9 @@ public:
 
     int16_t getPawnHistory(Board* board, Move move);
     void updatePawnHistory(Board* board, Move move, int16_t bonus);
+
+    int16_t getNNHistory(Board* board, SearchStack* searchStack, Move move);
+    void updateNNHistory(Board* board, SearchStack* searchStack, Move move, int16_t bonus);
 
     int16_t getQuietHistory(Move move, Color stm, Board* board);
     void updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus);

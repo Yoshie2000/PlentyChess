@@ -39,15 +39,18 @@ int getMaterialScale(Board* board) {
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
-Eval evaluate(Board* board, NNUE* nnue) {
+std::pair<Eval, NNHash> evaluate(Board* board, NNUE* nnue) {
     assert(!board->checkers);
 
-    Eval eval = nnue->evaluate(board);
+    Eval eval;
+    NNHash nnHash;
+    std::tie (eval, nnHash) = nnue->evaluate(board);
+
     eval = (eval * getMaterialScale(board)) / 1024;
     eval = eval * (300 - board->rule50_ply) / 300;
 
     eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
-    return (eval / 16) * 16;
+    return std::make_pair((eval / 16) * 16, nnHash);
 }
 
 std::string formatEval(Eval value) {

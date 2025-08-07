@@ -16,7 +16,7 @@ const Eval EVAL_NONE = 31010;
 
 extern Eval PIECE_VALUES[Piece::TOTAL + 1];
 
-Eval evaluate(Board* board, NNUE* nnue);
+std::pair<Eval, NNHash> evaluate(Board* board, NNUE* nnue);
 
 std::string formatEval(Eval value);
 

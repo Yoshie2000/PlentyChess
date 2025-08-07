@@ -575,7 +575,7 @@ public:
   template<Color side>
   void resetAccumulator(Board* board, Accumulator* acc);
 
-  Eval evaluate(Board* board);
+  std::pair<Eval, NNHash> evaluate(Board* board);
 
   template<Color side>
   void calculateAccumulators();

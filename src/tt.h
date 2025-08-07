@@ -56,21 +56,23 @@ constexpr int GENERATION_MASK = (0xFF << GENERATION_PADDING) & 0xFF;
 extern uint8_t TT_GENERATION_COUNTER;
 
 struct TTEntry {
+    uint8_t flags = 0;
+    NNHash nnHash = 0;
     uint16_t hash = 0;
     Move bestMove = 0;
     int16_t depth = 0;
-    uint8_t flags = 0;
     int16_t eval = 0;
     int16_t value = 0;
 
     constexpr Move getMove() { return bestMove; };
     constexpr int16_t getDepth() { return depth; };
     constexpr uint8_t getFlag() { return flags & 0x3; };
+    constexpr NNHash getNNHash() { return nnHash; };
     constexpr Eval getEval() { return eval; };
     constexpr Eval getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
 
-    void update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags);
+    void update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, NNHash _nnHash, Eval _value, bool wasPv, int _flags);
     bool isInitialised() { return hash != 0; };
 };
 

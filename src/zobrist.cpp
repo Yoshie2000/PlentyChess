@@ -11,6 +11,7 @@ uint64_t ZOBRIST_STM_BLACK;
 uint64_t ZOBRIST_NO_PAWNS;
 uint64_t ZOBRIST_CASTLING[16];
 uint64_t ZOBRIST_ENPASSENT[8];
+uint64_t ZOBRIST_NN_HASH[16];
 
 uint64_t CUCKOO_HASHES[8192];
 Move CUCKOO_MOVES[8192];
@@ -49,6 +50,10 @@ void initZobrist() {
 
     for (int i = 0; i < 8; i++) {
         ZOBRIST_ENPASSENT[i] = dist(rng);
+    }
+
+    for (int i = 0; i < 16; i++) {
+        ZOBRIST_NN_HASH[i] = dist(rng);
     }
 
     int count = 0;

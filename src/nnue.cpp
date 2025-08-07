@@ -6,6 +6,7 @@
 
 #include "nnue.h"
 #include "board.h"
+#include "zobrist.h"
 
 #if defined(ARCH_ARM)
 #include <arm_neon.h>
@@ -255,7 +256,7 @@ void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputD
     }
 }
 
-Eval NNUE::evaluate(Board* board) {
+std::pair<Eval, NNHash> NNUE::evaluate(Board* board) {
     assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
 
     // Make sure the current accumulators are up to date
@@ -414,6 +415,12 @@ Eval NNUE::evaluate(Board* board) {
     }
 #endif
 
+    NNHash nnHash = ZOBRIST_STM_BLACK;
+    for (int i = 0; i < L2_SIZE; i++) {
+        if (l1MatmulOutputs[i])
+            nnHash ^= ZOBRIST_NN_HASH[i];
+    }
+
     // ---------------------- CONVERT TO FLOATS & ACTIVATE L1 ----------------------
 
     alignas(ALIGNMENT) float l1Outputs[2 * L2_SIZE];
@@ -510,5 +517,5 @@ Eval NNUE::evaluate(Board* board) {
     float result = networkData->l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
 #endif
 
-    return result * NETWORK_SCALE;
+    return std::make_pair(result * NETWORK_SCALE, nnHash);
 }
