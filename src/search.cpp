@@ -1012,8 +1012,12 @@ movesLoop:
             int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount];
 
             if (stack->ttPv && !cutNode && capture) {
-                // Do very slight LMR for captures in ttPv-allnodes
+                // Do very slight LMR for captures in ttPv-non-cutnodes
                 reduction /= 2;
+
+                if (pvNode)
+                    reduction -= 100;
+
             } else {
                 if (boardCopy->checkers)
                     reduction -= lmrCheck;
