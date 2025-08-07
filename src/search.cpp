@@ -1016,7 +1016,7 @@ movesLoop:
                 reduction /= 2;
 
                 if (pvNode)
-                    reduction -= 100;
+                    reduction = 100 * (ttHit && ttValue <= alpha);
 
             } else {
                 if (boardCopy->checkers)
