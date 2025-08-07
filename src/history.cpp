@@ -60,6 +60,7 @@ void History::initHistory() {
     memset(minorCorrectionHistory, 0, sizeof(minorCorrectionHistory));
     memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
     memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
+    memset(nnHistory, 0, sizeof(nnHistory));
     for (int i = 0; i < PAWN_HISTORY_SIZE; i++) {
         for (int j = 0; j < 2; j++) {
             for (int k = 0; k < Piece::TOTAL; k++) {
