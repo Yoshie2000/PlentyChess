@@ -60,7 +60,7 @@ TUNE_FLOAT(lmpMarginImprovingPower, 1.9576685646611904f, 1.0f, 3.0f);
 
 // Search values
 TUNE_INT(qsFutilityOffset, 70, 1, 125);
-TUNE_INT(qsSeeMargin, -90, -200, 50);
+TUNE_INT(qsSeeMargin, 0, -200, 50);
 
 // Pre-search pruning
 TUNE_INT(ttCutOffset, 51, -100, 200);
