@@ -385,8 +385,8 @@ void relabel(std::string line, Board* board, std::deque<BoardStack>* stackQueue)
             memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byColor[side], board->byColor, sizeof(board->byColor));
             memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byPiece[side], board->byPiece, sizeof(board->byPiece));
         }
-
-        currEntry.score = UCI::nnue.evaluate(board);
+        Eval score = UCI::nnue.evaluate(board);
+        currEntry.score = score;
 
         os.write(reinterpret_cast<const char*>(&currEntry), sizeof(currEntry));
     }
