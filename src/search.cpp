@@ -965,7 +965,7 @@ movesLoop:
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
-                extension = -3;
+                extension = -2 - ((ttValue - beta) >= (beta - singularBeta));
             // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
             else if (cutNode)
                 extension = -2;
