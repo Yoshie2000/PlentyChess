@@ -257,22 +257,22 @@ int valueFromTt(int value, int ply, int rule50) {
         // Downgrade potentially false mate score
         if (value >= EVAL_MATE_IN_MAX_PLY && EVAL_MATE - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         return value - ply;
     }
     else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
         // Downgrade potentially false mate score
         if (value <= -EVAL_MATE_IN_MAX_PLY && EVAL_MATE + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         return value + ply;
     }
     return value;
@@ -810,6 +810,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
 
+        Move captureMoves[32];
+        int captureSearchCount[32];
+        int captureMoveCount = 0;
+
         Move probcutTtMove = ttMove != MOVE_NONE && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : MOVE_NONE;
         MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth / 100);
         Move move;
@@ -828,6 +832,11 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
             stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
 
+            if (stack->capture && captureMoveCount < 32) {
+                captureMoves[captureMoveCount] = move;
+                captureSearchCount[captureMoveCount] = 1;
+            }
+
             Board* boardCopy = doMove(board, newHash, move);
 
             Eval value = -qsearch<NON_PV_NODE>(boardCopy, stack + 1, -probCutBeta, -probCutBeta + 1);
@@ -841,6 +850,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                 return 0;
 
             if (value >= probCutBeta) {
+                history.updateCaptureHistory((depth - probcutReduction - 100) / 100, board, move, 1, captureMoves, captureSearchCount, captureMoveCount);
+
                 value = std::min(value, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(board->hashes.hash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), stack->ttPv, TT_LOWERBOUND);
                 return value;
@@ -1012,7 +1023,8 @@ movesLoop:
             if (stack->ttPv && !pvNode && !cutNode && capture) {
                 // Do very slight LMR for captures in ttPv-allnodes
                 reduction /= 2;
-            } else {
+            }
+            else {
                 if (boardCopy->checkers)
                     reduction -= lmrCheck;
 
