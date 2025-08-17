@@ -77,6 +77,7 @@ Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
     int64_t minorEntry = minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t majorEntry = majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
+    contEntry += (searchStack - 2)->movedPiece != Piece::NONE ? *((searchStack - 2)->contCorrHist) / 2 : 0;
 
     return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
 }
@@ -108,6 +109,11 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
         scaledBonus = bonus - *(searchStack - 1)->contCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
         *(searchStack - 1)->contCorrHist += scaledBonus;
+    }
+
+    if ((searchStack - 2)->movedPiece != Piece::NONE) {
+        scaledBonus = bonus - *(searchStack - 2)->contCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+        *(searchStack - 2)->contCorrHist += scaledBonus;
     }
 }
 
