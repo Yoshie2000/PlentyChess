@@ -730,6 +730,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
         int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + staticHistoryTempo;
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, bonus);
+
+        history.updateContinuationHistory(stack - 1, flip(board->stm), (stack - 1)->movedPiece, (stack - 1)->move, bonus);
     }
 
     // IIR
