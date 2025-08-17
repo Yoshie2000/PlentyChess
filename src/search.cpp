@@ -968,7 +968,7 @@ movesLoop:
                 extension = -3;
             // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
             else if (cutNode)
-                extension = -2;
+                extension = -1 - (board->isCapture(move));
         }
 
         uint64_t newHash = board->hashAfter(move);
