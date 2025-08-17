@@ -841,6 +841,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                 return 0;
 
             if (value >= probCutBeta) {
+                if (!stack->capture) {
+                    history.updateQuietHistories((depth - probcutReduction - 100) / 100, board, stack, move, 1, nullptr, nullptr, 0);
+                }
+
                 value = std::min(value, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(board->hashes.hash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), stack->ttPv, TT_LOWERBOUND);
                 return value;
