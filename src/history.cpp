@@ -144,22 +144,18 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
     assert(piece != Piece::NONE);
     Square target = moveTarget(move);
 
-    int score = 0;
+    int score = 0, weightSum = 1, totalWeightSum = 1;
     int pieceTo = 2 * 64 * piece + 2 * target + side;
 
-    if ((stack - 1)->movedPiece != Piece::NONE)
-        score += 2 * (stack - 1)->contHist[pieceTo];
+    for (auto [index, weight] : { std::make_pair(1, 4), std::make_pair(2, 2), std::make_pair(4, 2), std::make_pair(6, 1) }) {
+        if ((stack - index)->movedPiece != Piece::NONE) {
+            score += weight * (stack - index)->contHist[pieceTo];
+            weightSum += weight;
+        }
+        totalWeightSum += weight;
+    }
 
-    if ((stack - 2)->movedPiece != Piece::NONE)
-        score += (stack - 2)->contHist[pieceTo];
-
-    if ((stack - 4)->movedPiece != Piece::NONE)
-        score += (stack - 4)->contHist[pieceTo];
-    
-    if ((stack - 6)->movedPiece != Piece::NONE)
-        score += (stack - 6)->contHist[pieceTo] / 2;
-
-    return score;
+    return totalWeightSum * score / (2 * weightSum);
 }
 
 void History::updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus) {
