@@ -602,6 +602,8 @@ public:
 #include <mutex>
 #include <thread>
 #include <mutex>
+#include <cmath>
+#include <algorithm>
 
 class NNZ {
 public:
@@ -685,7 +687,7 @@ public:
     }
 
     // filter to only include at most the top 100
-    constexpr SIZE_LIMIT = 100;
+    constexpr int SIZE_LIMIT = 100;
     if (frequentNeuronSets[0].size() > SIZE_LIMIT) {
       std::sort(frequentNeuronSets[0].begin(), frequentNeuronSets[0].end(), [](auto& a, auto& b) {
         return a.first > b.first;
@@ -735,12 +737,12 @@ public:
 
       for (auto& th : threads) th.join();
 
-      int sizeLimit = std::pow(SIZE_LIMIT, 4) / std::pow(std::sqrt(SIZE_LIMIT), 4);
-      if (frequentNeuronSets[0].size() > sizeLimit) {
-        std::sort(frequentNeuronSets[0].begin(), frequentNeuronSets[0].end(), [](auto& a, auto& b) {
+      size_t sizeLimit = std::pow(SIZE_LIMIT, k) / std::pow(std::sqrt(SIZE_LIMIT), k);
+      if (frequentNeuronSets[k - 1].size() > sizeLimit) {
+        std::sort(frequentNeuronSets[k - 1].begin(), frequentNeuronSets[k - 1].end(), [](auto& a, auto& b) {
           return a.first > b.first;
           });
-        frequentNeuronSets[0].resize(sizeLimit);
+        frequentNeuronSets[k - 1].resize(sizeLimit);
       }
     }
 
