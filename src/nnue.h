@@ -670,6 +670,15 @@ public:
     return count;
   }
 
+/*
+150 frequent neuron sets of size 1
+22350 candidate sets of size 2
+7502 frequent neuron sets of size 2
+2429160 candidate sets of size 3
+1045488 frequent neuron sets of size 3
+./process_nnz.sh: line 4: 1879180 Killed                  ./engine bench
+*/
+
   void permuteNetwork() {
     std::ifstream infile("./quantised.bin", std::ios::binary);
     if (!infile) {
@@ -728,7 +737,7 @@ public:
       for (size_t t = 0; t < nThreads; ++t) {
         size_t start = t * chunkSize;
         size_t end = std::min(start + chunkSize, frequentNeuronSets[k - 2].size());
-        threads.emplace_back(calculateFrequentNeuronSets, start, end);
+        threads.emplace_back(calculateCandidateSets, start, end);
       }
 
       for (auto& th : threads) th.join();
