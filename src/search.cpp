@@ -718,6 +718,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, stack->ttPv, TT_NOBOUND);
     }
 
+    if (ttHit && ttMove != MOVE_NONE && std::abs(correctionValue) > 286444 && eval != stack->staticEval)
+        depth++;
+
     // Improving
     if ((stack - 2)->staticEval != EVAL_NONE) {
         improving = stack->staticEval > (stack - 2)->staticEval;
