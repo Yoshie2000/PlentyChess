@@ -720,16 +720,21 @@ public:
       std::vector<std::thread> threads;
 
       auto worker = [&](size_t start, size_t end) {
+        std::vector<std::unordered_set<int16_t>> localFrequentNeuronSets;
+
         for (size_t i = start; i < end; ++i) {
           const auto& candidateSet = candidateSets[i];
           float support = float(getOccurrences(candidateSet)) / float(totalActivations);
 
           if (support >= MIN_SUPPORT) {
-            std::lock_guard<std::mutex> lock(mtx);
-            frequentNeuronSets[k - 1].push_back(candidateSet);
+            localFrequentNeuronSets.push_back(candidateSet);
           }
         }
-      };
+
+        std::lock_guard<std::mutex> lock(mtx);
+        for (auto& frequentNeuronSet : localFrequentNeuronSets)
+          frequentNeuronSets[k - 1].push_back(frequentNeuronSet);
+        };
 
       size_t chunkSize = (candidateSets.size() + nThreads - 1) / nThreads;
       for (size_t t = 0; t < nThreads; ++t) {
