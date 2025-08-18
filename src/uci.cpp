@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <tuple>
 #include <iostream>
+#include <fstream>
 
 #include "board.h"
 #include "uci.h"

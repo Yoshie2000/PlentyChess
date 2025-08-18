@@ -671,7 +671,7 @@ public:
     return count;
   }
 
-  std::vector<std::pair<float, std::unordered_set<int16_t>>> apriori() {
+  std::vector<std::pair<float, std::unordered_set<int16_t>>> apriori(std::unordered_set<int16_t>& remainingIndices) {
     std::vector<std::vector<std::pair<float, std::unordered_set<int16_t>>>> frequentNeuronSets;
 
     // Find frequently activated neurons
@@ -727,6 +727,31 @@ public:
       for (auto& th : threads) th.join();
     }
 
+    if (frequentNeuronSets[3].size() == 0) {
+      std::sort(frequentNeuronSets[2].begin(), frequentNeuronSets[2].end(), [](auto& a, auto& b) {
+        return a.first > b.first;
+        });
+      
+      int16_t bestIndex = -1, mostOccurrences = 0;
+      for (int16_t index : remainingIndices) {
+        std::unordered_set<int16_t> combined;
+        combined.insert(frequentNeuronSets[2][0].second.begin(), frequentNeuronSets[2][0].second.end());
+        combined.insert(index);
+        int occurrences = getOccurrences(combined);
+        if (occurrences > mostOccurrences && combined.size() == 4) {
+          mostOccurrences = occurrences;
+          bestIndex = index;
+        }
+      }
+
+      if (bestIndex >= 0) {
+        std::unordered_set<int16_t> combined;
+        combined.insert(frequentNeuronSets[2][0].second.begin(), frequentNeuronSets[2][0].second.end());
+        combined.insert(bestIndex);
+        return { std::make_pair(0.0f, combined) };
+      }
+    }
+
     std::sort(frequentNeuronSets[3].begin(), frequentNeuronSets[3].end(), [](auto& a, auto& b) {
       return a.first > b.first;
       });
@@ -755,7 +780,7 @@ public:
     int itersWithoutProgress = 0;
     while (order_idx < L1_SIZE / 2) {
       std::cout << order_idx << " / " << (L1_SIZE / 2) << std::endl;
-      auto mostFrequentNeuronGroups = apriori();
+      auto mostFrequentNeuronGroups = apriori(remainingIndices);
 
       if (lastOrderIdx == order_idx)
         itersWithoutProgress++;
