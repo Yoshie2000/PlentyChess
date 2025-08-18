@@ -600,8 +600,8 @@ public:
 #include <vector>
 #include <unordered_set>
 #include <mutex>
-#include <algorithm>
-#include <omp.h>
+#include <thread>
+#include <mutex>
 
 constexpr float MIN_SUPPORT = 0.2;
 
@@ -715,22 +715,33 @@ public:
         }
       }
 
-#pragma omp parallel for
-      for (size_t i = 0; i < candidateSets.size(); ++i) {
-        const auto& candidateSet = candidateSets[i];
-        float support = float(getOccurrences(candidateSet)) / float(totalActivations);
+      std::mutex mtx;
+      size_t nThreads = std::thread::hardware_concurrency();
+      std::vector<std::thread> threads;
 
-        if (support >= MIN_SUPPORT) {
-#pragma omp critical
-          {
+      auto worker = [&](size_t start, size_t end) {
+        for (size_t i = start; i < end; ++i) {
+          const auto& candidateSet = candidateSets[i];
+          float support = float(getOccurrences(candidateSet)) / float(totalActivations);
+
+          if (support >= MIN_SUPPORT) {
+            std::lock_guard<std::mutex> lock(mtx);
             frequentNeuronSets[k - 1].push_back(candidateSet);
             for (int16_t neuron : candidateSet)
               std::cout << neuron << " ";
             std::cout << support << std::endl;
           }
         }
+      };
+
+      size_t chunkSize = (candidateSets.size() + nThreads - 1) / nThreads;
+      for (size_t t = 0; t < nThreads; ++t) {
+        size_t start = t * chunkSize;
+        size_t end = std::min(start + chunkSize, candidateSets.size());
+        threads.emplace_back(worker, start, end);
       }
 
+      for (auto& th : threads) th.join();
     }
 
     for (int i = 0; i < L1_SIZE / 2; i++) {
