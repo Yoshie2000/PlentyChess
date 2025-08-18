@@ -659,10 +659,15 @@ public:
       const auto& acts = activationsByNeuronBitsets[*it];
       size_t minSize = std::min(intersection.size(), acts.size());
 
+      int count = 0;
       for (size_t i = 0; i < minSize; i++) {
         intersection[i] &= acts[i];
+        count += __builtin_popcountll(count);
       }
       intersection.resize(minSize);
+
+      if (count < minSupport * totalActivations)
+        return count;
     }
 
     int count = 0;
