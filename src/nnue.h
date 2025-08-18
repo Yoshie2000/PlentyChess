@@ -597,15 +597,23 @@ public:
 
 #include <cstring>
 #include <fstream>
+#include <vector>
+#include <set>
 
 class NNZ {
 public:
-  int64_t activations[L1_SIZE / 2] = {};
+  // int64_t activations[L1_SIZE / 2] = {};
+  std::vector<std::set<int16_t>> activations;
 
   void addActivations(uint8_t* neurons) {
+    std::set<int16_t> _activations;
+
     for (int i = 0; i < L1_SIZE; i++) {
-      activations[i % (L1_SIZE / 2)] += bool(neurons[i]);
+      if (neurons[i])
+        _activations.insert(i);
+      // activations[i % (L1_SIZE / 2)] += bool(neurons[i]);
     }
+    activations.push_back(_activations);
   }
 
   int16_t oldInputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
@@ -628,10 +636,32 @@ public:
     memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
+    constexpr float MIN_SUPPORT = 0.01;
+    std::vector<std::set<int16_t>> frequentNeuronSets;
+
+    // Find frequently activated neurons
+    frequentNeuronSets.push_back({});
+    for (int i = 0; i < L1_SIZE; i++) {
+      int occurrences = 0;
+      for (std::set<int16_t>& activation : activations) {
+        occurrences += activation.find(i) != activation.end();
+      }
+      float support = float(occurrences) / float(activations.size());
+      if (support >= MIN_SUPPORT) {
+        frequentNeuronSets[0].insert(i);
+        std::cout << i << " " << support << std::endl;
+      }
+    }
+
+    // Find frequent neuron-sets up to size 4
+    for (int k : {2, 3, 4}) {
+      frequentNeuronSets.push_back({});
+    }
+
     for (int i = 0; i < L1_SIZE / 2; i++) {
       order[i] = i;
     }
-    std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
+    // std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
 
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
 
