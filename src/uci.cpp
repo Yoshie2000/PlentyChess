@@ -203,7 +203,7 @@ void bench(Board& board, std::vector<uint64_t>& boardHistory) {
         TT.newSearch();
         parameters.depth = 20;
 #else
-        parameters.depth = 5;
+        parameters.depth = 13;
 #endif
 
         std::cerr << "\nPosition: " << position++ << '/' << totalPositions << " (" << fen << ")" << std::endl;
