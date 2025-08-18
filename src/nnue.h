@@ -684,6 +684,15 @@ public:
       }
     }
 
+    // filter to only include at most the top 100
+    if (frequentNeuronSets.size() > 100) {
+      std::sort(frequentNeuronSets[0].begin(), frequentNeuronSets[0].end(), [](auto& a, auto& b) {
+        return a.first > b.first;
+        });
+        std::cout << frequentNeuronSets.size() << std::endl;
+      frequentNeuronSets.resize(100);
+    }
+
     // Find frequent neuron-sets up to size 4
     for (int k : {2, 3, 4}) {
       frequentNeuronSets.push_back({}); // For the current k
@@ -731,7 +740,7 @@ public:
       std::sort(frequentNeuronSets[2].begin(), frequentNeuronSets[2].end(), [](auto& a, auto& b) {
         return a.first > b.first;
         });
-      
+
       int16_t bestIndex = -1, mostOccurrences = 0;
       for (int16_t index : remainingIndices) {
         std::unordered_set<int16_t> combined;
