@@ -582,7 +582,11 @@ void uciLoop(int argc, char* argv[]) {
     std::cout << "UCI thread running" << std::endl;
 
 #if defined(PROCESS_NET) || defined(MEASURE_NNZ)
+#if defined(PROCESS_NET)
     collectNnzData();
+#else
+    bench(board, boardHistory);
+#endif
     std::cout << "Average NNZ Blocks: " << float(totalNnzCount) / float(totalEvaluations) * 100.0 / float(L1_SIZE / 4) << "%" << std::endl;
 #if defined(PROCESS_NET)
     nnz.permuteNetwork();
