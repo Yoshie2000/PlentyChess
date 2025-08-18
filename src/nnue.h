@@ -628,7 +628,7 @@ public:
     totalActivations++;
   }
 
-  float minSupport = 0.7;
+  float minSupport = 0.9;
 
   int16_t oldInputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
