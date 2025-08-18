@@ -616,10 +616,12 @@ public:
       }
     }
 
-    for (int i = 0; i < L1_SIZE / 2; i++) {
+    for (int i = 0; i < L1_SIZE; i++) {
       if (neurons[i]) {
-        activationCounts[i]++;
-        activationsByNeuronBitsets[i][totalActivations / 64] |= (1ULL << (totalActivations % 64));
+        uint64_t before = activationsByNeuronBitsets[i % (L1_SIZE / 2)][totalActivations / 64];
+        activationsByNeuronBitsets[i % (L1_SIZE / 2)][totalActivations / 64] |= (1ULL << (totalActivations % 64));
+        if (before != activationsByNeuronBitsets[i % (L1_SIZE / 2)][totalActivations / 64])
+          activationCounts[i % (L1_SIZE / 2)]++;
       }
     }
     totalActivations++;
