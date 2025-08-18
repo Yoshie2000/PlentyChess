@@ -760,6 +760,7 @@ public:
           frequentNeuronSets[k - 1].push_back(frequentNeuronSet);
         };
 
+      threads.clear();
       chunkSize = (candidateSets.size() + nThreads - 1) / nThreads;
       for (size_t t = 0; t < nThreads; ++t) {
         size_t start = t * chunkSize;
