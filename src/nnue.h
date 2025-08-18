@@ -601,6 +601,7 @@ public:
 #include <unordered_set>
 #include <mutex>
 #include <algorithm>
+#include <omp.h>
 
 constexpr float MIN_SUPPORT = 0.2;
 
@@ -714,19 +715,22 @@ public:
         }
       }
 
-      std::for_each(std::execution::par, candidateSets.begin(), candidateSets.end(),
-        [&](const auto& candidateSet) {
-          float support = float(getOccurrences(candidateSet)) / float(totalActivations);
+#pragma omp parallel for
+      for (size_t i = 0; i < candidateSets.size(); ++i) {
+        const auto& candidateSet = candidateSets[i];
+        float support = float(getOccurrences(candidateSet)) / float(totalActivations);
 
-          if (support >= MIN_SUPPORT) {
-            std::lock_guard<std::mutex> lock(mtx);
+        if (support >= MIN_SUPPORT) {
+#pragma omp critical
+          {
             frequentNeuronSets[k - 1].push_back(candidateSet);
-
             for (int16_t neuron : candidateSet)
               std::cout << neuron << " ";
             std::cout << support << std::endl;
           }
-        });
+        }
+      }
+
     }
 
     for (int i = 0; i < L1_SIZE / 2; i++) {
