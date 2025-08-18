@@ -698,6 +698,7 @@ public:
         std::cout << i << " " << support << std::endl;
       }
     }
+    std::cout << frequentNeuronSets[0].size() << " frequent neuron sets of size " << 1 << std::endl;
 
     // Find frequent neuron-sets up to size 4
     for (int k : {2, 3, 4}) {
@@ -727,9 +728,6 @@ public:
           if (support >= MIN_SUPPORT) {
             std::lock_guard<std::mutex> lock(mtx);
             frequentNeuronSets[k - 1].push_back(candidateSet);
-            for (int16_t neuron : candidateSet)
-              std::cout << neuron << " ";
-            std::cout << support << std::endl;
           }
         }
       };
@@ -742,6 +740,7 @@ public:
       }
 
       for (auto& th : threads) th.join();
+      std::cout << frequentNeuronSets[k - 1].size() << " frequent neuron sets of size " << k << std::endl;
     }
 
     for (int i = 0; i < L1_SIZE / 2; i++) {
