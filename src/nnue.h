@@ -605,18 +605,18 @@ public:
 
 class NNZ {
 public:
-  int64_t activationCounts[L1_SIZE];
-  std::vector<uint64_t> activationsByNeuronBitsets[L1_SIZE];
+  int64_t activationCounts[L1_SIZE / 2];
+  std::vector<uint64_t> activationsByNeuronBitsets[L1_SIZE / 2];
   int64_t totalActivations;
 
   void addActivations(uint8_t* neurons) {
     if (totalActivations % 64 == 0) {
-      for (int i = 0; i < L1_SIZE; i++) {
+      for (int i = 0; i < L1_SIZE / 2; i++) {
         activationsByNeuronBitsets[i].push_back(0);
       }
     }
 
-    for (int i = 0; i < L1_SIZE; i++) {
+    for (int i = 0; i < L1_SIZE / 2; i++) {
       if (neurons[i]) {
         activationCounts[i]++;
         activationsByNeuronBitsets[i][totalActivations / 64] |= (1ULL << (totalActivations % 64));
@@ -632,7 +632,7 @@ public:
   int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   NetworkData nnzOutNet;
 
-  int order[L1_SIZE];
+  int order[L1_SIZE / 2];
 
   bool differByOne(const std::unordered_set<int16_t>& a, const std::unordered_set<int16_t>& b) {
     if (a.size() != b.size()) return false;
@@ -675,7 +675,7 @@ public:
 
     // Find frequently activated neurons
     frequentNeuronSets.push_back({});
-    for (int16_t i = 0; i < L1_SIZE; i++) {
+    for (int16_t i = 0; i < L1_SIZE / 2; i++) {
       float support = float(activationCounts[i]) / float(totalActivations);
       if (support >= minSupport) {
         std::unordered_set<int16_t> set{ i };
@@ -747,13 +747,13 @@ public:
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
     std::unordered_set<int16_t> remainingIndices;
-    for (int i = 0; i < L1_SIZE; i++)
+    for (int i = 0; i < L1_SIZE / 2; i++)
       remainingIndices.insert(i);
 
     int order_idx = 0, lastOrderIdx = 0;
     int itersWithoutProgress = 0;
-    while (order_idx < L1_SIZE) {
-      std::cout << order_idx << " / " << L1_SIZE << std::endl;
+    while (order_idx < L1_SIZE / 2) {
+      std::cout << order_idx << " / " << (L1_SIZE / 2) << std::endl;
       auto mostFrequentNeuronGroups = apriori();
 
       if (lastOrderIdx == order_idx)
@@ -797,11 +797,11 @@ public:
       minSupport *= 0.9;
     }
 
-    while (order_idx < L1_SIZE) {
+    while (order_idx < L1_SIZE / 2) {
       order[order_idx] = *remainingIndices.begin();
       remainingIndices.erase(order[order_idx++]);
     }
-    std::cout << order_idx << " / " << L1_SIZE << std::endl;
+    std::cout << order_idx << " / " << (L1_SIZE / 2) << std::endl;
 
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
 
