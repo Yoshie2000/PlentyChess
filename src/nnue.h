@@ -610,10 +610,11 @@ public:
     std::unordered_set<int16_t> _activations;
 
     for (int i = 0; i < L1_SIZE; i++) {
-      if (neurons[i])
+      if (neurons[i]) {
         _activations.insert(i);
-      activationCounts[i] += bool(neurons[i]);
-      activationsByNeuron[i].insert(activations.size());
+        activationCounts[i]++;
+        activationsByNeuron[i].insert(activations.size());
+      }
     }
     activations.push_back(_activations);
   }
@@ -651,7 +652,7 @@ public:
     memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
-    constexpr float MIN_SUPPORT = 0.01;
+    constexpr float MIN_SUPPORT = 0.05;
     std::vector<std::vector<std::unordered_set<int16_t>>> frequentNeuronSets;
 
     // Find frequently activated neurons
@@ -680,28 +681,42 @@ public:
         }
       }
 
-      for (std::unordered_set<int16_t>& candidateSet : candidateSets) {
+      for (const auto& candidateSet : candidateSets) {
         auto it = candidateSet.begin();
+        // Einmaliges Kopieren ins Inter-Set
         std::unordered_set<int16_t> inter = activationsByNeuron[*it];
 
         for (++it; it != candidateSet.end(); ++it) {
           const auto& acts = activationsByNeuron[*it];
-          std::unordered_set<int16_t> tmp;
-          for (int16_t id : inter) {
-            if (acts.find(id) != acts.end()) tmp.insert(id);
+
+          // Immer das kleinere Set iterieren
+          if (acts.size() < inter.size()) {
+            std::unordered_set<int16_t> tmp;
+            for (int16_t id : acts) {
+              if (inter.find(id) != inter.end())
+                tmp.insert(id);
+            }
+            inter.swap(tmp);
           }
-          inter.swap(tmp);
+          else {
+            for (auto it_inter = inter.begin(); it_inter != inter.end(); ) {
+              if (acts.find(*it_inter) == acts.end())
+                it_inter = inter.erase(it_inter);
+              else
+                ++it_inter;
+            }
+          }
+
           if (inter.empty()) break;
         }
 
         int occurrences = inter.size();
-
         float support = float(occurrences) / float(activations.size());
+
         if (support >= MIN_SUPPORT) {
           frequentNeuronSets[k - 1].push_back(candidateSet);
-          for (const int16_t& i : candidateSet) {
-            std::cout << i << " ";
-          }
+          for (int16_t neuron : candidateSet)
+            std::cout << neuron << " ";
           std::cout << support << std::endl;
         }
       }
