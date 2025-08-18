@@ -598,15 +598,15 @@ public:
 #include <cstring>
 #include <fstream>
 #include <vector>
-#include <set>
+#include <unordered_set>
 
 class NNZ {
 public:
   // int64_t activations[L1_SIZE / 2] = {};
-  std::vector<std::set<int16_t>> activations;
+  std::vector<std::unordered_set<int16_t>> activations;
 
   void addActivations(uint8_t* neurons) {
-    std::set<int16_t> _activations;
+    std::unordered_set<int16_t> _activations;
 
     for (int i = 0; i < L1_SIZE; i++) {
       if (neurons[i])
@@ -637,13 +637,13 @@ public:
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
     constexpr float MIN_SUPPORT = 0.01;
-    std::vector<std::set<int16_t>> frequentNeuronSets;
+    std::vector<std::unordered_set<int16_t>> frequentNeuronSets;
 
     // Find frequently activated neurons
     frequentNeuronSets.push_back({});
     for (int i = 0; i < L1_SIZE; i++) {
       int occurrences = 0;
-      for (std::set<int16_t>& activation : activations) {
+      for (std::unordered_set<int16_t>& activation : activations) {
         occurrences += activation.find(i) != activation.end();
       }
       float support = float(occurrences) / float(activations.size());
