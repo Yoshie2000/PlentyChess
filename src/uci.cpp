@@ -561,16 +561,12 @@ void uciLoop(int argc, char* argv[]) {
 
     std::cout << "UCI thread running" << std::endl;
 
-#if defined(PROCESS_NET)
+#if defined(PROCESS_NET) || defined(MEASURE_NNZ)
     bench(board, boardHistory);
     std::cout << "Average NNZ Count: " << float(totalNnzCount) / float(totalEvaluations) * 100.0 / float(L1_SIZE / 4) << std::endl;
+#if defined(PROCESS_NET)
     nnz.permuteNetwork();
-    return;
 #endif
-
-#if defined(MEASURE_NNZ)
-    bench(board, boardHistory);
-    std::cout << "Average NNZ Count: " << float(totalNnzCount) / float(totalEvaluations) << std::endl;
     return;
 #endif
 
