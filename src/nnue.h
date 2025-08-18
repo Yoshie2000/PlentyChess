@@ -604,6 +604,7 @@ class NNZ {
 public:
   int64_t activationCounts[L1_SIZE];
   std::vector<std::unordered_set<int16_t>> activations;
+  std::unordered_set<int16_t> activationsByNeuron[L1_SIZE];
 
   void addActivations(uint8_t* neurons) {
     std::unordered_set<int16_t> _activations;
@@ -612,6 +613,7 @@ public:
       if (neurons[i])
         _activations.insert(i);
       activationCounts[i] += bool(neurons[i]);
+      activationsByNeuron[i].insert(activations.size());
     }
     activations.push_back(_activations);
   }
@@ -657,7 +659,7 @@ public:
     for (int16_t i = 0; i < L1_SIZE; i++) {
       float support = float(activationCounts[i]) / float(activations.size());
       if (support >= MIN_SUPPORT) {
-        frequentNeuronSets[0].push_back({i});
+        frequentNeuronSets[0].push_back({ i });
         std::cout << i << " " << support << std::endl;
       }
     }
@@ -679,17 +681,20 @@ public:
       }
 
       for (std::unordered_set<int16_t>& candidateSet : candidateSets) {
-        int occurrences = 0;
-        for (std::unordered_set<int16_t>& activation : activations) {
-          bool contained = true;
-          for (int16_t x : candidateSet) {
-            if (activation.find(x) == activation.end()) {
-              contained = false;
-              break;
-            }
+        auto it = candidateSet.begin();
+        std::unordered_set<int16_t> inter = activationsByNeuron[*it];
+
+        for (++it; it != candidateSet.end(); ++it) {
+          const auto& acts = activationsByNeuron[*it];
+          std::unordered_set<int16_t> tmp;
+          for (int16_t id : inter) {
+            if (acts.find(id) != acts.end()) tmp.insert(id);
           }
-          occurrences += contained;
+          inter.swap(tmp);
+          if (inter.empty()) break;
         }
+
+        int occurrences = inter.size();
 
         float support = float(occurrences) / float(activations.size());
         if (support >= MIN_SUPPORT) {
