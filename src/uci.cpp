@@ -563,6 +563,7 @@ void uciLoop(int argc, char* argv[]) {
 
 #if defined(PROCESS_NET)
     bench(board, boardHistory);
+    std::cout << "Average NNZ Count: " << float(totalNnzCount) / float(totalEvaluations) * 100.0 / float(L1_SIZE / 4) << std::endl;
     nnz.permuteNetwork();
     return;
 #endif
