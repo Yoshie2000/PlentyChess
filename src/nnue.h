@@ -471,9 +471,9 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
    8,  8,  9,  9,  9,  9,  8,  8,
   10, 10, 10, 10, 10, 10, 10, 10,
   11, 11, 11, 11, 11, 11, 11, 11,
-  11, 11, 11, 11, 11, 11, 11, 11, 
-  11, 11, 11, 11, 11, 11, 11, 11, 
-  11, 11, 11, 11, 11, 11, 11, 11, 
+  11, 11, 11, 11, 11, 11, 11, 11,
+  11, 11, 11, 11, 11, 11, 11, 11,
+  11, 11, 11, 11, 11, 11, 11, 11,
 };
 constexpr int KING_BUCKETS = 12;
 constexpr bool KING_BUCKETS_FACTORIZED = true;
@@ -602,7 +602,7 @@ public:
 
 class NNZ {
 public:
-  // int64_t activations[L1_SIZE / 2] = {};
+  int64_t activationCounts[L1_SIZE];
   std::vector<std::unordered_set<int16_t>> activations;
 
   void addActivations(uint8_t* neurons) {
@@ -611,7 +611,7 @@ public:
     for (int i = 0; i < L1_SIZE; i++) {
       if (neurons[i])
         _activations.insert(i);
-      // activations[i % (L1_SIZE / 2)] += bool(neurons[i]);
+      activationCounts[i] += bool(neurons[i]);
     }
     activations.push_back(_activations);
   }
@@ -623,11 +623,24 @@ public:
 
   int order[L1_SIZE / 2];
 
+  bool differByOne(const std::unordered_set<int16_t>& a, const std::unordered_set<int16_t>& b) {
+    if (a.size() != b.size()) return false;
+
+    int diff = 0;
+    for (int x : a) {
+      if (!b.count(x)) {
+        diff++;
+        if (diff > 1) return false;
+      }
+    }
+    return diff == 1;
+  }
+
   void permuteNetwork() {
     std::ifstream infile("./quantised.bin", std::ios::binary);
     if (!infile) {
-        std::cerr << "Error opening file for reading" << std::endl;
-        return;
+      std::cerr << "Error opening file for reading" << std::endl;
+      return;
     }
     infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
     infile.close();
@@ -637,18 +650,14 @@ public:
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
     constexpr float MIN_SUPPORT = 0.01;
-    std::vector<std::unordered_set<int16_t>> frequentNeuronSets;
+    std::vector<std::vector<std::unordered_set<int16_t>>> frequentNeuronSets;
 
     // Find frequently activated neurons
     frequentNeuronSets.push_back({});
-    for (int i = 0; i < L1_SIZE; i++) {
-      int occurrences = 0;
-      for (std::unordered_set<int16_t>& activation : activations) {
-        occurrences += activation.find(i) != activation.end();
-      }
-      float support = float(occurrences) / float(activations.size());
+    for (int16_t i = 0; i < L1_SIZE; i++) {
+      float support = float(activationCounts[i]) / float(activations.size());
       if (support >= MIN_SUPPORT) {
-        frequentNeuronSets[0].insert(i);
+        frequentNeuronSets[0].push_back({i});
         std::cout << i << " " << support << std::endl;
       }
     }
@@ -656,6 +665,41 @@ public:
     // Find frequent neuron-sets up to size 4
     for (int k : {2, 3, 4}) {
       frequentNeuronSets.push_back({});
+
+      std::vector<std::unordered_set<int16_t>> candidateSets;
+      for (size_t i = 0; i < frequentNeuronSets[k - 2].size(); i++) {
+        for (size_t j = 0; j < frequentNeuronSets[k - 2].size(); j++) {
+          if (differByOne(frequentNeuronSets[k - 2][i], frequentNeuronSets[k - 2][j])) {
+            std::unordered_set<int16_t> combined;
+            combined.insert(frequentNeuronSets[k - 2][i].begin(), frequentNeuronSets[k - 2][i].end());
+            combined.insert(frequentNeuronSets[k - 2][j].begin(), frequentNeuronSets[k - 2][j].end());
+            candidateSets.push_back(combined);
+          }
+        }
+      }
+
+      for (std::unordered_set<int16_t>& candidateSet : candidateSets) {
+        int occurrences = 0;
+        for (std::unordered_set<int16_t>& activation : activations) {
+          bool contained = true;
+          for (int16_t x : candidateSet) {
+            if (activation.find(x) == activation.end()) {
+              contained = false;
+              break;
+            }
+          }
+          occurrences += contained;
+        }
+
+        float support = float(occurrences) / float(activations.size());
+        if (support >= MIN_SUPPORT) {
+          frequentNeuronSets[k - 1].push_back(candidateSet);
+          for (const int16_t& i : candidateSet) {
+            std::cout << i << " ";
+          }
+          std::cout << support << std::endl;
+        }
+      }
     }
 
     for (int i = 0; i < L1_SIZE / 2; i++) {
@@ -689,8 +733,8 @@ public:
     // Write the network
     std::ofstream outfile("./quantised.bin", std::ios::binary);
     if (!outfile) {
-        std::cerr << "Error opening file for writing" << std::endl;
-        return;
+      std::cerr << "Error opening file for writing" << std::endl;
+      return;
     }
     outfile.write(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
     outfile.close();
