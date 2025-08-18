@@ -8,19 +8,11 @@
 #include "nnue.h"
 #include "spsa.h"
 
-TUNE_INT_DISABLED(pawnValue, 96, 50, 150);
-TUNE_INT_DISABLED(knightValue, 298, 200, 400);
-TUNE_INT_DISABLED(bishopValue, 301, 200, 400);
-TUNE_INT_DISABLED(rookValue, 507, 400, 600);
-TUNE_INT_DISABLED(queenValue, 909, 700, 1100);
-
 TUNE_INT_DISABLED(materialScaleBase, 920, 512, 1536);
 TUNE_INT_DISABLED(materialScaleDivisor, 48, 32, 64);
 
-Eval fakePiece = 0;
-
 Eval PIECE_VALUES[Piece::TOTAL + 1] = {
-    pawnValue, knightValue, bishopValue, rookValue, queenValue, fakePiece, fakePiece
+    96, 298, 301, 507, 909, 0, 0
 };
 
 constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
@@ -52,7 +44,9 @@ Eval evaluate(Board* board, NNUE* nnue) {
 
 std::string formatEval(Eval value) {
     std::string evalString;
-    if (value >= EVAL_MATE_IN_MAX_PLY) {
+    if (std::abs(value) == EVAL_INFINITE) {
+        evalString = "infinity";
+    } else if (value >= EVAL_MATE_IN_MAX_PLY) {
         evalString = "mate " + std::to_string((EVAL_MATE - value) / 2 + 1);
     }
     else if (value <= -EVAL_MATE_IN_MAX_PLY) {

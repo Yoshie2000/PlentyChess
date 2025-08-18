@@ -27,7 +27,7 @@ bool playRandomMoves(Board& board, Worker* thread, int remainingMoves) {
         thread->searchParameters.depth = 10;
         thread->searchParameters.nodes = 1000000;
         thread->rootBoard = board;
-        thread->tdatagen();
+        thread->startSearching(true);
 
         Eval verificationScore = thread->rootMoves[0].value;
 
@@ -57,7 +57,7 @@ bool playRandomMoves(Board& board, Worker* thread, int remainingMoves) {
     return playRandomMoves(boardCopy, thread, remainingMoves - 1);
 }
 
-void Worker::tgenfens() {
+void Worker::genfens() {
     std::srand(searchParameters.genfensSeed);
 
     int generatedFens = 0;

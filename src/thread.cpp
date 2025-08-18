@@ -7,11 +7,10 @@
 
 #include "thread.h"
 #include "search.h"
-#include "history.h"
 #include "uci.h"
 
 Worker::Worker(ThreadPool* threadPool, int threadId) : threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
-    history.initHistory();
+    
 }
 
 void Worker::startSearching() {
@@ -27,11 +26,9 @@ void Worker::startSearching() {
     if (searchParameters.perft)
         searchData.nodesSearched = perft(rootBoard, searchParameters.depth);
     else if (searchParameters.genfens)
-        tgenfens();
-    else if (UCI::Options.datagen.value)
-        tdatagen();
+        genfens();
     else
-        tsearch();
+        startSearching(UCI::Options.datagen.value);
 }
 
 void Worker::waitForSearchFinished() {
@@ -68,5 +65,5 @@ void Worker::exit() {
 }
 
 void Worker::ucinewgame() {
-    history.initHistory();
+    
 }

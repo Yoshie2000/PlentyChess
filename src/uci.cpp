@@ -13,11 +13,9 @@
 #include "move.h"
 #include "thread.h"
 #include "search.h"
-#include "tt.h"
 #include "spsa.h"
 #include "nnue.h"
 #include "spsa.h"
-#include "history.h"
 #include "fathom/src/tbprobe.h"
 
 namespace UCI {
@@ -221,7 +219,7 @@ void bench(Board& board, std::vector<uint64_t>& boardHistory) {
     std::cerr << "\n==========================="
         << "\nTotal time (ms) : " << elapsed
         << "\nNodes searched  : " << nodes
-        << "\nNodes/second    : " << 1000 * nodes / elapsed << std::endl;
+        << "\nNodes/second    : " << 1000 * nodes / std::max<int64_t>(1, elapsed) << std::endl;
     
     UCI::Options.minimal.value = minimal;
 }
@@ -513,7 +511,6 @@ void go(std::string line, Board& board, std::vector<uint64_t>& boardHistory) {
 
     }
 
-    TT.newSearch();
     threads.startSearching(board, boardHistory, parameters);
 }
 
@@ -533,7 +530,6 @@ void genfens(std::string params, Board& board, std::vector<uint64_t>& boardHisto
         }
     }
 
-    TT.newSearch();
     threads.startSearching(board, boardHistory, parameters);
     threads.waitForSearchFinished();
 }
@@ -598,7 +594,6 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "isready")) std::cout << "readyok" << std::endl;
         else if (matchesToken(line, "ucinewgame")) {
             threads.resize(UCI::Options.threads.value);
-            TT.resize(UCI::Options.hash.value);
             threads.ucinewgame();
             UCI::optionsDirty = false;
         }
@@ -611,7 +606,6 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "go")) {
             if (UCI::optionsDirty) {
                 threads.resize(UCI::Options.threads.value);
-                TT.resize(UCI::Options.hash.value);
                 UCI::optionsDirty = false;
             }
             go(line, board, boardHistory);

@@ -10,9 +10,7 @@
 
 #include "board.h"
 #include "search.h"
-#include "history.h"
 #include "nnue.h"
-#include "tt.h"
 
 struct RootMove {
     Eval value = -EVAL_INFINITE;
@@ -42,7 +40,6 @@ public:
 
     SearchData searchData;
     SearchParameters searchParameters;
-    History history;
     NNUE nnue;
 
     ThreadPool* threadPool;
@@ -63,13 +60,11 @@ public:
 
     void ucinewgame();
 
-    void tdatagen();
+    void genfens();
+    void startSearching(bool datagen);
 
 private:
 
-    void tgenfens();
-
-    void tsearch();
     void iterativeDeepening();
     void sortRootMoves();
     void printUCI(Worker* thread, int multiPvCount = 1);
@@ -177,7 +172,6 @@ public:
     }
 
     void ucinewgame() {
-        TT.clear();
         for (auto& worker : workers) {
             worker.get()->ucinewgame();
         }
