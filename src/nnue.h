@@ -670,14 +670,14 @@ public:
     return count;
   }
 
-/*
-150 frequent neuron sets of size 1
-22350 candidate sets of size 2
-7502 frequent neuron sets of size 2
-2429160 candidate sets of size 3
-1045488 frequent neuron sets of size 3
-./process_nnz.sh: line 4: 1879180 Killed                  ./engine bench
-*/
+  /*
+  150 frequent neuron sets of size 1
+  22350 candidate sets of size 2
+  7502 frequent neuron sets of size 2
+  2429160 candidate sets of size 3
+  1045488 frequent neuron sets of size 3
+  ./process_nnz.sh: line 4: 1879180 Killed                  ./engine bench
+  */
 
   void permuteNetwork() {
     std::ifstream infile("./quantised.bin", std::ios::binary);
@@ -706,16 +706,14 @@ public:
 
     // Find frequent neuron-sets up to size 4
     for (int k : {2, 3, 4}) {
-      frequentNeuronSets.push_back({});
+      frequentNeuronSets.push_back({}); // For the current k
 
       std::mutex mtx;
       size_t nThreads = std::thread::hardware_concurrency();
       std::vector<std::thread> threads;
 
-      std::vector<std::unordered_set<int16_t>> candidateSets;
-
-      auto calculateCandidateSets = [&](size_t start, size_t end) {
-        std::vector<std::unordered_set<int16_t>> localCandidateSets;
+      auto worker = [&](size_t start, size_t end) {
+        std::vector<std::unordered_set<int16_t>> localFrequentSets;
 
         for (size_t i = start; i < end; i++) {
           for (size_t j = 0; j < frequentNeuronSets[k - 2].size(); j++) {
@@ -723,49 +721,27 @@ public:
               std::unordered_set<int16_t> combined;
               combined.insert(frequentNeuronSets[k - 2][i].begin(), frequentNeuronSets[k - 2][i].end());
               combined.insert(frequentNeuronSets[k - 2][j].begin(), frequentNeuronSets[k - 2][j].end());
-              localCandidateSets.push_back(combined);
+
+              // Immediately check if the candidate is frequent
+              float support = float(getOccurrences(combined)) / float(totalActivations);
+
+              if (support >= MIN_SUPPORT) {
+                localFrequentSets.push_back(combined);
+              }
             }
           }
         }
 
         std::lock_guard<std::mutex> lock(mtx);
-        for (auto& candidateSet : localCandidateSets)
-          candidateSets.push_back(candidateSet);
+        frequentNeuronSets[k - 1].insert(frequentNeuronSets[k - 1].end(),
+          localFrequentSets.begin(), localFrequentSets.end());
         };
 
       size_t chunkSize = (frequentNeuronSets[k - 2].size() + nThreads - 1) / nThreads;
       for (size_t t = 0; t < nThreads; ++t) {
         size_t start = t * chunkSize;
         size_t end = std::min(start + chunkSize, frequentNeuronSets[k - 2].size());
-        threads.emplace_back(calculateCandidateSets, start, end);
-      }
-
-      for (auto& th : threads) th.join();
-      std::cout << candidateSets.size() << " candidate sets of size " << k << std::endl;
-
-      auto calculateFrequentNeuronSets = [&](size_t start, size_t end) {
-        std::vector<std::unordered_set<int16_t>> localFrequentNeuronSets;
-
-        for (size_t i = start; i < end; ++i) {
-          const auto& candidateSet = candidateSets[i];
-          float support = float(getOccurrences(candidateSet)) / float(totalActivations);
-
-          if (support >= MIN_SUPPORT) {
-            localFrequentNeuronSets.push_back(candidateSet);
-          }
-        }
-
-        std::lock_guard<std::mutex> lock(mtx);
-        for (auto& frequentNeuronSet : localFrequentNeuronSets)
-          frequentNeuronSets[k - 1].push_back(frequentNeuronSet);
-        };
-
-      threads.clear();
-      chunkSize = (candidateSets.size() + nThreads - 1) / nThreads;
-      for (size_t t = 0; t < nThreads; ++t) {
-        size_t start = t * chunkSize;
-        size_t end = std::min(start + chunkSize, candidateSets.size());
-        threads.emplace_back(calculateFrequentNeuronSets, start, end);
+        threads.emplace_back(worker, start, end);
       }
 
       for (auto& th : threads) th.join();
