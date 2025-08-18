@@ -670,15 +670,6 @@ public:
     return count;
   }
 
-  /*
-  150 frequent neuron sets of size 1
-  22350 candidate sets of size 2
-  7502 frequent neuron sets of size 2
-  2429160 candidate sets of size 3
-  1045488 frequent neuron sets of size 3
-  ./process_nnz.sh: line 4: 1879180 Killed                  ./engine bench
-  */
-
   void permuteNetwork() {
     std::ifstream infile("./quantised.bin", std::ios::binary);
     if (!infile) {
@@ -699,7 +690,8 @@ public:
     for (int16_t i = 0; i < L1_SIZE; i++) {
       float support = float(activationCounts[i]) / float(totalActivations);
       if (support >= MIN_SUPPORT) {
-        frequentNeuronSets[0].push_back({ i });
+        std::unordered_set<int16_t> set{i};
+        frequentNeuronSets[0].push_back(std::make_pair(support, set));
       }
     }
     std::cout << frequentNeuronSets[0].size() << " frequent neuron sets of size " << 1 << std::endl;
@@ -717,10 +709,10 @@ public:
 
         for (size_t i = start; i < end; i++) {
           for (size_t j = 0; j < frequentNeuronSets[k - 2].size(); j++) {
-            if (differByOne(frequentNeuronSets[k - 2][i], frequentNeuronSets[k - 2][j])) {
+            if (differByOne(frequentNeuronSets[k - 2][i].second, frequentNeuronSets[k - 2][j].second)) {
               std::unordered_set<int16_t> combined;
-              combined.insert(frequentNeuronSets[k - 2][i].begin(), frequentNeuronSets[k - 2][i].end());
-              combined.insert(frequentNeuronSets[k - 2][j].begin(), frequentNeuronSets[k - 2][j].end());
+              combined.insert(frequentNeuronSets[k - 2][i].second.begin(), frequentNeuronSets[k - 2][i].second.end());
+              combined.insert(frequentNeuronSets[k - 2][j].second.begin(), frequentNeuronSets[k - 2][j].second.end());
 
               // Immediately check if the candidate is frequent
               float support = float(getOccurrences(combined)) / float(totalActivations);
