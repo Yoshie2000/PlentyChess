@@ -599,6 +599,8 @@ public:
 #include <fstream>
 #include <vector>
 #include <unordered_set>
+#include <mutex>
+#include <algorithm>
 
 constexpr float MIN_SUPPORT = 0.2;
 
@@ -642,7 +644,7 @@ public:
   int getOccurrences(const std::unordered_set<int16_t>& candidateSet) {
     size_t MIN_OCCURRENCE = totalActivations * MIN_SUPPORT;
 
-    // Calculate occurrence of candidate set
+    // Calculate intersection size of activation sets
     auto it = candidateSet.begin();
     std::unordered_set<int16_t> intersection = activationsByNeuron[*it];
 
@@ -712,16 +714,19 @@ public:
         }
       }
 
-      for (const auto& candidateSet : candidateSets) {
-        float support = float(getOccurrences(candidateSet)) / float(totalActivations);
+      std::for_each(std::execution::par, candidateSets.begin(), candidateSets.end(),
+        [&](const auto& candidateSet) {
+          float support = float(getOccurrences(candidateSet)) / float(totalActivations);
 
-        if (support >= MIN_SUPPORT) {
-          frequentNeuronSets[k - 1].push_back(candidateSet);
-          for (int16_t neuron : candidateSet)
-            std::cout << neuron << " ";
-          std::cout << support << std::endl;
-        }
-      }
+          if (support >= MIN_SUPPORT) {
+            std::lock_guard<std::mutex> lock(mtx);
+            frequentNeuronSets[k - 1].push_back(candidateSet);
+
+            for (int16_t neuron : candidateSet)
+              std::cout << neuron << " ";
+            std::cout << support << std::endl;
+          }
+        });
     }
 
     for (int i = 0; i < L1_SIZE / 2; i++) {
