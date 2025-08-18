@@ -603,8 +603,6 @@ public:
 #include <thread>
 #include <mutex>
 
-constexpr float MIN_SUPPORT = 0.7;
-
 class NNZ {
 public:
   int64_t activationCounts[L1_SIZE];
@@ -627,12 +625,14 @@ public:
     totalActivations++;
   }
 
+  float minSupport = 0.7;
+
   int16_t oldInputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
   int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   NetworkData nnzOutNet;
 
-  int order[L1_SIZE / 2];
+  int order[L1_SIZE];
 
   bool differByOne(const std::unordered_set<int16_t>& a, const std::unordered_set<int16_t>& b) {
     if (a.size() != b.size()) return false;
@@ -670,26 +670,14 @@ public:
     return count;
   }
 
-  void permuteNetwork() {
-    std::ifstream infile("./quantised.bin", std::ios::binary);
-    if (!infile) {
-      std::cerr << "Error opening file for reading" << std::endl;
-      return;
-    }
-    infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
-    infile.close();
-
-    memcpy(oldInputWeights, nnzOutNet.inputWeights, sizeof(nnzOutNet.inputWeights));
-    memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
-    memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
-
+  std::vector<std::pair<float, std::unordered_set<int16_t>>> apriori() {
     std::vector<std::vector<std::pair<float, std::unordered_set<int16_t>>>> frequentNeuronSets;
 
     // Find frequently activated neurons
     frequentNeuronSets.push_back({});
     for (int16_t i = 0; i < L1_SIZE; i++) {
       float support = float(activationCounts[i]) / float(totalActivations);
-      if (support >= MIN_SUPPORT) {
+      if (support >= minSupport) {
         std::unordered_set<int16_t> set{ i };
         frequentNeuronSets[0].push_back(std::make_pair(support, set));
       }
@@ -717,7 +705,7 @@ public:
               // Immediately check if the candidate is frequent
               float support = float(getOccurrences(combined)) / float(totalActivations);
 
-              if (support >= MIN_SUPPORT) {
+              if (support >= minSupport) {
                 localFrequentSets.push_back(std::make_pair(support, combined));
               }
             }
@@ -744,49 +732,58 @@ public:
       return a.first > b.first;
       });
 
-    std::unordered_set<int16_t> used_indices;
+    return frequentNeuronSets[3];
+  }
+
+  void permuteNetwork() {
+    std::ifstream infile("./quantised.bin", std::ios::binary);
+    if (!infile) {
+      std::cerr << "Error opening file for reading" << std::endl;
+      return;
+    }
+    infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
+    infile.close();
+
+    memcpy(oldInputWeights, nnzOutNet.inputWeights, sizeof(nnzOutNet.inputWeights));
+    memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
+    memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
+
     int order_idx = 0;
+    while (order_idx < L1_SIZE) {
+      auto mostFrequentNeuronGroups = apriori();
 
-    // First, populate the 'order' array with indices from the sorted frequent 4-itemsets.
-    // The sorting ensures the most frequent sets come first.
-    for (const auto& pair : frequentNeuronSets[3]) {
-      bool has_overlap = false;
-      // Check if any index in the current set has already been used
-      for (const auto& neuron_index : pair.second) {
-        if (used_indices.count(neuron_index) > 0) {
-          has_overlap = true;
-          break;
-        }
-      }
-
-      // If no overlap is found, add the entire set to the order array
-      if (!has_overlap) {
+      // Use most frequent groups to populate the order array
+      std::unordered_set<int16_t> used_indices;
+      for (const auto& pair : mostFrequentNeuronGroups) {
+        // Check if any index has been used already
+        bool has_overlap = false;
         for (const auto& neuron_index : pair.second) {
-          std::cout << neuron_index << " ";
-          order[order_idx++] = neuron_index;
-          used_indices.insert(neuron_index);
+          if (used_indices.count(neuron_index) > 0) {
+            has_overlap = true;
+            break;
+          }
         }
-        std::cout << pair.first << std::endl;
+
+        // If not, add to the order array
+        if (!has_overlap) {
+          for (const auto& neuron_index : pair.second) {
+            std::cout << neuron_index << " ";
+            order[order_idx++] = neuron_index;
+            used_indices.insert(neuron_index);
+          }
+          std::cout << pair.first << std::endl;
+        }
       }
-    }
 
-    // Next, fill the remaining slots with all other neuron indices
-    // that were not part of any frequent 4-itemset.
-    for (int16_t i = 0; i < L1_SIZE; ++i) {
-      if (used_indices.find(i) == used_indices.end()) {
-        order[order_idx++] = i;
+      // Remove data of used neurons
+      for (int16_t index : used_indices) {
+        for (uint64_t& bitset : activationsByNeuronBitsets[index])
+          bitset = 0;
+        activationCounts[index] = 0;
       }
-    }
 
-    // Sanity check to ensure all L1_SIZE indices have been placed
-    if (order_idx != L1_SIZE) {
-      std::cerr << "Error: 'order' array not fully populated." << std::endl;
+      minSupport *= 0.9;
     }
-
-    for (int i = 0; i < L1_SIZE; i++) {
-      order[i] = i;
-    }
-    // std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
 
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
 
