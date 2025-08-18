@@ -603,7 +603,7 @@ public:
 #include <thread>
 #include <mutex>
 
-constexpr float MIN_SUPPORT = 0.3;
+constexpr float MIN_SUPPORT = 0.7;
 
 class NNZ {
 public:
@@ -692,7 +692,7 @@ public:
     memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
-    std::vector<std::vector<std::unordered_set<int16_t>>> frequentNeuronSets;
+    std::vector<std::vector<std::pair<float, std::unordered_set<int16_t>>>> frequentNeuronSets;
 
     // Find frequently activated neurons
     frequentNeuronSets.push_back({});
@@ -713,7 +713,7 @@ public:
       std::vector<std::thread> threads;
 
       auto worker = [&](size_t start, size_t end) {
-        std::vector<std::unordered_set<int16_t>> localFrequentSets;
+        std::vector<std::pair<float, std::unordered_set<int16_t>>> localFrequentSets;
 
         for (size_t i = start; i < end; i++) {
           for (size_t j = 0; j < frequentNeuronSets[k - 2].size(); j++) {
@@ -726,7 +726,7 @@ public:
               float support = float(getOccurrences(combined)) / float(totalActivations);
 
               if (support >= MIN_SUPPORT) {
-                localFrequentSets.push_back(combined);
+                localFrequentSets.push_back(std::make_pair(support, combined));
               }
             }
           }
