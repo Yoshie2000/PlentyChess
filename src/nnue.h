@@ -743,14 +743,47 @@ public:
     std::sort(frequentNeuronSets[3].begin(), frequentNeuronSets[3].end(), [](auto& a, auto& b) {
       return a.first > b.first;
       });
-    
-    std::cout << frequentNeuronSets[3][0].first << " ";
-    for (auto x : frequentNeuronSets[3][0].second) {
-      std::cout << x << " ";
-    }
-    std::cout << std::endl;
 
-    for (int i = 0; i < L1_SIZE / 2; i++) {
+    std::unordered_set<int16_t> used_indices;
+    int order_idx = 0;
+
+    // First, populate the 'order' array with indices from the sorted frequent 4-itemsets.
+    // The sorting ensures the most frequent sets come first.
+    for (const auto& pair : frequentNeuronSets[3]) {
+      bool has_overlap = false;
+      // Check if any index in the current set has already been used
+      for (const auto& neuron_index : pair.second) {
+        if (used_indices.count(neuron_index) > 0) {
+          has_overlap = true;
+          break;
+        }
+      }
+
+      // If no overlap is found, add the entire set to the order array
+      if (!has_overlap) {
+        for (const auto& neuron_index : pair.second) {
+          std::cout << neuron_index << " ";
+          order[order_idx++] = neuron_index;
+          used_indices.insert(neuron_index);
+        }
+        std::cout << pair.first << std::endl;
+      }
+    }
+
+    // Next, fill the remaining slots with all other neuron indices
+    // that were not part of any frequent 4-itemset.
+    for (int16_t i = 0; i < L1_SIZE; ++i) {
+      if (used_indices.find(i) == used_indices.end()) {
+        order[order_idx++] = i;
+      }
+    }
+
+    // Sanity check to ensure all L1_SIZE indices have been placed
+    if (order_idx != L1_SIZE) {
+      std::cerr << "Error: 'order' array not fully populated." << std::endl;
+    }
+
+    for (int i = 0; i < L1_SIZE; i++) {
       order[i] = i;
     }
     // std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
