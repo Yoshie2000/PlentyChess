@@ -7,6 +7,7 @@
 #include <sstream>
 #include <algorithm>
 #include <tuple>
+#include <iostream>
 
 #include "board.h"
 #include "uci.h"
@@ -222,7 +223,7 @@ void bench(Board& board, std::vector<uint64_t>& boardHistory) {
         << "\nTotal time (ms) : " << elapsed
         << "\nNodes searched  : " << nodes
         << "\nNodes/second    : " << 1000 * nodes / elapsed << std::endl;
-    
+
     UCI::Options.minimal.value = minimal;
 }
 
@@ -554,6 +555,24 @@ struct printOptions
     }
 };
 
+void collectNnzData() {
+    std::ifstream file("lichess-big3.book");
+    std::string line;
+
+    Board board;
+
+    while (std::getline(file, line)) {
+        // FEN endet vor " ["
+        size_t pos = line.find(" [");
+        if (pos != std::string::npos) {
+            std::string fen = line.substr(0, pos);
+            board.parseFen(fen, false);
+            UCI::nnue.reset(&board);
+            UCI::nnue.evaluate(&board);
+        }
+    }
+}
+
 void uciLoop(int argc, char* argv[]) {
     std::vector<uint64_t> boardHistory;
     Board board;
@@ -562,7 +581,7 @@ void uciLoop(int argc, char* argv[]) {
     std::cout << "UCI thread running" << std::endl;
 
 #if defined(PROCESS_NET) || defined(MEASURE_NNZ)
-    bench(board, boardHistory);
+    collectNnzData();
     std::cout << "Average NNZ Blocks: " << float(totalNnzCount) / float(totalEvaluations) * 100.0 / float(L1_SIZE / 4) << "%" << std::endl;
 #if defined(PROCESS_NET)
     nnz.permuteNetwork();
@@ -618,7 +637,8 @@ void uciLoop(int argc, char* argv[]) {
                 UCI::optionsDirty = false;
             }
             go(line, board, boardHistory);
-        } else if (matchesToken(line, "position")) position(line.substr(9), board, boardHistory);
+        }
+        else if (matchesToken(line, "position")) position(line.substr(9), board, boardHistory);
         else if (matchesToken(line, "setoption")) setoption(line.substr(10));
 
         /* NON UCI COMMANDS */
