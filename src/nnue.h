@@ -715,6 +715,8 @@ public:
         }
       }
 
+      std::cout << candidateSets.size() << " candidate sets of size " << k << std::endl;
+
       std::mutex mtx;
       size_t nThreads = std::thread::hardware_concurrency();
       std::vector<std::thread> threads;
