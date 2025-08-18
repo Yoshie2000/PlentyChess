@@ -747,7 +747,7 @@ public:
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
     std::unordered_set<int16_t> remainingIndices;
-    for (int i = 0 i < L1_SIZE; i++)
+    for (int i = 0; i < L1_SIZE; i++)
       remainingIndices.insert(i);
 
     int order_idx = 0, lastOrderIdx = 0;
@@ -798,7 +798,7 @@ public:
     }
 
     while (order_idx < L1_SIZE) {
-      order[order_idx] = remainingIndices[0];
+      order[order_idx] = *remainingIndices.begin();
       remainingIndices.erase(order[order_idx++]);
     }
     std::cout << order_idx << " / " << L1_SIZE << std::endl;
