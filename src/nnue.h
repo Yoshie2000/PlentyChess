@@ -607,6 +607,7 @@ class NNZ {
 public:
   int64_t activationCounts[L1_SIZE / 2];
   std::vector<uint64_t> activationsByNeuronBitsets[L1_SIZE / 2];
+  std::vector<uint64_t> activationsByNeuronIndices[L1_SIZE / 2];
   int64_t totalActivations;
 
   void addActivations(uint8_t* neurons) {
@@ -620,8 +621,10 @@ public:
       if (neurons[i]) {
         uint64_t before = activationsByNeuronBitsets[i % (L1_SIZE / 2)][totalActivations / 64];
         activationsByNeuronBitsets[i % (L1_SIZE / 2)][totalActivations / 64] |= (1ULL << (totalActivations % 64));
-        if (before != activationsByNeuronBitsets[i % (L1_SIZE / 2)][totalActivations / 64])
+        if (before != activationsByNeuronBitsets[i % (L1_SIZE / 2)][totalActivations / 64]) {
           activationCounts[i % (L1_SIZE / 2)]++;
+          activationsByNeuronIndices[i % (L1_SIZE / 2)].push_back(totalActivations);
+        }
       }
     }
     totalActivations++;
@@ -650,31 +653,65 @@ public:
   }
 
   int getOccurrences(const std::unordered_set<int16_t>& candidateSet) {
-    if (candidateSet.empty()) return 0;
+    size_t maxCandidateActivations = 0;
+    for (int16_t candidate : candidateSet) {
+      maxCandidateActivations = std::max(maxCandidateActivations, activationCounts[candidate]);
+    }
 
-    auto it = candidateSet.begin();
-    std::vector<uint64_t> intersection = activationsByNeuronBitsets[*it];
+    if (float(maxCandidateActivations) / float(totalActivations) > 0.1) {
+      auto it = candidateSet.begin();
+      std::vector<uint64_t> intersection = activationsByNeuronBitsets[*it];
 
-    for (++it; it != candidateSet.end(); ++it) {
-      const auto& acts = activationsByNeuronBitsets[*it];
-      size_t minSize = std::min(intersection.size(), acts.size());
+      for (++it; it != candidateSet.end(); ++it) {
+        const auto& acts = activationsByNeuronBitsets[*it];
+        size_t minSize = std::min(intersection.size(), acts.size());
+
+        for (size_t i = 0; i < minSize; i++) {
+          intersection[i] &= acts[i];
+        }
+        intersection.resize(minSize);
+      }
 
       int count = 0;
-      for (size_t i = 0; i < minSize; i++) {
-        intersection[i] &= acts[i];
-        count += __builtin_popcountll(count);
+      for (uint64_t val : intersection) {
+        count += __builtin_popcountll(val);
       }
-      intersection.resize(minSize);
-
-      if (count < minSupport * totalActivations)
-        return count;
+      return count;
     }
+    else {
+      auto it = candidateSet.begin();
+      // Start with the indices of the first neuron
+      std::vector<uint64_t> intersection = activationsByNeuronIndices[*it];
 
-    int count = 0;
-    for (uint64_t val : intersection) {
-      count += __builtin_popcountll(val);
+      // Perform a two-pointer intersection for each subsequent vector
+      for (++it; it != candidateSet.end(); ++it) {
+        const auto& currentActivations = activationsByNeuronIndices[*it];
+        std::vector<uint64_t> tempIntersection;
+        tempIntersection.reserve(std::min(intersection.size(), currentActivations.size()));
+
+        size_t i = 0, j = 0;
+        while (i < intersection.size() && j < currentActivations.size()) {
+          if (intersection[i] == currentActivations[j]) {
+            tempIntersection.push_back(intersection[i]);
+            i++;
+            j++;
+          }
+          else if (intersection[i] < currentActivations[j]) {
+            i++;
+          }
+          else {
+            j++;
+          }
+        }
+        intersection = tempIntersection;
+
+        if (intersection.empty()) {
+          return 0;
+        }
+      }
+
+      return intersection.size();
     }
-    return count;
   }
 
   std::vector<std::pair<float, std::unordered_set<int16_t>>> apriori() {
@@ -797,6 +834,7 @@ public:
       // Remove data of used neurons
       for (int16_t index : used_indices) {
         activationsByNeuronBitsets[index].clear();
+        activationsByNeuronIndices[index].clear();
         activationCounts[index] = 0;
       }
 
