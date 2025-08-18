@@ -685,12 +685,12 @@ public:
     }
 
     // filter to only include at most the top 100
-    if (frequentNeuronSets.size() > 100) {
+    constexpr SIZE_LIMIT = 100;
+    if (frequentNeuronSets[0].size() > SIZE_LIMIT) {
       std::sort(frequentNeuronSets[0].begin(), frequentNeuronSets[0].end(), [](auto& a, auto& b) {
         return a.first > b.first;
         });
-        std::cout << frequentNeuronSets.size() << std::endl;
-      frequentNeuronSets.resize(100);
+      frequentNeuronSets[0].resize(SIZE_LIMIT);
     }
 
     // Find frequent neuron-sets up to size 4
@@ -734,6 +734,14 @@ public:
       }
 
       for (auto& th : threads) th.join();
+
+      int sizeLimit = std::pow(SIZE_LIMIT, 4) / std::pow(std::sqrt(SIZE_LIMIT), 4);
+      if (frequentNeuronSets[0].size() > sizeLimit) {
+        std::sort(frequentNeuronSets[0].begin(), frequentNeuronSets[0].end(), [](auto& a, auto& b) {
+          return a.first > b.first;
+          });
+        frequentNeuronSets[0].resize(sizeLimit);
+      }
     }
 
     if (frequentNeuronSets[3].size() == 0 && frequentNeuronSets[2].size() > 0) {
