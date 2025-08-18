@@ -712,27 +712,7 @@ public:
             std::unordered_set<int16_t> combined;
             combined.insert(frequentNeuronSets[k - 2][i].begin(), frequentNeuronSets[k - 2][i].end());
             combined.insert(frequentNeuronSets[k - 2][j].begin(), frequentNeuronSets[k - 2][j].end());
-            auto copy = combined;
-
-            bool allSubsetsFrequent = true;
-            for (auto element : copy) {
-              combined.erase(element);
-              bool isFrequent = false;
-              for (auto& frequentSet : frequentNeuronSets[k - 2]) {
-                if (frequentSet == combined) {
-                  isFrequent = true;
-                  break;
-                }
-              }
-              if (!isFrequent) {
-                allSubsetsFrequent = false;
-                break;
-              }
-              combined.insert(element);
-            }
-
-            if (allSubsetsFrequent)
-              candidateSets.push_back(combined);
+            candidateSets.push_back(combined);
           }
         }
       }
