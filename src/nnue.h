@@ -725,7 +725,7 @@ public:
       }
 
       for (auto& th : threads) th.join();
-      std::cout << frequentNeuronSets[k - 1].size() << " frequent neuron sets of size " << k << std::endl;
+      // std::cout << frequentNeuronSets[k - 1].size() << " frequent neuron sets of size " << k << std::endl;
     }
 
     std::sort(frequentNeuronSets[3].begin(), frequentNeuronSets[3].end(), [](auto& a, auto& b) {
@@ -750,6 +750,7 @@ public:
 
     int order_idx = 0;
     while (order_idx < L1_SIZE) {
+      std::cout << order_idx << " / " << L1_SIZE << std::endl;
       auto mostFrequentNeuronGroups = apriori();
 
       // Use most frequent groups to populate the order array
@@ -767,11 +768,11 @@ public:
         // If not, add to the order array
         if (!has_overlap) {
           for (const auto& neuron_index : pair.second) {
-            std::cout << neuron_index << " ";
+            // std::cout << neuron_index << " ";
             order[order_idx++] = neuron_index;
             used_indices.insert(neuron_index);
           }
-          std::cout << pair.first << std::endl;
+          // std::cout << pair.first << std::endl;
         }
       }
 
