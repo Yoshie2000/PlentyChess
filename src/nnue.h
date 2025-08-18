@@ -727,7 +727,7 @@ public:
       for (auto& th : threads) th.join();
     }
 
-    if (frequentNeuronSets[3].size() == 0) {
+    if (frequentNeuronSets[3].size() == 0 && frequentNeuronSets[2].size() > 0) {
       std::sort(frequentNeuronSets[2].begin(), frequentNeuronSets[2].end(), [](auto& a, auto& b) {
         return a.first > b.first;
         });
