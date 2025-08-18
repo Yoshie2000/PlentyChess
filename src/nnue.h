@@ -603,7 +603,7 @@ public:
 #include <thread>
 #include <mutex>
 
-constexpr float MIN_SUPPORT = 0.2;
+constexpr float MIN_SUPPORT = 0.3;
 
 class NNZ {
 public:
@@ -695,7 +695,6 @@ public:
       float support = float(activationCounts[i]) / float(totalActivations);
       if (support >= MIN_SUPPORT) {
         frequentNeuronSets[0].push_back({ i });
-        std::cout << i << " " << support << std::endl;
       }
     }
     std::cout << frequentNeuronSets[0].size() << " frequent neuron sets of size " << 1 << std::endl;
