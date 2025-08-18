@@ -690,7 +690,7 @@ public:
     for (int16_t i = 0; i < L1_SIZE; i++) {
       float support = float(activationCounts[i]) / float(totalActivations);
       if (support >= MIN_SUPPORT) {
-        std::unordered_set<int16_t> set{i};
+        std::unordered_set<int16_t> set{ i };
         frequentNeuronSets[0].push_back(std::make_pair(support, set));
       }
     }
@@ -739,6 +739,16 @@ public:
       for (auto& th : threads) th.join();
       std::cout << frequentNeuronSets[k - 1].size() << " frequent neuron sets of size " << k << std::endl;
     }
+
+    std::sort(frequentNeuronSets[3].begin(), frequentNeuronSets[3].end(), [](auto& a, auto& b) {
+      return a.first > b.first;
+      });
+    
+    std::cout << frequentNeuronSets[3][0].first << " ";
+    for (auto x : frequentNeuronSets[3][0].second) {
+      std::cout << x << " ";
+    }
+    std::cout << std::endl;
 
     for (int i = 0; i < L1_SIZE / 2; i++) {
       order[i] = i;
