@@ -600,23 +600,23 @@ public:
 #include <vector>
 #include <unordered_set>
 
+constexpr float MIN_SUPPORT = 0.2;
+
 class NNZ {
 public:
   int64_t activationCounts[L1_SIZE];
-  std::vector<std::unordered_set<int16_t>> activations;
   std::unordered_set<int16_t> activationsByNeuron[L1_SIZE];
+  int64_t totalActivations;
 
   void addActivations(uint8_t* neurons) {
-    std::unordered_set<int16_t> _activations;
 
     for (int i = 0; i < L1_SIZE; i++) {
       if (neurons[i]) {
-        _activations.insert(i);
         activationCounts[i]++;
-        activationsByNeuron[i].insert(activations.size());
+        activationsByNeuron[i].insert(totalActivations);
       }
     }
-    activations.push_back(_activations);
+    totalActivations++;
   }
 
   int16_t oldInputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
@@ -639,6 +639,38 @@ public:
     return diff == 1;
   }
 
+  int getOccurrences(const std::unordered_set<int16_t>& candidateSet) {
+    size_t MIN_OCCURRENCE = totalActivations * MIN_SUPPORT;
+
+    // Calculate occurrence of candidate set
+    auto it = candidateSet.begin();
+    std::unordered_set<int16_t> intersection = activationsByNeuron[*it];
+
+    for (++it; it != candidateSet.end(); ++it) {
+      const auto& acts = activationsByNeuron[*it];
+
+      if (acts.size() < intersection.size()) {
+        std::unordered_set<int16_t> tmp;
+        for (int16_t id : acts) {
+          if (intersection.find(id) != intersection.end())
+            tmp.insert(id);
+        }
+        intersection.swap(tmp);
+      }
+      else {
+        for (auto it_intersection = intersection.begin(); it_intersection != intersection.end(); ) {
+          if (acts.find(*it_intersection) == acts.end())
+            it_intersection = intersection.erase(it_intersection);
+          else
+            ++it_intersection;
+        }
+      }
+
+      if (intersection.size() < MIN_OCCURRENCE) break;
+    }
+    return intersection.size();
+  }
+
   void permuteNetwork() {
     std::ifstream infile("./quantised.bin", std::ios::binary);
     if (!infile) {
@@ -652,13 +684,12 @@ public:
     memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
-    constexpr float MIN_SUPPORT = 0.05;
     std::vector<std::vector<std::unordered_set<int16_t>>> frequentNeuronSets;
 
     // Find frequently activated neurons
     frequentNeuronSets.push_back({});
     for (int16_t i = 0; i < L1_SIZE; i++) {
-      float support = float(activationCounts[i]) / float(activations.size());
+      float support = float(activationCounts[i]) / float(totalActivations);
       if (support >= MIN_SUPPORT) {
         frequentNeuronSets[0].push_back({ i });
         std::cout << i << " " << support << std::endl;
@@ -682,36 +713,7 @@ public:
       }
 
       for (const auto& candidateSet : candidateSets) {
-        auto it = candidateSet.begin();
-        // Einmaliges Kopieren ins Inter-Set
-        std::unordered_set<int16_t> inter = activationsByNeuron[*it];
-
-        for (++it; it != candidateSet.end(); ++it) {
-          const auto& acts = activationsByNeuron[*it];
-
-          // Immer das kleinere Set iterieren
-          if (acts.size() < inter.size()) {
-            std::unordered_set<int16_t> tmp;
-            for (int16_t id : acts) {
-              if (inter.find(id) != inter.end())
-                tmp.insert(id);
-            }
-            inter.swap(tmp);
-          }
-          else {
-            for (auto it_inter = inter.begin(); it_inter != inter.end(); ) {
-              if (acts.find(*it_inter) == acts.end())
-                it_inter = inter.erase(it_inter);
-              else
-                ++it_inter;
-            }
-          }
-
-          if (inter.empty()) break;
-        }
-
-        int occurrences = inter.size();
-        float support = float(occurrences) / float(activations.size());
+        float support = float(getOccurrences(candidateSet)) / float(totalActivations);
 
         if (support >= MIN_SUPPORT) {
           frequentNeuronSets[k - 1].push_back(candidateSet);
