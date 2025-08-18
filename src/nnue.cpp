@@ -36,6 +36,10 @@ alignas(ALIGNMENT) uint16_t nnzLookup[256][8];
 NNZ nnz;
 #endif
 
+#if defined(MEASURE_NNZ)
+uint64_t totalNnzCount = 0, totalEvaluations = 0;
+#endif
+
 void initNetworkData() {
     for (size_t i = 0; i < 256; i++) {
         uint64_t j = i;
@@ -364,6 +368,11 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
 
+#endif
+
+#if defined(MEASURE_NNZ)
+    totalNnzCount += nnzCount;
+    totalEvaluations++;
 #endif
 
     // ---------------------- SPARSE L1 PROPAGATION ----------------------

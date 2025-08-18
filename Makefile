@@ -148,10 +148,14 @@ ifdef BMI2
 endif
 
 ifdef PROCESS_NET
-	CXXFLAGS := $(CXXFLAGS) -DPROCESS_NET
+	CXXFLAGS := $(CXXFLAGS) -DPROCESS_NET -DMEASURE_NNZ
 	PROCESS_NET := true
 else
 	PROCESS_NET := false
+endif
+
+ifdef MEASURE_NNZ
+	CXXFLAGS := $(CXXFLAGS) -DMEASURE_NNZ
 endif
 
 # Windows only flags

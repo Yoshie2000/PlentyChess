@@ -842,3 +842,7 @@ public:
 
 extern NNZ nnz;
 #endif
+
+#if defined(MEASURE_NNZ)
+extern uint64_t totalNnzCount, totalEvaluations;
+#endif

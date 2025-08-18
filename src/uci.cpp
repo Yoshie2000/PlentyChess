@@ -203,7 +203,7 @@ void bench(Board& board, std::vector<uint64_t>& boardHistory) {
         TT.newSearch();
         parameters.depth = 20;
 #else
-        parameters.depth = 13;
+        parameters.depth = 8;
 #endif
 
         std::cerr << "\nPosition: " << position++ << '/' << totalPositions << " (" << fen << ")" << std::endl;
@@ -564,6 +564,12 @@ void uciLoop(int argc, char* argv[]) {
 #if defined(PROCESS_NET)
     bench(board, boardHistory);
     nnz.permuteNetwork();
+    return;
+#endif
+
+#if defined(MEASURE_NNZ)
+    bench(board, boardHistory);
+    std::cout << "Average NNZ Count: " << float(totalNnzCount) / float(totalEvaluations) << std::endl;
     return;
 #endif
 
