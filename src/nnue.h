@@ -791,8 +791,7 @@ public:
 
       // Remove data of used neurons
       for (int16_t index : used_indices) {
-        for (uint64_t& bitset : activationsByNeuronBitsets[index])
-          bitset = 0;
+        activationsByNeuronBitsets[index].clear();
         activationCounts[index] = 0;
       }
 
