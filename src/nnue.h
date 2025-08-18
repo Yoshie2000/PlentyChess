@@ -608,15 +608,20 @@ constexpr float MIN_SUPPORT = 0.3;
 class NNZ {
 public:
   int64_t activationCounts[L1_SIZE];
-  std::unordered_set<int16_t> activationsByNeuron[L1_SIZE];
+  std::vector<uint64_t> activationsByNeuronBitsets[L1_SIZE];
   int64_t totalActivations;
 
   void addActivations(uint8_t* neurons) {
+    if (totalActivations % 64 == 0) {
+      for (int i = 0; i < L1_SIZE; i++) {
+        activationsByNeuronBitsets[i].push_back(0);
+      }
+    }
 
     for (int i = 0; i < L1_SIZE; i++) {
       if (neurons[i]) {
         activationCounts[i]++;
-        activationsByNeuron[i].insert(totalActivations);
+        activationsByNeuronBitsets[i][totalActivations / 64] |= (1ULL << (totalActivations % 64));
       }
     }
     totalActivations++;
@@ -643,37 +648,34 @@ public:
   }
 
   int getOccurrences(const std::unordered_set<int16_t>& candidateSet) {
-    size_t MIN_OCCURRENCE = totalActivations * MIN_SUPPORT;
+    if (candidateSet.empty()) return 0;
 
-    // Calculate intersection size of activation sets
     auto it = candidateSet.begin();
-    std::unordered_set<int16_t> intersection = activationsByNeuron[*it];
+    std::vector<uint64_t> intersection = activationsByNeuronBitsets[*it];
 
     for (++it; it != candidateSet.end(); ++it) {
-      const auto& acts = activationsByNeuron[*it];
+      const auto& acts = activationsByNeuronBitsets[*it];
+      size_t minSize = std::min(intersection.size(), acts.size());
 
-      if (acts.size() < intersection.size()) {
-        std::unordered_set<int16_t> tmp;
-        for (int16_t id : acts) {
-          if (intersection.find(id) != intersection.end())
-            tmp.insert(id);
-        }
-        intersection.swap(tmp);
+      for (size_t i = 0; i < minSize; i++) {
+        intersection[i] &= acts[i];
       }
-      else {
-        for (auto it_intersection = intersection.begin(); it_intersection != intersection.end(); ) {
-          if (acts.find(*it_intersection) == acts.end())
-            it_intersection = intersection.erase(it_intersection);
-          else
-            ++it_intersection;
-        }
-      }
-
-      if (intersection.size() < MIN_OCCURRENCE) break;
+      intersection.resize(minSize);
     }
-    return intersection.size();
+
+    int count = 0;
+    for (uint64_t val : intersection) {
+      count += __builtin_popcountll(val);
+    }
+    return count;
   }
 
+  /*
+150 frequent neuron sets of size 1
+22350 candidate sets of size 2
+7132 frequent neuron sets of size 2
+1378104 candidate sets of size 3
+  */
   void permuteNetwork() {
     std::ifstream infile("./quantised.bin", std::ios::binary);
     if (!infile) {
@@ -711,7 +713,7 @@ public:
             combined.insert(frequentNeuronSets[k - 2][i].begin(), frequentNeuronSets[k - 2][i].end());
             combined.insert(frequentNeuronSets[k - 2][j].begin(), frequentNeuronSets[k - 2][j].end());
             auto copy = combined;
-            
+
             bool allSubsetsFrequent = true;
             for (auto element : copy) {
               combined.erase(element);
@@ -728,7 +730,7 @@ public:
               }
               combined.insert(element);
             }
-            
+
             if (allSubsetsFrequent)
               candidateSets.push_back(combined);
           }
