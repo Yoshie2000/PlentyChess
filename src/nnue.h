@@ -682,7 +682,6 @@ public:
         frequentNeuronSets[0].push_back(std::make_pair(support, set));
       }
     }
-    std::cout << frequentNeuronSets[0].size() << " frequent neuron sets of size " << 1 << std::endl;
 
     // Find frequent neuron-sets up to size 4
     for (int k : {2, 3, 4}) {
@@ -725,7 +724,6 @@ public:
       }
 
       for (auto& th : threads) th.join();
-      // std::cout << frequentNeuronSets[k - 1].size() << " frequent neuron sets of size " << k << std::endl;
     }
 
     std::sort(frequentNeuronSets[3].begin(), frequentNeuronSets[3].end(), [](auto& a, auto& b) {
@@ -748,10 +746,24 @@ public:
     memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
-    int order_idx = 0;
+    std::unordered_set<int16_t> remainingIndices;
+    for (int i = 0 i < L1_SIZE; i++)
+      remainingIndices.insert(i);
+
+    int order_idx = 0, lastOrderIdx = 0;
+    int itersWithoutProgress = 0;
     while (order_idx < L1_SIZE) {
       std::cout << order_idx << " / " << L1_SIZE << std::endl;
       auto mostFrequentNeuronGroups = apriori();
+
+      if (lastOrderIdx == order_idx)
+        itersWithoutProgress++;
+      else
+        itersWithoutProgress = 0;
+      lastOrderIdx = order_idx;
+
+      if (itersWithoutProgress >= 25)
+        break;
 
       // Use most frequent groups to populate the order array
       std::unordered_set<int16_t> used_indices;
@@ -768,11 +780,10 @@ public:
         // If not, add to the order array
         if (!has_overlap) {
           for (const auto& neuron_index : pair.second) {
-            // std::cout << neuron_index << " ";
             order[order_idx++] = neuron_index;
+            remainingIndices.erase(neuron_index);
             used_indices.insert(neuron_index);
           }
-          // std::cout << pair.first << std::endl;
         }
       }
 
@@ -785,6 +796,12 @@ public:
 
       minSupport *= 0.9;
     }
+
+    while (order_idx < L1_SIZE) {
+      order[order_idx] = remainingIndices[0];
+      remainingIndices.erase(order[order_idx++]);
+    }
+    std::cout << order_idx << " / " << L1_SIZE << std::endl;
 
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
 
