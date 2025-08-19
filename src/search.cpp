@@ -453,14 +453,14 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     }
     else if (ttHit && ttEval != EVAL_NONE) {
         unadjustedEval = ttEval;
-        stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
+        stack->staticEval = bestValue = history.correctStaticEval(board, unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
             bestValue = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
-        stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
+        stack->staticEval = bestValue = history.correctStaticEval(board, unadjustedEval, correctionValue);
         ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
     }
     futilityValue = std::min(stack->staticEval + qsFutilityOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
@@ -706,14 +706,14 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
     else if (ttHit) {
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
+        eval = stack->staticEval = history.correctStaticEval(board, unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
+        eval = stack->staticEval = history.correctStaticEval(board, unadjustedEval, correctionValue);
 
         ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
     }

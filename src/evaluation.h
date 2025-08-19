@@ -16,6 +16,7 @@ const Eval EVAL_NONE = 31010;
 
 extern Eval PIECE_VALUES[Piece::TOTAL + 1];
 
+int getMaterialScale(Board* board);
 Eval evaluate(Board* board, NNUE* nnue);
 
 std::string formatEval(Eval value);

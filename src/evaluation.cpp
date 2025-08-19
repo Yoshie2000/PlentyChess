@@ -27,7 +27,6 @@ constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
     90, 290, 310, 570, 1000, 0, 0
 };
 
-
 int getMaterialScale(Board* board) {
     int pawnCount = BB::popcount(board->byPiece[Piece::PAWN]);
     int knightCount = BB::popcount(board->byPiece[Piece::KNIGHT]);
@@ -43,8 +42,6 @@ Eval evaluate(Board* board, NNUE* nnue) {
     assert(!board->checkers);
 
     Eval eval = nnue->evaluate(board);
-    eval = (eval * getMaterialScale(board)) / 1024;
-
     eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return (eval / 16) * 16;
 }
