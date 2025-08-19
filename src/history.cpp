@@ -81,7 +81,8 @@ Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
     return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
 }
 
-Eval History::correctStaticEval(Eval eval, Eval correctionValue) {
+Eval History::correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue) {
+    eval = eval * (300 - rule50) / 300;
     Eval adjustedEval = eval + correctionValue / 65536;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return adjustedEval;
