@@ -442,7 +442,7 @@ Eval NNUE::evaluate(Board* board) {
 
     // ---------------------- L2 PROPAGATION & ACTIVATION ----------------------
 
-    alignas(ALIGNMENT) float l2Outputs[L3_SIZE];
+    alignas(ALIGNMENT) float l2Outputs[2 * L3_SIZE];
     memcpy(l2Outputs, networkData->l2Biases[bucket], sizeof(l2Outputs));
 
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
@@ -455,8 +455,9 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
     for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
-        VecF l2Activated = maxPs(minPs(l2OutputsVec[l2], psOne), psZero);
-        l2OutputsVec[l2] = mulPs(l2Activated, l2Activated);
+        VecF l2Result = l2OutputsVec[l2];
+        l2OutputsVec[l2] = maxPs(minPs(l2Result, psOne), psZero);
+        l2OutputsVec[l2 + L3_SIZE / FLOAT_VEC_SIZE] = minPs(mulPs(l2Result, l2Result), psOne);
     }
 #else
     for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
@@ -465,8 +466,9 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
     for (int l2 = 0; l2 < L3_SIZE; l2++) {
-        float l2Activated = std::clamp(l2Outputs[l2], 0.0f, 1.0f);
-        l2Outputs[l2] = l2Activated * l2Activated;
+        float l2Result = l2Outputs[l2];
+        l2Outputs[l2] = std::clamp(, 0.0f, 1.0f);
+        l2Outputs[l2 + L3_SIZE] = std::clamp(l2Result * l2Result, 0.0f, 1.0f);
     }
 #endif
 
@@ -480,7 +482,7 @@ Eval NNUE::evaluate(Board* board) {
         resultSums[i] = psZero;
 
     VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData->l3Weights[bucket]);
-    for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2 += chunks) {
+    for (int l2 = 0; l2 < 2 * L3_SIZE / FLOAT_VEC_SIZE; l2 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
             resultSums[chunk] = fmaddPs(l2OutputsVec[l2 + chunk], l3WeightsVec[l2 + chunk], resultSums[chunk]);
         }
@@ -496,7 +498,7 @@ Eval NNUE::evaluate(Board* board) {
     constexpr int chunks = sizeof(VecF) / sizeof(float);
     float resultSums[chunks] = {};
 
-    for (int l2 = 0; l2 < L3_SIZE; l2 += chunks) {
+    for (int l2 = 0; l2 < 2 * L3_SIZE; l2 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
             resultSums[chunk] = std::fma(l2Outputs[l2 + chunk], networkData->l3Weights[bucket][l2 + chunk], resultSums[chunk]);
         }

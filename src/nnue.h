@@ -544,7 +544,7 @@ struct NetworkData {
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
   alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
   alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
+  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][2 * L3_SIZE + 2 * L2_SIZE];
   alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
 };
 

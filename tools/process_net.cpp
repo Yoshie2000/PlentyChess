@@ -34,7 +34,7 @@ struct RawNetworkData {
     float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
     float l2Weights[2 * L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
     float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-    float l3Weights[L3_SIZE + 2 * L2_SIZE][OUTPUT_BUCKETS];
+    float l3Weights[2 * L3_SIZE + 2 * L2_SIZE][OUTPUT_BUCKETS];
     float l3Biases[OUTPUT_BUCKETS];
 };
 
@@ -45,7 +45,7 @@ struct NetworkData {
     alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
     alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
     alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-    alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
+    alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][2 * L3_SIZE + 2 * L2_SIZE];
     alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
 };
 
@@ -143,7 +143,7 @@ void transposePermuteNetwork() {
             }
         }
 
-        for (int l3 = 0; l3 < L3_SIZE + 2 * L2_SIZE; l3++) {
+        for (int l3 = 0; l3 < 2 * L3_SIZE + 2 * L2_SIZE; l3++) {
             out.l3Weights[b][l3] = reinterpret_cast<float*>(tmp.l3Weights)[l3 * OUTPUT_BUCKETS + b];
         }
     }
