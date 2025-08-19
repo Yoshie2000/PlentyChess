@@ -360,7 +360,7 @@ void position(std::string line, Board& board, std::vector<uint64_t>& boardHistor
 
     // Make further moves
     UCI::nnue.reset(&board);
-    if (matchesToken(line, "moves")) {
+    if (matchesToken(line, "moves") && line.size() >= 6) {
         line = line.substr(6);
 
         char move[5];
