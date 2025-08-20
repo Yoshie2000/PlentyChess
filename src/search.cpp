@@ -620,6 +620,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     Move ttMove = MOVE_NONE;
     Eval ttValue = EVAL_NONE, ttEval = EVAL_NONE;
     int ttDepth = 0;
+    int ttRule50 = 0;
     uint8_t ttFlag = TT_NOBOUND;
     stack->ttPv = excluded ? stack->ttPv : pvNode;
 
@@ -630,13 +631,14 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             ttValue = valueFromTt(ttEntry->getValue(), stack->ply, board->rule50_ply);
             ttEval = ttEntry->getEval();
             ttDepth = ttEntry->getDepth();
+            ttRule50 = ttEntry->getRule50();
             ttFlag = ttEntry->getFlag();
             stack->ttPv = stack->ttPv || ttEntry->getTtPv();
         }
     }
 
     // TT cutoff
-    if (!pvNode && ttDepth >= depth - ttCutOffset + ttCutFailHighMargin * (ttValue >= beta) && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (!pvNode && ttDepth >= depth - ttCutOffset + ttCutFailHighMargin * (ttValue >= beta) && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)) && (board->rule50_ply < 80 || ttRule50 > board->rule50_ply))
         return ttValue;
 
     // TB Probe
