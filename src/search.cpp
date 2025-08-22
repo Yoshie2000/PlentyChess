@@ -1059,7 +1059,7 @@ movesLoop:
                     quietSearchCount[quietMoveCount]++;
 
                 if (!capture) {
-                    int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth / 100 : reducedDepth / 100), lmrPassBonusMax);
+                    int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? newDepth / 100 : reducedDepth / 100), lmrPassBonusMax);
                     history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
                 }
             }
