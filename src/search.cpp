@@ -1065,7 +1065,7 @@ movesLoop:
             }
         }
         else if (!pvNode || moveCount > 1) {
-            value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
+            value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth + 100 * (pvNode && std::abs(correctionValue) >= 28644400), -(alpha + 1), -alpha, !cutNode);
 
             if (capture && captureMoveCount < 32)
                 captureSearchCount[captureMoveCount]++;
