@@ -1052,11 +1052,13 @@ movesLoop:
 
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
-
-                if (capture && captureMoveCount < 32)
-                    captureSearchCount[captureMoveCount]++;
-                else if (!capture && quietMoveCount < 32)
-                    quietSearchCount[quietMoveCount]++;
+                
+                if (value > alpha) {
+                    if (capture && captureMoveCount < 32)
+                        captureSearchCount[captureMoveCount]++;
+                    else if (!capture && quietMoveCount < 32)
+                        quietSearchCount[quietMoveCount]++;
+                }
 
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth / 100 : reducedDepth / 100), lmrPassBonusMax);
