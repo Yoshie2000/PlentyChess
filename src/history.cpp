@@ -188,11 +188,8 @@ void History::updateContinuationHistory(SearchStack* stack, Color side, Piece pi
 
 int16_t* History::getCaptureHistory(Board* board, Move move) {
     Piece movedPiece = board->pieces[moveOrigin(move)];
-    Piece capturedPiece = board->pieces[moveTarget(move)];
+    Piece capturedPiece = board->capturedPiece(move);
     Square target = moveTarget(move);
-
-    if (capturedPiece == Piece::NONE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
-        capturedPiece = Piece::PAWN;
 
     assert(movedPiece != Piece::NONE && capturedPiece != Piece::NONE);
 

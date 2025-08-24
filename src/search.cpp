@@ -520,7 +520,7 @@ movesLoopQsearch:
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(target)];
+        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][!board->isSquareThreatened(target) || PIECE_VALUES[board->capturedPiece(target)] >= PIECE_VALUES[stack->movedPiece]];
 
         playedQuiet |= move != ttMove && !capture;
 
@@ -826,7 +826,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
             stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-            stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(target)];
+            stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][!board->isSquareThreatened(target) || PIECE_VALUES[board->capturedPiece(target)] >= PIECE_VALUES[stack->movedPiece]];
 
             Board* boardCopy = doMove(board, newHash, move);
 
@@ -906,8 +906,7 @@ movesLoop:
 
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
-                Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
+                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[board->capturedPiece(move)] + fpCaptFactor * lmrDepth / 100 <= alpha)
                     continue;
             }
 
@@ -994,7 +993,7 @@ movesLoop:
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(target)];
+        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][!board->isSquareThreatened(target) || PIECE_VALUES[board->capturedPiece(target)] >= PIECE_VALUES[stack->movedPiece]];
 
         moveCount++;
         searchData.nodesSearched++;

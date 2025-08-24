@@ -110,6 +110,13 @@ struct Board {
         return (queens & rookThreats) | (rooks & minorThreats) | (minors & threats.pawnThreats);
     }
 
+    Piece capturedPiece(Move move) {
+        Piece capturedPiece = pieces[moveTarget(move)];
+        if (capturedPiece == Piece::NONE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
+            capturedPiece = Piece::PAWN;
+        return capturedPiece;
+    }
+
     Bitboard attackersTo(Square square, Bitboard occupied);
 
     void debugBoard();
