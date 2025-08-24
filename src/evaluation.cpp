@@ -9,8 +9,8 @@
 #include "spsa.h"
 
 TUNE_INT_DISABLED(pawnValue, 96, 50, 150);
-TUNE_INT_DISABLED(knightValue, 298, 200, 400);
-TUNE_INT_DISABLED(bishopValue, 301, 200, 400);
+TUNE_INT_DISABLED(knightValue, 300, 200, 400);
+TUNE_INT_DISABLED(bishopValue, 300, 200, 400);
 TUNE_INT_DISABLED(rookValue, 507, 400, 600);
 TUNE_INT_DISABLED(queenValue, 909, 700, 1100);
 
