@@ -748,8 +748,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
     // Post-extension depth adjustments
     if ((stack - 1)->extension != 0) {
-        if ((stack - 1)->extension < 0 && stack->staticEval <= -(stack - 1)->staticEval)
-            depth++;
+        if ((stack - 1)->extension > 1 && stack->staticEval > -(stack - 1)->staticEval + 50)
+            depth--;
     }
 
     // Reverse futility pruning
