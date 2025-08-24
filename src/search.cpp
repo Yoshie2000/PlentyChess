@@ -955,6 +955,7 @@ movesLoop:
                     depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
                     if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
                         extension = 3;
+                    extension -= cutNode;
                 }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
