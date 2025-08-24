@@ -22,7 +22,7 @@ class History {
 
 public:
 
-    int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2];
+    int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2 * 2];
     int16_t continuationCorrectionHistory[2][Piece::TOTAL][64];
 
     void initHistory();
@@ -39,8 +39,8 @@ public:
     int16_t getQuietHistory(Move move, Color stm, Board* board);
     void updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus);
 
-    int getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move);
-    void updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus);
+    int getContinuationHistory(Board* board, SearchStack* stack, Color side, Piece piece, Move move);
+    void updateContinuationHistory(Board* board, SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus);
 
     int16_t* getCaptureHistory(Board* board, Move move);
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
