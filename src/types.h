@@ -96,7 +96,7 @@ struct SearchStack {
     Move move;
     Piece movedPiece;
     bool inCheck, capture;
-    int correctionValue;
+    int correctionValue, extension;
     int16_t reduction;
     bool inLMR, ttPv;
 

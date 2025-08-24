@@ -747,7 +747,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - 100 * (improving && !board->opponentHasGoodCapture())) / 100 >= beta)
+    if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - 100 * (improving && !board->opponentHasGoodCapture()) + (stack - 1)->extension) / 100 >= beta)
         return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Razoring
@@ -926,7 +926,7 @@ movesLoop:
 
         // Extensions
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
-        int extension = 0;
+        stack->extension = 0;
         if (doExtensions
             && depth >= extensionMinDepth
             && move == ttMove
@@ -949,12 +949,12 @@ movesLoop:
 
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
-                extension = 1;
+                stack->extension = 1;
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
-                    extension = 2;
+                    stack->extension = 2;
                     depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
                     if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
-                        extension = 3;
+                        stack->extension = 3;
                 }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
@@ -965,10 +965,10 @@ movesLoop:
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
-                extension = -3;
+                stack->extension = -3;
             // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
             else if (cutNode)
-                extension = -2;
+                stack->extension = -2;
         }
 
         uint64_t newHash = board->hashAfter(move);
@@ -1002,7 +1002,7 @@ movesLoop:
         Board* boardCopy = doMove(board, newHash, move);
 
         Eval value = 0;
-        int newDepth = depth - 100 + 100 * extension;
+        int newDepth = depth - 100 + 100 * stack->extension;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
@@ -1314,6 +1314,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].capture = false;
                 stackList[i].inCheck = false;
                 stackList[i].correctionValue = 0;
+                stackList[i].extension = 0;
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
                 stackList[i].ttPv = false;
@@ -1533,6 +1534,7 @@ void Worker::tdatagen() {
             stackList[i].capture = false;
             stackList[i].inCheck = false;
             stackList[i].correctionValue = 0;
+            stackList[i].extension = 0;
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
             stackList[i].ttPv = false;
