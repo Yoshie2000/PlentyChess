@@ -23,7 +23,7 @@ class History {
 public:
 
     int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2];
-    int16_t continuationCorrectionHistory[2][Piece::TOTAL][64];
+    int16_t continuationCorrectionHistory[2][Piece::TOTAL][64][2];
 
     void initHistory();
 
