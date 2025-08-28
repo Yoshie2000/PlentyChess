@@ -609,6 +609,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, excluded = excludedMove != MOVE_NONE;
+    int initialDepth = depth;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -894,7 +895,7 @@ movesLoop:
             if (!pvNode && !movegen.skipQuiets) {
 
                 // Movecount pruning (LMP)
-                if (moveCount >= LMP_MARGIN[depth / 100][improving]) {
+                if (moveCount >= LMP_MARGIN[initialDepth / 100][improving]) {
                     movegen.skipQuietMoves();
                 }
 
