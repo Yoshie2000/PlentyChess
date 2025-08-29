@@ -1035,12 +1035,12 @@ movesLoop:
                     reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
             }
 
-            int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
+            int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * (pvNode && !capture);
             stack->reduction = reduction;
             stack->inLMR = true;
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
             stack->inLMR = false;
-            reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
+            reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * (pvNode && !capture);
             stack->reduction = 0;
 
             if (capture && captureMoveCount < 32)
@@ -1048,11 +1048,11 @@ movesLoop:
             else if (!capture && quietMoveCount < 32)
                 quietSearchCount[quietMoveCount]++;
 
-            bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100;
-            bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
+            bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100 && (!capture || !pvNode);
+            bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100) && (!capture || !pvNode);
             newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
 
-            if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
+            if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND) && (!capture || !pvNode))) {
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
                 if (capture && captureMoveCount < 32)
