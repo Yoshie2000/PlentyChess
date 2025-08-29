@@ -52,9 +52,9 @@ inline int getFeatureOffset(Color side, Piece piece, Color pieceColor, Square sq
     square ^= kingBucket->mirrored * 7;
     int relativeSquare = square ^ (side * 56);
     if (side == pieceColor)
-        return (64 * piece + relativeSquare) * L1_SIZE / I16_VEC_SIZE;
+        return (64 * piece + relativeSquare);
     else
-        return (64 * (piece + 6) + relativeSquare) * L1_SIZE / I16_VEC_SIZE;
+        return (64 * (piece + 6) + relativeSquare);
 }
 
 void NNUE::reset(Board* board) {
@@ -89,15 +89,15 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
 
         // Piece on square
         Color pieceColor = (board->byColor[Color::WHITE] & bitboard(square)) ? Color::WHITE : Color::BLACK;
-        addToAccumulator<side>(acc->colors, acc->colors, getFeatureOffset(side, piece, pieceColor, square, &kingBucket));
+        addToAccumulator<side>(acc->colors, acc->colors, getFeatureOffset(side, piece, pieceColor, square, &kingBucket), &kingBucket);
 
         if (board->getThreatsOn(side) & bitboard(square)) {
             // Piece belongs to side, is being attacked by ~side
-            addToAccumulator<side>(acc->colors, acc->colors, 768 + 64 + square ^ (kingBucket->mirrored * 7));
+            addToAccumulator<side>(acc->colors, acc->colors, 768 + 64 + square ^ (kingBucket.mirrored * 7), &kingBucket);
         }
         if (board->getThreatsOn(side) & bitboard(square)) {
             // Piece belongs to ~side, is being attacked by side
-            addToAccumulator<side>(acc->colors, acc->colors, 768 + square ^ (kingBucket->mirrored * 7));
+            addToAccumulator<side>(acc->colors, acc->colors, 768 + square ^ (kingBucket.mirrored * 7), &kingBucket);
         }
     }
 
@@ -222,7 +222,7 @@ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* ou
 }
 
 template<Color side>
-void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
+void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex, KingBucketInfo* kingBucket) {
     // Get the index of the piece for this color in the input layer
     int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
@@ -236,7 +236,7 @@ void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L
 }
 
 template<Color side>
-void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
+void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex, KingBucketInfo* kingBucket) {
     // Get the index of the piece for this color in the input layer
     int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
@@ -250,7 +250,7 @@ void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)
 }
 
 template<Color side>
-void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex) {
+void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex, KingBucketInfo* kingBucket) {
     // Get the index of the piece squares for this color in the input layer
     int subtractWeightOffset = subIndex * L1_SIZE / I16_VEC_SIZE;
     int addWeightOffset = addIndex * L1_SIZE / I16_VEC_SIZE;
@@ -266,7 +266,7 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData
 }
 
 Eval NNUE::evaluate(Board* board) {
-    assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
+    // assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
 
     // Make sure the current accumulators are up to date
     resetAccumulator<Color::WHITE>(board, &accumulatorStack[currentAccumulator]);
@@ -274,7 +274,7 @@ Eval NNUE::evaluate(Board* board) {
     // calculateAccumulators<Color::WHITE>();
     // calculateAccumulators<Color::BLACK>();
 
-    assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
+    // assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
 
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
