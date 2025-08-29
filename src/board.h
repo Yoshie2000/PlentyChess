@@ -42,7 +42,7 @@ struct Hashes {
 };
 
 struct Board {
-    Threats threats;
+    Threats threats[2];
     Hashes hashes;
 
     Bitboard byPiece[Piece::TOTAL];
@@ -74,6 +74,7 @@ struct Board {
     void doNullMove();
 
     void calculateThreats();
+    Bitboard getThreatsOn(Color side);
     bool isSquareThreatened(Square square);
 
     constexpr bool isCapture(Move move) {
@@ -104,10 +105,10 @@ struct Board {
         Bitboard minors = byColor[stm] & (byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP]);
         minors |= rooks;
 
-        Bitboard minorThreats = threats.knightThreats | threats.bishopThreats | threats.pawnThreats;
-        Bitboard rookThreats = minorThreats | threats.rookThreats;
+        Bitboard minorThreats = threats[stm].knightThreats | threats[stm].bishopThreats | threats[stm].pawnThreats;
+        Bitboard rookThreats = minorThreats | threats[stm].rookThreats;
 
-        return (queens & rookThreats) | (rooks & minorThreats) | (minors & threats.pawnThreats);
+        return (queens & rookThreats) | (rooks & minorThreats) | (minors & threats[stm].pawnThreats);
     }
 
     Bitboard attackersTo(Square square, Bitboard occupied);

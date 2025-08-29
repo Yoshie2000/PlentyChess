@@ -81,14 +81,24 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     // Overwrite with biases
     memcpy(acc->colors[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
-    // Then add every piece back one by one
+    // Then add every piece + threat back one by one
     KingBucketInfo kingBucket = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
     for (Square square = 0; square < 64; square++) {
         Piece piece = board->pieces[square];
         if (piece == Piece::NONE) continue;
 
+        // Piece on square
         Color pieceColor = (board->byColor[Color::WHITE] & bitboard(square)) ? Color::WHITE : Color::BLACK;
-        addPieceToAccumulator<side>(acc->colors, acc->colors, &kingBucket, square, piece, pieceColor);
+        addToAccumulator<side>(acc->colors, acc->colors, getFeatureOffset(side, piece, pieceColor, square, &kingBucket));
+
+        if (board->getThreatsOn(side) & bitboard(square)) {
+            // Piece belongs to side, is being attacked by ~side
+            addToAccumulator<side>(acc->colors, acc->colors, 768 + 64 + square ^ (kingBucket->mirrored * 7));
+        }
+        if (board->getThreatsOn(side) & bitboard(square)) {
+            // Piece belongs to ~side, is being attacked by side
+            addToAccumulator<side>(acc->colors, acc->colors, 768 + square ^ (kingBucket->mirrored * 7));
+        }
     }
 
     acc->kingBucketInfo[side] = kingBucket;
@@ -174,11 +184,11 @@ void NNUE::refreshAccumulator(Accumulator* acc) {
 
             while (addBB) {
                 Square square = popLSB(&addBB);
-                addPieceToAccumulator<side>(finnyEntry->colors, finnyEntry->colors, &acc->kingBucketInfo[side], square, p, c);
+                addToAccumulator<side>(finnyEntry->colors, finnyEntry->colors, getFeatureOffset(side, p, c, square, &acc->kingBucketInfo[side]));
             }
             while (removeBB) {
                 Square square = popLSB(&removeBB);
-                removePieceFromAccumulator<side>(finnyEntry->colors, finnyEntry->colors, &acc->kingBucketInfo[side], square, p, c);
+                subFromAccumulator<side>(finnyEntry->colors, finnyEntry->colors, getFeatureOffset(side, p, c, square, &acc->kingBucketInfo[side]));
             }
         }
     }
@@ -197,13 +207,13 @@ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* ou
         DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
 
         if (dirtyPiece.origin == NO_SQUARE) {
-            addPieceToAccumulator<side>(inputAcc->colors, outputAcc->colors, kingBucket, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+            addToAccumulator<side>(inputAcc->colors, outputAcc->colors, getFeatureOffset(side, dirtyPiece.piece, dirtyPiece.pieceColor, dirtyPiece.target, kingBucket));
         }
         else if (dirtyPiece.target == NO_SQUARE) {
-            removePieceFromAccumulator<side>(inputAcc->colors, outputAcc->colors, kingBucket, dirtyPiece.origin, dirtyPiece.piece, dirtyPiece.pieceColor);
+            subFromAccumulator<side>(inputAcc->colors, outputAcc->colors, getFeatureOffset(side, dirtyPiece.piece, dirtyPiece.pieceColor, dirtyPiece.origin, kingBucket));
         }
         else {
-            movePieceInAccumulator<side>(inputAcc->colors, outputAcc->colors, kingBucket, dirtyPiece.origin, dirtyPiece.target, dirtyPiece.piece, dirtyPiece.pieceColor);
+            addSubToAccumulator<side>(inputAcc->colors, outputAcc->colors, getFeatureOffset(side, dirtyPiece.piece, dirtyPiece.pieceColor, dirtyPiece.target, kingBucket), getFeatureOffset(side, dirtyPiece.piece, dirtyPiece.pieceColor, dirtyPiece.origin, kingBucket));
         }
 
         // After the input was used to calculate the next accumulator, that accumulator updates itself for the rest of the dirtyPieces
@@ -212,9 +222,9 @@ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* ou
 }
 
 template<Color side>
-void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
+void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
     // Get the index of the piece for this color in the input layer
-    int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
+    int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
@@ -226,9 +236,9 @@ void NNUE::addPieceToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputDa
 }
 
 template<Color side>
-void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square square, Piece piece, Color pieceColor) {
+void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
     // Get the index of the piece for this color in the input layer
-    int weightOffset = getFeatureOffset(side, piece, pieceColor, square, kingBucket);
+    int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
@@ -240,10 +250,10 @@ void NNUE::removePieceFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*out
 }
 
 template<Color side>
-void NNUE::movePieceInAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], KingBucketInfo* kingBucket, Square origin, Square target, Piece piece, Color pieceColor) {
+void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex) {
     // Get the index of the piece squares for this color in the input layer
-    int subtractWeightOffset = getFeatureOffset(side, piece, pieceColor, origin, kingBucket);
-    int addWeightOffset = getFeatureOffset(side, piece, pieceColor, target, kingBucket);
+    int subtractWeightOffset = subIndex * L1_SIZE / I16_VEC_SIZE;
+    int addWeightOffset = addIndex * L1_SIZE / I16_VEC_SIZE;
 
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
@@ -259,8 +269,10 @@ Eval NNUE::evaluate(Board* board) {
     assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
 
     // Make sure the current accumulators are up to date
-    calculateAccumulators<Color::WHITE>();
-    calculateAccumulators<Color::BLACK>();
+    resetAccumulator<Color::WHITE>(board, &accumulatorStack[currentAccumulator]);
+    resetAccumulator<Color::BLACK>(board, &accumulatorStack[currentAccumulator]);
+    // calculateAccumulators<Color::WHITE>();
+    // calculateAccumulators<Color::BLACK>();
 
     assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
 

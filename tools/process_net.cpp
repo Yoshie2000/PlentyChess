@@ -12,7 +12,7 @@
 #include <arm_neon.h>
 #endif
 
-constexpr int INPUT_SIZE = 768;
+constexpr int INPUT_SIZE = 768 + 128;
 constexpr int L1_SIZE = 1792;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
