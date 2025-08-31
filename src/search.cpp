@@ -805,6 +805,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         && !excluded
         && depth > probCutDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
+        && eval >= beta
         && !(ttDepth >= depth - probcutReduction && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
 
         assert(probCutBeta > beta);
