@@ -21,6 +21,22 @@ using VecIu16 = __m512i;
 using VecI32 = __m512i;
 using VecF = __m512;
 
+inline VecI16 mulloEpi16(VecI16 x, VecI16 y) {
+  return _mm512_mullo_epi16(x, y);
+}
+
+inline VecI16 maddEpi16(VecI16 x, VecI16 y) {
+  return _mm512_madd_epi16(x, y);
+}
+
+inline VecI16 addEpi32(VecI16 x, VecI16 y) {
+  return _mm512_add_epi32(x, y);
+}
+
+inline int vecHaddEpi32(VecI16 vec) {
+  return _mm512_reduce_add_epi32(vec);
+}
+
 inline VecI16 addEpi16(VecI16 x, VecI16 y) {
   return _mm512_add_epi16(x, y);
 }
@@ -126,6 +142,45 @@ using VecIu16 = __m256i;
 using VecI32 = __m256i;
 using VecF = __m256;
 
+inline VecI16 mulloEpi16(VecI16 x, VecI16 y) {
+  return _mm256_mullo_epi16(x, y);
+}
+
+inline VecI16 maddEpi16(VecI16 x, VecI16 y) {
+  return _mm256_madd_epi16(x, y);
+}
+
+inline VecI16 addEpi32(VecI16 x, VecI16 y) {
+  return _mm256_add_epi32(x, y);
+}
+
+inline int vecHaddEpi32(VecI16 vec) {
+  __m128i xmm0;
+  __m128i xmm1;
+
+  // Get the lower and upper half of the register:
+  xmm0 = _mm256_castsi256_si128(vec);
+  xmm1 = _mm256_extracti128_si256(vec, 1);
+
+  // Add the lower and upper half vertically:
+  xmm0 = _mm_add_epi32(xmm0, xmm1);
+
+  // Get the upper half of the result:
+  xmm1 = _mm_unpackhi_epi64(xmm0, xmm0);
+
+  // Add the lower and upper half vertically:
+  xmm0 = _mm_add_epi32(xmm0, xmm1);
+
+  // Shuffle the result so that the lower 32-bits are directly above the second-lower 32-bits:
+  xmm1 = _mm_shuffle_epi32(xmm0, _MM_SHUFFLE(2, 3, 0, 1));
+
+  // Add the lower 32-bits to the second-lower 32-bits vertically:
+  xmm0 = _mm_add_epi32(xmm0, xmm1);
+
+  // Cast the result to the 32-bit integer type and return it:
+  return _mm_cvtsi128_si32(xmm0);
+}
+
 inline VecI16 addEpi16(VecI16 x, VecI16 y) {
   return _mm256_add_epi16(x, y);
 }
@@ -229,6 +284,23 @@ using VecI16 = __m128i;
 using VecIu16 = __m128i;
 using VecI32 = __m128i;
 using VecF = __m128;
+
+inline VecI16 mulloEpi16(VecI16 x, VecI16 y) {
+  return _mm_mullo_epi16(x, y);
+}
+
+inline VecI16 maddEpi16(VecI16 x, VecI16 y) {
+  return _mm_madd_epi16(x, y);
+}
+
+inline VecI16 addEpi32(VecI16 x, VecI16 y) {
+  return _mm_add_epi32(x, y);
+}
+
+inline int vecHaddEpi32(VecI16 vec) {
+  int* asArray = (int*)&vec;
+  return asArray[0] + asArray[1] + asArray[2] + asArray[3];
+}
 
 inline VecI16 addEpi16(VecI16 x, VecI16 y) {
   return _mm_add_epi16(x, y);
@@ -461,30 +533,24 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 #endif
 
 constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 1792;
-constexpr int L2_SIZE = 16;
-constexpr int L3_SIZE = 32;
+constexpr int L1_SIZE = 1536;
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
-   0,  1,  2,  3,  3,  2,  1,  0,
-   4,  5,  6,  7,  7,  6,  5,  4,
-   8,  8,  9,  9,  9,  9,  8,  8,
-  10, 10, 10, 10, 10, 10, 10, 10,
-  11, 11, 11, 11, 11, 11, 11, 11,
-  11, 11, 11, 11, 11, 11, 11, 11, 
-  11, 11, 11, 11, 11, 11, 11, 11, 
-  11, 11, 11, 11, 11, 11, 11, 11, 
+    0, 0, 1, 2, 2, 1, 0, 0,
+    3, 3, 4, 4, 4, 4, 3, 3,
+    5, 5, 5, 5, 5, 5, 5, 5,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6,
+    7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7,
 };
-constexpr int KING_BUCKETS = 12;
-constexpr bool KING_BUCKETS_FACTORIZED = true;
+constexpr int KING_BUCKETS = 8;
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int NETWORK_SCALE = 287;
-constexpr int INPUT_QUANT = 362;
-constexpr int INPUT_SHIFT = 10;
+constexpr int NETWORK_SCALE = 302;
+constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
-
-constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
 
 constexpr int ALIGNMENT = 64;
 
@@ -540,12 +606,8 @@ struct FinnyEntry {
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
-  alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-  alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-  alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
-  alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
-  alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
+  alignas(ALIGNMENT) int16_t l1Weights[OUTPUT_BUCKETS][2 * L1_SIZE];
+  alignas(ALIGNMENT) int16_t l1Biases[OUTPUT_BUCKETS];
 };
 
 extern NetworkData* networkData;
