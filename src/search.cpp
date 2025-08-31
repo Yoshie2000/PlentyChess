@@ -889,7 +889,7 @@ movesLoop:
             && board->hasNonPawns()
             ) {
 
-            int16_t lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth / 100][moveCount] - earlyLmrImproving * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            int16_t lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth / 100][moveCount] - 50 * cutNode - earlyLmrImproving * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
             if (!pvNode && !movegen.skipQuiets) {
 
