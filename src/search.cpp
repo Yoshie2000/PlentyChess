@@ -933,7 +933,7 @@ movesLoop:
             && !excluded
             && (ttFlag & TT_LOWERBOUND)
             && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
-            && ttDepth >= depth - extensionTtDepthOffset
+            && ttDepth >= depth - extensionTtDepthOffset + 100 * stack->ttPv
             ) {
             Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth / 100;
             int singularDepth = (depth - 100) / 2;
