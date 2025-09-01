@@ -126,7 +126,7 @@ TUNE_INT(lmrMinDepth, 296, 100, 600);
 
 TUNE_INT(lmrCheck, 82, 0, 500);
 TUNE_INT(lmrTtPv, 189, 0, 500);
-TUNE_INT(lmrCutnode, 222, 0, 500);
+TUNE_INT(lmrCutnode, 202, 0, 500);
 TUNE_INT(lmrTtpvFaillow, 81, 0, 500);
 TUNE_INT(lmrCorrection, 143222, 10000, 200000);
 TUNE_INT(lmrHistoryFactorQuiet, 27246, 10000, 30000);
@@ -1020,7 +1020,7 @@ movesLoop:
                     reduction += lmrTtPv;
 
                 if (cutNode)
-                    reduction += lmrCutnode;
+                    reduction += lmrCutnode + 80 * (ttMove == MOVE_NONE);
 
                 if (stack->ttPv && ttHit && ttValue <= alpha)
                     reduction += lmrTtpvFaillow;
