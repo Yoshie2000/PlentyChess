@@ -257,22 +257,22 @@ int valueFromTt(int value, int ply, int rule50) {
         // Downgrade potentially false mate score
         if (value >= EVAL_MATE_IN_MAX_PLY && EVAL_MATE - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         return value - ply;
     }
     else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
         // Downgrade potentially false mate score
         if (value <= -EVAL_MATE_IN_MAX_PLY && EVAL_MATE + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         return value + ply;
     }
     return value;
@@ -1009,29 +1009,27 @@ movesLoop:
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !pvNode)) {
             int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount];
 
-            if (stack->ttPv && !pvNode && !cutNode && capture) {
-                // Do very slight LMR for captures in ttPv-allnodes
-                reduction /= 2;
-            } else {
-                if (boardCopy->checkers)
-                    reduction -= lmrCheck;
+            if (stack->ttPv && !pvNode && !cutNode && capture)
+                reduction -= 400;
 
-                if (!stack->ttPv)
-                    reduction += lmrTtPv;
+            if (boardCopy->checkers)
+                reduction -= lmrCheck;
 
-                if (cutNode)
-                    reduction += lmrCutnode;
+            if (!stack->ttPv)
+                reduction += lmrTtPv;
 
-                if (stack->ttPv && ttHit && ttValue <= alpha)
-                    reduction += lmrTtpvFaillow;
+            if (cutNode)
+                reduction += lmrCutnode;
 
-                reduction -= std::abs(correctionValue / lmrCorrection);
+            if (stack->ttPv && ttHit && ttValue <= alpha)
+                reduction += lmrTtpvFaillow;
 
-                if (capture)
-                    reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
-                else
-                    reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
-            }
+            reduction -= std::abs(correctionValue / lmrCorrection);
+
+            if (capture)
+                reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
+            else
+                reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
