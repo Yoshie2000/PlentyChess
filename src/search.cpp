@@ -796,6 +796,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
             if (verificationValue >= beta)
                 return nullValue;
+        } else if ((stack - 1)->inLMR && (stack - 1)->reduction > 0 && std::abs(nullValue) < EVAL_TBWIN_IN_MAX_PLY && nullValue < beta - 100) {
+            depth++;
         }
     }
 
