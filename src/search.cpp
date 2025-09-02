@@ -1009,7 +1009,6 @@ movesLoop:
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
             int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount];
 
-
             if (boardCopy->checkers)
                 reduction -= lmrCheck;
 
@@ -1030,7 +1029,7 @@ movesLoop:
                 reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
 
             if (stack->ttPv && !pvNode && !cutNode && capture)
-                reduction -= 300;
+                reduction -= 400;
 
             if (capture && pvNode)
                 reduction -= 400;
