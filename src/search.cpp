@@ -258,22 +258,22 @@ int valueFromTt(int value, int ply, int rule50) {
         // Downgrade potentially false mate score
         if (value >= EVAL_MATE_IN_MAX_PLY && EVAL_MATE - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         return value - ply;
     }
     else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
         // Downgrade potentially false mate score
         if (value <= -EVAL_MATE_IN_MAX_PLY && EVAL_MATE + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         return value + ply;
     }
     return value;
@@ -1017,30 +1017,29 @@ movesLoop:
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
             int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount];
-            
-            if (stack->ttPv && !pvNode && !cutNode && capture) {
-                // Do very slight LMR for captures in ttPv-allnodes
-                reduction /= 2;
-            } else {
-                if (boardCopy->checkers)
-                    reduction -= lmrCheck;
 
-                if (!stack->ttPv)
-                    reduction += lmrTtPv;
 
-                if (cutNode)
-                    reduction += lmrCutnode;
+            if (boardCopy->checkers)
+                reduction -= lmrCheck;
 
-                if (stack->ttPv && ttHit && ttValue <= alpha)
-                    reduction += lmrTtpvFaillow;
+            if (!stack->ttPv)
+                reduction += lmrTtPv;
 
-                reduction -= std::abs(correctionValue / lmrCorrection);
+            if (cutNode)
+                reduction += lmrCutnode;
 
-                if (capture)
-                    reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
-                else
-                    reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
-            }
+            if (stack->ttPv && ttHit && ttValue <= alpha)
+                reduction += lmrTtpvFaillow;
+
+            reduction -= std::abs(correctionValue / lmrCorrection);
+
+            if (capture)
+                reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
+            else
+                reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
+
+            if (stack->ttPv && !pvNode && !cutNode && capture)
+                reduction -= 300;
 
             if (capture && pvNode)
                 reduction -= 400;
