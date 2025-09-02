@@ -1029,7 +1029,7 @@ movesLoop:
                 reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
 
             if (stack->ttPv && !pvNode && !cutNode && capture)
-                reduction -= 400;
+                reduction -= 500;
 
             if (capture && pvNode)
                 reduction -= 400;
