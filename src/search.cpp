@@ -567,6 +567,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
     constexpr NodeType nodeType = nt == ROOT_NODE ? PV_NODE : NON_PV_NODE;
+    const bool allNode = !pvNode && !cutNode;
 
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
     assert(!(pvNode && cutNode));
@@ -1016,32 +1017,28 @@ movesLoop:
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
-            int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount];
+            int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount] + 189;
 
             if (boardCopy->checkers)
                 reduction -= lmrCheck;
 
-            if (!stack->ttPv)
-                reduction += lmrTtPv;
-
             if (cutNode)
                 reduction += lmrCutnode;
 
-            if (stack->ttPv && ttHit && ttValue <= alpha)
-                reduction += lmrTtpvFaillow;
+            if (stack->ttPv)
+                reduction -= lmrTtPv - lmrTtpvFaillow * (ttHit && ttValue <= alpha);
+
+            if (capture) {
+                reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
+
+                if (stack->ttPv)
+                    reduction -= 400 * allNode + 400 * pvNode;
+            }
+            else {
+                reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
+            }
 
             reduction -= std::abs(correctionValue / lmrCorrection);
-
-            if (capture)
-                reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
-            else
-                reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
-
-            if (stack->ttPv && !pvNode && !cutNode && capture)
-                reduction -= 400;
-
-            if (capture && pvNode)
-                reduction -= 400;
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
