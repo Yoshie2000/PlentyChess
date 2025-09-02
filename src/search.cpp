@@ -1017,7 +1017,7 @@ movesLoop:
                 reduction += lmrCutnode;
 
             if (stack->ttPv)
-                reduction -= lmrTtPv - lmrTtpvFaillow * (ttHit && ttValue <= alpha) + 100 * cutNode;
+                reduction -= lmrTtPv - lmrTtpvFaillow * (ttHit && ttValue <= alpha) + 100 * cutNode + 100 * (ttMove != MOVE_NONE && ttDepth >= depth);
 
             if (capture) {
                 reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
