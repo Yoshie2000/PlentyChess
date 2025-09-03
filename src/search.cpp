@@ -748,7 +748,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
     // Reverse futility pruning
     if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - 100 * (improving && !board->opponentHasGoodCapture())) / 100 >= beta)
-        return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
+        return std::min(beta + (eval - beta) / 3, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Razoring
     if (!rootNode && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
