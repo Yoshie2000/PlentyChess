@@ -639,7 +639,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // TT cutoff
-    if (!pvNode && ttDepth + 100 * ttMoveExtension >= depth - ttCutOffset + ttCutFailHighMargin * (ttValue >= beta) && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (!pvNode && ttDepth >= depth - ttCutOffset + ttCutFailHighMargin * (ttValue >= beta) && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
     // TB Probe
@@ -736,7 +736,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // IIR
-    if ((!ttHit || ttDepth + iirLowTtDepthOffset < depth) && depth >= iirMinDepth)
+    if ((!ttHit || ttDepth + 100 * ttMoveExtension + iirLowTtDepthOffset < depth) && depth >= iirMinDepth)
         depth -= iirReduction;
 
     // Post-LMR depth adjustments
