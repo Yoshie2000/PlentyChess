@@ -894,7 +894,7 @@ movesLoop:
             if (!pvNode && !movegen.skipQuiets) {
 
                 // Movecount pruning (LMP)
-                if (moveCount >= LMP_MARGIN[depth / 100][improving]) {
+                if (moveCount >= LMP_MARGIN[(depth - 50 * (!cutNode && !pvNode)) / 100][improving]) {
                     movegen.skipQuietMoves();
                 }
 
