@@ -961,6 +961,13 @@ movesLoop:
             else if (singularBeta >= beta) {
                 Eval value = std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(board->hashes.hash, ttMove, singularDepth, unadjustedEval, value, board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
+
+                // Adjust correction history
+                if (!board->checkers && value > stack->staticEval) {
+                    int bonus = std::clamp((int(value - stack->staticEval) * singularDepth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+                    history.updateCorrectionHistory(board, stack, bonus);
+                }
+
                 return value;
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
