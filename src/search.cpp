@@ -936,7 +936,7 @@ movesLoop:
             && !excluded
             && (ttFlag & TT_LOWERBOUND)
             && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
-            && ttDepth + 100 * ttMoveExtension >= depth - extensionTtDepthOffset
+            && ttDepth >= depth - extensionTtDepthOffset
             ) {
             Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth / 100;
             int singularDepth = (depth - 100) / 2;
@@ -1053,7 +1053,7 @@ movesLoop:
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
             newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
 
-            if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
+            if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth + 100 * ttMoveExtension - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
                 if (capture && captureMoveCount < 32)
