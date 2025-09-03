@@ -13,7 +13,7 @@ void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval,
     if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
         bestMove = _bestMove;
 
-    if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + ttReplaceTtpvBonus * wasPv + ttReplaceOffset > depth) {
+    if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + ttReplaceTtpvBonus * wasPv + ttReplaceOffset > depth + 100 * bestMoveExtension) {
         hash = (uint16_t)_hash;
         depth = _depth;
         value = _value;
