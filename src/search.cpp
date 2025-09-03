@@ -808,7 +808,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         && !excluded
         && depth > probCutDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
-        && !(ttDepth + 100 * ttMoveExtension >= depth - probcutReduction && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
+        && !(ttDepth >= depth - probcutReduction && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
 
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
@@ -936,7 +936,7 @@ movesLoop:
             && !excluded
             && (ttFlag & TT_LOWERBOUND)
             && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
-            && ttDepth >= depth - extensionTtDepthOffset
+            && ttDepth + 100 * ttMoveExtension >= depth - extensionTtDepthOffset
             ) {
             Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth / 100;
             int singularDepth = (depth - 100) / 2;
