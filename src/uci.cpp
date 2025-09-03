@@ -341,50 +341,34 @@ void relabel(std::string line, Board* board, std::deque<BoardStack>* stackQueue)
     UCI::nnue.incrementAccumulator();
 
     std::ifstream is(line, std::ios::binary);
-    std::ofstream os(line + ".out2", std::ios::binary);
+    // std::ofstream os(line + ".out2", std::ios::binary);
 
     if (!is.is_open()) {
         std::cout << "Failed to open input file." << std::endl;
         return;
     }
 
-    if (!os.is_open()) {
-        std::cout << "Failed to open output file." << std::endl;
-        return;
-    }
+    // if (!os.is_open()) {
+    //     std::cout << "Failed to open output file." << std::endl;
+    //     return;
+    // }
 
     std::cout << "Relabling from bulletformat file " << std::quoted(line) << " to "
               << std::quoted(line + ".out2") << "..." << std::endl;
 
     BulletEntry currEntry;
 
+    double sumOfAbs = 0;
+    uint64_t datapoints = 0;
+
     while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry)))
     {
-        board->parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
-        Bitboard occ = currEntry.occ;
-        size_t count = 0;
-        while (occ) {
-            Square sq = popLSB(&occ);
-            uint8_t packedPieces = currEntry.pcs[count / 2];
-            int pieceWithColor = ((count % 2 == 0) ? packedPieces & 0b1111 : packedPieces >> 4);
-            Piece piece = static_cast<Piece>(pieceWithColor & 0b111);
-            Color pieceColor = static_cast<Color>(pieceWithColor >> 3);
-            count++;
+        sumOfAbs += std::abs(int(currEntry.score));
+        datapoints++;
 
-            board->pieces[sq] = piece;
-            board->byColor[pieceColor] ^= bitboard(sq);
-            board->byPiece[piece] ^= bitboard(sq);
-        }
-        for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-            UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
-            memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byColor[side], board->byColor, sizeof(board->byColor));
-            memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byPiece[side], board->byPiece, sizeof(board->byPiece));
-        }
-
-        currEntry.score = UCI::nnue.evaluate(board);
-
-        os.write(reinterpret_cast<const char*>(&currEntry), sizeof(currEntry));
+        // os.write(reinterpret_cast<const char*>(&currEntry), sizeof(currEntry));
     }
+    std::cout << "Average absolute eval scale: " << (sumOfAbs / datapoints) << std::endl;
 }
 
 void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
