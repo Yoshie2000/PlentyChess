@@ -736,7 +736,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // IIR
-    if ((!ttHit || ttDepth + 100 * ttMoveExtension + iirLowTtDepthOffset < depth) && depth >= iirMinDepth)
+    if ((!ttHit || ttDepth + iirLowTtDepthOffset < depth) && depth >= iirMinDepth)
         depth -= iirReduction;
 
     // Post-LMR depth adjustments
@@ -808,7 +808,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         && !excluded
         && depth > probCutDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
-        && !(ttDepth >= depth - probcutReduction && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
+        && !(ttDepth + 100 * ttMoveExtension >= depth - probcutReduction && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
 
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
