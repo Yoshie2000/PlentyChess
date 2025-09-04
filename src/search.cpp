@@ -963,7 +963,7 @@ movesLoop:
                 ttEntry->update(board->hashes.hash, ttMove, singularDepth, unadjustedEval, value, board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
 
                 // Adjust correction history
-                if (!board->checkers && value > stack->staticEval) {
+                if (!board->checkers && !board->isCapture(move) && value > stack->staticEval) {
                     int bonus = std::clamp((int(value - stack->staticEval) * singularDepth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
                     history.updateCorrectionHistory(board, stack, bonus);
                 }
