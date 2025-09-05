@@ -1031,6 +1031,8 @@ movesLoop:
 
                 if (stack->ttPv && ttHit && ttValue <= alpha)
                     reduction += lmrTtpvFaillow;
+                
+                reduction += std::clamp(20 * (stack->staticEval - (stack - 2)->staticEval) / 100, -75, 75);
 
                 reduction -= std::abs(correctionValue / lmrCorrection);
 
