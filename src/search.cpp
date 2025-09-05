@@ -640,8 +640,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         int ttCutoffDepthMargin = ttDepth - (depth - ttCutOffset + ttCutFailHighMargin * (ttValue >= beta));
         if (ttCutoffDepthMargin >= 0)
             return ttValue;
-        else if (ttCutoffDepthMargin >= -10 && std::abs(history.getCorrectionValue(board, stack)) < 1800000)
-            return ttValue;
+        else if (ttCutoffDepthMargin >= -25)
+            depth -= 25;
     }
 
     // TB Probe
