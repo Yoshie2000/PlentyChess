@@ -257,22 +257,22 @@ int valueFromTt(int value, int ply, int rule50) {
         // Downgrade potentially false mate score
         if (value >= EVAL_MATE_IN_MAX_PLY && EVAL_MATE - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         return value - ply;
     }
     else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
         // Downgrade potentially false mate score
         if (value <= -EVAL_MATE_IN_MAX_PLY && EVAL_MATE + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         return value + ply;
     }
     return value;
@@ -1019,7 +1019,8 @@ movesLoop:
             if (stack->ttPv && !pvNode && !cutNode && capture) {
                 // Do very slight LMR for captures in ttPv-allnodes
                 reduction /= 2;
-            } else {
+            }
+            else {
                 if (boardCopy->checkers)
                     reduction -= lmrCheck;
 
@@ -1053,11 +1054,12 @@ movesLoop:
             else if (!capture && quietMoveCount < 32)
                 quietSearchCount[quietMoveCount]++;
 
-            bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100;
-            bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
-            newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
-
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
+
+                bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100;
+                bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
+                newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
+
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
                 if (capture && captureMoveCount < 32)
