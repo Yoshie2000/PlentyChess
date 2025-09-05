@@ -1060,7 +1060,8 @@ movesLoop:
                 bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
                 newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
 
-                value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
+                if (reducedDepth < newDepth)
+                    value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
                 if (capture && captureMoveCount < 32)
                     captureSearchCount[captureMoveCount]++;
