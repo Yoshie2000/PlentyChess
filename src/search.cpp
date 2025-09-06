@@ -102,7 +102,7 @@ TUNE_INT(earlyLmrHistoryFactorQuiet, 16229, 10000, 20000);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14912, 10000, 20000);
 
 TUNE_INT(fpDepth, 1149, 100, 2000);
-TUNE_INT(fpBase, 184, 1, 1000);
+TUNE_INT(fpBase, 234, 1, 1000);
 TUNE_INT(fpFactor, 101, 1, 500);
 
 TUNE_INT(fpCaptDepth, 1005, 100, 2000);
@@ -891,15 +891,16 @@ movesLoop:
 
             int16_t lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth / 100][moveCount] - earlyLmrImproving * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
-            if (!pvNode && !movegen.skipQuiets) {
+            if (!movegen.skipQuiets) {
 
                 // Movecount pruning (LMP)
-                if (moveCount >= LMP_MARGIN[depth / 100][improving]) {
+                if (!pvNode && moveCount >= LMP_MARGIN[depth / 100][improving]) {
                     movegen.skipQuietMoves();
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth / 100 + 100 * (bestMove == MOVE_NONE) <= alpha) {
+                int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (30 + 100 * (bestMove == MOVE_NONE));
+                if (!capture && lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
                 }
             }
