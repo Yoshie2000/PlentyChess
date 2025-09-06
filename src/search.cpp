@@ -150,7 +150,7 @@ TUNE_INT(historyDepthBetaOffset, 250, 1, 500);
 
 TUNE_INT(lowDepthPvDepthReductionMin, 411, 0, 800);
 TUNE_INT(lowDepthPvDepthReductionMax, 1006, 0, 2000);
-TUNE_INT(lowDepthPvDepthReductionWeight, 98, 0, 200);
+TUNE_INT(lowDepthPvDepthReductionWeight, 150, 0, 200);
 
 TUNE_INT(correctionHistoryFactor, 172, 32, 512);
 
