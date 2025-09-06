@@ -640,8 +640,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         int ttCutoffDepthMargin = ttDepth - (depth - ttCutOffset + ttCutFailHighMargin * (ttValue >= beta));
         if (ttCutoffDepthMargin >= 0)
             return ttValue;
-        else if (ttCutoffDepthMargin >= -25)
-            depth -= 25;
+        else
+            depth = (depth / 100) * 100;
     }
 
     // TB Probe
