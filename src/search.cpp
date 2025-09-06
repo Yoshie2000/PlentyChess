@@ -902,6 +902,9 @@ movesLoop:
                 int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (30 + 100 * (bestMove == MOVE_NONE));
                 if (!capture && lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
+
+                    if (bestValue <= fpValue && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY)
+                        bestValue = fpValue;
                 }
             }
 
