@@ -4,6 +4,7 @@
 #include <cassert>
 
 constexpr int MAX_PLY = 246;
+constexpr int16_t MAX_DEPTH = (MAX_PLY - 1) * 100;
 constexpr int MAX_MOVES = 218;
 constexpr int MAX_CAPTURES = 74;
 
@@ -108,7 +109,7 @@ struct SearchStack {
     Piece movedPiece;
     bool inCheck, capture;
     int correctionValue;
-    int reduction;
+    int16_t reduction;
     bool inLMR, ttPv;
 
     Move excludedMove;

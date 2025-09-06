@@ -20,14 +20,10 @@
 
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     void* ptr;
-#if defined(__MINGW32__)
-    int offset = alignment - 1;
-    void* p = (void*)malloc(requiredBytes + offset);
-    ptr = (void*)(((size_t)(p)+offset) & ~(alignment - 1));
-#elif defined (__GNUC__)
-    ptr = std::aligned_alloc(alignment, requiredBytes);
+#if defined(_WIN32)
+    ptr = _aligned_malloc(requiredBytes, alignment);
 #else
-#error "Compiler not supported"
+    ptr = std::aligned_alloc(alignment, requiredBytes);
 #endif
 
 #if defined(__linux__)
@@ -37,12 +33,20 @@ inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     return ptr;
 }
 
+inline void alignedFree(void* ptr) {
+#if defined(_WIN32)
+    _aligned_free(ptr);
+#else
+    std::free(ptr);
+#endif
+}
+
 constexpr uint8_t TT_NOBOUND = 0;
 constexpr uint8_t TT_UPPERBOUND = 1;
 constexpr uint8_t TT_LOWERBOUND = 2;
 constexpr uint8_t TT_EXACTBOUND = 3;
 
-constexpr int CLUSTER_SIZE = 3;
+constexpr int CLUSTER_SIZE = 5;
 
 constexpr int GENERATION_PADDING = 3; // Reserved bits for flag / ttPv
 constexpr int GENERATION_DELTA = (1 << GENERATION_PADDING);
@@ -54,28 +58,30 @@ extern uint8_t TT_GENERATION_COUNTER;
 struct TTEntry {
     uint16_t hash = 0;
     Move bestMove = 0;
-    uint8_t depth = 0;
-    uint8_t flags = 0;
+    int16_t depth = 0;
     int16_t eval = 0;
     int16_t value = 0;
+    uint8_t flags = 0;
+    uint8_t rule50 = 0;
 
     constexpr Move getMove() { return bestMove; };
-    constexpr int getDepth() { return depth; };
+    constexpr int16_t getDepth() { return depth; };
     constexpr uint8_t getFlag() { return flags & 0x3; };
+    constexpr uint8_t getRule50() { return rule50; };
     constexpr Eval getEval() { return eval; };
     constexpr Eval getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
 
-    void update(uint64_t _hash, Move _bestMove, uint8_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags);
+    void update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, uint8_t rule50, bool wasPv, int _flags);
     bool isInitialised() { return hash != 0; };
 };
 
 struct TTCluster {
     TTEntry entries[CLUSTER_SIZE];
-    char padding[2];
+    char padding[4];
 };
 
-static_assert(sizeof(TTCluster) == 32, "TTCluster size not correct!");
+static_assert(sizeof(TTCluster) == 64, "TTCluster size not correct!");
 
 class TranspositionTable {
 
@@ -93,7 +99,7 @@ public:
     }
 
     ~TranspositionTable() {
-        std::free(table);
+        alignedFree(table);
     }
 
     void newSearch() {
@@ -106,7 +112,7 @@ public:
             return;
         
         if (table)
-            std::free(table);
+            alignedFree(table);
         
         clusterCount = newClusterCount;
         table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));

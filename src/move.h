@@ -44,7 +44,7 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures = 
 std::string moveToString(Move move, bool chess960);
 std::string squareToString(Square square);
 Square stringToSquare(const char* string);
-Move stringToMove(const char* string, Board* board = nullptr);
+Move stringToMove(const char* string, Board* board);
 
 typedef int MoveGenStage;
 constexpr MoveGenStage STAGE_TTMOVE = 0;
@@ -76,21 +76,27 @@ class MoveGen {
     int returnedBadCaptures;
 
     MoveGenStage stage;
-    int depth;
+    int16_t depth;
 
     bool probCut;
     int probCutThreshold;
 
 public:
 
+    bool skipQuiets;
+
     // Main search
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int depth);
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int16_t depth);
     // qSearch
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int depth);
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int16_t depth);
     // ProbCut
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int depth);
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int16_t depth);
 
     Move nextMove();
+
+    void skipQuietMoves() {
+        skipQuiets = true;
+    }
 
 private:
 

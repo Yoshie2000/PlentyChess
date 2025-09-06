@@ -15,16 +15,18 @@ Worker::Worker(ThreadPool* threadPool, int threadId) : threadPool(threadPool), t
 }
 
 void Worker::startSearching() {
+    rootBoard = threadPool->rootBoard;
+    boardHistory.clear();
+    boardHistory.reserve(MAX_PLY + 1);
+    for (uint64_t hash : threadPool->rootBoardHistory) {
+        boardHistory.push_back(hash);
+    }
     memcpy(&rootBoard, &threadPool->rootBoard, sizeof(Board));
-    rootStackQueue = &threadPool->rootStackQueue;
-    searchParameters = &threadPool->searchParameters;
+    searchParameters = threadPool->searchParameters;
 
-    rootStack = &rootStackQueue->back();
-    rootBoard.stack = rootStack;
-
-    if (searchParameters->perft)
-        searchData.nodesSearched = perft(&rootBoard, searchParameters->depth);
-    else if (searchParameters->genfens)
+    if (searchParameters.perft)
+        searchData.nodesSearched = perft(rootBoard, searchParameters.depth);
+    else if (searchParameters.genfens)
         tgenfens();
     else if (UCI::Options.datagen.value)
         tdatagen();

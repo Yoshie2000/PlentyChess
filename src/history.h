@@ -28,25 +28,25 @@ public:
     void initHistory();
 
     Eval getCorrectionValue(Board* board, SearchStack* searchStack);
-    Eval correctStaticEval(Eval eval, Eval correctionValue);
+    Eval correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue);
     void updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus);
 
-    int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
+    int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
 
     int16_t getPawnHistory(Board* board, Move move);
     void updatePawnHistory(Board* board, Move move, int16_t bonus);
 
-    int16_t getQuietHistory(Move move, Color stm, Board* board, BoardStack* stack);
-    void updateQuietHistory(Move move, Color stm, Board* board, BoardStack* stack, int16_t bonus);
+    int16_t getQuietHistory(Move move, Color stm, Board* board);
+    void updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus);
 
     int getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move);
     void updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus);
 
     int16_t* getCaptureHistory(Board* board, Move move);
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
-    void updateCaptureHistory(int depth, Board* board, Move move, int moveSearchCount, Move* captureMoves, int* captureSearchCount, int captureMoveCount);
+    void updateCaptureHistory(int16_t depth, Board* board, Move move, int moveSearchCount, Move* captureMoves, int* captureSearchCount, int captureMoveCount);
 
-    void updateQuietHistories(int depth, Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int moveSearchCount, Move* quietMoves, int* quietSearchCount, int quietMoveCount);
+    void updateQuietHistories(int16_t depth, Board* board, SearchStack* stack, Move move, int moveSearchCount, Move* quietMoves, int* quietSearchCount, int quietMoveCount);
 
     Move getCounterMove(Move move);
     void setCounterMove(Move move, Move counter);
