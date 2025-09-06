@@ -364,8 +364,7 @@ constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 287;
-constexpr int INPUT_QUANT = 362;
-constexpr int INPUT_SHIFT = 10;
+constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
 
 constexpr float L1_NORMALISATION = static_cast<float>(1 << 1) / static_cast<float>(INPUT_QUANT * L1_QUANT);
