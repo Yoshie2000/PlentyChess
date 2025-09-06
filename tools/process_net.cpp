@@ -18,7 +18,7 @@ constexpr int OUTPUT_BUCKETS = 8;
 constexpr int THREAT_INPUT_SIZE = 79856;
 constexpr int INPUT_SIZE = THREAT_INPUT_SIZE + KING_BUCKETS * 768;
 constexpr int L1_SIZE = 256;
-constexpr int L2_SIZE = 16;
+constexpr int L2_SIZE = 32;
 constexpr int L3_SIZE = 32;
 
 constexpr int INPUT_QUANT = 255;
