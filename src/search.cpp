@@ -1033,35 +1033,14 @@ movesLoop:
             if (capture) {
                 reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
 
-                if (stack->ttPv && (allNode || pvNode)) {
+                if (stack->ttPv && (allNode || pvNode))
                     reduction /= 2;
-                    // reduction -= 100 * allNode + 100 * pvNode;
-
-                    // reduction = std::clamp(reduction / 2, -50, 150);
-
-                    if (pvNode) {
-                        Debug::average("pv red", reduction);
-                        Debug::extreme("pv red", reduction);
-                    }
-                    else {
-                        Debug::average("an red", reduction);
-                        Debug::extreme("an red", reduction);
-                    }
-                }
             }
             else {
                 reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
             }
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
-            if (capture && ((stack->ttPv && allNode) || pvNode))
-                Debug::hitrate("lower depth", reducedDepth < newDepth);
-            else {
-                Debug::hitrate("else lower depth", reducedDepth < newDepth);
-                Debug::average("else red", reduction);
-                Debug::extreme("else red", reduction);
-            }
-
             stack->reduction = reduction;
             stack->inLMR = true;
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
@@ -1077,12 +1056,6 @@ movesLoop:
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100;
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
             newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
-
-            if (capture && ((stack->ttPv && allNode) || pvNode))
-                Debug::hitrate("lower depth 2", reducedDepth < newDepth);
-
-            if (capture && ((stack->ttPv && allNode) || pvNode) && value > alpha)
-                Debug::hitrate("research", reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND)));
 
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
