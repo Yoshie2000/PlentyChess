@@ -22,6 +22,7 @@
 #include "uci.h"
 #include "fathom/src/tbprobe.h"
 #include "zobrist.h"
+#include "debug.h"
 
 // Time management
 TUNE_FLOAT_DISABLED(tmInitialAdjustment, 1.1159139860557399f, 0.5f, 1.5f);
