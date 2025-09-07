@@ -917,7 +917,7 @@ movesLoop:
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100)
+            if (lmrDepth < historyPruningDepth && moveHistory < (1 + pvNode) * hpFactor * depth / 100)
                 continue;
 
             // SEE Pruning
