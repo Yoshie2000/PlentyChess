@@ -1033,8 +1033,11 @@ movesLoop:
             if (capture) {
                 reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
 
-                if (stack->ttPv && (allNode || pvNode))
+                if (stack->ttPv && (allNode || pvNode)) {
+                    reduction -= 100;
+                    reduction += 100 * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
                     reduction /= 2;
+                }
             }
             else {
                 reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
