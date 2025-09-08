@@ -47,6 +47,8 @@ TUNE_FLOAT_DISABLED(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f
 // Reduction / Margin tables
 TUNE_FLOAT(lmrReductionNoisyBase, -0.14053578048643614f, -2.0f, -0.1f);
 TUNE_FLOAT(lmrReductionNoisyFactor, 3.2993722858563084f, 2.0f, 4.0f);
+TUNE_FLOAT(lmrReductionImportantNoisyBase, -0.14053578048643614f, -2.0f, -0.1f);
+TUNE_FLOAT(lmrReductionImportantNoisyFactor, 3.2993722858563084f, 2.0f, 4.0f);
 TUNE_FLOAT(lmrReductionQuietBase, 1.138140091239296f, 0.50f, 1.5f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.953981357948658f, 2.0f, 4.0f);
 
@@ -125,13 +127,30 @@ TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT(lmrMinDepth, 296, 100, 600);
 
-TUNE_INT(lmrCheck, 82, 0, 500);
-TUNE_INT(lmrTtPv, 189, 0, 500);
+TUNE_INT(lmrReductionOffsetQuietOrNormalCapture, 189, 0, 500);
+TUNE_INT(lmrReductionOffsetImportantCapture, 189, 0, 500);
+TUNE_INT(lmrCheckQuietOrNormalCapture, 82, 0, 500);
+TUNE_INT(lmrCheckImportantCapture, 82, 0, 500);
+TUNE_INT(lmrTtPvQuietOrNormalCapture, 189, 0, 500);
+TUNE_INT(lmrTtPvImportantCapture, 189, 0, 500);
 TUNE_INT(lmrCutnode, 222, 0, 500);
-TUNE_INT(lmrTtpvFaillow, 81, 0, 500);
-TUNE_INT(lmrCorrection, 143222, 10000, 200000);
-TUNE_INT(lmrHistoryFactorQuiet, 27246, 10000, 30000);
+TUNE_INT(lmrTtpvFaillowQuietOrNormalCapture, 81, 0, 500);
+TUNE_INT(lmrTtpvFaillowImportantCapture, 81, 0, 500);
+TUNE_INT(lmrCorrectionDivisorQuietOrNormalCapture, 143222, 10000, 200000);
+TUNE_INT(lmrCorrectionDivisorImportantCapture, 143222, 10000, 200000);
+TUNE_INT(lmrQuietHistoryDivisor, 27246, 10000, 30000);
 TUNE_INT(lmrHistoryFactorCapture, 3031309, 2500000, 4000000);
+TUNE_INT(lmrHistoryFactorImportantCapture, 3031309, 2500000, 4000000);
+TUNE_INT(lmrImportantCaptureOffset, 100, 0, 500);
+TUNE_INT(lmrImportantBadCaptureOffset, 100, 0, 500);
+TUNE_INT(lmrImportantCaptureFactor, 50, 0, 250);
+
+inline int lmrReductionOffset(bool importantCapture) { return importantCapture ? lmrReductionOffsetImportantCapture : lmrReductionOffsetQuietOrNormalCapture; };
+inline int lmrCheck(bool importantCapture) { return importantCapture ? lmrCheckImportantCapture : lmrCheckQuietOrNormalCapture; };
+inline int lmrTtPv(bool importantCapture) { return importantCapture ? lmrTtPvImportantCapture : lmrTtPvQuietOrNormalCapture; };
+inline int lmrTtpvFaillow(bool importantCapture) { return importantCapture ? lmrTtpvFaillowQuietOrNormalCapture : lmrTtpvFaillowImportantCapture; };
+inline int lmrCaptureHistoryDivisor(bool importantCapture) { return importantCapture ? lmrHistoryFactorImportantCapture : lmrHistoryFactorCapture; };
+inline int lmrCorrectionDivisor(bool importantCapture) { return importantCapture ? lmrCorrectionDivisorImportantCapture : lmrCorrectionDivisorQuietOrNormalCapture; };
 
 TUNE_INT(postlmrOppWorseningThreshold, 293, 150, 450);
 TUNE_INT(postlmrOppWorseningReduction, 121, 0, 200);
@@ -155,7 +174,7 @@ TUNE_INT(lowDepthPvDepthReductionWeight, 98, 0, 200);
 
 TUNE_INT(correctionHistoryFactor, 172, 32, 512);
 
-int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
+int REDUCTIONS[3][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
 int LMP_MARGIN[MAX_PLY][2];
 
@@ -165,8 +184,9 @@ void initReductions() {
 
     for (int i = 1; i < MAX_PLY; i++) {
         for (int j = 1; j < MAX_MOVES; j++) {
-            REDUCTIONS[0][i][j] = 100 * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // non-quiet
-            REDUCTIONS[1][i][j] = 100 * (lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor); // quiet
+            REDUCTIONS[0][i][j] = 100 * (lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor); // quiet
+            REDUCTIONS[1][i][j] = 100 * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // capture
+            REDUCTIONS[2][i][j] = 100 * (lmrReductionImportantNoisyBase + log(i) * log(j) / lmrReductionImportantNoisyFactor); // important capture
         }
     }
 
@@ -1017,30 +1037,34 @@ movesLoop:
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
-            int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount] + 189;
+            bool importantCapture = capture && (pvNode || (allNode && stack->ttPv));
 
-            reduction -= std::abs(correctionValue / lmrCorrection);
+            int16_t reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
+            reduction += lmrReductionOffset(importantCapture);
+            reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
 
             if (boardCopy->checkers)
-                reduction -= lmrCheck;
+                reduction -= lmrCheck(importantCapture);
 
             if (cutNode)
                 reduction += lmrCutnode;
 
-            if (stack->ttPv)
-                reduction -= lmrTtPv - lmrTtpvFaillow * (ttHit && ttValue <= alpha);
+            if (stack->ttPv) {
+                reduction -= lmrTtPv(importantCapture);
+                reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
+            }
 
             if (capture) {
-                reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
+                reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
 
-                if (stack->ttPv && (allNode || pvNode)) {
-                    reduction -= 100;
-                    reduction += 100 * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
-                    reduction /= 2;
+                if (importantCapture) {
+                    reduction -= lmrImportantCaptureOffset;
+                    reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
+                    reduction = lmrImportantCaptureFactor * reduction / 100;
                 }
             }
             else {
-                reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
+                reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
             }
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
