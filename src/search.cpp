@@ -258,22 +258,22 @@ int valueFromTt(int value, int ply, int rule50) {
         // Downgrade potentially false mate score
         if (value >= EVAL_MATE_IN_MAX_PLY && EVAL_MATE - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         return value - ply;
     }
     else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
         // Downgrade potentially false mate score
         if (value <= -EVAL_MATE_IN_MAX_PLY && EVAL_MATE + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         return value + ply;
     }
     return value;
@@ -567,6 +567,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
     constexpr NodeType nodeType = nt == ROOT_NODE ? PV_NODE : NON_PV_NODE;
+    const bool allNode = !pvNode && !cutNode;
 
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
     assert(!(pvNode && cutNode));
@@ -1015,31 +1016,31 @@ movesLoop:
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !pvNode)) {
-            int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount];
+        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
+            int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount] + 189;
 
-            if (stack->ttPv && !pvNode && !cutNode && capture) {
-                // Do very slight LMR for captures in ttPv-allnodes
-                reduction /= 2;
-            } else {
-                if (boardCopy->checkers)
-                    reduction -= lmrCheck;
+            reduction -= std::abs(correctionValue / lmrCorrection);
 
-                if (!stack->ttPv)
-                    reduction += lmrTtPv;
+            if (boardCopy->checkers)
+                reduction -= lmrCheck;
 
-                if (cutNode)
-                    reduction += lmrCutnode;
+            if (cutNode)
+                reduction += lmrCutnode;
 
-                if (stack->ttPv && ttHit && ttValue <= alpha)
-                    reduction += lmrTtpvFaillow;
+            if (stack->ttPv)
+                reduction -= lmrTtPv - lmrTtpvFaillow * (ttHit && ttValue <= alpha);
 
-                reduction -= std::abs(correctionValue / lmrCorrection);
+            if (capture) {
+                reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
 
-                if (capture)
-                    reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
-                else
-                    reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
+                if (stack->ttPv && (allNode || pvNode)) {
+                    reduction -= 100;
+                    reduction += 100 * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
+                    reduction /= 2;
+                }
+            }
+            else {
+                reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
             }
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
