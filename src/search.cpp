@@ -107,6 +107,8 @@ TUNE_INT(earlyLmrHistoryFactorCapture, 14912, 10000, 20000);
 TUNE_INT(fpDepth, 1149, 100, 2000);
 TUNE_INT(fpBase, 234, 1, 1000);
 TUNE_INT(fpFactor, 101, 1, 500);
+TUNE_INT(fpPvNode, 30, 1, 250);
+TUNE_INT(fpPvNodeBadCapture, 100, 1, 500);
 
 TUNE_INT(fpCaptDepth, 1005, 100, 2000);
 TUNE_INT(fpCaptBase, 418, 150, 750);
@@ -144,6 +146,7 @@ TUNE_INT(lmrHistoryFactorImportantCapture, 3031309, 2500000, 4000000);
 TUNE_INT(lmrImportantCaptureOffset, 100, 0, 500);
 TUNE_INT(lmrImportantBadCaptureOffset, 100, 0, 500);
 TUNE_INT(lmrImportantCaptureFactor, 50, 0, 250);
+TUNE_INT(lmrQuietPvNodeOffset, 0, 0, 250);
 
 inline int lmrReductionOffset(bool importantCapture) { return importantCapture ? lmrReductionOffsetImportantCapture : lmrReductionOffsetQuietOrNormalCapture; };
 inline int lmrCheck(bool importantCapture) { return importantCapture ? lmrCheckImportantCapture : lmrCheckQuietOrNormalCapture; };
@@ -181,11 +184,12 @@ int LMP_MARGIN[MAX_PLY][2];
 void initReductions() {
     REDUCTIONS[0][0][0] = 0;
     REDUCTIONS[1][0][0] = 0;
+    REDUCTIONS[2][0][0] = 0;
 
     for (int i = 1; i < MAX_PLY; i++) {
         for (int j = 1; j < MAX_MOVES; j++) {
             REDUCTIONS[0][i][j] = 100 * (lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor); // quiet
-            REDUCTIONS[1][i][j] = 100 * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // capture
+            REDUCTIONS[1][i][j] = 100 * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // non-quiet
             REDUCTIONS[2][i][j] = 100 * (lmrReductionImportantNoisyBase + log(i) * log(j) / lmrReductionImportantNoisyFactor); // important capture
         }
     }
@@ -587,7 +591,6 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
     constexpr NodeType nodeType = nt == ROOT_NODE ? PV_NODE : NON_PV_NODE;
-    const bool allNode = !pvNode && !cutNode;
 
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
     assert(!(pvNode && cutNode));
@@ -921,7 +924,7 @@ movesLoop:
                 }
 
                 // Futility pruning
-                int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (30 + 100 * (bestMove == MOVE_NONE));
+                int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * (bestMove == MOVE_NONE));
                 if (!capture && lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
                 }
@@ -1037,7 +1040,7 @@ movesLoop:
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
-            bool importantCapture = capture && (pvNode || (allNode && stack->ttPv));
+            bool importantCapture = stack->ttPv && capture && !cutNode;
 
             int16_t reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
             reduction += lmrReductionOffset(importantCapture);
@@ -1065,6 +1068,7 @@ movesLoop:
             }
             else {
                 reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
+                reduction -= lmrQuietPvNodeOffset * pvNode;
             }
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
