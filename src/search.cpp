@@ -1069,6 +1069,7 @@ movesLoop:
             else {
                 reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
                 reduction -= lmrQuietPvNodeOffset * pvNode;
+                reduction += -60 + 100 * !improving;
             }
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
