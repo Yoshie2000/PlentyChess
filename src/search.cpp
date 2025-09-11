@@ -1063,6 +1063,7 @@ movesLoop:
                 if (importantCapture) {
                     reduction -= lmrImportantCaptureOffset;
                     reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
+                    reduction += 100 * (board->isCapture(ttMove) && ttDepth / 100 > depth / 100);
                     reduction = lmrImportantCaptureFactor * reduction / 100;
                 }
             }
