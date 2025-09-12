@@ -411,9 +411,6 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, Square square,
     while (attacked) {
         Square attackedSquare = popLSB(&attacked);
 
-        Piece attackedPiece = pieces[attackedSquare];
-        Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
-
         if (add) {
             assert((threats.toSquare[attackedSquare] & squareBB) == 0);
             threats.toSquare[attackedSquare] |= squareBB;

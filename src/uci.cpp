@@ -19,6 +19,7 @@
 #include "spsa.h"
 #include "history.h"
 #include "fathom/src/tbprobe.h"
+#include "debug.h"
 
 namespace UCI {
     UCIOptions Options;
@@ -576,6 +577,7 @@ void uciLoop(int argc, char* argv[]) {
     }
     if (argc > 1 && matchesToken(argv[1], "bench")) {
         bench(board, boardHistory);
+        Debug::show();
         return;
     }
     for (std::string line = {};std::getline(std::cin, line);) {
