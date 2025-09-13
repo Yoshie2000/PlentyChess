@@ -175,7 +175,7 @@ TUNE_INT(lowDepthPvDepthReductionMin, 425, 0, 800);
 TUNE_INT(lowDepthPvDepthReductionMax, 1042, 0, 2000);
 TUNE_INT(lowDepthPvDepthReductionWeight, 103, 0, 200);
 
-TUNE_INT(correctionHistoryFactorMulticut, 120, 32, 512);
+TUNE_INT(correctionHistoryFactorMulticut, 140, 32, 512);
 TUNE_INT(correctionHistoryFactor, 180, 32, 512);
 
 int REDUCTIONS[3][MAX_PLY][MAX_MOVES];
