@@ -38,7 +38,7 @@ namespace ThreatInputs {
                     Square relativeSquare = square ^ (56 * pov);
 
                     // Add the threat features
-                    for (Color attackingSide = Color::WHITE; attackingSide <= Color::BLACK; ++side) {
+                    for (Color attackingSide = Color::WHITE; attackingSide <= Color::BLACK; ++attackingSide) {
                         uint16_t attackingPieceIDs = threats->toSquare[attackingSide][indexSquare];
                         while (attackingPieceIDs) {
                             PieceID attackingPieceID = popLSB(&attackingPieceIDs);

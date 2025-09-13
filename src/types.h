@@ -63,8 +63,12 @@ inline Square popLSB(Bitboard* bb) {
     *bb &= *bb - 1;
     return l;
 }
-inline Square popLSB(uint16_t* bb) {
-    Square l = lsb(*bb);
+inline PieceID lsb(uint16_t bb) {
+    assert(bb > 0);
+    return __builtin_ctz(bb);
+}
+inline PieceID popLSB(uint16_t* bb) {
+    PieceID l = lsb(*bb);
     *bb &= *bb - 1;
     return l;
 }

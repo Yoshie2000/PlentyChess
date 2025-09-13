@@ -362,6 +362,7 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, PieceID pieceI
     Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
     Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor);
     Bitboard attackedOcc = attacked & occupancy;
+    // TODO update this using diff of previous / current (square of attacker (`piece`) does not matter)
     while (attacked) {
         Square attackedSquare = popLSB(&attacked);
 
@@ -374,6 +375,7 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, PieceID pieceI
             threats.toSquare[pieceColor][attackedSquare] &= ~pieceID;
         }
     }
+    // TODO this must keep the square of the attacker (`piece`) into account => DO NOT DIFF
     while (attackedOcc) {
         Square attackedSquare = popLSB(&attackedOcc);
 
