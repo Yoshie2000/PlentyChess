@@ -175,7 +175,8 @@ TUNE_INT(lowDepthPvDepthReductionMin, 425, 0, 800);
 TUNE_INT(lowDepthPvDepthReductionMax, 1042, 0, 2000);
 TUNE_INT(lowDepthPvDepthReductionWeight, 103, 0, 200);
 
-TUNE_INT(correctionHistoryFactor, 160, 32, 512);
+TUNE_INT(correctionHistoryFactorMulticut, 120, 32, 512);
+TUNE_INT(correctionHistoryFactor, 180, 32, 512);
 
 int REDUCTIONS[3][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
@@ -990,7 +991,7 @@ movesLoop:
 
                 // Adjust correction history
                 if (!board->checkers && value > stack->staticEval) {
-                    int bonus = std::clamp((int(value - stack->staticEval) * singularDepth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+                    int bonus = std::clamp((int(value - stack->staticEval) * singularDepth / 100) * correctionHistoryFactorMulticut / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
                     history.updateCorrectionHistory(board, stack, bonus);
                 }
 
