@@ -12,9 +12,9 @@
 #endif
 
 #ifdef _MSC_VER
-    #define SP_MSVC
-    #pragma push_macro("_MSC_VER")
-    #undef _MSC_VER
+#define SP_MSVC
+#pragma push_macro("_MSC_VER")
+#undef _MSC_VER
 #endif
 
 #include "incbin/incbin.h"
@@ -25,8 +25,8 @@
 INCBIN(NETWORK, EVALFILE);
 
 #ifdef SP_MSVC
-    #pragma pop_macro("_MSC_VER")
-    #undef SP_MSVC
+#pragma pop_macro("_MSC_VER")
+#undef SP_MSVC
 #endif
 
 NetworkData* networkData;
@@ -252,6 +252,8 @@ __attribute_noinline__ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* 
 
 template<Color side>
 __attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+    ThreatInputs::FeatureList addFeatures, subFeatures;
+
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
         DirtyThreat dirtyThreat = outputAcc->dirtyThreats[dp];
 
@@ -268,11 +270,25 @@ __attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator*
 
         if (featureIndex != -1) {
             if (dirtyThreat.add)
-                addToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, featureIndex);
+                addFeatures.add(featureIndex);
             else
-                subFromAccumulator<side>(inputAcc->threatState, outputAcc->threatState, featureIndex);
-            inputAcc = outputAcc;
+                subFeatures.add(featureIndex);
         }
+    }
+
+    while (addFeatures.count() && subFeatures.count()) {
+        addSubToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0), subFeatures.remove(0));
+        inputAcc = outputAcc;
+    }
+
+    while (addFeatures.count()) {
+        addToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0));
+        inputAcc = outputAcc;
+    }
+
+    while (subFeatures.count()) {
+        subFromAccumulator<side>(inputAcc->threatState, outputAcc->threatState, subFeatures.remove(0));
+        inputAcc = outputAcc;
     }
 
     if (!outputAcc->numDirtyThreats)
@@ -453,11 +469,11 @@ Eval NNUE::evaluate(Board* board) {
     for (int ft = 0; ft < 2 * L1_SIZE; ft++) {
         if (!pairwiseOutputs[ft])
             continue;
-            
+
         for (int l1 = 0; l1 < L2_SIZE; l1++) {
             l1MatmulOutputs[l1] += pairwiseOutputs[ft] * networkData->l1Weights[bucket][ft * L2_SIZE + l1];
         }
-    }
+}
 #endif
 
     // ---------------------- CONVERT TO FLOATS & ACTIVATE L1 ----------------------
