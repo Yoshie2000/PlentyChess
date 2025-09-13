@@ -432,7 +432,7 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
         else if (moveType(move) == MOVE_PROMOTION)
             score += PIECE_VALUES[PROMOTION_PIECE[promotionType(move)]] * mpPromotionScoreFactor / 100;
         else
-            score += (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
+            score += (PIECE_VALUES[board->mailbox[moveTarget(move)].piece()] - PIECE_VALUES[board->mailbox[moveOrigin(move)].piece()]) * mpMvvLvaScoreFactor / 100;
 
         moveListScores[i] = score;
     }
@@ -456,7 +456,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
         }
 
         int threatScore = 0;
-        Piece piece = board->pieces[moveOrigin(move)];
+        Piece piece = board->mailbox[moveOrigin(move)].piece();
         Bitboard fromBB = bitboard(moveOrigin(move));
         Bitboard toBB = bitboard(moveTarget(move));
         if (piece == Piece::QUEEN) {
@@ -642,11 +642,11 @@ Move stringToMove(const char* string, Board* board) {
     }
 
     // Figure out whether this is en passent or castling and set the flags accordingly
-    if (board->chess960 && board->pieces[origin] == Piece::KING && board->pieces[target] == Piece::ROOK && !(bitboard(target) & board->byColor[1 - board->stm]))
+    if (board->chess960 && board->mailbox[origin].piece() == Piece::KING && board->mailbox[target].piece() == Piece::ROOK && !(bitboard(target) & board->byColor[1 - board->stm]))
         move |= MOVE_CASTLING;
-    if (!board->chess960 && board->pieces[origin] == Piece::KING && std::abs(target - origin) == 2)
+    if (!board->chess960 && board->mailbox[origin].piece() == Piece::KING && std::abs(target - origin) == 2)
         move |= MOVE_CASTLING;
-    if (board->pieces[origin] == Piece::PAWN && board->pieces[target] == Piece::NONE && (std::abs(target - origin) == 7 || std::abs(target - origin) == 9))
+    if (board->mailbox[origin].piece() == Piece::PAWN && board->mailbox[target].piece() == Piece::NONE && (std::abs(target - origin) == 7 || std::abs(target - origin) == 9))
         move |= MOVE_ENPASSANT;
 
     return move;

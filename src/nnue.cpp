@@ -80,7 +80,7 @@ __attribute_noinline__ void NNUE::resetAccumulator(Board* board, Accumulator* ac
     memset(acc->pieceState[side], 0, sizeof(acc->pieceState[side]));
 
     ThreatInputs::FeatureList threatFeatures;
-    ThreatInputs::addThreatFeatures(board->byColor, board->byPiece, board->pieces, &board->threats, side, threatFeatures);
+    ThreatInputs::addThreatFeatures(board->byColor, board->byPiece, board->mailbox, (Square*) board->piecelistSquares, &board->threats, side, threatFeatures);
     for (int featureIndex : threatFeatures)
         addToAccumulator<side>(acc->threatState, acc->threatState, featureIndex);
 
@@ -92,7 +92,8 @@ __attribute_noinline__ void NNUE::resetAccumulator(Board* board, Accumulator* ac
     acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
     memcpy(acc->byColor[side], board->byColor, sizeof(board->byColor));
     memcpy(acc->byPiece[side], board->byPiece, sizeof(board->byPiece));
-    memcpy(acc->pieces[side], board->pieces, sizeof(board->pieces));
+    memcpy(acc->mailbox[side], board->mailbox, sizeof(board->mailbox));
+    memcpy(acc->piecelistSquares[side], board->piecelistSquares, sizeof(board->piecelistSquares));
     memcpy(&acc->threats[side], &board->threats, sizeof(board->threats));
 }
 
@@ -153,7 +154,8 @@ void NNUE::finalizeMove(Board* board) {
         accumulator->kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
         memcpy(accumulator->byColor[side], board->byColor, sizeof(board->byColor));
         memcpy(accumulator->byPiece[side], board->byPiece, sizeof(board->byPiece));
-        memcpy(accumulator->pieces[side], board->pieces, sizeof(board->pieces));
+        memcpy(accumulator->mailbox[side], board->mailbox, sizeof(board->mailbox));
+        memcpy(accumulator->piecelistSquares[side], board->piecelistSquares, sizeof(board->piecelistSquares));
         memcpy(&accumulator->threats[side], &board->threats, sizeof(board->threats));
     }
 }
@@ -221,7 +223,7 @@ __attribute_noinline__ void NNUE::refreshThreatFeatures(Accumulator* acc) {
     memcpy(acc->threatState[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
     ThreatInputs::FeatureList threatFeatures;
-    ThreatInputs::addThreatFeatures(acc->byColor[side], acc->byPiece[side], acc->pieces[side], &acc->threats[side], side, threatFeatures);
+    ThreatInputs::addThreatFeatures(acc->byColor[side], acc->byPiece[side], acc->mailbox[side], (Square*) acc->piecelistSquares[side], &acc->threats[side], side, threatFeatures);
     for (int featureIndex : threatFeatures)
         addToAccumulator<side>(acc->threatState, acc->threatState, featureIndex);
 }

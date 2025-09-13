@@ -26,7 +26,7 @@ constexpr int castlingIndex(Color side, Square kingOrigin, Square kingTarget) {
 
 struct Threats {
     Bitboard byPiece[6];
-    Bitboard toSquare[64];
+    uint16_t toSquare[2][64];
 };
 
 struct Hashes {
@@ -37,9 +37,38 @@ struct Hashes {
     uint64_t majorHash;
 };
 
+struct MailboxEntry {
+    uint8_t data;
+
+    MailboxEntry(): data(Piece::NONE) {}
+
+    MailboxEntry(Piece piece, Color color, PieceID pieceID): data(piece | (pieceID << 3) | (color << 7)) {}
+
+    Piece piece() {
+        return Piece(data & 0x7);
+    }
+
+    PieceID pieceID() {
+        return PieceID((data >> 3) & 0xF);
+    }
+
+    Color color() {
+        return (data & 0x80) ? Color::BLACK : Color::WHITE;
+    }
+
+    bool isEmpty() {
+        return piece() == Piece::NONE;
+    }
+};
+
+static_assert(sizeof(MailboxEntry) == sizeof(Piece));
+
 struct Board {
     Threats threats;
     Hashes hashes;
+
+    Square piecelistSquares[2][16];
+    Piece piecelistPieces[2][16];
 
     Bitboard byPiece[Piece::TOTAL];
     Bitboard byColor[2];
@@ -48,7 +77,7 @@ struct Board {
     Bitboard checkers;
     Move lastMove;
     uint8_t checkerCount;
-    Piece pieces[64];
+    MailboxEntry mailbox[64];
 
     Color stm;
 
@@ -66,13 +95,13 @@ struct Board {
     std::string fen();
 
     template<bool add>
-    void updateThreatsFromPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
+    void updateThreatsFromPiece(Piece piece, Color pieceColor, PieceID pieceID, Square square, Bitboard squareBB, NNUE* nnue);
     template<bool add>
-    void updateThreatsToPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
+    void updateThreatsToPiece(Piece piece, Color pieceColor, PieceID pieceID, Square square, NNUE* nnue);
 
-    void addPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
-    void removePiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
-    void movePiece(Piece piece, Color pieceColor, Square origin, Square target, Bitboard fromTo, NNUE* nnue);
+    void addPiece(Piece piece, Color pieceColor, PieceID pieceID, Square square, Bitboard squareBB, NNUE* nnue);
+    void removePiece(Piece piece, Color pieceColor, PieceID pieceID, Square square, Bitboard squareBB, NNUE* nnue);
+    void movePiece(Piece piece, Color pieceColor, PieceID pieceID, Square origin, Square target, Bitboard fromTo, NNUE* nnue);
 
     void doMove(Move move, uint64_t newHash, NNUE* nnue);
     void doNullMove();
@@ -85,7 +114,7 @@ struct Board {
         MoveType type = moveType(move);
         if (type == MOVE_CASTLING) return false;
         if (type == MOVE_ENPASSANT || (type == MOVE_PROMOTION && promotionType(move) == PROMOTION_QUEEN)) return true;
-        return pieces[moveTarget(move)] != Piece::NONE;
+        return mailbox[moveTarget(move)].piece() != Piece::NONE;
     }
     bool isPseudoLegal(Move move);
     bool isLegal(Move move);

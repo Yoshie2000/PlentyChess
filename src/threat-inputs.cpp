@@ -20,21 +20,13 @@ namespace ThreatInputs {
         return ((bitboard >> 4) & K4) | ((bitboard & K4) << 4);
     }
 
-    void addThreatFeatures(Bitboard* byColor, Bitboard* byPiece, Piece* pieces, Threats* threats, Color pov, FeatureList& features) {
+    void addThreatFeatures(Bitboard* byColor, Bitboard* byPiece, MailboxEntry* mailbox, Square* piecelistSquares, Threats* threats, Color pov, FeatureList& features) {
         // Check HM and get occupancies
         Square king = lsb(byColor[pov] & byPiece[Piece::KING]);
         bool hm = fileOf(king) >= 4;
 
-        Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
-        if (hm) occupancy = mirrorBitboard(occupancy);
-        Bitboard nonPovOccupancy = byColor[flip(pov)];
-        if (hm) nonPovOccupancy = mirrorBitboard(nonPovOccupancy);
-
         // Loop through sides and pieces
         for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-
-            Bitboard enemyOccupancy = byColor[flip(side)];
-            if (hm) enemyOccupancy = mirrorBitboard(enemyOccupancy);
 
             for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
                 Bitboard pieceBitboard = byColor[side] & byPiece[piece];
@@ -46,25 +38,21 @@ namespace ThreatInputs {
                     Square relativeSquare = square ^ (56 * pov);
 
                     // Add the threat features
-                    Bitboard attacks = threats->toSquare[indexSquare];
-                    if (hm) attacks = mirrorBitboard(attacks);
-                    attacks &= occupancy;
-                    while (attacks) {
-                        Square attackingSquare = popLSB(&attacks);
-                        Square attackingIndexSquare = attackingSquare ^ (hm * 7);
-                        Square relativeAttackingSquare = attackingSquare ^ (56 * pov);
-                        Piece attackingPiece = pieces[attackingIndexSquare];
-                        Color attackingSide = (byColor[Color::WHITE] & bitboard(attackingIndexSquare)) ? Color::WHITE : Color::BLACK;
+                    for (Color attackingSide = Color::WHITE; attackingSide <= Color::BLACK; ++side) {
+                        uint16_t attackingPieceIDs = threats->toSquare[attackingSide][indexSquare];
+                        while (attackingPieceIDs) {
+                            PieceID attackingPieceID = popLSB(&attackingPieceIDs);
+                            Square attackingPieceIndexSquare = piecelistSquares[attackingSide * 16 + attackingPieceID];
+                            Piece attackingPiece = mailbox[attackingPieceIndexSquare].piece();
+                            Square relativeAttackingSquare = attackingPieceIndexSquare ^ (hm * 7) ^ (56 * pov);
 
-                        Color relativeSide = static_cast<Color>(pov != side);
-                        bool enemy = attackingSide != side;
-                        int sideOffset = (attackingSide != pov) * PieceOffsets::END;
-
-                        assert(attackingPiece != Piece::NONE);
-
-                        int threatFeature = getThreatFeature(attackingPiece, relativeAttackingSquare, relativeSquare, piece, relativeSide, enemy, sideOffset);
-                        if (threatFeature != -1)
-                            features.add(threatFeature);
+                            Color relativeSide = static_cast<Color>(pov != side);
+                            bool enemy = attackingSide != side;
+                            int sideOffset = (attackingSide != pov) * PieceOffsets::END;
+                            int threatFeature = getThreatFeature(attackingPiece, relativeAttackingSquare, relativeSquare, piece, relativeSide, enemy, sideOffset);
+                            if (threatFeature != -1)
+                                features.add(threatFeature);
+                        }
                     }
                 }
             }

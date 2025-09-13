@@ -44,7 +44,7 @@ bool playRandomMoves(Board& board, Worker* thread, int remainingMoves) {
         Piece randomPiece = r < 35 ? Piece::PAWN : r < 50 ? Piece::KNIGHT : r < 65 ? Piece::BISHOP : r < 80 ? Piece::QUEEN : r < 95 ? Piece::KING : Piece::ROOK;
         std::vector<Move> pieceMoves;
         for (Move m : legalMoves) {
-            if (board.pieces[moveOrigin(m)] == randomPiece)
+            if (board.mailbox[moveOrigin(m)].piece() == randomPiece)
                 pieceMoves.push_back(m);
         }
         if (!pieceMoves.empty()) {

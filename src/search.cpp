@@ -361,7 +361,7 @@ bool Worker::hasUpcomingRepetition(Board* board, int ply) {
             if (ply > i)
                 return true;
 
-            Square pieceSquare = board->pieces[origin] == Piece::NONE ? target : origin;
+            Square pieceSquare = board->mailbox[origin].isEmpty() ? target : origin;
             Color pieceColor = (board->byColor[Color::WHITE] & bitboard(pieceSquare)) ? Color::WHITE : Color::BLACK;
             if (pieceColor != board->stm)
                 continue;
@@ -543,7 +543,7 @@ movesLoopQsearch:
         Square target = moveTarget(move);
         stack->capture = capture;
         stack->move = move;
-        stack->movedPiece = board->pieces[origin];
+        stack->movedPiece = board->mailbox[origin].piece();
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
 
@@ -849,7 +849,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             Square target = moveTarget(move);
             stack->capture = board->isCapture(move);
             stack->move = move;
-            stack->movedPiece = board->pieces[origin];
+            stack->movedPiece = board->mailbox[origin].piece();
             stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
             stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
 
@@ -932,7 +932,7 @@ movesLoop:
 
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
-                Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
+                Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->mailbox[moveTarget(move)].piece();
                 if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
                     continue;
             }
@@ -1025,7 +1025,7 @@ movesLoop:
         Square target = moveTarget(move);
         stack->capture = capture;
         stack->move = move;
-        stack->movedPiece = board->pieces[origin];
+        stack->movedPiece = board->mailbox[origin].piece();
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
 

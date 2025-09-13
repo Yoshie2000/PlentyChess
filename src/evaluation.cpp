@@ -80,11 +80,11 @@ bool SEE(Board* board, Move move, Eval threshold) {
     Square target = moveTarget(move);
 
     // If winning the piece on the target square (if there is one) for free doesn't pass the threshold, fail
-    int value = SEE_VALUES[board->pieces[target]] - threshold;
+    int value = SEE_VALUES[board->mailbox[target].piece()] - threshold;
     if (value < 0) return false;
 
     // If we beat the threshold after losing our piece, pass
-    value -= SEE_VALUES[board->pieces[origin]];
+    value -= SEE_VALUES[board->mailbox[origin].piece()];
     if (value >= 0) return true;
 
     Bitboard occupied = (board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) ^ (bitboard(origin));

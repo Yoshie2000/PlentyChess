@@ -43,6 +43,7 @@ typedef uint16_t PromotionType;
 typedef int32_t Eval;
 typedef uint8_t Square;
 typedef uint64_t Bitboard;
+typedef uint8_t PieceID;
 
 constexpr Square NO_SQUARE = 64;
 
@@ -58,6 +59,11 @@ inline Square lsb(Bitboard bb) {
     return __builtin_ctzll(bb);
 }
 inline Square popLSB(Bitboard* bb) {
+    Square l = lsb(*bb);
+    *bb &= *bb - 1;
+    return l;
+}
+inline Square popLSB(uint16_t* bb) {
     Square l = lsb(*bb);
     *bb &= *bb - 1;
     return l;

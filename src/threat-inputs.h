@@ -120,7 +120,7 @@ namespace ThreatInputs {
     int localThreatIndex(Square to, Bitboard attackedByFrom);
     Bitboard mirrorBitboard(Bitboard bitboard);
     
-    void addThreatFeatures(Bitboard* byColor, Bitboard* byPiece, Piece* pieces, Threats* threats, Color side, FeatureList& features);
+    void addThreatFeatures(Bitboard* byColor, Bitboard* byPiece, MailboxEntry* mailbox, Square* piecelistSquares, Threats* threats, Color side, FeatureList& features);
     void addPieceFeatures(Bitboard* byColor, Bitboard* byPiece, Color side, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT);
     
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket);
