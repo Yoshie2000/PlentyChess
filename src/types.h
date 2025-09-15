@@ -96,6 +96,10 @@ constexpr Bitboard bitboard(Square square) {
     return static_cast<Bitboard>(1) << square;
 }
 
+constexpr uint16_t piecemask(PieceID pieceID) {
+    return static_cast<uint16_t>(1) << pieceID;
+}
+
 constexpr int fileOf(Square square) {
     return square % 8;
 }

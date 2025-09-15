@@ -356,26 +356,27 @@ std::string Board::fen() {
 }
 
 template<bool add>
-void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, PieceID pieceID, Square square, Bitboard squareBB, NNUE* nnue) {
+void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, PieceID pieceID, Square square, NNUE* nnue, Bitboard threatDiff) {
     // Add this piece as an attacker to its attacked squares, regardless of that squares occupancy
     // OR: Remove it as an attacker
     Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
     Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor);
-    Bitboard attackedOcc = attacked & occupancy;
-    // TODO update this using diff of previous / current (square of attacker (`piece`) does not matter)
-    while (attacked) {
-        Square attackedSquare = popLSB(&attacked);
+    if (threatDiff == 0xFFFFFFFFFFFFFFFF)
+        threatDiff = attacked;
+    while (threatDiff) {
+        Square attackedSquare = popLSB(&threatDiff);
 
         if (add) {
-            assert((threats.toSquare[pieceColor][attackedSquare] & pieceID) == 0);
-            threats.toSquare[pieceColor][attackedSquare] |= pieceID;
+            assert((threats.toSquare[pieceColor][attackedSquare] & piecemask(pieceID)) == 0);
+            threats.toSquare[pieceColor][attackedSquare] |= piecemask(pieceID);
         }
         else {
-            assert((threats.toSquare[pieceColor][attackedSquare] & pieceID) != 0);
-            threats.toSquare[pieceColor][attackedSquare] &= ~pieceID;
+            assert((threats.toSquare[pieceColor][attackedSquare] & piecemask(pieceID)) != 0);
+            threats.toSquare[pieceColor][attackedSquare] &= ~piecemask(pieceID);
         }
     }
-    // TODO this must keep the square of the attacker (`piece`) into account => DO NOT DIFF
+
+    Bitboard attackedOcc = attacked & occupancy;
     while (attackedOcc) {
         Square attackedSquare = popLSB(&attackedOcc);
 
@@ -391,16 +392,16 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, PieceID pieceI
     // Remove attacks of sliding pieces that are now blocked by this piece
     // OR: Add attacks that are no longer blocked
     Bitboard slidingPieces = byPiece[Piece::BISHOP] | byPiece[Piece::ROOK] | byPiece[Piece::QUEEN];
-    slidingPieces &= ~squareBB;
+    slidingPieces &= ~bitboard(square);
     while (slidingPieces) {
         Square sliderSquare = popLSB(&slidingPieces);
         MailboxEntry slidingPieceData = mailbox[sliderSquare];
         Piece slidingPiece = slidingPieceData.piece();
-        PieceID sliderID = slidingPieceData.pieceID();
+        uint16_t sliderIdMask = piecemask(slidingPieceData.pieceID());
         Color sliderColor = slidingPieceData.color();
 
         // If the slider isn't currently attacking this piece, it can't attack squares behind it either
-        if ((threats.toSquare[sliderColor][square] & sliderID) == 0)
+        if ((threats.toSquare[sliderColor][square] & sliderIdMask) == 0)
             continue;
 
         int8_t direction = BB::DIRECTION_BETWEEN[sliderSquare][square];
@@ -419,15 +420,15 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, PieceID pieceI
             Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
 
             if (add) {
-                assert((threats.toSquare[sliderColor][attackedSquare] & sliderID) != 0);
-                threats.toSquare[sliderColor][attackedSquare] &= ~sliderID;
+                assert((threats.toSquare[sliderColor][attackedSquare] & sliderIdMask) != 0);
+                threats.toSquare[sliderColor][attackedSquare] &= ~sliderIdMask;
 
                 if (attackedPiece != Piece::NONE)
                     nnue->removeThreat(slidingPiece, attackedPiece, sliderSquare, attackedSquare, sliderColor, attackedColor);
             }
             else {
-                assert((threats.toSquare[sliderColor][attackedSquare] & sliderID) == 0);
-                threats.toSquare[sliderColor][attackedSquare] |= sliderID;
+                assert((threats.toSquare[sliderColor][attackedSquare] & sliderIdMask) == 0);
+                threats.toSquare[sliderColor][attackedSquare] |= sliderIdMask;
 
                 if (attackedPiece != Piece::NONE)
                     nnue->addThreat(slidingPiece, attackedPiece, sliderSquare, attackedSquare, sliderColor, attackedColor);
@@ -446,7 +447,7 @@ void Board::updateThreatsToPiece(Piece piece, Color pieceColor, PieceID pieceID,
     for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
         uint16_t attackingPieceIDs = threats.toSquare[c][square];
         if (c == pieceColor)
-            attackingPieceIDs &= ~pieceID;
+            attackingPieceIDs &= ~piecemask(pieceID);
 
         while (attackingPieceIDs) {
             PieceID attackingPieceID = popLSB(&attackingPieceIDs);
@@ -477,11 +478,8 @@ void Board::addPiece(Piece piece, Color pieceColor, PieceID pieceID, Square squa
     piecelistSquares[pieceColor][pieceID] = square;
 
     nnue->addPiece(square, piece, pieceColor);
-    updateThreatsFromPiece<true>(piece, pieceColor, pieceID, square, squareBB, nnue);
+    updateThreatsFromPiece<true>(piece, pieceColor, pieceID, square, nnue);
     updateThreatsToPiece<true>(piece, pieceColor, pieceID, square, nnue);
-
-    Threats correct = calculateAllThreats();
-    assert(0 == memcmp(&correct, &threats, sizeof(Threats)));
 };
 
 void Board::removePiece(Piece piece, Color pieceColor, PieceID pieceID, Square square, Bitboard squareBB, NNUE* nnue) {
@@ -496,11 +494,8 @@ void Board::removePiece(Piece piece, Color pieceColor, PieceID pieceID, Square s
     piecelistSquares[pieceColor][pieceID] = NO_SQUARE;
 
     nnue->removePiece(square, piece, pieceColor);
-    updateThreatsFromPiece<false>(piece, pieceColor, pieceID, square, squareBB, nnue);
+    updateThreatsFromPiece<false>(piece, pieceColor, pieceID, square, nnue);
     updateThreatsToPiece<false>(piece, pieceColor, pieceID, square, nnue);
-
-    Threats correct = calculateAllThreats();
-    assert(0 == memcmp(&correct, &threats, sizeof(Threats)));
 };
 
 void Board::movePiece(Piece piece, Color pieceColor, PieceID pieceID, Square origin, Square target, Bitboard fromTo, NNUE* nnue) {
@@ -509,9 +504,15 @@ void Board::movePiece(Piece piece, Color pieceColor, PieceID pieceID, Square ori
     assert(piecelistSquares[pieceColor][pieceID] == origin);
     assert(piecelistPieces[pieceColor][pieceID] == piece);
 
+    Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
+    Bitboard oldAttacks = BB::attackedSquares(piece, origin, occupancy, pieceColor);
+    Bitboard newAttacks = BB::attackedSquares(piece, target, occupancy ^ bitboard(origin) ^ bitboard(target), pieceColor);
+    Bitboard attacksToRemove = oldAttacks & ~newAttacks;
+    Bitboard attacksToAdd = ~oldAttacks & newAttacks;
+
     nnue->movePiece(origin, target, piece, pieceColor);
 
-    updateThreatsFromPiece<false>(piece, pieceColor, pieceID, origin, bitboard(origin), nnue);
+    updateThreatsFromPiece<false>(piece, pieceColor, pieceID, origin, nnue, attacksToRemove);
 
     byColor[pieceColor] ^= fromTo;
     byPiece[piece] ^= fromTo;
@@ -520,11 +521,8 @@ void Board::movePiece(Piece piece, Color pieceColor, PieceID pieceID, Square ori
     piecelistSquares[pieceColor][pieceID] = target;
 
     updateThreatsToPiece<false>(piece, pieceColor, pieceID, origin, nnue);
-    updateThreatsFromPiece<true>(piece, pieceColor, pieceID, target, bitboard(target), nnue);
+    updateThreatsFromPiece<true>(piece, pieceColor, pieceID, target, nnue, attacksToAdd);
     updateThreatsToPiece<true>(piece, pieceColor, pieceID, target, nnue);
-
-    Threats correct = calculateAllThreats();
-    assert(0 == memcmp(&correct, &threats, sizeof(Threats)));
 };
 
 void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling) {
@@ -604,7 +602,7 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
                 hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
         }
 
-        removePiece(piece, stm, capturedMailboxEntry.pieceID(), origin, originBB, nnue);
+        removePiece(piece, stm, mailboxEntry.pieceID(), origin, originBB, nnue);
         rule50_ply = 0;
         hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin];
 
@@ -813,7 +811,7 @@ Threats Board::calculateAllThreats() {
                 while (pieceAttacks) {
                     Square attackedSquare = popLSB(&pieceAttacks);
 
-                    threats.toSquare[color][attackedSquare] |= pieceID;
+                    threats.toSquare[color][attackedSquare] |= piecemask(pieceID);
                 }
             }
         }
@@ -830,7 +828,7 @@ Threats Board::calculateAllThreats() {
             PieceID pieceID = mailbox[pcSq].pieceID();
 
             for (Square square = 0; square < 64; square++) {
-                if (pieceID & threats.toSquare[them][square])
+                if (piecemask(pieceID) & threats.toSquare[them][square])
                     pieceAttacks |= bitboard(square);
             }
         }
