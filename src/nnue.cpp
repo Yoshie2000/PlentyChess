@@ -90,10 +90,7 @@ __attribute_noinline__ void NNUE::resetAccumulator(Board* board, Accumulator* ac
         addToAccumulator<side>(acc->pieceState, acc->pieceState, featureIndex);
 
     acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
-    memcpy(acc->byColor[side], board->byColor, sizeof(board->byColor));
-    memcpy(acc->byPiece[side], board->byPiece, sizeof(board->byPiece));
-    memcpy(acc->pieces[side], board->pieces, sizeof(board->pieces));
-    memcpy(&acc->threats[side], &board->threats, sizeof(board->threats));
+    acc->board = board;
 }
 
 void NNUE::addPiece(Square square, Piece piece, Color pieceColor) {
@@ -148,13 +145,10 @@ void NNUE::decrementAccumulator() {
 
 void NNUE::finalizeMove(Board* board) {
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
+    accumulator->board = board;
 
     for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
         accumulator->kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
-        memcpy(accumulator->byColor[side], board->byColor, sizeof(board->byColor));
-        memcpy(accumulator->byPiece[side], board->byPiece, sizeof(board->byPiece));
-        memcpy(accumulator->pieces[side], board->pieces, sizeof(board->pieces));
-        memcpy(&accumulator->threats[side], &board->threats, sizeof(board->threats));
     }
 }
 
@@ -191,7 +185,7 @@ __attribute_noinline__ void NNUE::refreshPieceFeatures(Accumulator* acc, KingBuc
     for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
         for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
             Bitboard finnyBB = finnyEntry->byColor[side][c] & finnyEntry->byPiece[side][p];
-            Bitboard accBB = acc->byColor[side][c] & acc->byPiece[side][p];
+            Bitboard accBB = acc->board->byColor[c] & acc->board->byPiece[p];
 
             Bitboard addBB = accBB & ~finnyBB;
             Bitboard removeBB = ~accBB & finnyBB;
@@ -208,8 +202,8 @@ __attribute_noinline__ void NNUE::refreshPieceFeatures(Accumulator* acc, KingBuc
             }
         }
     }
-    memcpy(finnyEntry->byColor[side], acc->byColor[side], sizeof(finnyEntry->byColor[side]));
-    memcpy(finnyEntry->byPiece[side], acc->byPiece[side], sizeof(finnyEntry->byPiece[side]));
+    memcpy(finnyEntry->byColor[side], acc->board->byColor, sizeof(finnyEntry->byColor[side]));
+    memcpy(finnyEntry->byPiece[side], acc->board->byPiece, sizeof(finnyEntry->byPiece[side]));
 
     // Copy result to the current accumulator
     memcpy(acc->pieceState[side], finnyEntry->pieceState[side], sizeof(acc->pieceState[side]));
@@ -221,7 +215,7 @@ __attribute_noinline__ void NNUE::refreshThreatFeatures(Accumulator* acc) {
     memcpy(acc->threatState[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
     ThreatInputs::FeatureList threatFeatures;
-    ThreatInputs::addThreatFeatures(acc->byColor[side], acc->byPiece[side], acc->pieces[side], &acc->threats[side], side, threatFeatures);
+    ThreatInputs::addThreatFeatures(acc->board->byColor, acc->board->byPiece, acc->board->pieces, &acc->board->threats, side, threatFeatures);
     for (int featureIndex : threatFeatures)
         addToAccumulator<side>(acc->threatState, acc->threatState, featureIndex);
 }
