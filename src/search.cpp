@@ -93,7 +93,7 @@ TUNE_INT(nmpEvalDepth, 8, 1, 100);
 TUNE_INT(nmpEvalBase, 149, 50, 300);
 
 TUNE_INT(probcutReduction, 389, 0, 600);
-TUNE_INT(probCutBetaOffset, 188, 1, 500);
+TUNE_INT(probCutBetaOffset, 205, 1, 500);
 TUNE_INT(probCutDepth, 543, 100, 1000);
 
 TUNE_INT(iir2Reduction, 108, 0, 200);
@@ -825,7 +825,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // ProbCut
-    probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
+    probCutBeta = std::min(beta + probCutBetaOffset - 30 * improving, EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
         && !excluded
         && depth > probCutDepth
