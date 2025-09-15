@@ -418,11 +418,7 @@ struct Accumulator {
   int numDirtyThreats;
 
   KingBucketInfo kingBucketInfo[2];
-  Bitboard byColor[2][2];
-  Bitboard byPiece[2][Piece::TOTAL];
-  MailboxEntry mailbox[2][64];
-  Square piecelistSquares[2][2][16];
-  Threats threats[2];
+  Board* board;
 };
 
 struct FinnyEntry {
