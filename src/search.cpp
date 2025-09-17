@@ -580,7 +580,10 @@ movesLoopQsearch:
     }
 
     if (!pvNode && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && bestValue >= beta) {
-        bestValue = (bestValue + beta) / 2;
+        if (board->checkers)
+            bestValue = (bestValue + beta) / 2;
+        else
+            bestValue = beta;
     }
 
     // Insert into TT
