@@ -1058,7 +1058,7 @@ movesLoop:
 
             if (stack->ttPv) {
                 reduction -= lmrTtPv(importantCapture);
-                reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
+                reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha) * (1 + (!capture && ttDepth >= depth));
             }
 
             if (capture) {
