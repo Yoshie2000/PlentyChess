@@ -980,10 +980,10 @@ movesLoop:
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
                 extension = 1;
-                if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
+                if (singularValue + (doubleExtensionMargin + 100 * pvNode) < singularBeta) {
                     extension = 2;
-                    depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
-                    if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
+                    depth += doubleExtensionDepthIncreaseFactor * (!pvNode && depth < doubleExtensionDepthIncrease);
+                    if (!pvNode && !board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
                         extension = 3;
                 }
             }
