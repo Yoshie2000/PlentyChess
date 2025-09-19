@@ -1219,6 +1219,9 @@ movesLoop:
     if (pvNode)
         bestValue = std::min(bestValue, maxValue);
 
+    if (bestValue <= alpha)
+        stack->ttPv = stack->ttPv || (stack - 1)->ttPv;
+
     // Insert into TT
     bool failLow = alpha == oldAlpha;
     bool failHigh = bestValue >= beta;
