@@ -496,6 +496,36 @@ public:
 #include <cstring>
 #include <fstream>
 
+inline void writeSLEB128(std::ostream& os, int64_t value) {
+    bool more = true;
+    while (more) {
+        uint8_t byte = value & 0x7F;
+        bool sign = byte & 0x40;
+        value >>= 7;
+        if ((value == 0 && !sign) || (value == -1 && sign)) {
+            more = false;
+        } else {
+            byte |= 0x80;
+        }
+        os.put(static_cast<char>(byte));
+    }
+}
+
+inline void writeULEB128(std::ostream& os, uint64_t value) {
+    do {
+        uint8_t byte = value & 0x7F;
+        value >>= 7;
+        if (value != 0) byte |= 0x80;
+        os.put(static_cast<char>(byte));
+    } while (value != 0);
+}
+
+inline void writeFloat(std::ostream& os, float f) {
+    uint32_t v;
+    std::memcpy(&v, &f, sizeof(v));
+    writeULEB128(os, v);
+}
+
 class NNZ {
 public:
   int64_t activations[L1_SIZE] = {};
@@ -529,7 +559,7 @@ public:
     for (int i = 0; i < L1_SIZE; i++) {
       order[i] = i;
     }
-    std::stable_sort(order, order + L1_SIZE, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
+    // std::stable_sort(order, order + L1_SIZE, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
 
     for (int l1 = 0; l1 < L1_SIZE; l1++) {
 
@@ -550,14 +580,21 @@ public:
     }
 
     // Write the network
-    std::ofstream outfile("./quantised.bin", std::ios::binary);
+    std::ofstream outfile("./compressed.bin", std::ios::binary);
     if (!outfile) {
         std::cerr << "Error opening file for writing" << std::endl;
         return;
     }
-    outfile.write(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
+    for (auto v : nnzOutNet.inputWeights) writeSLEB128(outfile, v);
+    for (auto v : nnzOutNet.inputBiases)  writeSLEB128(outfile, v);
+    for (auto& b : nnzOutNet.l1Weights)   for (auto v : b) writeSLEB128(outfile, v);
+    for (auto& b : nnzOutNet.l1Biases)    for (auto v : b) writeFloat(outfile, v);
+    for (auto& b : nnzOutNet.l2Weights)   for (auto v : b) writeFloat(outfile, v);
+    for (auto& b : nnzOutNet.l2Biases)    for (auto v : b) writeFloat(outfile, v);
+    for (auto& b : nnzOutNet.l3Weights)   for (auto v : b) writeFloat(outfile, v);
+    for (auto v : nnzOutNet.l3Biases)     writeFloat(outfile, v);
     outfile.close();
-    std::cout << "NNZ permuted net written to ./quantised.bin" << std::endl;
+    std::cout << "NNZ permuted net written to ./compressed.bin" << std::endl;
   }
 };
 

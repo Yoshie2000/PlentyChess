@@ -58,6 +58,39 @@ int16_t quantize(float number) {
     return static_cast<int16_t>(std::round(number * static_cast<float>(Q)));
 }
 
+uint64_t readULEB128(std::istream& is) {
+    uint64_t result = 0;
+    int shift = 0;
+    while (true) {
+        uint8_t byte = static_cast<uint8_t>(is.get());
+        result |= (uint64_t)(byte & 0x7F) << shift;
+        if ((byte & 0x80) == 0) break;
+        shift += 7;
+    }
+    return result;
+}
+
+int64_t readSLEB128(std::istream& is) {
+    int64_t result = 0;
+    int shift = 0;
+    uint8_t byte;
+    do {
+        byte = static_cast<uint8_t>(is.get());
+        result |= (int64_t)(byte & 0x7F) << shift;
+        shift += 7;
+    } while (byte & 0x80);
+    if ((shift < 64) && (byte & 0x40))
+        result |= -((int64_t)1 << shift);
+    return result;
+}
+
+float readFloat(std::istream& is) {
+    uint32_t v = static_cast<uint32_t>(readULEB128(is));
+    float f;
+    std::memcpy(&f, &v, sizeof(f));
+    return f;
+}
+
 void quantizeNetwork() {
     // Add factorized input weights to buckets, and quantize
     for (int w = 0; w < THREAT_INPUT_SIZE * L1_SIZE; w++) {
@@ -167,13 +200,20 @@ int main(int argc, char* argv[]) {
         outfile.close();
     }
     else {
-        // Read the network
+        // Read the compressed network
         std::ifstream infile(infile_name, std::ios::binary);
         if (!infile) {
-            std::cerr << "Error opening quantised file for reading (" << infile_name << ")" << std::endl;
+            std::cerr << "Error opening compressed file for reading (" << infile_name << ")" << std::endl;
             return -1;
         }
-        infile.read(reinterpret_cast<char*>(&tmp), sizeof(tmp));
+        for (auto& v : tmp.inputWeights) v = (int16_t)readSLEB128(infile);
+        for (auto& v : tmp.inputBiases)  v = (int16_t)readSLEB128(infile);
+        for (auto& b : tmp.l1Weights)    for (auto& v : b) v = (int8_t)readSLEB128(infile);
+        for (auto& b : tmp.l1Biases)     for (auto& v : b) v = readFloat(infile);
+        for (auto& b : tmp.l2Weights)    for (auto& v : b) v = readFloat(infile);
+        for (auto& b : tmp.l2Biases)     for (auto& v : b) v = readFloat(infile);
+        for (auto& b : tmp.l3Weights)    for (auto& v : b) v = readFloat(infile);
+        for (auto& v : tmp.l3Biases)     v = readFloat(infile);
         infile.close();
     }
 
@@ -182,7 +222,7 @@ int main(int argc, char* argv[]) {
     // Write the network
     std::ofstream outfile(outfilefile_name, std::ios::binary);
     if (!outfile) {
-        std::cerr << "Error opening file for writing" << std::endl;
+        std::cerr << "Error opening output file for writing" << std::endl;
         return -1;
     }
     outfile.write(reinterpret_cast<char*>(&out), sizeof(out));
