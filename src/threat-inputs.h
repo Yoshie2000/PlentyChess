@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <cassert>
 #include <limits>
-#include <immintrin.h>
 #include <cstring>
 
 #include "types.h"
