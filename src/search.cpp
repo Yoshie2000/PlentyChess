@@ -884,6 +884,11 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
 movesLoop:
 
+    probCutBeta = beta + 400;
+    if (board->checkers && !pvNode && ttMove != MOVE_NONE  && !board->isCapture(ttMove) && (ttFlag & TT_LOWERBOUND) && ttDepth >= depth - 4 && ttValue >= probCutBeta && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY) {
+        return probCutBeta;
+    }
+
     if (stopped || exiting)
         return 0;
 
