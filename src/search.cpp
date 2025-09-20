@@ -928,7 +928,7 @@ movesLoop:
                 }
 
                 // Futility pruning
-                int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * (bestMove == MOVE_NONE));
+                int fpValue = stack->staticEval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * (bestMove == MOVE_NONE));
                 if (!capture && lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
                 }
