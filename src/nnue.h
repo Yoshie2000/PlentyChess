@@ -491,7 +491,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
 constexpr int KING_BUCKETS = 12;
 
 constexpr int INPUT_SIZE = 2 * ThreatInputs::PieceOffsets::END + 768 * KING_BUCKETS;
-constexpr int L1_SIZE = 384;
+constexpr int L1_SIZE = 512;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
