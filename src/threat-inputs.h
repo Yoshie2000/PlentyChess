@@ -77,10 +77,8 @@ namespace ThreatInputs {
             return -1;
         }
 
-        int remove(int idx) {
-            int removed = featureIndices[idx];
+        void remove(int idx) {
             featureIndices[idx] = featureIndices[--featureCount];
-            return removed;
         }
 
         FeatureListIterator begin() { return FeatureListIterator(featureIndices); }

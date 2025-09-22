@@ -55,7 +55,8 @@ void NNUE::reset(Board* board) {
     resetAccumulator<Color::WHITE>(board, &accumulatorStack[0]);
     resetAccumulator<Color::BLACK>(board, &accumulatorStack[0]);
     accumulatorStack[0].numDirtyPieces = 0;
-    accumulatorStack[0].numDirtyThreats = 0;
+    accumulatorStack[0].numDirtyThreatsAdd = 0;
+    accumulatorStack[0].numDirtyThreatsSub = 0;
 
     currentAccumulator = 0;
     lastCalculatedAccumulator[Color::WHITE] = 0;
@@ -119,7 +120,7 @@ void NNUE::addThreat(Piece piece, Piece attackedPiece, Square square, Square att
     assert(attackedPiece != Piece::NONE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyThreats[acc->numDirtyThreats++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, true };
+    acc->dirtyThreatsAdd[acc->numDirtyThreatsAdd++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor };
 }
 
 void NNUE::removeThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor) {
@@ -127,13 +128,14 @@ void NNUE::removeThreat(Piece piece, Piece attackedPiece, Square square, Square 
     assert(attackedPiece != Piece::NONE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyThreats[acc->numDirtyThreats++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, false };
+    acc->dirtyThreatsSub[acc->numDirtyThreatsSub++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor };
 }
 
 void NNUE::incrementAccumulator() {
     currentAccumulator++;
     accumulatorStack[currentAccumulator].numDirtyPieces = 0;
-    accumulatorStack[currentAccumulator].numDirtyThreats = 0;
+    accumulatorStack[currentAccumulator].numDirtyThreatsAdd = 0;
+    accumulatorStack[currentAccumulator].numDirtyThreatsSub = 0;
 }
 
 void NNUE::decrementAccumulator() {
@@ -246,11 +248,7 @@ __attribute_noinline__ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* 
 
 template<Color side>
 __attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
-    ThreatInputs::FeatureList addFeatures, subFeatures;
-
-    for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
-        DirtyThreat dirtyThreat = outputAcc->dirtyThreats[dp];
-
+    auto getFeatureIndex = [&kingBucket](DirtyThreat& dirtyThreat) {
         Piece piece = dirtyThreat.piece;
         Piece attackedPiece = dirtyThreat.attackedPiece;
         Square square = dirtyThreat.square ^ (56 * side) ^ (7 * kingBucket->mirrored);
@@ -260,32 +258,32 @@ __attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator*
         bool enemy = dirtyThreat.pieceColor != dirtyThreat.attackedColor;
         bool hasSideOffset = dirtyThreat.pieceColor != side;
 
-        int featureIndex = ThreatInputs::lookupThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy, hasSideOffset);
+        return ThreatInputs::lookupThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy, hasSideOffset);
+        };
 
-        if (featureIndex != -1) {
-            if (dirtyThreat.add)
-                addFeatures.add(featureIndex);
-            else
-                subFeatures.add(featureIndex);
+    int addI = 0, subI = 0;
+    while (true) {
+        int addFeature = -1, subFeature = -1;
+        while (addFeature == -1 && addI < outputAcc->numDirtyThreatsAdd) {
+            addFeature = getFeatureIndex(outputAcc->dirtyThreatsAdd[addI++]);
         }
-    }
+        while (subFeature == -1 && subI < outputAcc->numDirtyThreatsSub) {
+            subFeature = getFeatureIndex(outputAcc->dirtyThreatsSub[subI++]);
+        }
 
-    while (addFeatures.count() && subFeatures.count()) {
-        addSubToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0), subFeatures.remove(0));
+        if (addFeature != -1 && subFeature != -1)
+            addSubToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, addFeature, subFeature);
+        else if (addFeature != -1)
+            addToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, addFeature);
+        else if (subFeature != -1)
+            subFromAccumulator<side>(inputAcc->threatState, outputAcc->threatState, subFeature);
+        else
+            break;
+        
         inputAcc = outputAcc;
     }
 
-    while (addFeatures.count()) {
-        addToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0));
-        inputAcc = outputAcc;
-    }
-
-    while (subFeatures.count()) {
-        subFromAccumulator<side>(inputAcc->threatState, outputAcc->threatState, subFeatures.remove(0));
-        inputAcc = outputAcc;
-    }
-
-    if (!outputAcc->numDirtyThreats)
+    if (!outputAcc->numDirtyThreatsAdd && !outputAcc->numDirtyThreatsSub)
         memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->inputBiases));
 }
 

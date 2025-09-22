@@ -527,7 +527,6 @@ struct DirtyThreat {
   Square attackedSquare;
   Color pieceColor;
   Color attackedColor;
-  bool add;
 };
 
 struct KingBucketInfo {
@@ -547,9 +546,11 @@ struct Accumulator {
   alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
 
   DirtyPiece dirtyPieces[4];
+  DirtyThreat dirtyThreatsAdd[64];
+  DirtyThreat dirtyThreatsSub[64];
   int numDirtyPieces;
-  DirtyThreat dirtyThreats[256];
-  int numDirtyThreats;
+  int numDirtyThreatsAdd;
+  int numDirtyThreatsSub;
 
   KingBucketInfo kingBucketInfo[2];
   Board* board;
