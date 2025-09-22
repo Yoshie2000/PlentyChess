@@ -379,7 +379,7 @@ std::string Board::fen() {
         result += " w ";
     else
         result += " b ";
-    
+
     if (castling & CASTLING_WHITE_KINGSIDE) result += "K";
     if (castling & CASTLING_WHITE_QUEENSIDE) result += "Q";
     if (castling & CASTLING_BLACK_KINGSIDE) result += "k";
@@ -395,19 +395,18 @@ std::string Board::fen() {
     }
     else
         result += "- ";
-    
+
     result += std::to_string(rule50_ply) + " " + std::to_string(ply);
 
     return result;
 }
 
 template<bool add>
-void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue) {
+void Board::updatePieceThreats(Square square, Bitboard attacked, NNUE* nnue) {
     // Add this piece as an attacker to its attacked squares, regardless of that squares occupancy
     // OR: Remove it as an attacker
+    Bitboard squareBB = bitboard(square);
     Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
-    Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor);
-    Bitboard attackedOcc = attacked & occupancy;
     while (attacked) {
         Square attackedSquare = popLSB(&attacked);
 
@@ -419,17 +418,6 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, Square square,
             assert((threats.toSquare[attackedSquare] & squareBB) != 0);
             threats.toSquare[attackedSquare] &= ~squareBB;
         }
-    }
-    while (attackedOcc) {
-        Square attackedSquare = popLSB(&attackedOcc);
-
-        Piece attackedPiece = pieces[attackedSquare];
-        Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
-
-        if (add)
-            nnue->addThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
-        else
-            nnue->removeThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
     }
 
     // Remove attacks of sliding pieces that are now blocked by this piece
@@ -483,18 +471,37 @@ void Board::updateThreatsFromPiece(Piece piece, Color pieceColor, Square square,
 }
 
 template<bool add>
-void Board::updateThreatsToPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue) {
+void Board::updateThreatFeaturesFromPiece(Piece piece, Color pieceColor, Square square, Bitboard attacked, NNUE* nnue) {
+    // Add threats of the piece on this square
+    // OR: Remove them
+    Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
+    Bitboard attackedOcc = attacked & occupancy;
+    while (attackedOcc) {
+        Square attackedSquare = popLSB(&attackedOcc);
+
+        Piece attackedPiece = pieces[attackedSquare];
+        Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
+
+        if (add)
+            nnue->addThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
+        else
+            nnue->removeThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor);
+    }
+}
+
+template<bool add>
+void Board::updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
     // Add threat features of pieces that were already attacking this square
     // OR: Remove them
-    Bitboard attackingSquares = threats.toSquare[square] & ~squareBB;
-    
+    Bitboard attackingSquares = threats.toSquare[square] & ~bitboard(square);
+
     while (attackingSquares) {
         Square attackingSquare = popLSB(&attackingSquares);
         Piece attackingPiece = pieces[attackingSquare];
         Color attackingColor = (bitboard(attackingSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
 
         assert(attackingPiece != Piece::NONE);
-        
+
         if (add)
             nnue->addThreat(attackingPiece, piece, attackingSquare, square, attackingColor, pieceColor);
         else
@@ -511,8 +518,11 @@ void Board::addPiece(Piece piece, Color pieceColor, Square square, Bitboard squa
     pieces[square] = piece;
 
     nnue->addPiece(square, piece, pieceColor);
-    updateThreatsFromPiece<true>(piece, pieceColor, square, squareBB, nnue);
-    updateThreatsToPiece<true>(piece, pieceColor, square, squareBB, nnue);
+
+    Bitboard attacked = BB::attackedSquares(piece, square, byColor[Color::WHITE] | byColor[Color::BLACK], pieceColor);
+    updateThreatFeaturesFromPiece<true>(piece, pieceColor, square, attacked, nnue);
+    updatePieceThreats<true>(square, attacked, nnue);
+    updateThreatFeaturesToPiece<true>(piece, pieceColor, square, nnue);
 };
 
 void Board::removePiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue) {
@@ -524,8 +534,11 @@ void Board::removePiece(Piece piece, Color pieceColor, Square square, Bitboard s
     pieces[square] = Piece::NONE;
 
     nnue->removePiece(square, piece, pieceColor);
-    updateThreatsFromPiece<false>(piece, pieceColor, square, squareBB, nnue);
-    updateThreatsToPiece<false>(piece, pieceColor, square, squareBB, nnue);
+
+    Bitboard attacked = BB::attackedSquares(piece, square, byColor[Color::WHITE] | byColor[Color::BLACK], pieceColor);
+    updateThreatFeaturesFromPiece<false>(piece, pieceColor, square, attacked, nnue);
+    updatePieceThreats<false>(square, attacked, nnue);
+    updateThreatFeaturesToPiece<false>(piece, pieceColor, square, nnue);
 };
 
 void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square target, Bitboard fromTo, NNUE* nnue) {
@@ -534,18 +547,21 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
 
     nnue->movePiece(origin, target, piece, pieceColor);
 
-    updateThreatsFromPiece<false>(piece, pieceColor, origin, bitboard(origin), nnue);
+    Bitboard attacksBefore = BB::attackedSquares(piece, origin, byColor[Color::WHITE] | byColor[Color::BLACK], pieceColor);
+    updateThreatFeaturesFromPiece<false>(piece, pieceColor, origin, attacksBefore, nnue);
+    updatePieceThreats<false>(origin, attacksBefore, nnue);
+    updateThreatFeaturesToPiece<false>(piece, pieceColor, origin, nnue);
 
     byColor[pieceColor] ^= fromTo;
     byPiece[piece] ^= fromTo;
 
     pieces[origin] = Piece::NONE;
     pieces[target] = piece;
-    
-    updateThreatsToPiece<false>(piece, pieceColor, origin, bitboard(target), nnue);
 
-    updateThreatsFromPiece<true>(piece, pieceColor, target, bitboard(target), nnue);
-    updateThreatsToPiece<true>(piece, pieceColor, target, bitboard(target), nnue);
+    Bitboard attacksAfter = BB::attackedSquares(piece, target, byColor[Color::WHITE] | byColor[Color::BLACK], pieceColor);
+    updateThreatFeaturesFromPiece<true>(piece, pieceColor, target, attacksAfter, nnue);
+    updatePieceThreats<true>(target, attacksAfter, nnue);
+    updateThreatFeaturesToPiece<true>(piece, pieceColor, target, nnue);
 };
 
 void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling) {

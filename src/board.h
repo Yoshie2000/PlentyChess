@@ -66,9 +66,11 @@ struct Board {
     std::string fen();
 
     template<bool add>
-    void updateThreatsFromPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
+    void updatePieceThreats(Square square, Bitboard attacked, NNUE* nnue);
+     template<bool add>
+    void updateThreatFeaturesFromPiece(Piece piece, Color pieceColor, Square square, Bitboard attacked, NNUE* nnue);
     template<bool add>
-    void updateThreatsToPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
+    void updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
 
     void addPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
     void removePiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
