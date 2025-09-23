@@ -10,7 +10,7 @@ TUNE_INT(ttDepthAgingReduction, 85, 0, 200);
 void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags) {
     // Update bestMove if not MOVE_NONE
     // Or even clear move for a different position
-    if ((_bestMove != MOVE_NONE && _depth + 400 >= ttmoveDepth * 100) || (uint16_t)_hash != hash) {
+    if ((_bestMove != MOVE_NONE && _depth + 800 >= ttmoveDepth * 100) || (uint16_t)_hash != hash) {
         bestMove = _bestMove;
         ttmoveDepth = _depth / 100;
     }
