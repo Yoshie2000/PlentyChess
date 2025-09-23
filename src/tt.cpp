@@ -7,18 +7,19 @@ TUNE_INT(ttReplaceOffset, 410, 0, 800);
 TUNE_INT(ttDepthAgingMinDepth, 440, 0, 1000);
 TUNE_INT(ttDepthAgingReduction, 85, 0, 200);
 
-void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, uint8_t _rule50, bool wasPv, int _flags) {
+void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, bool wasPv, int _flags) {
     // Update bestMove if not MOVE_NONE
     // Or even clear move for a different position
-    if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
+    if ((_bestMove != MOVE_NONE && _depth + 400 >= ttmoveDepth * 100) || (uint16_t)_hash != hash) {
         bestMove = _bestMove;
+        ttmoveDepth = _depth / 100;
+    }
 
     if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + ttReplaceTtpvBonus * wasPv + ttReplaceOffset > depth) {
         hash = (uint16_t)_hash;
         depth = _depth;
         value = _value;
         eval = _eval;
-        rule50 = _rule50;
         flags = (uint8_t)(_flags + (wasPv << 2)) | TT_GENERATION_COUNTER;
     }
     else if (depth >= ttDepthAgingMinDepth && flags != TT_EXACTBOUND)
