@@ -728,6 +728,14 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     stack->correctionValue = correctionValue;
     if (board->checkers) {
         stack->staticEval = EVAL_NONE;
+
+        if (ttHit && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND))) {
+            eval = ttValue;
+
+            if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * depth / 100 >= beta)
+                return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
+        }
+
         goto movesLoop;
     }
     else if (excluded) {
@@ -1117,6 +1125,9 @@ movesLoop:
 
         // PV moves will be researched at full depth if good enough
         if (pvNode && (moveCount == 1 || value > alpha)) {
+            if (move == ttMove && searchData.rootDepth > 8 && ttDepth > 1)
+                newDepth = std::max(100, newDepth);
+
             value = -search<PV_NODE>(boardCopy, stack + 1, newDepth, -beta, -alpha, false);
 
             if (capture && captureMoveCount < 32)
