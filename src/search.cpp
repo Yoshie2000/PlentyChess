@@ -876,7 +876,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             if (stopped || exiting)
                 return 0;
 
-            if (value >= probCutBeta) {
+            if (value >= probCutBeta && std::abs(value) < EVAL_MATE_IN_MAX_PLY) {
                 value = std::min(value, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(board->hashes.hash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
                 return value;
