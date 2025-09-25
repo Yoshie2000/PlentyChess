@@ -836,7 +836,6 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     // ProbCut
     probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
-        && !board->checkers
         && !excluded
         && depth > probCutDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
@@ -845,8 +844,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
 
-        Move probcutTtMove = ttMove != MOVE_NONE && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : MOVE_NONE;
-        MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth / 100);
+        int seeRequirement = board->checkers ? probCutBeta - eval : probCutBeta - stack->staticEval;
+
+        Move probcutTtMove = ttMove != MOVE_NONE && board->isPseudoLegal(ttMove) && SEE(board, ttMove, seeRequirement) ? ttMove : MOVE_NONE;
+        MoveGen movegen(board, &history, stack, probcutTtMove, seeRequirement, depth / 100);
         Move move;
         while ((move = movegen.nextMove()) != MOVE_NONE) {
             if (move == excludedMove || !board->isLegal(move))
