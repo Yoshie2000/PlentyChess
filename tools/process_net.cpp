@@ -59,18 +59,24 @@ int16_t quantize(float number) {
 }
 
 uint64_t readULEB128(std::istream& is) {
+    constexpr int MAX_ITER = 1000000;
+    int iter = 0;
+
     uint64_t result = 0;
     int shift = 0;
     while (true) {
         uint8_t byte = static_cast<uint8_t>(is.get());
         result |= (uint64_t)(byte & 0x7F) << shift;
-        if ((byte & 0x80) == 0) break;
+        if ((byte & 0x80) == 0 || ++iter >= MAX_ITER) break;
         shift += 7;
     }
     return result;
 }
 
 int64_t readSLEB128(std::istream& is) {
+    constexpr int MAX_ITER = 1000000;
+    int iter = 0;
+
     int64_t result = 0;
     int shift = 0;
     uint8_t byte;
@@ -78,7 +84,7 @@ int64_t readSLEB128(std::istream& is) {
         byte = static_cast<uint8_t>(is.get());
         result |= (int64_t)(byte & 0x7F) << shift;
         shift += 7;
-    } while (byte & 0x80);
+    } while ((byte & 0x80) && ++iter < MAX_ITER);
     if ((shift < 64) && (byte & 0x40))
         result |= -((int64_t)1 << shift);
     return result;
