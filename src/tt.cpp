@@ -4,8 +4,6 @@
 
 TUNE_INT(ttReplaceTtpvBonus, 198, 0, 400);
 TUNE_INT(ttReplaceOffset, 410, 0, 800);
-TUNE_INT(ttDepthAgingMinDepth, 440, 0, 1000);
-TUNE_INT(ttDepthAgingReduction, 85, 0, 200);
 
 void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, uint8_t _rule50, bool wasPv, int _flags) {
     // Update bestMove if not MOVE_NONE
@@ -21,8 +19,6 @@ void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval,
         rule50 = _rule50;
         flags = (uint8_t)(_flags + (wasPv << 2)) | TT_GENERATION_COUNTER;
     }
-    else if (depth >= ttDepthAgingMinDepth && flags != TT_EXACTBOUND)
-        depth -= ttDepthAgingReduction;
 }
 
 TTEntry* TranspositionTable::probe(uint64_t hash, bool* found) {
