@@ -498,7 +498,7 @@ constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 287;
-constexpr int INPUT_QUANT = 255;
+constexpr int INPUT_QUANT = 362;
 constexpr int L1_QUANT = 64;
 constexpr int INPUT_SHIFT = 10;
 

@@ -21,7 +21,7 @@ constexpr int L1_SIZE = 512;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
-constexpr int INPUT_QUANT = 255;
+constexpr int INPUT_QUANT = 362;
 constexpr int L1_QUANT = 64;
 
 constexpr int ALIGNMENT = 64;
