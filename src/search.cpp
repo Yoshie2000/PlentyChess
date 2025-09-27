@@ -729,14 +729,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     if (board->checkers) {
         stack->staticEval = EVAL_NONE;
 
-        if (ttHit && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND))) {
+        if (ttHit && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
-
-            if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * depth / 100 >= beta)
-                return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
-        }
-
-        goto movesLoop;
     }
     else if (excluded) {
         unadjustedEval = eval = stack->staticEval;
@@ -756,25 +750,27 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // Improving
-    if ((stack - 2)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 2)->staticEval;
-    }
-    else if ((stack - 4)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 4)->staticEval;
+    if (!board->checkers) {
+        if ((stack - 2)->staticEval != EVAL_NONE) {
+            improving = stack->staticEval > (stack - 2)->staticEval;
+        }
+        else if ((stack - 4)->staticEval != EVAL_NONE) {
+            improving = stack->staticEval > (stack - 4)->staticEval;
+        }
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
-    if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
+    if (!excluded && !board->checkers && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
         int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + staticHistoryTempo;
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, bonus);
     }
 
     // IIR
-    if ((!ttHit || ttDepth + iirLowTtDepthOffset < depth) && depth >= iirMinDepth)
+    if (!board->checkers && (!ttHit || ttDepth + iirLowTtDepthOffset < depth) && depth >= iirMinDepth)
         depth -= iirReduction;
 
     // Post-LMR depth adjustments
-    if ((stack - 1)->inLMR) {
+    if (!board->checkers && (stack - 1)->inLMR) {
         int additionalReduction = 0;
         if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
             additionalReduction -= postlmrOppWorseningReduction;
@@ -788,7 +784,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Razoring
-    if (!rootNode && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
+    if (!rootNode && !board->checkers && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
         if (razorValue <= alpha && std::abs(razorValue) < EVAL_TBWIN_IN_MAX_PLY)
             return razorValue;
@@ -796,6 +792,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
     // Null move pruning
     if (!pvNode
+        && !board->checkers
         && eval >= beta
         && eval >= stack->staticEval
         && stack->staticEval + nmpEvalDepth * depth / 100 - nmpEvalBase >= beta
@@ -839,6 +836,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     // ProbCut
     probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
+        && !board->checkers
         && !excluded
         && depth > probCutDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
@@ -887,10 +885,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // IIR 2: Electric boolagoo
-    if (!ttHit && depth >= iirMinDepth && pvNode)
+    if (!board->checkers && !ttHit && depth >= iirMinDepth && pvNode)
         depth -= iir2Reduction;
-
-movesLoop:
 
     if (stopped || exiting)
         return 0;
