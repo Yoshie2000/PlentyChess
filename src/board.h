@@ -107,6 +107,12 @@ struct Board {
         Bitboard minorThreats = threats.knightThreats | threats.bishopThreats | threats.pawnThreats;
         Bitboard rookThreats = minorThreats | threats.rookThreats;
 
+        if (checkers) {
+            queens &= checkers;
+            rooks &= checkers;
+            minors &= checkers;
+        }
+
         return (queens & rookThreats) | (rooks & minorThreats) | (minors & threats.pawnThreats);
     }
 
