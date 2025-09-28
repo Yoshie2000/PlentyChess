@@ -6,10 +6,7 @@ TUNE_INT(ttReplaceTtpvBonus, 198, 0, 400);
 TUNE_INT(ttReplaceOffset, 410, 0, 800);
 
 void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, uint8_t _rule50, bool wasPv, int _flags) {
-    // Update bestMove if not MOVE_NONE
-    // Or even clear move for a different position
-    if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
-        bestMove = _bestMove;
+    bestMove = _bestMove;
 
     if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + ttReplaceTtpvBonus * wasPv + ttReplaceOffset > depth) {
         hash = (uint16_t)_hash;

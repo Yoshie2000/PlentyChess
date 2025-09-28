@@ -1230,8 +1230,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     bool failLow = alpha == oldAlpha;
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
+    Move storeTtMove = bestMove != MOVE_NONE ? bestMove : (ttHit && ttMove != MOVE_NONE) ? ttMove : MOVE_NONE;
     if (!excluded)
-        ttEntry->update(board->hashes.hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
+        ttEntry->update(board->hashes.hash, storeTtMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
 
     // Adjust correction history
     if (!board->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
