@@ -55,7 +55,8 @@ void NNUE::reset(Board* board) {
     resetAccumulator<Color::WHITE>(board, &accumulatorStack[0]);
     resetAccumulator<Color::BLACK>(board, &accumulatorStack[0]);
     accumulatorStack[0].numDirtyPieces = 0;
-    accumulatorStack[0].numDirtyThreats = 0;
+    accumulatorStack[0].numDirtyThreatsAdd = 0;
+    accumulatorStack[0].numDirtyThreatsSub = 0;
 
     currentAccumulator = 0;
     lastCalculatedAccumulator[Color::WHITE] = 0;
@@ -119,7 +120,7 @@ void NNUE::addThreat(Piece piece, Piece attackedPiece, Square square, Square att
     assert(attackedPiece != Piece::NONE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyThreats[acc->numDirtyThreats++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, true };
+    acc->dirtyThreatsAdd[acc->numDirtyThreatsAdd++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor };
 }
 
 void NNUE::removeThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor) {
@@ -127,13 +128,14 @@ void NNUE::removeThreat(Piece piece, Piece attackedPiece, Square square, Square 
     assert(attackedPiece != Piece::NONE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyThreats[acc->numDirtyThreats++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, false };
+    acc->dirtyThreatsSub[acc->numDirtyThreatsSub++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor };
 }
 
 void NNUE::incrementAccumulator() {
     currentAccumulator++;
     accumulatorStack[currentAccumulator].numDirtyPieces = 0;
-    accumulatorStack[currentAccumulator].numDirtyThreats = 0;
+    accumulatorStack[currentAccumulator].numDirtyThreatsAdd = 0;
+    accumulatorStack[currentAccumulator].numDirtyThreatsSub = 0;
 }
 
 void NNUE::decrementAccumulator() {
@@ -247,14 +249,15 @@ __attribute_noinline__ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* 
 template<Color side>
 __attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
     ThreatInputs::FeatureList addFeatures, subFeatures;
+    Square flip = (56 * side) ^ (7 * kingBucket->mirrored);
 
-    for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
-        DirtyThreat dirtyThreat = outputAcc->dirtyThreats[dp];
+    for (int dp = 0; dp < outputAcc->numDirtyThreatsAdd; dp++) {
+        DirtyThreat dirtyThreat = outputAcc->dirtyThreatsAdd[dp];
 
         Piece piece = dirtyThreat.piece;
         Piece attackedPiece = dirtyThreat.attackedPiece;
-        Square square = dirtyThreat.square ^ (56 * side) ^ (7 * kingBucket->mirrored);
-        Square attackedSquare = dirtyThreat.attackedSquare ^ (56 * side) ^ (7 * kingBucket->mirrored);
+        Square square = dirtyThreat.square ^ flip;
+        Square attackedSquare = dirtyThreat.attackedSquare ^ flip;
 
         Color relativeSide = static_cast<Color>(side != dirtyThreat.attackedColor);
         bool enemy = dirtyThreat.pieceColor != dirtyThreat.attackedColor;
@@ -264,10 +267,26 @@ __attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator*
 
         if (featureIndex != -1) {
             featureIndex += hasSideOffset * ThreatInputs::PieceOffsets::END;
-            if (dirtyThreat.add)
-                addFeatures.add(featureIndex);
-            else
-                subFeatures.add(featureIndex);
+            addFeatures.add(featureIndex);
+        }
+    }
+    for (int dp = 0; dp < outputAcc->numDirtyThreatsSub; dp++) {
+        DirtyThreat dirtyThreat = outputAcc->dirtyThreatsSub[dp];
+
+        Piece piece = dirtyThreat.piece;
+        Piece attackedPiece = dirtyThreat.attackedPiece;
+        Square square = dirtyThreat.square ^ flip;
+        Square attackedSquare = dirtyThreat.attackedSquare ^ flip;
+
+        Color relativeSide = static_cast<Color>(side != dirtyThreat.attackedColor);
+        bool enemy = dirtyThreat.pieceColor != dirtyThreat.attackedColor;
+        bool hasSideOffset = dirtyThreat.pieceColor != side;
+
+        int featureIndex = ThreatInputs::lookupThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy);
+
+        if (featureIndex != -1) {
+            featureIndex += hasSideOffset * ThreatInputs::PieceOffsets::END;
+            subFeatures.add(featureIndex);
         }
     }
 
@@ -286,7 +305,7 @@ __attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator*
         inputAcc = outputAcc;
     }
 
-    if (!outputAcc->numDirtyThreats)
+    if (!outputAcc->numDirtyThreatsAdd && !outputAcc->numDirtyThreatsSub)
         memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->inputBiases));
 }
 
