@@ -99,26 +99,6 @@ namespace ThreatInputs {
         return 768 * kingBucket + 384 * relativeColor + 64 * piece + relativeSquare;
     }
 
-    int getExpandedThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, bool hasSideOffset) {
-        switch (piece) {
-        case Piece::PAWN:
-            return ((((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset) * 2 + enemy;
-        case Piece::KNIGHT:
-            return (((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset;
-        case Piece::BISHOP:
-            return (((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset;
-        case Piece::ROOK:
-            return (((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset;
-        case Piece::QUEEN:
-            return (((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset;
-        case Piece::KING:
-            return (((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset;
-        default:
-            assert(false);
-            break;
-        }
-    }
-
     int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy) {
         assert(piece != Piece::NONE);
 
