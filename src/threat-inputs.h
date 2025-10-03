@@ -123,22 +123,22 @@ namespace ThreatInputs {
     void addPieceFeatures(Bitboard* byColor, Bitboard* byPiece, Color side, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT);
     
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket);
-    int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy);
+    int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, int sideOffset);
 
-    // Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy
-    extern int INDEX_LOOKUP[6][64][64][6][2][2];
+    // Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, int sideOffset
+    extern int INDEX_LOOKUP[6][64][64][6][2][2][2];
 
     void initialise();
 
     inline int lookupThreatFeature(Piece attackingPiece, Square attackingSquare, Square attackedSquare, Piece attackedPiece, Color relativeSide, bool enemy, bool hasSideOffset) {
-        return INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy] + hasSideOffset * PieceOffsets::END;
+        return INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy][hasSideOffset];
     }
 
-    int getPawnThreatFeature(Square from, Square to, Piece target, Color relativeSide, bool enemy);
-    int getKnightThreatFeature(Square from, Square to, Piece target, Color relativeSide);
-    int getBishopThreatFeature(Square from, Square to, Piece target, Color relativeSide);
-    int getRookThreatFeature(Square from, Square to, Piece target, Color relativeSide);
-    int getQueenThreatFeature(Square from, Square to, Piece target, Color relativeSide);
-    int getKingThreatFeature(Square from, Square to, Piece target, Color relativeSide);
+    int getPawnThreatFeature(Square from, Square to, Piece target, Color relativeSide, bool enemy, int sideOffset);
+    int getKnightThreatFeature(Square from, Square to, Piece target, Color relativeSide, int sideOffset);
+    int getBishopThreatFeature(Square from, Square to, Piece target, Color relativeSide, int sideOffset);
+    int getRookThreatFeature(Square from, Square to, Piece target, Color relativeSide, int sideOffset);
+    int getQueenThreatFeature(Square from, Square to, Piece target, Color relativeSide, int sideOffset);
+    int getKingThreatFeature(Square from, Square to, Piece target, Color relativeSide, int sideOffset);
 
 }

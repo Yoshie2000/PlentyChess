@@ -4,7 +4,7 @@
 
 namespace ThreatInputs {
 
-    int INDEX_LOOKUP[6][64][64][6][2][2];
+    int INDEX_LOOKUP[6][64][64][6][2][2][2];
 
     // Count how many attacked squares are < to, effectively creating an index for the "to" square relative to the "from" square
     int localThreatIndex(Square to, Bitboard attackedByFrom) {
@@ -62,9 +62,9 @@ namespace ThreatInputs {
 
                         assert(attackingPiece != Piece::NONE);
 
-                        int threatFeature = getThreatFeature(attackingPiece, relativeAttackingSquare, relativeSquare, piece, relativeSide, enemy);
+                        int threatFeature = getThreatFeature(attackingPiece, relativeAttackingSquare, relativeSquare, piece, relativeSide, enemy, sideOffset);
                         if (threatFeature != -1)
-                            features.add(threatFeature + sideOffset);
+                            features.add(threatFeature);
                     }
                 }
             }
@@ -119,9 +119,11 @@ namespace ThreatInputs {
 
                                     Color relativeSide = static_cast<Color>(pov != attackedColor);
                                     bool enemy = attackingColor != attackedColor;
+                                    bool hasSideOffset = attackingColor != pov;
+                                    int sideOffset = hasSideOffset * PieceOffsets::END;
 
-                                    int feature = getThreatFeature(attackingPiece, attackingSquare, attackedSquare, attackedPiece, relativeSide, enemy);
-                                    INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy] = feature;
+                                    int feature = getThreatFeature(attackingPiece, attackingSquare, attackedSquare, attackedPiece, relativeSide, enemy, sideOffset);
+                                    INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy][hasSideOffset] = feature;
                                 }
                             }
                         }
@@ -131,28 +133,28 @@ namespace ThreatInputs {
         }
     }
 
-    int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy) {
+    int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, int sideOffset) {
         assert(piece != Piece::NONE);
 
         int featureIndex;
         switch (piece) {
         case Piece::PAWN:
-            featureIndex = getPawnThreatFeature(from, to, target, relativeSide, enemy);
+            featureIndex = getPawnThreatFeature(from, to, target, relativeSide, enemy, sideOffset);
             break;
         case Piece::KNIGHT:
-            featureIndex = getKnightThreatFeature(from, to, target, relativeSide);
+            featureIndex = getKnightThreatFeature(from, to, target, relativeSide, sideOffset);
             break;
         case Piece::BISHOP:
-            featureIndex = getBishopThreatFeature(from, to, target, relativeSide);
+            featureIndex = getBishopThreatFeature(from, to, target, relativeSide, sideOffset);
             break;
         case Piece::ROOK:
-            featureIndex = getRookThreatFeature(from, to, target, relativeSide);
+            featureIndex = getRookThreatFeature(from, to, target, relativeSide, sideOffset);
             break;
         case Piece::QUEEN:
-            featureIndex = getQueenThreatFeature(from, to, target, relativeSide);
+            featureIndex = getQueenThreatFeature(from, to, target, relativeSide, sideOffset);
             break;
         case Piece::KING:
-            featureIndex = getKingThreatFeature(from, to, target, relativeSide);
+            featureIndex = getKingThreatFeature(from, to, target, relativeSide, sideOffset);
             break;
         case Piece::NONE:
             featureIndex = -1;
@@ -162,7 +164,7 @@ namespace ThreatInputs {
         return featureIndex;
     }
 
-    int getPawnThreatFeature(Square from, Square to, Piece target, Color relativeSide, bool enemy) {
+    int getPawnThreatFeature(Square from, Square to, Piece target, Color relativeSide, bool enemy, int sideOffset) {
         // Allow threats to pawns, knights and rooks
         constexpr int OFFSETS[] = { 0, 1, MAX, 2, MAX, MAX, 3, 4, MAX, 5, MAX, MAX };
 
@@ -179,10 +181,10 @@ namespace ThreatInputs {
         assert(threat >= PieceOffsets::PAWN);
         assert(threat < PieceOffsets::KNIGHT);
 
-        return threat;
+        return threat + sideOffset;
     }
 
-    int getKnightThreatFeature(Square from, Square to, Piece target, Color relativeSide) {
+    int getKnightThreatFeature(Square from, Square to, Piece target, Color relativeSide, int sideOffset) {
         // Allow threats to all piece types
 
         // Skip knights with to > from to prevent duplicates
@@ -195,10 +197,10 @@ namespace ThreatInputs {
         assert(threat >= PieceOffsets::KNIGHT);
         assert(threat < PieceOffsets::BISHOP);
 
-        return threat;
+        return threat + sideOffset;
     }
 
-    int getBishopThreatFeature(Square from, Square to, Piece target, Color relativeSide) {
+    int getBishopThreatFeature(Square from, Square to, Piece target, Color relativeSide, int sideOffset) {
         // Allow threats to everything but queens
         constexpr int OFFSETS[] = { 0, 1, 2, 3, MAX, 4, 5, 6, 7, 8, MAX, 9 };
 
@@ -212,10 +214,10 @@ namespace ThreatInputs {
         assert(threat >= PieceOffsets::BISHOP);
         assert(threat < PieceOffsets::ROOK);
 
-        return threat;
+        return threat + sideOffset;
     }
 
-    int getRookThreatFeature(Square from, Square to, Piece target, Color relativeSide) {
+    int getRookThreatFeature(Square from, Square to, Piece target, Color relativeSide, int sideOffset) {
         // Allow threats to everything but queens
         constexpr int OFFSETS[] = { 0, 1, 2, 3, MAX, 4, 5, 6, 7, 8, MAX, 9 };
 
@@ -229,10 +231,10 @@ namespace ThreatInputs {
         assert(threat >= PieceOffsets::ROOK);
         assert(threat < PieceOffsets::QUEEN);
 
-        return threat;
+        return threat + sideOffset;
     }
 
-    int getQueenThreatFeature(Square from, Square to, Piece target, Color relativeSide) {
+    int getQueenThreatFeature(Square from, Square to, Piece target, Color relativeSide, int sideOffset) {
         // Allow threats to all pieces
 
         // Skip queens with to > from to prevent duplicates
@@ -245,10 +247,10 @@ namespace ThreatInputs {
         assert(threat >= PieceOffsets::QUEEN);
         assert(threat < PieceOffsets::KING);
 
-        return threat;
+        return threat + sideOffset;
     }
 
-    int getKingThreatFeature(Square from, Square to, Piece target, Color relativeSide) {
+    int getKingThreatFeature(Square from, Square to, Piece target, Color relativeSide, int sideOffset) {
         // Allow threats to pawns, knights, bishops and rooks
         constexpr int OFFSETS[] = { 0, 1, 2, 3, MAX, MAX, 4, 5, 6, 7, MAX, MAX };
 
@@ -261,7 +263,7 @@ namespace ThreatInputs {
         assert(threat >= PieceOffsets::KING);
         assert(threat < PieceOffsets::END);
 
-        return threat;
+        return threat + sideOffset;
     }
 
 }
