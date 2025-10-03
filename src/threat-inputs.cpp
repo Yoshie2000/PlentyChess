@@ -4,7 +4,12 @@
 
 namespace ThreatInputs {
 
-    int INDEX_LOOKUP[6][64][64][6][2][2];
+    int INDEX_LOOKUP_PAWN[64][64][6][2][2];
+    int INDEX_LOOKUP_KNIGHT[64][64][6][2];
+    int INDEX_LOOKUP_BISHOP[64][64][6][2];
+    int INDEX_LOOKUP_ROOK[64][64][6][2];
+    int INDEX_LOOKUP_QUEEN[64][64][6][2];
+    int INDEX_LOOKUP_KING[64][64][6][2];
 
     // Count how many attacked squares are < to, effectively creating an index for the "to" square relative to the "from" square
     int localThreatIndex(Square to, Bitboard attackedByFrom) {
@@ -100,7 +105,12 @@ namespace ThreatInputs {
     }
 
     void initialise() {
-        memset(INDEX_LOOKUP, 0xFFFF, sizeof(INDEX_LOOKUP));
+        memset(INDEX_LOOKUP_PAWN, 0xFF, sizeof(INDEX_LOOKUP_PAWN));
+        memset(INDEX_LOOKUP_KNIGHT, 0xFF, sizeof(INDEX_LOOKUP_KNIGHT));
+        memset(INDEX_LOOKUP_BISHOP, 0xFF, sizeof(INDEX_LOOKUP_BISHOP));
+        memset(INDEX_LOOKUP_ROOK, 0xFF, sizeof(INDEX_LOOKUP_ROOK));
+        memset(INDEX_LOOKUP_QUEEN, 0xFF, sizeof(INDEX_LOOKUP_QUEEN));
+        memset(INDEX_LOOKUP_KING, 0xFF, sizeof(INDEX_LOOKUP_KING));
 
         for (Piece attackingPiece = Piece::PAWN; attackingPiece < Piece::TOTAL; ++attackingPiece) {
             for (Piece attackedPiece = Piece::PAWN; attackedPiece < Piece::TOTAL; ++attackedPiece) {
@@ -121,7 +131,28 @@ namespace ThreatInputs {
                                     bool enemy = attackingColor != attackedColor;
 
                                     int feature = getThreatFeature(attackingPiece, attackingSquare, attackedSquare, attackedPiece, relativeSide, enemy);
-                                    INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy] = feature;
+                                    switch (attackingPiece) {
+                                        case Piece::PAWN:
+                                            INDEX_LOOKUP_PAWN[attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy] = feature;
+                                            break;
+                                        case Piece::KNIGHT:
+                                            INDEX_LOOKUP_KNIGHT[attackingSquare][attackedSquare][attackedPiece][relativeSide] = feature;
+                                            break;
+                                        case Piece::BISHOP:
+                                            INDEX_LOOKUP_BISHOP[attackingSquare][attackedSquare][attackedPiece][relativeSide] = feature;
+                                            break;
+                                        case Piece::ROOK:
+                                            INDEX_LOOKUP_ROOK[attackingSquare][attackedSquare][attackedPiece][relativeSide] = feature;
+                                            break;
+                                        case Piece::QUEEN:
+                                            INDEX_LOOKUP_QUEEN[attackingSquare][attackedSquare][attackedPiece][relativeSide] = feature;
+                                            break;
+                                        case Piece::KING:
+                                            INDEX_LOOKUP_KING[attackingSquare][attackedSquare][attackedPiece][relativeSide] = feature;
+                                            break;
+                                        default:
+                                            assert(false);
+                                    }
                                 }
                             }
                         }

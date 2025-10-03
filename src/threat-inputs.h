@@ -125,13 +125,34 @@ namespace ThreatInputs {
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket);
     int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy);
 
-    // Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy
-    extern int INDEX_LOOKUP[6][64][64][6][2][2];
+    // Square from, Square to, Piece target, Color relativeSide, bool enemy
+    extern int INDEX_LOOKUP_PAWN[64][64][6][2][2];
+    extern int INDEX_LOOKUP_KNIGHT[64][64][6][2];
+    extern int INDEX_LOOKUP_BISHOP[64][64][6][2];
+    extern int INDEX_LOOKUP_ROOK[64][64][6][2];
+    extern int INDEX_LOOKUP_QUEEN[64][64][6][2];
+    extern int INDEX_LOOKUP_KING[64][64][6][2];
 
     void initialise();
 
     inline int lookupThreatFeature(Piece attackingPiece, Square attackingSquare, Square attackedSquare, Piece attackedPiece, Color relativeSide, bool enemy) {
-        return INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy];
+        switch (attackingPiece) {
+            case Piece::PAWN:
+                return INDEX_LOOKUP_PAWN[attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy];
+            case Piece::KNIGHT:
+                return INDEX_LOOKUP_KNIGHT[attackingSquare][attackedSquare][attackedPiece][relativeSide];
+            case Piece::BISHOP:
+                return INDEX_LOOKUP_BISHOP[attackingSquare][attackedSquare][attackedPiece][relativeSide];
+            case Piece::ROOK:
+                return INDEX_LOOKUP_ROOK[attackingSquare][attackedSquare][attackedPiece][relativeSide];
+            case Piece::QUEEN:
+                return INDEX_LOOKUP_QUEEN[attackingSquare][attackedSquare][attackedPiece][relativeSide];
+            case Piece::KING:
+                return INDEX_LOOKUP_KING[attackingSquare][attackedSquare][attackedPiece][relativeSide];
+            default:
+                assert(false);
+                return -1;
+        }
     }
 
     int getPawnThreatFeature(Square from, Square to, Piece target, Color relativeSide, bool enemy);
