@@ -130,8 +130,8 @@ namespace ThreatInputs {
 
     void initialise();
 
-    inline int lookupThreatFeature(Piece attackingPiece, Square attackingSquare, Square attackedSquare, Piece attackedPiece, Color relativeSide, bool enemy, bool hasSideOffset) {
-        return INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy] + hasSideOffset * PieceOffsets::END;
+    inline int lookupThreatFeature(Piece attackingPiece, Square attackingSquare, Square attackedSquare, Piece attackedPiece, Color relativeSide, bool enemy) {
+        return INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy];
     }
 
     int getPawnThreatFeature(Square from, Square to, Piece target, Color relativeSide, bool enemy);
