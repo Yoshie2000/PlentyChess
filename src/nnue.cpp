@@ -260,7 +260,7 @@ __attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator*
         bool enemy = dirtyThreat.pieceColor != dirtyThreat.attackedColor;
         bool hasSideOffset = dirtyThreat.pieceColor != side;
 
-        int featureIndex = ThreatInputs::lookupThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy, hasSideOffset);
+        int featureIndex = ThreatInputs::getThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy) + hasSideOffset * ThreatInputs::PieceOffsets::END;
 
         if (featureIndex != -1) {
             if (dirtyThreat.add)
