@@ -922,7 +922,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             && board->hasNonPawns()
             ) {
 
-            int16_t lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth / 100][moveCount] - earlyLmrImproving * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            int16_t lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth / 100][moveCount] + 100 * bool(board->checkers) - earlyLmrImproving * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
             if (!movegen.skipQuiets) {
 
