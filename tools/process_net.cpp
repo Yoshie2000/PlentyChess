@@ -12,6 +12,8 @@
 #include <arm_neon.h>
 #endif
 
+#include "../src/threat-inputs.h"
+
 constexpr int KING_BUCKETS = 12;
 constexpr int OUTPUT_BUCKETS = 8;
 
@@ -38,7 +40,7 @@ struct RawNetworkData {
     float l3Biases[OUTPUT_BUCKETS];
 };
 
-struct NetworkData {
+struct QuantisedNetworkData {
     alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
     alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
@@ -49,8 +51,25 @@ struct NetworkData {
     alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
 };
 
+struct NetworkData {
+    alignas(ALIGNMENT) int16_t inputWeightsPawn[ThreatInputs::LookupSizes::PAWN * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputWeightsKnight[ThreatInputs::LookupSizes::KNIGHT * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputWeightsBishop[ThreatInputs::LookupSizes::BISHOP * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputWeightsRook[ThreatInputs::LookupSizes::ROOK * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputWeightsQueen[ThreatInputs::LookupSizes::QUEEN * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputWeightsKing[ThreatInputs::LookupSizes::KING* L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputWeightsPsq[768 * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
+    alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+    alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
+    alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
+    alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
+    alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
+    alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
+};
+
 RawNetworkData raw;
-NetworkData tmp;
+QuantisedNetworkData tmp;
 NetworkData out;
 
 template<int Q>
@@ -190,6 +209,9 @@ void transposePermuteNetwork() {
             out.l3Weights[b][l3] = reinterpret_cast<float*>(tmp.l3Weights)[l3 * OUTPUT_BUCKETS + b];
         }
     }
+
+    // Change the layout of the input weights to improve threat index speed
+    
 
     // std::memcpy the rest
     std::memcpy(out.inputWeights, tmp.inputWeights, sizeof(tmp.inputWeights));

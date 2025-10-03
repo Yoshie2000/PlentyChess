@@ -4,6 +4,8 @@
 
 namespace ThreatInputs {
 
+    constexpr int MAX = std::numeric_limits<int>::max();
+
     int INDEX_LOOKUP[6][64][64][6][2][2];
 
     // Count how many attacked squares are < to, effectively creating an index for the "to" square relative to the "from" square

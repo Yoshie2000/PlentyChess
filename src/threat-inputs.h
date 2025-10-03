@@ -114,10 +114,17 @@ namespace ThreatInputs {
 
     }
 
-    constexpr int MAX = std::numeric_limits<int>::max();
+    namespace LookupSizes {
 
-    int localThreatIndex(Square to, Bitboard attackedByFrom);
-    Bitboard mirrorBitboard(Bitboard bitboard);
+        constexpr int PAWN = 64 * 64 * 6 * 2 * 2;
+        constexpr int KNIGHT = 64 * 64 * 6 * 2;
+        constexpr int BISHOP = 64 * 64 * 6 * 2;
+        constexpr int ROOK = 64 * 64 * 6 * 2;
+        constexpr int QUEEN = 64 * 64 * 6 * 2;
+        constexpr int KING = 64 * 64 * 6 * 2;
+        constexpr int TOTAL = PAWN + KNIGHT + BISHOP + ROOK + QUEEN + KING;
+
+    }
     
     void addThreatFeatures(Bitboard* byColor, Bitboard* byPiece, Piece* pieces, Threats* threats, Color side, FeatureList& features);
     void addPieceFeatures(Bitboard* byColor, Bitboard* byPiece, Color side, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT);
