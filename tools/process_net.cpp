@@ -13,6 +13,7 @@
 #endif
 
 #include "../src/threat-inputs.h"
+#include "../src/magic.h"
 
 constexpr int KING_BUCKETS = 12;
 constexpr int OUTPUT_BUCKETS = 8;
@@ -58,7 +59,7 @@ struct NetworkData {
     alignas(ALIGNMENT) int16_t inputWeightsRook[ThreatInputs::LookupSizes::ROOK * L1_SIZE];
     alignas(ALIGNMENT) int16_t inputWeightsQueen[ThreatInputs::LookupSizes::QUEEN * L1_SIZE];
     alignas(ALIGNMENT) int16_t inputWeightsKing[ThreatInputs::LookupSizes::KING* L1_SIZE];
-    alignas(ALIGNMENT) int16_t inputWeightsPsq[768 * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputWeightsPsq[768 * KING_BUCKETS * L1_SIZE];
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
     alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
     alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -156,6 +157,8 @@ void quantizeNetwork() {
 }
 
 void transposePermuteNetwork() {
+    std::memset(&out, 0, sizeof(out));
+
 #if defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__))
     // Transpose input weights for packus
     constexpr int weightsPerBlock = sizeof(__m128i) / sizeof(int16_t);
@@ -210,11 +213,57 @@ void transposePermuteNetwork() {
         }
     }
 
+    auto getThreatWeights = [](Piece piece) {
+        int16_t* pieceWeightLookup[] = {
+            out.inputWeightsPawn, out.inputWeightsKnight, out.inputWeightsBishop, out.inputWeightsRook, out.inputWeightsQueen, out.inputWeightsKing
+        };
+        return pieceWeightLookup[piece];
+    };
+
     // Change the layout of the input weights to improve threat index speed
-    
+    for (Piece attackingPiece = Piece::PAWN; attackingPiece < Piece::TOTAL; ++attackingPiece) {
+        for (Piece attackedPiece = Piece::PAWN; attackedPiece < Piece::TOTAL; ++attackedPiece) {
+            for (Color attackingColor = Color::WHITE; attackingColor <= Color::BLACK; ++attackingColor) {
+                for (Color attackedColor = Color::WHITE; attackedColor <= Color::BLACK; ++attackedColor) {
+                    for (Color pov = Color::WHITE; pov <= Color::BLACK; ++pov) {
+                        for (Square attackingSquare = 0; attackingSquare < 64; attackingSquare++) {
+
+                            if (attackingPiece == Piece::PAWN && (attackingSquare < 8 || attackingSquare >= 56))
+                                continue;
+
+                            Bitboard attacks = BB::attackedSquares(attackingPiece, attackingSquare, 0, attackingColor);
+                            assert(attacks > 0);
+                            while (attacks) {
+                                Square attackedSquare = popLSB(&attacks);
+
+                                Color relativeSide = static_cast<Color>(pov != attackedColor);
+                                bool enemy = attackingColor != attackedColor;
+                                bool hasSideOffset = attackingColor != pov;
+                                int sideOffset = hasSideOffset * ThreatInputs::PieceOffsets::END;
+
+                                int feature = ThreatInputs::getThreatFeature(attackingPiece, attackingSquare, attackedSquare, attackedPiece, relativeSide, enemy);
+
+                                if (feature == -1)
+                                    continue;
+                                
+                                feature += sideOffset;
+                                
+                                int16_t* pieceWeights = getThreatWeights(attackingPiece);
+                                int idx = ThreatInputs::getExpandedThreatFeature(attackingPiece, attackingSquare, attackedSquare, attackedPiece, relativeSide, enemy, hasSideOffset);
+                                for (int l1 = 0; l1 < L1_SIZE; l1++) {
+                                    pieceWeights[idx * L1_SIZE + l1] = tmp.inputWeights[feature * L1_SIZE + l1];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    std::memcpy(out.inputWeightsPsq, tmp.inputWeights + THREAT_INPUT_SIZE * L1_SIZE, sizeof(out.inputWeightsPsq));
 
     // std::memcpy the rest
-    std::memcpy(out.inputWeights, tmp.inputWeights, sizeof(tmp.inputWeights));
     std::memcpy(out.inputBiases, tmp.inputBiases, sizeof(tmp.inputBiases));
     std::memcpy(out.l1Biases, tmp.l1Biases, sizeof(tmp.l1Biases));
     std::memcpy(out.l2Biases, tmp.l2Biases, sizeof(tmp.l2Biases));
@@ -222,6 +271,9 @@ void transposePermuteNetwork() {
 }
 
 int main(int argc, char* argv[]) {
+    generateMagics();
+    BB::init();
+
     if (argc < 4) {
         std::cerr << "Usage: " << argv[0] << " <infile_is_floats> <infile> <outfile>\n";
         return -1;

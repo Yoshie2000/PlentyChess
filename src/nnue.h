@@ -570,7 +570,7 @@ struct NetworkData {
   alignas(ALIGNMENT) int16_t inputWeightsRook[ThreatInputs::LookupSizes::ROOK * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputWeightsQueen[ThreatInputs::LookupSizes::QUEEN * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputWeightsKing[ThreatInputs::LookupSizes::KING* L1_SIZE];
-  alignas(ALIGNMENT) int16_t inputWeightsPsq[768 * L1_SIZE];
+  alignas(ALIGNMENT) int16_t inputWeightsPsq[768 * KING_BUCKETS * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -605,6 +605,8 @@ public:
   void decrementAccumulator();
   void finalizeMove(Board* board);
 
+  int16_t* getThreatWeights(Piece piece);
+
   void reset(Board* board);
   template<Color side>
   __attribute_noinline__ void resetAccumulator(Board* board, Accumulator* acc);
@@ -624,11 +626,11 @@ public:
   __attribute_noinline__ void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
   template<Color side>
-  void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
+  __attribute_noinline__ void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int16_t* featureWeights);
   template<Color side>
-  void subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
+  __attribute_noinline__ void subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int16_t* featureWeights);
   template<Color side>
-  void addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex);
+  __attribute_noinline__ void addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int16_t* addWeights, int16_t* subWeights);
 
 };
 

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <limits>
 #include <cstring>
+#include <functional>
 
 #include "types.h"
 #include "bitboard.h"
@@ -11,85 +12,6 @@
 #include "board.h"
 
 namespace ThreatInputs {
-
-    constexpr int MAX_ACTIVE_FEATURES = 128;
-
-    class FeatureListIterator {
-    public:
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = int;
-        using difference_type = std::ptrdiff_t;
-        using pointer = int*;
-        using reference = int&;
-
-        FeatureListIterator(int* ptr) : current(ptr) {}
-
-        reference operator*() const { return *current; }
-        pointer operator->() { return current; }
-
-        FeatureListIterator& operator++() {
-            ++current;
-            return *this;
-        }
-
-        FeatureListIterator operator++(int) {
-            FeatureListIterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-
-        bool operator==(const FeatureListIterator& other) const {
-            return current == other.current;
-        }
-
-        bool operator!=(const FeatureListIterator& other) const {
-            return !(*this == other);
-        }
-
-    private:
-        int* current;
-    };
-
-    class FeatureList {
-    public:
-
-        FeatureList() : featureCount(0) {}
-
-        void add(int feature) {
-            assert(featureCount + 1 < MAX_ACTIVE_FEATURES);
-            featureIndices[featureCount++] = feature;
-        }
-
-        int operator[](int idx) const {
-            assert(idx < featureCount);
-            return featureIndices[idx];
-        }
-
-        int count() const {
-            return featureCount;
-        }
-
-        int indexOf(int other) const {
-            for (int i = 0; i < featureCount; i++) {
-                if (featureIndices[i] == other)
-                    return i;
-            }
-            return -1;
-        }
-
-        int remove(int idx) {
-            int removed = featureIndices[idx];
-            featureIndices[idx] = featureIndices[--featureCount];
-            return removed;
-        }
-
-        FeatureListIterator begin() { return FeatureListIterator(featureIndices); }
-        FeatureListIterator end() { return FeatureListIterator(featureIndices + featureCount); }
-
-    private:
-        int featureIndices[MAX_ACTIVE_FEATURES];
-        int featureCount;
-    };
 
     namespace SquareThreatCounts {
 
@@ -116,30 +38,22 @@ namespace ThreatInputs {
 
     namespace LookupSizes {
 
-        constexpr int PAWN = 64 * 64 * 6 * 2 * 2;
-        constexpr int KNIGHT = 64 * 64 * 6 * 2;
-        constexpr int BISHOP = 64 * 64 * 6 * 2;
-        constexpr int ROOK = 64 * 64 * 6 * 2;
-        constexpr int QUEEN = 64 * 64 * 6 * 2;
-        constexpr int KING = 64 * 64 * 6 * 2;
+        constexpr int PAWN = 64 * 64 * 6 * 2 * 2 * 2;
+        constexpr int KNIGHT = 64 * 64 * 6 * 2 * 2;
+        constexpr int BISHOP = 64 * 64 * 6 * 2 * 2;
+        constexpr int ROOK = 64 * 64 * 6 * 2 * 2;
+        constexpr int QUEEN = 64 * 64 * 6 * 2 * 2;
+        constexpr int KING = 64 * 64 * 6 * 2 * 2;
         constexpr int TOTAL = PAWN + KNIGHT + BISHOP + ROOK + QUEEN + KING;
 
     }
     
-    void addThreatFeatures(Bitboard* byColor, Bitboard* byPiece, Piece* pieces, Threats* threats, Color side, FeatureList& features);
-    void addPieceFeatures(Bitboard* byColor, Bitboard* byPiece, Color side, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT);
+    void enumerateExpandedThreatFeatures(Bitboard* byColor, Bitboard* byPiece, Piece* pieces, Threats* threats, Color side, std::function<void(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, bool hasSideOffset)> callback);
+    void enumeratePieceFeatures(Bitboard* byColor, Bitboard* byPiece, Color side, const uint8_t* KING_BUCKET_LAYOUT, std::function<void(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket)> callback);
     
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket);
     int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy);
-
-    // Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy
-    extern int INDEX_LOOKUP[6][64][64][6][2][2];
-
-    void initialise();
-
-    inline int lookupThreatFeature(Piece attackingPiece, Square attackingSquare, Square attackedSquare, Piece attackedPiece, Color relativeSide, bool enemy) {
-        return INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy];
-    }
+    int getExpandedThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, bool hasSideOffset);
 
     int getPawnThreatFeature(Square from, Square to, Piece target, Color relativeSide, bool enemy);
     int getKnightThreatFeature(Square from, Square to, Piece target, Color relativeSide);

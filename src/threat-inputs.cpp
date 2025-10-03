@@ -22,7 +22,7 @@ namespace ThreatInputs {
         return ((bitboard >> 4) & K4) | ((bitboard & K4) << 4);
     }
 
-    void addThreatFeatures(Bitboard* byColor, Bitboard* byPiece, Piece* pieces, Threats* threats, Color pov, FeatureList& features) {
+    void enumerateExpandedThreatFeatures(Bitboard* byColor, Bitboard* byPiece, Piece* pieces, Threats* threats, Color pov, std::function<void(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, bool hasSideOffset)> callback) {
         // Check HM and get occupancies
         Square king = lsb(byColor[pov] & byPiece[Piece::KING]);
         bool hm = fileOf(king) >= 4;
@@ -60,20 +60,18 @@ namespace ThreatInputs {
 
                         Color relativeSide = static_cast<Color>(pov != side);
                         bool enemy = attackingSide != side;
-                        int sideOffset = (attackingSide != pov) * PieceOffsets::END;
+                        bool hasSideOffset = attackingSide != pov;
 
                         assert(attackingPiece != Piece::NONE);
 
-                        int threatFeature = getThreatFeature(attackingPiece, relativeAttackingSquare, relativeSquare, piece, relativeSide, enemy);
-                        if (threatFeature != -1)
-                            features.add(threatFeature + sideOffset);
+                        callback(attackingPiece, relativeAttackingSquare, relativeSquare, piece, relativeSide, enemy, hasSideOffset);
                     }
                 }
             }
         }
     }
 
-    void addPieceFeatures(Bitboard* byColor, Bitboard* byPiece, Color pov, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT) {
+    void enumeratePieceFeatures(Bitboard* byColor, Bitboard* byPiece, Color pov, const uint8_t* KING_BUCKET_LAYOUT, std::function<void(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket)> callback) {
         // Check HM and get occupancies
         Square king = lsb(byColor[pov] & byPiece[Piece::KING]);
         uint8_t kingBucket = KING_BUCKET_LAYOUT[king ^ (56 * pov)];
@@ -91,45 +89,33 @@ namespace ThreatInputs {
 
                     // Add the "standard" 768 piece feature
                     Square relativeSquare = square ^ (56 * pov);
-                    features.add(getPieceFeature(piece, relativeSquare, static_cast<Color>(side != pov), kingBucket));
+                    callback(piece, relativeSquare, static_cast<Color>(side != pov), kingBucket);
                 }
             }
         }
     }
 
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket) {
-        return 2 * PieceOffsets::END + (384 * relativeColor + 64 * piece + relativeSquare) + 768 * kingBucket;
+        return 768 * kingBucket + 384 * relativeColor + 64 * piece + relativeSquare;
     }
 
-    void initialise() {
-        memset(INDEX_LOOKUP, 0xFFFF, sizeof(INDEX_LOOKUP));
-
-        for (Piece attackingPiece = Piece::PAWN; attackingPiece < Piece::TOTAL; ++attackingPiece) {
-            for (Piece attackedPiece = Piece::PAWN; attackedPiece < Piece::TOTAL; ++attackedPiece) {
-                for (Color attackingColor = Color::WHITE; attackingColor <= Color::BLACK; ++attackingColor) {
-                    for (Color attackedColor = Color::WHITE; attackedColor <= Color::BLACK; ++attackedColor) {
-                        for (Color pov = Color::WHITE; pov <= Color::BLACK; ++pov) {
-                            for (Square attackingSquare = 0; attackingSquare < 64; attackingSquare++) {
-
-                                if (attackingPiece == Piece::PAWN && (attackingSquare < 8 || attackingSquare >= 56))
-                                    continue;
-
-                                Bitboard attacks = BB::attackedSquares(attackingPiece, attackingSquare, 0, attackingColor);
-                                assert(attacks > 0);
-                                while (attacks) {
-                                    Square attackedSquare = popLSB(&attacks);
-
-                                    Color relativeSide = static_cast<Color>(pov != attackedColor);
-                                    bool enemy = attackingColor != attackedColor;
-
-                                    int feature = getThreatFeature(attackingPiece, attackingSquare, attackedSquare, attackedPiece, relativeSide, enemy);
-                                    INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy] = feature;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+    int getExpandedThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy, bool hasSideOffset) {
+        switch (piece) {
+            case Piece::PAWN:
+                return ((((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset * 2) + enemy;
+            case Piece::KNIGHT:
+                return (((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset;
+            case Piece::BISHOP:
+                return (((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset;
+            case Piece::ROOK:
+                return (((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset;
+            case Piece::QUEEN:
+                return (((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset;
+            case Piece::KING:
+                return (((from * 64 + to) * 6 + target) * 2 + relativeSide) * 2 + hasSideOffset;
+            default:
+                assert(false);
+                break;
         }
     }
 

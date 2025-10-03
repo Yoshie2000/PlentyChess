@@ -209,6 +209,7 @@ endif
 	$(MAKE) -C tools clean
 	$(MAKE) -C tools arch=$(arch)
 	./tools/process_net $(PROCESS_NET) $(EVALFILE) ./processed.bin
+	$(MAKE) -C tools clean
 endif
 
 all:

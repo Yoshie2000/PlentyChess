@@ -1,7 +1,7 @@
-CXX = g++
+CXX = clang++
 CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3 -funroll-all-loops -Wno-ignored-optimization-argument -g -ggdb
 
-SOURCES = process_net.cpp
+SOURCES = process_net.cpp ../src/threat-inputs.cpp ../src/magic.cpp ../src/bitboard.cpp
 
 PROGRAM = process_net
 
