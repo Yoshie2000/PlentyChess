@@ -724,7 +724,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
 
-    Eval correctionValue = history.getCorrectionValue(board, stack);
+    Eval correctionValue = board->checkers ? 0 : history.getCorrectionValue(board, stack);
     stack->correctionValue = correctionValue;
     if (board->checkers) {
         stack->staticEval = EVAL_NONE;
