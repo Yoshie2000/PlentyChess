@@ -266,4 +266,88 @@ namespace ThreatInputs {
         return threat + sideOffset;
     }
 
+    bool isPawnThreatFeature(Square from, Square to, Piece target, bool enemy) {
+        // Allow threats to pawns, knights and rooks
+        constexpr int OFFSETS[] = { 0, 1, MAX, 2, MAX, MAX, 3, 4, MAX, 5, MAX, MAX };
+
+        // Also skip enemy pawns with to > from to prevent duplicates
+        if (OFFSETS[target] == MAX || (enemy && to > from && target == Piece::PAWN))
+            return false;
+
+        return true;
+    }
+
+    bool isKnightThreatFeature(Square from, Square to, Piece target) {
+        // Allow threats to all piece types
+
+        // Skip knights with to > from to prevent duplicates
+        if (to > from && target == Piece::KNIGHT)
+            return false;
+        
+        return true;
+    }
+
+    bool isBishopThreatFeature(Square from, Square to, Piece target) {
+        // Allow threats to everything but queens
+        constexpr int OFFSETS[] = { 0, 1, 2, 3, MAX, 4, 5, 6, 7, 8, MAX, 9 };
+
+        // Also skip bishops with to > from to prevent duplicates
+        if (OFFSETS[target] == MAX || (to > from && target == Piece::BISHOP))
+            return false;
+
+        return true;
+    }
+
+    bool isRookThreatFeature(Square from, Square to, Piece target) {
+        // Allow threats to everything but queens
+        constexpr int OFFSETS[] = { 0, 1, 2, 3, MAX, 4, 5, 6, 7, 8, MAX, 9 };
+
+        // Also skip rooks with to > from to prevent duplicates
+        if (OFFSETS[target] == MAX || (to > from && target == Piece::ROOK))
+            return false;
+
+        return true;
+    }
+
+    bool isQueenThreatFeature(Square from, Square to, Piece target) {
+        // Allow threats to all pieces
+
+        // Skip queens with to > from to prevent duplicates
+        if (to > from && target == Piece::QUEEN)
+            return false;
+
+        return true;
+    }
+
+    bool isKingThreatFeature(Piece target) {
+        // Allow threats to pawns, knights, bishops and rooks
+        constexpr int OFFSETS[] = { 0, 1, 2, 3, MAX, MAX, 4, 5, 6, 7, MAX, MAX };
+
+        if (OFFSETS[target] == MAX)
+            return false;
+
+        return true;
+    }
+
+    bool isThreatFeature(Piece piece, Square from, Square to, Piece target, bool enemy) {
+        assert(piece != Piece::NONE);
+
+        switch (piece) {
+        case Piece::PAWN:
+            return isPawnThreatFeature(from, to, target, enemy);
+        case Piece::KNIGHT:
+            return isKnightThreatFeature(from, to, target);
+        case Piece::BISHOP:
+            return isBishopThreatFeature(from, to, target);
+        case Piece::ROOK:
+            return isRookThreatFeature(from, to, target);
+        case Piece::QUEEN:
+            return isQueenThreatFeature(from, to, target);
+        case Piece::KING:
+            return isKingThreatFeature(target);
+        default:
+            return false;
+        }
+    }
+
 }

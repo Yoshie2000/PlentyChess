@@ -246,7 +246,9 @@ __attribute_noinline__ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* 
 
 template<Color side>
 __attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
-    ThreatInputs::FeatureList addFeatures, subFeatures;
+    int* addFeatures[128];
+    int* subFeatures[128];
+    int addFeatureCount = 0, subFeatureCount = 0;
 
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
         DirtyThreat dirtyThreat = outputAcc->dirtyThreats[dp];
@@ -260,28 +262,33 @@ __attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator*
         bool enemy = dirtyThreat.pieceColor != dirtyThreat.attackedColor;
         bool hasSideOffset = dirtyThreat.pieceColor != side;
 
-        int featureIndex = ThreatInputs::lookupThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy, hasSideOffset);
+        if (!ThreatInputs::isThreatFeature(piece, square, attackedSquare, attackedPiece, enemy))
+            continue;
 
-        if (featureIndex != -1) {
-            if (dirtyThreat.add)
-                addFeatures.add(featureIndex);
-            else
-                subFeatures.add(featureIndex);
-        }
+        int* featureIndex = ThreatInputs::lookupThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy, hasSideOffset);
+
+        if (dirtyThreat.add)
+            addFeatures[addFeatureCount++] = featureIndex;
+        else
+            subFeatures[subFeatureCount++] = featureIndex;
     }
 
-    while (addFeatures.count() && subFeatures.count()) {
-        addSubToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0), subFeatures.remove(0));
+    while (addFeatureCount && subFeatureCount) {
+        addSubToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, *(addFeatures[0]), *(subFeatures[0]));
+        addFeatures[0] = addFeatures[--addFeatureCount];
+        subFeatures[0] = subFeatures[--subFeatureCount];
         inputAcc = outputAcc;
     }
 
-    while (addFeatures.count()) {
-        addToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0));
+    while (addFeatureCount) {
+        addToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, *addFeatures[0]);
+        addFeatures[0] = addFeatures[--addFeatureCount];
         inputAcc = outputAcc;
     }
 
-    while (subFeatures.count()) {
-        subFromAccumulator<side>(inputAcc->threatState, outputAcc->threatState, subFeatures.remove(0));
+    while (subFeatureCount) {
+        subFromAccumulator<side>(inputAcc->threatState, outputAcc->threatState, *subFeatures[0]);
+        subFeatures[0] = subFeatures[--subFeatureCount];
         inputAcc = outputAcc;
     }
 
@@ -291,6 +298,8 @@ __attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator*
 
 template<Color side>
 void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
+    assert(featureIndex != -1);
+
     int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
     VecI16* inputVec = (VecI16*)inputData[side];
@@ -304,6 +313,8 @@ void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L
 
 template<Color side>
 void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
+    assert(featureIndex != -1);
+
     int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
 
     VecI16* inputVec = (VecI16*)inputData[side];
@@ -317,6 +328,9 @@ void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)
 
 template<Color side>
 void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex) {
+    assert(addIndex != -1);
+    assert(subIndex != -1);
+
     int subtractWeightOffset = subIndex * L1_SIZE / I16_VEC_SIZE;
     int addWeightOffset = addIndex * L1_SIZE / I16_VEC_SIZE;
 
@@ -353,7 +367,7 @@ Eval NNUE::evaluate(Board* board) {
     VecI16 i16Zero = set1Epi16(0);
     VecI16 i16Quant = set1Epi16(INPUT_QUANT);
 
-  // ---------------------- FT ACTIVATION & PAIRWISE ----------------------
+    // ---------------------- FT ACTIVATION & PAIRWISE ----------------------
 
     alignas(ALIGNMENT) uint8_t pairwiseOutputs[L1_SIZE];
     VecIu8* pairwiseOutputsVec = reinterpret_cast<VecIu8*>(pairwiseOutputs);
@@ -486,7 +500,7 @@ Eval NNUE::evaluate(Board* board) {
         for (int l1 = 0; l1 < L2_SIZE; l1++) {
             l1MatmulOutputs[l1] += pairwiseOutputs[ft] * networkData->l1Weights[bucket][ft * L2_SIZE + l1];
         }
-}
+    }
 #endif
 
     // ---------------------- CONVERT TO FLOATS & ACTIVATE L1 ----------------------
