@@ -332,17 +332,17 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
         }
     }
 
+    threats = calculateAllThreats();
+
     // Update king checking stuff
     Square enemyKing = lsb(byColor[stm] & byPiece[Piece::KING]);
-    checkers = attackersTo(enemyKing, byColor[Color::WHITE] | byColor[Color::BLACK]) & byColor[flip(stm)];
+    checkers = attackersTo(enemyKing) & byColor[flip(stm)];
     checkerCount = BB::popcount(checkers);
 
     updateSliderPins(Color::WHITE);
     updateSliderPins(Color::BLACK);
 
     chess960 = isChess960;
-
-    threats = calculateAllThreats();
 
     return i;
 }
@@ -789,7 +789,7 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
     assert((byColor[stm] & byPiece[Piece::KING]) > 0);
 
     Square enemyKing = lsb(byColor[flip(stm)] & byPiece[Piece::KING]);
-    checkers = attackersTo(enemyKing, byColor[Color::WHITE] | byColor[Color::BLACK]) & byColor[stm];
+    checkers = attackersTo(enemyKing) & byColor[stm];
     checkerCount = checkers ? BB::popcount(checkers) : 0;
     updateSliderPins(Color::WHITE);
     updateSliderPins(Color::BLACK);
@@ -1039,8 +1039,6 @@ bool Board::isLegal(Move move) {
         return !rookAttacks && !bishopAttacks;
     }
 
-    Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
-
     if (type == MOVE_CASTLING) {
         int castlingIdx = castlingIndex(stm, origin, target);
         Square adjustedTarget = CASTLING_KING_SQUARES[castlingIdx];
@@ -1048,13 +1046,13 @@ bool Board::isLegal(Move move) {
         // Check that none of the important squares (including the current king position!) are being attacked
         if (adjustedTarget < origin) {
             for (Square s = adjustedTarget; s <= origin; s++) {
-                if (byColor[flip(stm)] & attackersTo(s, occupied))
+                if (byColor[flip(stm)] & attackersTo(s))
                     return false;
             }
         }
         else {
             for (Square s = adjustedTarget; s >= origin; s--) {
-                if (byColor[flip(stm)] & attackersTo(s, occupied))
+                if (byColor[flip(stm)] & attackersTo(s))
                     return false;
             }
         }
@@ -1064,6 +1062,7 @@ bool Board::isLegal(Move move) {
 
     if (pieces[origin] == Piece::KING) {
         // Check that we're not moving into an attack
+        Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
         return !(byColor[flip(stm)] & attackersTo(target, occupied ^ bitboard(origin)));
     }
 
@@ -1216,6 +1215,10 @@ void Board::updateSliderPins(Color side) {
             blockers[side] |= blockerBB;
         }
     }
+}
+
+Bitboard Board::attackersTo(Square s) {
+    return threats.toSquare[s];
 }
 
 Bitboard Board::attackersTo(Square s, Bitboard occupied) {

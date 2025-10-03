@@ -118,6 +118,7 @@ struct Board {
     }
 
     Bitboard attackersTo(Square square, Bitboard occupied);
+    Bitboard attackersTo(Square square);
 
     void debugBoard();
     int validateBoard();
