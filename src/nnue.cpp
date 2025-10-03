@@ -88,12 +88,12 @@ __attribute_noinline__ void NNUE::resetAccumulator(Board* board, Accumulator* ac
         int featureIndex = ThreatInputs::getExpandedThreatFeature(piece, from, to, target, relativeSide, enemy, hasSideOffset);
         int16_t* pieceWeights = getThreatWeights(piece);
         addToAccumulator<side>(acc->threatState, acc->threatState, &pieceWeights[featureIndex * L1_SIZE]);
-    });
+        });
 
     ThreatInputs::enumeratePieceFeatures(board->byColor, board->byPiece, side, KING_BUCKET_LAYOUT, [this, &acc](Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket) {
         int featureIndex = ThreatInputs::getPieceFeature(piece, relativeSquare, relativeColor, kingBucket);
         addToAccumulator<side>(acc->pieceState, acc->pieceState, &networkData->inputWeightsPsq[featureIndex * L1_SIZE]);
-    });
+        });
 
     acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
     acc->board = board;
@@ -224,7 +224,7 @@ __attribute_noinline__ void NNUE::refreshThreatFeatures(Accumulator* acc) {
         int featureIndex = ThreatInputs::getExpandedThreatFeature(piece, from, to, target, relativeSide, enemy, hasSideOffset);
         int16_t* pieceWeights = getThreatWeights(piece);
         addToAccumulator<side>(acc->threatState, acc->threatState, &pieceWeights[featureIndex * L1_SIZE]);
-    });
+        });
 }
 
 template<Color side>
@@ -356,7 +356,7 @@ Eval NNUE::evaluate(Board* board) {
     VecI16 i16Zero = set1Epi16(0);
     VecI16 i16Quant = set1Epi16(INPUT_QUANT);
 
-  // ---------------------- FT ACTIVATION & PAIRWISE ----------------------
+    // ---------------------- FT ACTIVATION & PAIRWISE ----------------------
 
     alignas(ALIGNMENT) uint8_t pairwiseOutputs[L1_SIZE];
     VecIu8* pairwiseOutputsVec = reinterpret_cast<VecIu8*>(pairwiseOutputs);
@@ -489,7 +489,7 @@ Eval NNUE::evaluate(Board* board) {
         for (int l1 = 0; l1 < L2_SIZE; l1++) {
             l1MatmulOutputs[l1] += pairwiseOutputs[ft] * networkData->l1Weights[bucket][ft * L2_SIZE + l1];
         }
-}
+    }
 #endif
 
     // ---------------------- CONVERT TO FLOATS & ACTIVATE L1 ----------------------
