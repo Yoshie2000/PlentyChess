@@ -1050,7 +1050,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
             bool importantCapture = stack->ttPv && capture && !cutNode;
 
-            int16_t reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
+            int16_t reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount + rootNode];
             reduction += lmrReductionOffset(importantCapture);
             reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
 
