@@ -1406,6 +1406,7 @@ void Worker::iterativeDeepening() {
                 }
                 // Our window was too low, increase beta for next iteration
                 else if (value >= beta) {
+                    alpha = std::max(alpha, beta - delta);
                     beta = std::min(value + delta, (int)EVAL_INFINITE);
                     failHighs = std::min(failHighs + 1, aspirationWindowMaxFailHighs);
                 }
