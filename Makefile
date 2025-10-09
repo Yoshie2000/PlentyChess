@@ -180,6 +180,13 @@ else
 	else
 	    CFLAGS := $(filter-out -mpopcnt,$(CFLAGS))
 	endif
+
+# Link with NUMA if possible
+	HAS_NUMA = $(shell echo '#include "numa.h"' | clang++ -E - | grep -c 'numa.h')
+	ifneq ($(IS_ZEN5),0)
+		CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA
+		LDFLAGS := $(LDFLAGS) -lnuma
+	endif
 endif
 
 # Network flags

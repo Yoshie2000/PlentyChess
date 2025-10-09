@@ -58,6 +58,7 @@ public:
 
     void startSearching();
     void waitForSearchFinished();
+    void configureThreadBinding();
     void idle();
     void exit();
 
@@ -89,6 +90,8 @@ private:
     Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta);
 
 };
+
+static_assert(sizeof(Worker) % 64 == 0);
 
 class ThreadPool {
 
@@ -125,6 +128,7 @@ public:
         for (size_t i = 0; i < numThreads; i++) {
             threads.push_back(std::make_unique<std::thread>([this, i]() {
                 workers[i] = std::make_unique<Worker>(this, i);
+                workers[i]->configureThreadBinding();
                 workers[i]->idle();
             }));
         }
