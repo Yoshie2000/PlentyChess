@@ -68,7 +68,6 @@ void Worker::configureThreadBinding() {
         for (int node = 0; node <= numa_max_node(); ++node) {
             struct bitmask* coreMask = numa_allocate_cpumask();
             if (numa_node_to_cpus(node, coreMask) != 0) {
-                cerr << "Failed to get CPUs for NUMA node: " << node << endl;
                 return nodeCoreMasks;
             }
 
