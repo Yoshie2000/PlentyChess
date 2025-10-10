@@ -574,7 +574,7 @@ struct NetworkData {
   alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
 };
 
-extern NetworkData* networkData;
+extern NetworkData* globalNetworkData;
 
 void initNetworkData();
 
@@ -582,6 +582,13 @@ struct Board;
 
 class NNUE {
 public:
+
+  NetworkData* networkData;
+
+  NNUE() = default;
+  NNUE(NetworkData* _networkData) {
+    networkData = _networkData;
+  }
 
   Accumulator accumulatorStack[MAX_PLY + 8];
   int currentAccumulator;

@@ -177,15 +177,15 @@ else
 				LDFLAGS := $(LDFLAGS) -fuse-ld=lld
 			endif
 		endif
-	else
-	    CFLAGS := $(filter-out -mpopcnt,$(CFLAGS))
-	endif
 
 # Link with NUMA if possible
-	HAS_NUMA = $(shell echo '#include "numa.h"' | $(CXX) -E - | grep -c 'numa.h')
-	ifneq ($(HAS_NUMA),0)
-		CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA
-		LDFLAGS := $(LDFLAGS) -lnuma
+		HAS_NUMA = $(shell echo '#include "numa.h"' | $(CXX) -E - 2> /dev/null | grep -c 'numa.h')
+		ifneq ($(HAS_NUMA),0)
+			CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA
+			LDFLAGS := $(LDFLAGS) -lnuma
+		endif
+	else
+	    CFLAGS := $(filter-out -mpopcnt,$(CFLAGS))
 	endif
 endif
 

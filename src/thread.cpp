@@ -5,17 +5,12 @@
 #include <mutex>
 #include <condition_variable>
 
-#ifdef USE_NUMA
-#include <sched.h>
-#include <numa.h>
-#endif
-
 #include "thread.h"
 #include "search.h"
 #include "history.h"
 #include "uci.h"
 
-Worker::Worker(ThreadPool* threadPool, int threadId) : threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
+Worker::Worker(ThreadPool* threadPool, NetworkData* networkData, int threadId) : nnue(networkData), threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
     history.initHistory();
 }
 
@@ -42,59 +37,6 @@ void Worker::startSearching() {
 void Worker::waitForSearchFinished() {
     std::unique_lock<std::mutex> lock(mutex);
     cv.wait(lock, [&] { return !searching; });
-}
-
-void Worker::configureThreadBinding() {
-#ifdef USE_NUMA
-    auto getAvailableCores = []() {
-        cpu_set_t cs;
-        CPU_ZERO(&cs);
-        sched_getaffinity(0, sizeof(cs), &cs);
-        return CPU_COUNT(&cs);
-    };
-
-    // Only bind when claiming the majority of the systems cores
-    static int availableCores = getAvailableCores();
-    if (UCI::Options.threads.value <= availableCores / 2)
-        return;
-
-    auto getCoreMasksPerNumaNode = []() {
-        // Credit to Halogen for this code
-        std::vector<cpu_set_t> nodeCoreMasks;
-        if (numa_available() == -1) {
-            return nodeCoreMasks;
-        }
-
-        for (int node = 0; node <= numa_max_node(); ++node) {
-            struct bitmask* coreMask = numa_allocate_cpumask();
-            if (numa_node_to_cpus(node, coreMask) != 0) {
-                return nodeCoreMasks;
-            }
-
-            cpu_set_t cpuset;
-            CPU_ZERO(&cpuset);
-
-            for (size_t cpu = 0; cpu < coreMask->size; ++cpu)
-                if (numa_bitmask_isbitset(coreMask, cpu)) {
-                    CPU_SET(cpu, &cpuset);
-                }
-
-            numa_free_cpumask(coreMask);
-            nodeCoreMasks.push_back(cpuset);
-        }
-
-        return nodeCoreMasks;
-    };
-
-    static auto coreMasksPerNumaNode = getCoreMasksPerNumaNode();
-    if (coreMasksPerNumaNode.size() == 0)
-        return;
-    
-    int node = threadId % coreMasksPerNumaNode.size();
-    pthread_t self = pthread_self();
-    pthread_setaffinity_np(self, sizeof(cpu_set_t), &coreMasksPerNumaNode[node]);
-
-#endif
 }
 
 void Worker::idle() {

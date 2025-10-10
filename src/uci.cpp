@@ -556,6 +556,8 @@ struct printOptions
 };
 
 void uciLoop(int argc, char* argv[]) {
+    threads.resize(1);
+
     std::vector<uint64_t> boardHistory;
     Board board;
     board.startpos();
