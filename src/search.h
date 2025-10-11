@@ -11,7 +11,7 @@
 #include "move.h"
 #include "evaluation.h"
 
-extern int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
+extern int REDUCTIONS[3][MAX_PLY][MAX_MOVES];
 extern int SEE_MARGIN[MAX_PLY][2];
 extern int LMP_MARGIN[MAX_PLY][2];
 

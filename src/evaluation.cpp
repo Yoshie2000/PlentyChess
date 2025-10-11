@@ -44,7 +44,6 @@ Eval evaluate(Board* board, NNUE* nnue) {
 
     Eval eval = nnue->evaluate(board);
     eval = (eval * getMaterialScale(board)) / 1024;
-    eval = eval * (300 - board->rule50_ply) / 300;
 
     eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return (eval / 16) * 16;
@@ -65,7 +64,7 @@ std::string formatEval(Eval value) {
         evalString = "cp " + std::to_string(-1000 * 100 + ((EVAL_TBWIN + value) / 2) * 100);
     }
     else {
-        evalString = "cp " + std::to_string(100 * value / 312);
+        evalString = "cp " + std::to_string(100 * value / 253);
     }
     return evalString;
 }

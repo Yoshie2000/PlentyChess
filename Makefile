@@ -5,7 +5,7 @@ CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
 LDFLAGS = 
 CXXFLAGS_EXTRA = 
 
-SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp src/fathom/src/tbprobe.c
+SOURCES = src/engine.cpp src/board.cpp src/move.cpp src/uci.cpp src/search.cpp src/thread.cpp src/evaluation.cpp src/tt.cpp src/magic.cpp src/bitboard.cpp src/history.cpp src/nnue.cpp src/time.cpp src/spsa.cpp src/zobrist.cpp src/datagen.cpp src/debug.cpp src/fathom/src/tbprobe.c
 OBJS = $(patsubst %.cpp,%.o, $(patsubst %.c,%.o, $(SOURCES)))
 
 # Compiler detection for PGO

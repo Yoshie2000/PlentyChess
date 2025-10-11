@@ -22,6 +22,7 @@
 #include "uci.h"
 #include "fathom/src/tbprobe.h"
 #include "zobrist.h"
+#include "debug.h"
 
 // Time management
 TUNE_FLOAT_DISABLED(tmInitialAdjustment, 1.1159139860557399f, 0.5f, 1.5f);
@@ -39,133 +40,157 @@ TUNE_FLOAT_DISABLED(tmNodesFactor, 0.9741686475516691f, 0.1f, 2.5f);
 TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 6);
 TUNE_INT_DISABLED(aspirationWindowDelta, 14, 1, 30);
 TUNE_INT_DISABLED(aspirationWindowDeltaBase, 10, 1, 30);
-TUNE_INT(aspirationWindowDeltaDivisor, 12746, 7500, 17500);
+TUNE_INT(aspirationWindowDeltaDivisor, 12402, 7500, 17500);
 TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT_DISABLED(aspirationWindowDeltaFactor, 1.5804938062670641f, 1.0f, 3.0f);
 
 // Reduction / Margin tables
-TUNE_FLOAT(lmrReductionNoisyBase, -0.14053578048643614f, -2.0f, -0.1f);
-TUNE_FLOAT(lmrReductionNoisyFactor, 3.2993722858563084f, 2.0f, 4.0f);
-TUNE_FLOAT(lmrReductionQuietBase, 1.138140091239296f, 0.50f, 1.5f);
-TUNE_FLOAT(lmrReductionQuietFactor, 2.953981357948658f, 2.0f, 4.0f);
+TUNE_FLOAT(lmrReductionNoisyBase, -0.1140839315316365f, -2.0f, -0.1f);
+TUNE_FLOAT(lmrReductionNoisyFactor, 3.17500708280068f, 2.0f, 4.0f);
+TUNE_FLOAT(lmrReductionImportantNoisyBase, -0.24075977257605144f, -2.0f, -0.1f);
+TUNE_FLOAT(lmrReductionImportantNoisyFactor, 3.2233877141116603f, 2.0f, 4.0f);
+TUNE_FLOAT(lmrReductionQuietBase, 1.144558116551293f, 0.50f, 1.5f);
+TUNE_FLOAT(lmrReductionQuietFactor, 2.954194130460728f, 2.0f, 4.0f);
 
-TUNE_FLOAT(seeMarginNoisy, -22.239841698994745f, -50.0f, -10.0f);
-TUNE_FLOAT(seeMarginQuiet, -76.69216909301984f, -100.0f, -50.0f);
-TUNE_FLOAT(lmpMarginWorseningBase, 1.9195713820319065f, -1.0f, 2.5f);
-TUNE_FLOAT(lmpMarginWorseningFactor, 0.42766333890804775f, 0.1f, 1.5f);
-TUNE_FLOAT(lmpMarginWorseningPower, 1.6061173081545654f, 1.0f, 3.0f);
-TUNE_FLOAT(lmpMarginImprovingBase, 2.6926099313604643f, 2.0f, 5.0f);
-TUNE_FLOAT(lmpMarginImprovingFactor, 0.857988703638067f, 0.5f, 2.0f);
-TUNE_FLOAT(lmpMarginImprovingPower, 1.9576685646611904f, 1.0f, 3.0f);
+TUNE_FLOAT(seeMarginNoisy, -22.57131373798517f, -50.0f, -10.0f);
+TUNE_FLOAT(seeMarginQuiet, -75.36027861828985f, -100.0f, -50.0f);
+TUNE_FLOAT(lmpMarginWorseningBase, 1.8903537740555167f, -1.0f, 2.5f);
+TUNE_FLOAT(lmpMarginWorseningFactor, 0.4659435186722955f, 0.1f, 1.5f);
+TUNE_FLOAT(lmpMarginWorseningPower, 1.5422819009481348f, 1.0f, 3.0f);
+TUNE_FLOAT(lmpMarginImprovingBase, 2.7788561816277286f, 2.0f, 5.0f);
+TUNE_FLOAT(lmpMarginImprovingFactor, 0.8996332841721202f, 0.5f, 2.0f);
+TUNE_FLOAT(lmpMarginImprovingPower, 1.9832286246216613f, 1.0f, 3.0f);
 
 // Search values
 TUNE_INT(qsFutilityOffset, 70, 1, 125);
-TUNE_INT(qsSeeMargin, -90, -200, 50);
+TUNE_INT(qsSeeMargin, -70, -200, 50);
 
 // Pre-search pruning
-TUNE_INT(ttCutOffset, 51, -100, 200);
-TUNE_INT(ttCutFailHighMargin, 99, 0, 200);
+TUNE_INT(ttCutOffset, 57, -100, 200);
+TUNE_INT(ttCutFailHighMargin, 109, 0, 200);
 
-TUNE_INT(iirMinDepth, 349, 100, 1000);
-TUNE_INT(iirLowTtDepthOffset, 429, 0, 800);
-TUNE_INT(iirReduction, 88, 0, 200);
+TUNE_INT(iirMinDepth, 308, 100, 1000);
+TUNE_INT(iirLowTtDepthOffset, 399, 0, 800);
+TUNE_INT(iirReduction, 93, 0, 200);
 
-TUNE_INT(staticHistoryFactor, -88, -500, -1);
-TUNE_INT(staticHistoryMin, -143, -1000, -1);
-TUNE_INT(staticHistoryMax, 210, 1, 1000);
-TUNE_INT(staticHistoryTempo, 28, 1, 200);
+TUNE_INT(staticHistoryFactor, -82, -500, -1);
+TUNE_INT(staticHistoryMin, -158, -1000, -1);
+TUNE_INT(staticHistoryMax, 260, 1, 1000);
+TUNE_INT(staticHistoryTempo, 29, 1, 200);
 
-TUNE_INT(rfpDepth, 837, 200, 2000);
-TUNE_INT(rfpFactor, 80, 1, 250);
+TUNE_INT(rfpDepth, 945, 200, 2000);
+TUNE_INT(rfpFactor, 79, 1, 250);
 
-TUNE_INT(razoringDepth, 474, 200, 2000);
-TUNE_INT(razoringFactor, 277, 1, 1000);
+TUNE_INT(razoringDepth, 526, 200, 2000);
+TUNE_INT(razoringFactor, 285, 1, 1000);
 
-TUNE_INT(nmpMinDepth, 317, 0, 600);
-TUNE_INT(nmpRedBase, 401, 100, 800);
-TUNE_INT(nmpDepthDiv, 298, 100, 600);
-TUNE_INT(nmpMin, 374, 100, 800);
-TUNE_INT(nmpDivisor, 234, 10, 600);
-TUNE_INT(nmpEvalDepth, 9, 1, 100);
-TUNE_INT(nmpEvalBase, 161, 50, 300);
+TUNE_INT(nmpMinDepth, 331, 0, 600);
+TUNE_INT(nmpRedBase, 392, 100, 800);
+TUNE_INT(nmpDepthDiv, 275, 100, 600);
+TUNE_INT(nmpMin, 405, 100, 800);
+TUNE_INT(nmpDivisor, 211, 10, 600);
+TUNE_INT(nmpEvalDepth, 8, 1, 100);
+TUNE_INT(nmpEvalBase, 149, 50, 300);
 
-TUNE_INT(probcutReduction, 324, 0, 600);
-TUNE_INT(probCutBetaOffset, 197, 1, 500);
-TUNE_INT(probCutDepth, 496, 100, 1000);
+TUNE_INT(probcutReduction, 389, 0, 600);
+TUNE_INT(probCutBetaOffset, 188, 1, 500);
+TUNE_INT(probCutDepth, 543, 100, 1000);
 
 TUNE_INT(iir2Reduction, 108, 0, 200);
 
 // In-search pruning
-TUNE_INT(earlyLmrImproving, 110, 1, 500);
+TUNE_INT(earlyLmrImproving, 107, 1, 500);
 
-TUNE_INT(earlyLmrHistoryFactorQuiet, 16229, 10000, 20000);
-TUNE_INT(earlyLmrHistoryFactorCapture, 14912, 10000, 20000);
+TUNE_INT(earlyLmrHistoryFactorQuiet, 16243, 10000, 20000);
+TUNE_INT(earlyLmrHistoryFactorCapture, 15033, 10000, 20000);
 
-TUNE_INT(fpDepth, 1149, 100, 2000);
-TUNE_INT(fpBase, 234, 1, 1000);
-TUNE_INT(fpFactor, 101, 1, 500);
+TUNE_INT(fpDepth, 1038, 100, 2000);
+TUNE_INT(fpBase, 272, 1, 1000);
+TUNE_INT(fpFactor, 65, 1, 500);
+TUNE_INT(fpPvNode, 28, 1, 250);
+TUNE_INT(fpPvNodeBadCapture, 116, 1, 500);
 
-TUNE_INT(fpCaptDepth, 1005, 100, 2000);
-TUNE_INT(fpCaptBase, 418, 150, 750);
-TUNE_INT(fpCaptFactor, 422, 100, 600);
+TUNE_INT(fpCaptDepth, 907, 100, 2000);
+TUNE_INT(fpCaptBase, 443, 150, 750);
+TUNE_INT(fpCaptFactor, 398, 100, 600);
 
 TUNE_INT(historyPruningDepth, 439, 100, 1000);
-TUNE_INT(historyPruningFactorCapture, -1993, -8192, -128);
-TUNE_INT(historyPruningFactorQuiet, -6332, -8192, -128);
+TUNE_INT(historyPruningFactorCapture, -2321, -8192, -128);
+TUNE_INT(historyPruningFactorQuiet, -6238, -8192, -128);
 
-TUNE_INT(extensionMinDepth, 653, 0, 1200);
-TUNE_INT(extensionTtDepthOffset, 402, 0, 600);
-TUNE_INT(doubleExtensionDepthIncreaseFactor, 88, 0, 200);
+TUNE_INT(extensionMinDepth, 655, 0, 1200);
+TUNE_INT(extensionTtDepthOffset, 444, 0, 600);
+TUNE_INT(doubleExtensionDepthIncreaseFactor, 95, 0, 200);
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
-TUNE_INT(doubleExtensionDepthIncrease, 1152, 200, 2000);
+TUNE_INT(doubleExtensionDepthIncrease, 1115, 200, 2000);
 TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
-TUNE_INT(lmrMinDepth, 296, 100, 600);
+TUNE_INT(lmrMinDepth, 290, 100, 600);
 
-TUNE_INT(lmrCheck, 82, 0, 500);
-TUNE_INT(lmrTtPv, 189, 0, 500);
-TUNE_INT(lmrCutnode, 222, 0, 500);
-TUNE_INT(lmrTtpvFaillow, 81, 0, 500);
-TUNE_INT(lmrCorrection, 143222, 10000, 200000);
-TUNE_INT(lmrHistoryFactorQuiet, 27246, 10000, 30000);
-TUNE_INT(lmrHistoryFactorCapture, 3031309, 2500000, 4000000);
+TUNE_INT(lmrReductionOffsetQuietOrNormalCapture, 152, 0, 500);
+TUNE_INT(lmrReductionOffsetImportantCapture, 158, 0, 500);
+TUNE_INT(lmrCheckQuietOrNormalCapture, 88, 0, 500);
+TUNE_INT(lmrCheckImportantCapture, 68, 0, 500);
+TUNE_INT(lmrTtPvQuietOrNormalCapture, 182, 0, 500);
+TUNE_INT(lmrTtPvImportantCapture, 188, 0, 500);
+TUNE_INT(lmrCutnode, 247, 0, 500);
+TUNE_INT(lmrTtpvFaillowQuietOrNormalCapture, 81, 0, 500);
+TUNE_INT(lmrTtpvFaillowImportantCapture, 106, 0, 500);
+TUNE_INT(lmrCorrectionDivisorQuietOrNormalCapture, 141723, 10000, 200000);
+TUNE_INT(lmrCorrectionDivisorImportantCapture, 143565, 10000, 200000);
+TUNE_INT(lmrQuietHistoryDivisor, 27106, 10000, 30000);
+TUNE_INT(lmrHistoryFactorCapture, 3053327, 2500000, 4000000);
+TUNE_INT(lmrHistoryFactorImportantCapture, 3027194, 2500000, 4000000);
+TUNE_INT(lmrImportantCaptureOffset, 105, 0, 500);
+TUNE_INT(lmrImportantBadCaptureOffset, 98, 0, 500);
+TUNE_INT(lmrImportantCaptureFactor, 47, 0, 250);
+TUNE_INT(lmrQuietPvNodeOffset, 13, 0, 250);
 
-TUNE_INT(postlmrOppWorseningThreshold, 293, 150, 450);
-TUNE_INT(postlmrOppWorseningReduction, 121, 0, 200);
+inline int lmrReductionOffset(bool importantCapture) { return importantCapture ? lmrReductionOffsetImportantCapture : lmrReductionOffsetQuietOrNormalCapture; };
+inline int lmrCheck(bool importantCapture) { return importantCapture ? lmrCheckImportantCapture : lmrCheckQuietOrNormalCapture; };
+inline int lmrTtPv(bool importantCapture) { return importantCapture ? lmrTtPvImportantCapture : lmrTtPvQuietOrNormalCapture; };
+inline int lmrTtpvFaillow(bool importantCapture) { return importantCapture ? lmrTtpvFaillowQuietOrNormalCapture : lmrTtpvFaillowImportantCapture; };
+inline int lmrCaptureHistoryDivisor(bool importantCapture) { return importantCapture ? lmrHistoryFactorImportantCapture : lmrHistoryFactorCapture; };
+inline int lmrCorrectionDivisor(bool importantCapture) { return importantCapture ? lmrCorrectionDivisorImportantCapture : lmrCorrectionDivisorQuietOrNormalCapture; };
 
-TUNE_INT(lmrPvNodeExtension, 101, 0, 200);
+TUNE_INT(postlmrOppWorseningThreshold, 277, 150, 450);
+TUNE_INT(postlmrOppWorseningReduction, 142, 0, 200);
+
+TUNE_INT(lmrPvNodeExtension, 97, 0, 200);
 TUNE_INT_DISABLED(lmrDeeperBase, 40, 1, 100);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
-TUNE_INT(lmrDeeperWeight, 114, 0, 200);
-TUNE_INT(lmrShallowerWeight, 107, 0, 200);
-TUNE_INT(lmrResearchSkipDepthOffset, 387, 0, 800);
+TUNE_INT(lmrDeeperWeight, 106, 0, 200);
+TUNE_INT(lmrShallowerWeight, 114, 0, 200);
+TUNE_INT(lmrResearchSkipDepthOffset, 434, 0, 800);
 
-TUNE_INT(lmrPassBonusBase, -312, -500, 500);
-TUNE_INT(lmrPassBonusFactor, 180, 1, 500);
-TUNE_INT(lmrPassBonusMax, 1078, 32, 4096);
+TUNE_INT(lmrPassBonusBase, -265, -500, 500);
+TUNE_INT(lmrPassBonusFactor, 184, 1, 500);
+TUNE_INT(lmrPassBonusMax, 1192, 32, 4096);
 
-TUNE_INT(historyDepthBetaOffset, 250, 1, 500);
+TUNE_INT(historyDepthBetaOffset, 223, 1, 500);
 
-TUNE_INT(lowDepthPvDepthReductionMin, 411, 0, 800);
-TUNE_INT(lowDepthPvDepthReductionMax, 1006, 0, 2000);
-TUNE_INT(lowDepthPvDepthReductionWeight, 98, 0, 200);
+TUNE_INT(lowDepthPvDepthReductionMin, 425, 0, 800);
+TUNE_INT(lowDepthPvDepthReductionMax, 1042, 0, 2000);
+TUNE_INT(lowDepthPvDepthReductionWeight, 103, 0, 200);
 
-TUNE_INT(correctionHistoryFactor, 172, 32, 512);
+TUNE_INT(correctionHistoryFactor, 160, 32, 512);
 
-int REDUCTIONS[2][MAX_PLY][MAX_MOVES];
+int REDUCTIONS[3][MAX_PLY][MAX_MOVES];
 int SEE_MARGIN[MAX_PLY][2];
 int LMP_MARGIN[MAX_PLY][2];
 
 void initReductions() {
     REDUCTIONS[0][0][0] = 0;
     REDUCTIONS[1][0][0] = 0;
+    REDUCTIONS[2][0][0] = 0;
 
     for (int i = 1; i < MAX_PLY; i++) {
         for (int j = 1; j < MAX_MOVES; j++) {
-            REDUCTIONS[0][i][j] = 100 * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // non-quiet
-            REDUCTIONS[1][i][j] = 100 * (lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor); // quiet
+            REDUCTIONS[0][i][j] = 100 * (lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor); // quiet
+            REDUCTIONS[1][i][j] = 100 * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // non-quiet
+            REDUCTIONS[2][i][j] = 100 * (lmrReductionImportantNoisyBase + log(i) * log(j) / lmrReductionImportantNoisyFactor); // important capture
         }
     }
 
@@ -257,22 +282,22 @@ int valueFromTt(int value, int ply, int rule50) {
         // Downgrade potentially false mate score
         if (value >= EVAL_MATE_IN_MAX_PLY && EVAL_MATE - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN - value > 100 - rule50)
             return EVAL_TBWIN_IN_MAX_PLY - 1;
-        
+
         return value - ply;
     }
     else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
         // Downgrade potentially false mate score
         if (value <= -EVAL_MATE_IN_MAX_PLY && EVAL_MATE + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         // Downgrade potentially false TB score
         if (EVAL_TBWIN + value > 100 - rule50)
             return -EVAL_TBWIN_IN_MAX_PLY + 1;
-        
+
         return value + ply;
     }
     return value;
@@ -453,15 +478,15 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     }
     else if (ttHit && ttEval != EVAL_NONE) {
         unadjustedEval = ttEval;
-        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, correctionValue);
+        stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
             bestValue = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
-        stack->staticEval = bestValue = history.correctStaticEval(unadjustedEval, correctionValue);
-        ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
+        stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
+        ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
     }
     futilityValue = std::min(stack->staticEval + qsFutilityOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
 
@@ -469,7 +494,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (bestValue >= beta) {
         if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
             bestValue = (bestValue + beta) / 2;
-        ttEntry->update(board->hashes.hash, MOVE_NONE, ttEntry->depth, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
+        ttEntry->update(board->hashes.hash, MOVE_NONE, ttEntry->depth, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
         return bestValue;
     }
     if (alpha < bestValue)
@@ -554,9 +579,13 @@ movesLoopQsearch:
         bestValue = matedIn(stack->ply); // Checkmate
     }
 
+    if (!pvNode && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && bestValue >= beta) {
+        bestValue = (bestValue + beta) / 2;
+    }
+
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : TT_UPPERBOUND;
-    ttEntry->update(board->hashes.hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
+    ttEntry->update(board->hashes.hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, ttPv, flags);
 
     return bestValue;
 }
@@ -676,7 +705,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             }
 
             if (tbBound == TT_EXACTBOUND || (tbBound == TT_LOWERBOUND ? tbValue >= beta : tbValue <= alpha)) {
-                ttEntry->update(board->hashes.hash, MOVE_NONE, depth, EVAL_NONE, valueToTT(tbValue, stack->ply), stack->ttPv, tbBound);
+                ttEntry->update(board->hashes.hash, MOVE_NONE, depth, EVAL_NONE, valueToTT(tbValue, stack->ply), board->rule50_ply, stack->ttPv, tbBound);
                 return tbValue;
             }
 
@@ -699,45 +728,49 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     stack->correctionValue = correctionValue;
     if (board->checkers) {
         stack->staticEval = EVAL_NONE;
-        goto movesLoop;
+
+        if (ttHit && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+            eval = ttValue;
     }
     else if (excluded) {
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
+        eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
-        eval = stack->staticEval = history.correctStaticEval(unadjustedEval, correctionValue);
+        eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
-        ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, stack->ttPv, TT_NOBOUND);
+        ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
     }
 
     // Improving
-    if ((stack - 2)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 2)->staticEval;
-    }
-    else if ((stack - 4)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 4)->staticEval;
+    if (!board->checkers) {
+        if ((stack - 2)->staticEval != EVAL_NONE) {
+            improving = stack->staticEval > (stack - 2)->staticEval;
+        }
+        else if ((stack - 4)->staticEval != EVAL_NONE) {
+            improving = stack->staticEval > (stack - 4)->staticEval;
+        }
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
-    if (!excluded && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
+    if (!excluded && !board->checkers && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
         int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + staticHistoryTempo;
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, bonus);
     }
 
     // IIR
-    if ((!ttHit || ttDepth + iirLowTtDepthOffset < depth) && depth >= iirMinDepth)
+    if (!board->checkers && (!ttHit || ttDepth + iirLowTtDepthOffset < depth) && depth >= iirMinDepth)
         depth -= iirReduction;
 
     // Post-LMR depth adjustments
-    if ((stack - 1)->inLMR) {
+    if (!board->checkers && (stack - 1)->inLMR) {
         int additionalReduction = 0;
         if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
             additionalReduction -= postlmrOppWorseningReduction;
@@ -751,7 +784,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Razoring
-    if (!rootNode && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
+    if (!rootNode && !board->checkers && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
         if (razorValue <= alpha && std::abs(razorValue) < EVAL_TBWIN_IN_MAX_PLY)
             return razorValue;
@@ -759,6 +792,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
     // Null move pruning
     if (!pvNode
+        && !board->checkers
         && eval >= beta
         && eval >= stack->staticEval
         && stack->staticEval + nmpEvalDepth * depth / 100 - nmpEvalBase >= beta
@@ -802,6 +836,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     // ProbCut
     probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
+        && !board->checkers
         && !excluded
         && depth > probCutDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
@@ -842,7 +877,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
             if (value >= probCutBeta) {
                 value = std::min(value, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(board->hashes.hash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), stack->ttPv, TT_LOWERBOUND);
+                ttEntry->update(board->hashes.hash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
                 return value;
             }
         }
@@ -850,10 +885,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // IIR 2: Electric boolagoo
-    if (!ttHit && depth >= iirMinDepth && pvNode)
+    if (!board->checkers && !ttHit && depth >= iirMinDepth && pvNode)
         depth -= iir2Reduction;
-
-movesLoop:
 
     if (stopped || exiting)
         return 0;
@@ -891,15 +924,16 @@ movesLoop:
 
             int16_t lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth / 100][moveCount] - earlyLmrImproving * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
-            if (!pvNode && !movegen.skipQuiets) {
+            if (!movegen.skipQuiets) {
 
                 // Movecount pruning (LMP)
-                if (moveCount >= LMP_MARGIN[depth / 100][improving]) {
+                if (!pvNode && moveCount >= LMP_MARGIN[depth / 100][improving]) {
                     movegen.skipQuietMoves();
                 }
 
                 // Futility pruning
-                if (!capture && lmrDepth < fpDepth && eval + fpBase + fpFactor * lmrDepth / 100 <= alpha) {
+                int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * (bestMove == MOVE_NONE));
+                if (!capture && lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
                 }
             }
@@ -960,7 +994,14 @@ movesLoop:
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
                 Eval value = std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(board->hashes.hash, ttMove, singularDepth, unadjustedEval, value, stack->ttPv, TT_LOWERBOUND);
+                ttEntry->update(board->hashes.hash, ttMove, singularDepth, unadjustedEval, value, board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
+
+                // Adjust correction history
+                if (!board->checkers && value > stack->staticEval) {
+                    int bonus = std::clamp((int(value - stack->staticEval) * singularDepth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+                    history.updateCorrectionHistory(board, stack, bonus);
+                }
+
                 return value;
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
@@ -1006,31 +1047,36 @@ movesLoop:
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth && (!capture || !pvNode)) {
-            int16_t reduction = REDUCTIONS[!capture][depth / 100][moveCount];
+        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
+            bool importantCapture = stack->ttPv && capture && !cutNode;
 
-            if (stack->ttPv && !pvNode && !cutNode && capture) {
-                // Do very slight LMR for captures in ttPv-allnodes
-                reduction /= 2;
-            } else {
-                if (boardCopy->checkers)
-                    reduction -= lmrCheck;
+            int16_t reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
+            reduction += lmrReductionOffset(importantCapture);
+            reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
 
-                if (!stack->ttPv)
-                    reduction += lmrTtPv;
+            if (boardCopy->checkers)
+                reduction -= lmrCheck(importantCapture);
 
-                if (cutNode)
-                    reduction += lmrCutnode;
+            if (cutNode)
+                reduction += lmrCutnode;
 
-                if (stack->ttPv && ttHit && ttValue <= alpha)
-                    reduction += lmrTtpvFaillow;
+            if (stack->ttPv) {
+                reduction -= lmrTtPv(importantCapture);
+                reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
+            }
 
-                reduction -= std::abs(correctionValue / lmrCorrection);
+            if (capture) {
+                reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
 
-                if (capture)
-                    reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
-                else
-                    reduction -= 100 * moveHistory / lmrHistoryFactorQuiet;
+                if (importantCapture) {
+                    reduction -= lmrImportantCaptureOffset;
+                    reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
+                    reduction = lmrImportantCaptureFactor * reduction / 100;
+                }
+            }
+            else {
+                reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
+                reduction -= lmrQuietPvNodeOffset * pvNode;
             }
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
@@ -1075,6 +1121,9 @@ movesLoop:
 
         // PV moves will be researched at full depth if good enough
         if (pvNode && (moveCount == 1 || value > alpha)) {
+            if (move == ttMove && searchData.rootDepth > 8 && ttDepth > 1)
+                newDepth = std::max(100, newDepth);
+
             value = -search<PV_NODE>(boardCopy, stack + 1, newDepth, -beta, -alpha, false);
 
             if (capture && captureMoveCount < 32)
@@ -1182,7 +1231,7 @@ movesLoop:
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(board->hashes.hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), stack->ttPv, flags);
+        ttEntry->update(board->hashes.hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
 
     // Adjust correction history
     if (!board->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {

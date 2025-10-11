@@ -19,6 +19,7 @@
 #include "spsa.h"
 #include "history.h"
 #include "fathom/src/tbprobe.h"
+#include "debug.h"
 
 namespace UCI {
     UCIOptions Options;
@@ -360,7 +361,7 @@ void position(std::string line, Board& board, std::vector<uint64_t>& boardHistor
 
     // Make further moves
     UCI::nnue.reset(&board);
-    if (matchesToken(line, "moves")) {
+    if (matchesToken(line, "moves") && line.size() >= 6) {
         line = line.substr(6);
 
         char move[5];
@@ -577,6 +578,7 @@ void uciLoop(int argc, char* argv[]) {
     }
     if (argc > 1 && matchesToken(argv[1], "bench")) {
         bench(board, boardHistory);
+        Debug::show();
         return;
     }
     for (std::string line = {};std::getline(std::cin, line);) {
