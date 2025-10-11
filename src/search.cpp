@@ -1111,6 +1111,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             }
         }
         else if (!pvNode || moveCount > 1) {
+            if (move == ttMove && searchData.rootDepth > 8 && ttDepth > 1)
+                newDepth = std::max(100, newDepth);
+
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
             if (capture && captureMoveCount < 32)
