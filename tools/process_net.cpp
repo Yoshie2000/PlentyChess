@@ -12,14 +12,14 @@
 #include <arm_neon.h>
 #endif
 
-constexpr int INPUT_SIZE = 768;
-constexpr int L1_SIZE = 1792;
-constexpr int L2_SIZE = 16;
-constexpr int L3_SIZE = 32;
-
-constexpr bool KING_BUCKETS_FACTORIZED = true;
 constexpr int KING_BUCKETS = 12;
 constexpr int OUTPUT_BUCKETS = 8;
+
+constexpr int THREAT_INPUT_SIZE = 79856;
+constexpr int INPUT_SIZE = THREAT_INPUT_SIZE + KING_BUCKETS * 768;
+constexpr int L1_SIZE = 640;
+constexpr int L2_SIZE = 16;
+constexpr int L3_SIZE = 32;
 
 constexpr int INPUT_QUANT = 362;
 constexpr int L1_QUANT = 64;
@@ -28,7 +28,7 @@ constexpr int ALIGNMENT = 64;
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
 
 struct RawNetworkData {
-    float inputWeights[KING_BUCKETS + static_cast<int>(KING_BUCKETS_FACTORIZED)][INPUT_SIZE * L1_SIZE];
+    float inputWeights[(INPUT_SIZE + 768 /* factoriser bucket at the beginning */) * L1_SIZE];
     float inputBiases[L1_SIZE];
     float l1Weights[L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
     float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -39,7 +39,7 @@ struct RawNetworkData {
 };
 
 struct NetworkData {
-    alignas(ALIGNMENT) int16_t inputWeights[KING_BUCKETS][INPUT_SIZE * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
     alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
     alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -58,16 +58,56 @@ int16_t quantize(float number) {
     return static_cast<int16_t>(std::round(number * static_cast<float>(Q)));
 }
 
+uint64_t readULEB128(std::istream& is) {
+    constexpr int MAX_ITER = 1000000;
+    int iter = 0;
+
+    uint64_t result = 0;
+    int shift = 0;
+    while (true) {
+        uint8_t byte = static_cast<uint8_t>(is.get());
+        result |= (uint64_t)(byte & 0x7F) << shift;
+        if ((byte & 0x80) == 0 || ++iter >= MAX_ITER) break;
+        shift += 7;
+    }
+    return result;
+}
+
+int64_t readSLEB128(std::istream& is) {
+    constexpr int MAX_ITER = 1000000;
+    int iter = 0;
+
+    int64_t result = 0;
+    int shift = 0;
+    uint8_t byte;
+    do {
+        byte = static_cast<uint8_t>(is.get());
+        result |= (int64_t)(byte & 0x7F) << shift;
+        shift += 7;
+    } while ((byte & 0x80) && ++iter < MAX_ITER);
+    if ((shift < 64) && (byte & 0x40))
+        result |= -((int64_t)1 << shift);
+    return result;
+}
+
+float readFloat(std::istream& is) {
+    uint32_t v = static_cast<uint32_t>(readULEB128(is));
+    float f;
+    std::memcpy(&f, &v, sizeof(f));
+    return f;
+}
+
 void quantizeNetwork() {
     // Add factorized input weights to buckets, and quantize
-    for (int n = 0; n < KING_BUCKETS; n++) {
-        for (int w = 0; w < INPUT_SIZE * L1_SIZE; w++) {
-            if (KING_BUCKETS_FACTORIZED) {
-                tmp.inputWeights[n][w] = quantize<INPUT_QUANT>(raw.inputWeights[n + 1][w] + raw.inputWeights[0][w]);
-            }
-            else {
-                tmp.inputWeights[n][w] = quantize<INPUT_QUANT>(raw.inputWeights[n][w]);
-            }
+    for (int w = 0; w < THREAT_INPUT_SIZE * L1_SIZE; w++) {
+        tmp.inputWeights[w] = quantize<INPUT_QUANT>(raw.inputWeights[w + 768 * L1_SIZE /* factoriser bucket at the beginning */]);
+    }
+    for (int kb = 0; kb < KING_BUCKETS; kb++) {
+        for (int w = 0; w < 768 * L1_SIZE; w++) {
+            int idx = THREAT_INPUT_SIZE * L1_SIZE + kb * 768 * L1_SIZE + w;
+            int rawIdx = 768 * L1_SIZE + idx; // skip factoriser
+            int factoriserIdx = w;
+            tmp.inputWeights[idx] = quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]);
         }
     }
 
@@ -76,7 +116,7 @@ void quantizeNetwork() {
         tmp.inputBiases[b] = quantize<INPUT_QUANT>(raw.inputBiases[b]);
     }
 
-    // Quantize L1 weights
+    // // Quantize L1 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
         for (int l1 = 0; l1 < L1_SIZE; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
@@ -86,6 +126,9 @@ void quantizeNetwork() {
     }
 
     // std::memcpy the rest
+    // std::memcpy(tmp.inputWeights, raw.inputWeights, sizeof(raw.inputWeights));
+    // std::memcpy(tmp.inputBiases, raw.inputBiases, sizeof(raw.inputBiases));
+    // std::memcpy(tmp.l1Weights, raw.l1Weights, sizeof(raw.l1Weights));
     std::memcpy(tmp.l1Biases, raw.l1Biases, sizeof(raw.l1Biases));
     std::memcpy(tmp.l2Weights, raw.l2Weights, sizeof(raw.l2Weights));
     std::memcpy(tmp.l2Biases, raw.l2Biases, sizeof(raw.l2Biases));
@@ -106,8 +149,8 @@ void transposePermuteNetwork() {
 #endif
     __m128i regs[packusBlocks];
 
-    for (int limit : { 1, KING_BUCKETS* INPUT_SIZE }) {
-        __m128i* vec = reinterpret_cast<__m128i*>(limit == 1 ? (int16_t*) tmp.inputBiases : (int16_t*) tmp.inputWeights);
+    for (int limit : { 1, INPUT_SIZE }) {
+        __m128i* vec = reinterpret_cast<__m128i*>(limit == 1 ? (int16_t*)tmp.inputBiases : (int16_t*)tmp.inputWeights);
 
         for (int i = 0; i < limit * L1_SIZE / weightsPerBlock; i += packusBlocks) {
             for (int j = 0; j < packusBlocks; j++)
@@ -188,13 +231,20 @@ int main(int argc, char* argv[]) {
         outfile.close();
     }
     else {
-        // Read the network
+        // Read the compressed network
         std::ifstream infile(infile_name, std::ios::binary);
         if (!infile) {
-            std::cerr << "Error opening quantised file for reading (" << infile_name << ")" << std::endl;
+            std::cerr << "Error opening compressed file for reading (" << infile_name << ")" << std::endl;
             return -1;
         }
-        infile.read(reinterpret_cast<char*>(&tmp), sizeof(tmp));
+        for (auto& v : tmp.inputWeights) v = (int16_t)readSLEB128(infile);
+        for (auto& v : tmp.inputBiases)  v = (int16_t)readSLEB128(infile);
+        for (auto& b : tmp.l1Weights)    for (auto& v : b) v = (int8_t)readSLEB128(infile);
+        for (auto& b : tmp.l1Biases)     for (auto& v : b) v = readFloat(infile);
+        for (auto& b : tmp.l2Weights)    for (auto& v : b) v = readFloat(infile);
+        for (auto& b : tmp.l2Biases)     for (auto& v : b) v = readFloat(infile);
+        for (auto& b : tmp.l3Weights)    for (auto& v : b) v = readFloat(infile);
+        for (auto& v : tmp.l3Biases)     v = readFloat(infile);
         infile.close();
     }
 
@@ -203,7 +253,7 @@ int main(int argc, char* argv[]) {
     // Write the network
     std::ofstream outfile(outfilefile_name, std::ios::binary);
     if (!outfile) {
-        std::cerr << "Error opening file for writing" << std::endl;
+        std::cerr << "Error opening output file for writing" << std::endl;
         return -1;
     }
     outfile.write(reinterpret_cast<char*>(&out), sizeof(out));

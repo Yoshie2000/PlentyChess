@@ -25,12 +25,8 @@ constexpr int castlingIndex(Color side, Square kingOrigin, Square kingTarget) {
 }
 
 struct Threats {
-    Bitboard pawnThreats;
-    Bitboard knightThreats;
-    Bitboard bishopThreats;
-    Bitboard rookThreats;
-    Bitboard queenThreats;
-    Bitboard kingThreats;
+    Bitboard byPiece[6];
+    Bitboard toSquare[64];
 };
 
 struct Hashes {
@@ -69,11 +65,22 @@ struct Board {
     size_t parseFen(std::string fen, bool chess960);
     std::string fen();
 
-    void movePiece(Piece piece, Square origin, Square target, Bitboard fromTo);
+    template<bool add>
+    void updatePieceThreats(Square square, Bitboard attacked, NNUE* nnue);
+     template<bool add>
+    void updateThreatFeaturesFromPiece(Piece piece, Color pieceColor, Square square, Bitboard attacked, NNUE* nnue);
+    template<bool add>
+    void updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
+
+    void addPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
+    void removePiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
+    void movePiece(Piece piece, Color pieceColor, Square origin, Square target, Bitboard fromTo, NNUE* nnue);
+
     void doMove(Move move, uint64_t newHash, NNUE* nnue);
     void doNullMove();
 
-    void calculateThreats();
+    void finishThreatsUpdate();
+    Threats calculateAllThreats();
     bool isSquareThreatened(Square square);
 
     constexpr bool isCapture(Move move) {
@@ -104,13 +111,14 @@ struct Board {
         Bitboard minors = byColor[stm] & (byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP]);
         minors |= rooks;
 
-        Bitboard minorThreats = threats.knightThreats | threats.bishopThreats | threats.pawnThreats;
-        Bitboard rookThreats = minorThreats | threats.rookThreats;
+        Bitboard minorThreats = threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP] | threats.byPiece[Piece::PAWN];
+        Bitboard rookThreats = minorThreats | threats.byPiece[Piece::ROOK];
 
-        return (queens & rookThreats) | (rooks & minorThreats) | (minors & threats.pawnThreats);
+        return (queens & rookThreats) | (rooks & minorThreats) | (minors & threats.byPiece[Piece::PAWN]);
     }
 
     Bitboard attackersTo(Square square, Bitboard occupied);
+    Bitboard attackersTo(Square square);
 
     void debugBoard();
     int validateBoard();

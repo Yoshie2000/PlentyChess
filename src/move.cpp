@@ -460,21 +460,21 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
         Bitboard fromBB = bitboard(moveOrigin(move));
         Bitboard toBB = bitboard(moveTarget(move));
         if (piece == Piece::QUEEN) {
-            if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
+            if (fromBB & (threats.byPiece[Piece::PAWN] | threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP] | threats.byPiece[Piece::ROOK]))
                 threatScore += 20000;
-            if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
+            if (toBB & (threats.byPiece[Piece::PAWN] | threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP] | threats.byPiece[Piece::ROOK]))
                 threatScore -= 20000;
         }
         else if (piece == Piece::ROOK) {
-            if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
+            if (fromBB & (threats.byPiece[Piece::PAWN] | threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP]))
                 threatScore += 12500;
-            if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
+            if (toBB & (threats.byPiece[Piece::PAWN] | threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP]))
                 threatScore -= 12500;
         }
         else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
-            if (fromBB & threats.pawnThreats)
+            if (fromBB & threats.byPiece[Piece::PAWN])
                 threatScore += 7500;
-            if (toBB & threats.pawnThreats)
+            if (toBB & threats.byPiece[Piece::PAWN])
                 threatScore -= 7500;
         }
 
