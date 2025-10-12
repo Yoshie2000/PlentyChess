@@ -457,24 +457,29 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
 
         int threatScore = 0;
         Piece piece = board->pieces[moveOrigin(move)];
-        Bitboard fromBB = bitboard(moveOrigin(move));
-        Bitboard toBB = bitboard(moveTarget(move));
+        Bitboard originAttackers = threats.toSquare[moveOrigin(move)];
+        Bitboard targetAttackers = threats.toSquare[moveTarget(move)];
+
+        Bitboard enemies = board->byColor[flip(board->stm)];
         if (piece == Piece::QUEEN) {
-            if (fromBB & (threats.byPiece[Piece::PAWN] | threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP] | threats.byPiece[Piece::ROOK]))
+            Bitboard enemyMajors = (board->byPiece[Piece::PAWN] | board->byPiece[Piece::KNIGHT] | board->byPiece[Piece::BISHOP] | board->byPiece[Piece::ROOK]) & enemies;
+            if (originAttackers & enemyMajors)
                 threatScore += 20000;
-            if (toBB & (threats.byPiece[Piece::PAWN] | threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP] | threats.byPiece[Piece::ROOK]))
+            if (targetAttackers & enemyMajors)
                 threatScore -= 20000;
         }
         else if (piece == Piece::ROOK) {
-            if (fromBB & (threats.byPiece[Piece::PAWN] | threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP]))
+            Bitboard enemyMinors = (board->byPiece[Piece::PAWN] | board->byPiece[Piece::KNIGHT] | board->byPiece[Piece::BISHOP]) & enemies;
+            if (originAttackers & enemyMinors)
                 threatScore += 12500;
-            if (toBB & (threats.byPiece[Piece::PAWN] | threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP]))
+            if (targetAttackers & enemyMinors)
                 threatScore -= 12500;
         }
         else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
-            if (fromBB & threats.byPiece[Piece::PAWN])
+            Bitboard enemyPawns = board->byPiece[Piece::PAWN] & enemies;
+            if (originAttackers & enemyPawns)
                 threatScore += 7500;
-            if (toBB & threats.byPiece[Piece::PAWN])
+            if (targetAttackers & enemyPawns)
                 threatScore -= 7500;
         }
 
