@@ -143,7 +143,7 @@ TUNE_INT(lmrCorrectionDivisorImportantCapture, 143565, 10000, 200000);
 TUNE_INT(lmrQuietHistoryDivisor, 27106, 10000, 30000);
 TUNE_INT(lmrHistoryFactorCapture, 3053327, 2500000, 4000000);
 TUNE_INT(lmrHistoryFactorImportantCapture, 3027194, 2500000, 4000000);
-TUNE_INT(lmrImportantCaptureOffset, 105, 0, 500);
+TUNE_INT(lmrImportantCaptureOffset, 80, 0, 500);
 TUNE_INT(lmrImportantBadCaptureOffset, 98, 0, 500);
 TUNE_INT(lmrImportantCaptureFactor, 47, 0, 250);
 TUNE_INT(lmrQuietPvNodeOffset, 13, 0, 250);
@@ -1069,7 +1069,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                 reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
 
                 if (importantCapture) {
-                    reduction -= lmrImportantCaptureOffset;
+                    reduction -= lmrImportantCaptureOffset + 50 * rootNode;
                     reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
                     reduction = lmrImportantCaptureFactor * reduction / 100;
                 }
