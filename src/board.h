@@ -71,6 +71,7 @@ struct Board {
     template<bool add>
     void updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
 
+    void updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta);
     void addPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
     void removePiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
     void movePiece(Piece piece, Color pieceColor, Square origin, Square target, Bitboard fromTo, NNUE* nnue);

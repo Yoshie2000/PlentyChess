@@ -509,6 +509,19 @@ void Board::updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square sq
     }
 }
 
+void Board::updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta) {
+    if (piece == Piece::PAWN) {
+        hashes.pawnHash ^= hashDelta;
+    }
+    else {
+        hashes.nonPawnHash[pieceColor] ^= hashDelta;
+        if (piece == Piece::KNIGHT || piece == Piece::BISHOP || piece == Piece::KING)
+            hashes.minorHash ^= hashDelta;
+        if (piece == Piece::ROOK || piece == Piece::QUEEN || piece == Piece::KING)
+            hashes.majorHash ^= hashDelta;
+    }
+}
+
 void Board::addPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue) {
     assert(pieces[square] == Piece::NONE);
 
@@ -523,6 +536,8 @@ void Board::addPiece(Piece piece, Color pieceColor, Square square, Bitboard squa
     updateThreatFeaturesFromPiece<true>(piece, pieceColor, square, attacked, nnue);
     updatePieceThreats<true>(square, attacked, nnue);
     updateThreatFeaturesToPiece<true>(piece, pieceColor, square, nnue);
+
+    updatePieceHash(piece, pieceColor, ZOBRIST_PIECE_SQUARES[pieceColor][piece][square]);
 };
 
 void Board::removePiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue) {
@@ -539,6 +554,8 @@ void Board::removePiece(Piece piece, Color pieceColor, Square square, Bitboard s
     updateThreatFeaturesFromPiece<false>(piece, pieceColor, square, attacked, nnue);
     updatePieceThreats<false>(square, attacked, nnue);
     updateThreatFeaturesToPiece<false>(piece, pieceColor, square, nnue);
+
+    updatePieceHash(piece, pieceColor, ZOBRIST_PIECE_SQUARES[pieceColor][piece][square]);
 };
 
 void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square target, Bitboard fromTo, NNUE* nnue) {
@@ -562,6 +579,8 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     updateThreatFeaturesFromPiece<true>(piece, pieceColor, target, attacksAfter, nnue);
     updatePieceThreats<true>(target, attacksAfter, nnue);
     updateThreatFeaturesToPiece<true>(piece, pieceColor, target, nnue);
+
+    updatePieceHash(piece, pieceColor, ZOBRIST_PIECE_SQUARES[pieceColor][piece][origin] ^ ZOBRIST_PIECE_SQUARES[pieceColor][piece][target]);
 };
 
 void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling) {
@@ -631,26 +650,13 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
                     castling &= ~CASTLING_BLACK_QUEENSIDE;
                 }
             }
-
-            hashes.nonPawnHash[flip(stm)] ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
-            if (capturedPiece == Piece::KNIGHT || capturedPiece == Piece::BISHOP)
-                hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
-            else
-                hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
         }
 
         removePiece(piece, stm, origin, originBB, nnue);
         rule50_ply = 0;
-        hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin];
 
         promotionPiece = PROMOTION_PIECE[promotionType(move)];
         addPiece(promotionPiece, stm, target, targetBB, nnue);
-
-        hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][promotionPiece][target];
-        if (promotionPiece == Piece::KNIGHT || promotionPiece == Piece::BISHOP)
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[stm][promotionPiece][captureTarget];
-        else
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][promotionPiece][captureTarget];
 
         break;
 
@@ -663,15 +669,6 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
         removePiece(Piece::ROOK, stm, rookOrigin, bitboard(rookOrigin), nnue);
         addPiece(Piece::KING, stm, target, bitboard(target), nnue);
         addPiece(Piece::ROOK, stm, rookTarget, bitboard(rookTarget), nnue);
-
-        hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][origin];
-        hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][target];
-        hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookOrigin];
-        hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookTarget];
-
-        hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::KING][target];
-        hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::KING][target];
-        hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookTarget];
 
         capturedPiece = Piece::NONE;
     }
@@ -688,25 +685,12 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
 
         removePiece(Piece::PAWN, flip(stm), captureTarget, bitboard(captureTarget), nnue);
 
-        hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][target] ^ ZOBRIST_PIECE_SQUARES[flip(stm)][Piece::PAWN][captureTarget];
-
         break;
 
     default: // Normal moves
 
         if (capturedPiece != Piece::NONE) {
             removePiece(capturedPiece, flip(stm), captureTarget, captureTargetBB, nnue);
-
-            if (capturedPiece == Piece::PAWN)
-                hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][Piece::PAWN][captureTarget];
-            else {
-                hashes.nonPawnHash[flip(stm)] ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
-                if (capturedPiece == Piece::KNIGHT || capturedPiece == Piece::BISHOP)
-                    hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
-                else
-                    hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
-            }
-
             rule50_ply = 0;
         }
 
@@ -730,18 +714,6 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
             }
 
             rule50_ply = 0;
-            hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][target];
-        }
-        else {
-            hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
-            if (piece == Piece::KNIGHT || piece == Piece::BISHOP)
-                hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
-            else if (piece == Piece::ROOK || piece == Piece::QUEEN)
-                hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
-            else {
-                hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
-                hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
-            }
         }
 
         // Unset castling flags if necessary
