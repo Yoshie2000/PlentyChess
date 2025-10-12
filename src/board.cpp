@@ -908,6 +908,12 @@ bool Board::isSquareThreatened(Square square) {
     return squareBB & (threats.byPiece[Piece::PAWN] | threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP] | threats.byPiece[Piece::ROOK] | threats.byPiece[Piece::QUEEN] | threats.byPiece[Piece::KING]);
 }
 
+bool Board::isSquareOverattacked(Square square) {
+    Bitboard attackers = threats.toSquare[square] & byColor[flip(stm)];
+    Bitboard defenders = threats.toSquare[square] & byColor[stm];
+    return BB::popcount(attackers) > BB::popcount(defenders);
+}
+
 bool Board::isPseudoLegal(Move move) {
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);

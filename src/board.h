@@ -82,6 +82,7 @@ struct Board {
     void finishThreatsUpdate();
     Threats calculateAllThreats();
     bool isSquareThreatened(Square square);
+    bool isSquareOverattacked(Square square);
 
     constexpr bool isCapture(Move move) {
         MoveType type = moveType(move);
