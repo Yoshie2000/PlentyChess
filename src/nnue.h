@@ -491,7 +491,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
 constexpr int KING_BUCKETS = 12;
 
 constexpr int INPUT_SIZE = 2 * ThreatInputs::PieceOffsets::END + 768 * KING_BUCKETS;
-constexpr int L1_SIZE = 512;
+constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
@@ -612,17 +612,17 @@ public:
 
   Eval evaluate(Board* board);
   template<Color side>
-  __attribute_noinline__ void calculateAccumulators();
+  void calculateAccumulators();
 
   template<Color side>
-  __attribute_noinline__ void refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket);
+  void refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket);
   template<Color side>
-  __attribute_noinline__ void refreshThreatFeatures(Accumulator* acc);
+  void refreshThreatFeatures(Accumulator* acc);
 
   template<Color side>
-  __attribute_noinline__ void incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  void incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
   template<Color side>
-  __attribute_noinline__ void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
   template<Color side>
   void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
