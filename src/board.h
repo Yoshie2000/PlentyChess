@@ -25,7 +25,6 @@ constexpr int castlingIndex(Color side, Square kingOrigin, Square kingTarget) {
 }
 
 struct Threats {
-    Bitboard byPiece[6];
     Bitboard toSquare[64];
 };
 
@@ -67,7 +66,7 @@ struct Board {
 
     template<bool add>
     void updatePieceThreats(Square square, Bitboard attacked, NNUE* nnue);
-     template<bool add>
+    template<bool add>
     void updateThreatFeaturesFromPiece(Piece piece, Color pieceColor, Square square, Bitboard attacked, NNUE* nnue);
     template<bool add>
     void updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
@@ -79,9 +78,9 @@ struct Board {
     void doMove(Move move, uint64_t newHash, NNUE* nnue);
     void doNullMove();
 
-    void finishThreatsUpdate();
     Threats calculateAllThreats();
     bool isSquareThreatened(Square square);
+    bool opponentHasGoodCapture();
 
     constexpr bool isCapture(Move move) {
         MoveType type = moveType(move);
@@ -102,19 +101,6 @@ struct Board {
     constexpr bool hasNonPawns() {
         Bitboard nonPawns = byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP] | byPiece[Piece::ROOK] | byPiece[Piece::QUEEN];
         return BB::popcount(byColor[stm] & nonPawns) > 0;
-    }
-
-    constexpr bool opponentHasGoodCapture() {
-        Bitboard queens = byColor[stm] & byPiece[Piece::QUEEN];
-        Bitboard rooks = byColor[stm] & byPiece[Piece::ROOK];
-        rooks |= queens;
-        Bitboard minors = byColor[stm] & (byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP]);
-        minors |= rooks;
-
-        Bitboard minorThreats = threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP] | threats.byPiece[Piece::PAWN];
-        Bitboard rookThreats = minorThreats | threats.byPiece[Piece::ROOK];
-
-        return (queens & rookThreats) | (rooks & minorThreats) | (minors & threats.byPiece[Piece::PAWN]);
     }
 
     Bitboard attackersTo(Square square, Bitboard occupied);
