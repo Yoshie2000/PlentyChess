@@ -904,8 +904,7 @@ void Board::finishThreatsUpdate() {
 }
 
 bool Board::isSquareThreatened(Square square) {
-    Bitboard squareBB = bitboard(square);
-    return squareBB & (threats.byPiece[Piece::PAWN] | threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP] | threats.byPiece[Piece::ROOK] | threats.byPiece[Piece::QUEEN] | threats.byPiece[Piece::KING]);
+    return threats.toSquare[square] & byColor[flip(stm)];
 }
 
 bool Board::isPseudoLegal(Move move) {
