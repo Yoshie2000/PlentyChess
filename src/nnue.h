@@ -11,7 +11,6 @@
 #include <xmmintrin.h>
 #else
 #include <arm_neon.h>
-#define __attribute_noinline__ 
 #endif
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
@@ -601,21 +600,21 @@ public:
 
   void reset(Board* board);
   template<Color side>
-  __attribute_noinline__ void resetAccumulator(Board* board, Accumulator* acc);
+  void resetAccumulator(Board* board, Accumulator* acc);
 
   Eval evaluate(Board* board);
   template<Color side>
-  __attribute_noinline__ void calculateAccumulators();
+  void calculateAccumulators();
 
   template<Color side>
-  __attribute_noinline__ void refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket);
+  void refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket);
   template<Color side>
-  __attribute_noinline__ void refreshThreatFeatures(Accumulator* acc);
+  void refreshThreatFeatures(Accumulator* acc);
 
   template<Color side>
-  __attribute_noinline__ void incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  void incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
   template<Color side>
-  __attribute_noinline__ void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
   template<Color side>
   void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);

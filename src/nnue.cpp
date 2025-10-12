@@ -73,7 +73,7 @@ void NNUE::reset(Board* board) {
 }
 
 template<Color side>
-__attribute_noinline__ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
+void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     // Overwrite with biases
     memcpy(acc->threatState[side], networkData->inputBiases, sizeof(networkData->inputBiases));
     // Overwrite with zeroes
@@ -153,7 +153,7 @@ void NNUE::finalizeMove(Board* board) {
 }
 
 template<Color side>
-__attribute_noinline__ void NNUE::calculateAccumulators() {
+void NNUE::calculateAccumulators() {
     // Incrementally update all accumulators for this side
     while (lastCalculatedAccumulator[side] < currentAccumulator) {
 
@@ -178,7 +178,7 @@ __attribute_noinline__ void NNUE::calculateAccumulators() {
 }
 
 template<Color side>
-__attribute_noinline__ void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
+void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
     FinnyEntry* finnyEntry = &finnyTable[kingBucket->mirrored][kingBucket->bucket];
 
     // Update matching finny table with the changed pieces
@@ -210,7 +210,7 @@ __attribute_noinline__ void NNUE::refreshPieceFeatures(Accumulator* acc, KingBuc
 }
 
 template<Color side>
-__attribute_noinline__ void NNUE::refreshThreatFeatures(Accumulator* acc) {
+void NNUE::refreshThreatFeatures(Accumulator* acc) {
     // Overwrite with biases
     memcpy(acc->threatState[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
@@ -221,7 +221,7 @@ __attribute_noinline__ void NNUE::refreshThreatFeatures(Accumulator* acc) {
 }
 
 template<Color side>
-__attribute_noinline__ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
     for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
         DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
 
@@ -245,7 +245,7 @@ __attribute_noinline__ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* 
 }
 
 template<Color side>
-__attribute_noinline__ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
     ThreatInputs::FeatureList addFeatures, subFeatures;
 
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
