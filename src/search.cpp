@@ -780,7 +780,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - 100 * (improving && !board->opponentHasGoodCapture())) / 100 >= beta)
+    if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - 100 * (improving && !board->opponentHasGoodCapture()) - 100 * (stack->ply > 0 && board->isSquareOverattacked(moveTarget((stack - 1)->move)))) / 100 >= beta)
         return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Razoring
@@ -1077,8 +1077,6 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             else {
                 reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
                 reduction -= lmrQuietPvNodeOffset * pvNode;
-
-                reduction += 100 * boardCopy->isSquareOverattacked(moveTarget(move));
             }
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
