@@ -19,10 +19,9 @@ void Board::startpos() {
     parseFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", false);
 }
 
-size_t Board::parseFen(std::string fen, bool isChess960) {
-    Square currentSquare = 56;
-    uint8_t currentRank = 7;
-    size_t i = 0;
+void Board::parseFen(std::istringstream& iss, bool isChess960) {
+    std::string boardPart, stmPart, castlingPart, epPart;
+    iss >> boardPart >> stmPart >> castlingPart >> epPart >> rule50_ply >> ply;
 
     // Clear everything
     for (Square s = 0; s < 64; s++) {
@@ -35,29 +34,28 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
         }
     }
     checkers = bitboard(0);
-    hashes.hash = 0;
-    hashes.pawnHash = ZOBRIST_NO_PAWNS;
-    hashes.nonPawnHash[Color::WHITE] = 0;
-    hashes.nonPawnHash[Color::BLACK] = 0;
-    hashes.minorHash = 0;
-    hashes.majorHash = 0;
+    hashes = {};
     nullmove_ply = 0;
 
     // Set up pieces
-    for (i = 0; i < fen.length(); i++) {
-        char c = fen.at(i);
-        if (c == ' ') {
-            i++;
-            break;
+    Square currentSquare = 56;
+    for (char c : boardPart) {
+        if (c == '/') {
+            currentSquare -= 16;
+            continue;
+        }
+        if (isdigit(c)) {
+            currentSquare += c - '0';
+            continue;
         }
 
-        auto addPiece = [this](Piece piece, Color color, Square& currentSquare) {
-            Bitboard currentSquareBB = bitboard(currentSquare);
-            byColor[color] |= currentSquareBB;
-            byPiece[piece] |= currentSquareBB;
-            pieces[currentSquare] = piece;
+        auto addPiece = [this](Piece piece, Color color, Square sq) {
+            Bitboard sqBB = bitboard(sq);
+            byColor[color] |= sqBB;
+            byPiece[piece] |= sqBB;
+            pieces[sq] = piece;
 
-            uint64_t hash = ZOBRIST_PIECE_SQUARES[color][piece][currentSquare];
+            uint64_t hash = ZOBRIST_PIECE_SQUARES[color][piece][sq];
             hashes.hash ^= hash;
             if (piece == Piece::PAWN)
                 hashes.pawnHash ^= hash;
@@ -68,142 +66,65 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
                 if (piece == Piece::ROOK || piece == Piece::QUEEN || piece == Piece::KING)
                     hashes.majorHash ^= hash;
             }
-
-            currentSquare++;
         };
 
-        auto pieceChars = { 'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r', 'Q', 'q', 'K', 'k' };
-
-        auto it = std::find(pieceChars.begin(), pieceChars.end(), c);
-        if (it != pieceChars.end()) {
-            int pieceCharIdx = it - pieceChars.begin();
-            Piece piece = static_cast<Piece>(pieceCharIdx / 2);
-            Color color = static_cast<Color>(pieceCharIdx % 2);
-            addPiece(piece, color, currentSquare);
-        }
-        else if (c == '/') {
-            currentRank--;
-            currentSquare = 8 * currentRank;
-        }
-        else {
-            currentSquare += int(c) - 48;
-
+        std::string pieceChars = "PNBRQKpnbrqk";
+        size_t idx = pieceChars.find(c);
+        if (idx != std::string::npos) {
+            Piece piece = static_cast<Piece>(idx % 6);
+            Color color = idx < 6 ? Color::WHITE : Color::BLACK;
+            addPiece(piece, color, currentSquare++);
         }
     }
 
     // Side to move
-    stm = fen.at(i) == 'w' ? Color::WHITE : Color::BLACK;
+    stm = (stmPart == "w") ? Color::WHITE : Color::BLACK;
     if (stm == Color::BLACK)
         hashes.hash ^= ZOBRIST_STM_BLACK;
-    i += 2;
 
     // Castling
     castling = 0;
     castlingSquares[0] = castlingSquares[1] = castlingSquares[2] = castlingSquares[3] = NO_SQUARE;
-    for (; i < fen.length(); i++) {
-        char c = fen.at(i);
+    for (char c : castlingPart) {
+        if (c == '-') break;
 
-        if (c == '-') {
-            i += 2;
-            break;
+        auto castlingChars = { 'K', 'Q', 'k', 'q' };
+        auto it = std::find(castlingChars.begin(), castlingChars.end(), c);
+        if (it != castlingChars.end()) {
+            int index = it - castlingChars.begin();
+            Color side = static_cast<Color>(index >= 2);
+            Bitboard backrank = side == Color::WHITE ? BB::RANK_1 : BB::RANK_8;
+            bool kingside = index % 2 == 0;
+
+            // Find position of corresponding rook
+            Bitboard rookBB = byColor[side] & byPiece[Piece::ROOK] & backrank;
+            std::vector<Square> rooks;
+            while (rookBB) {
+                rooks.push_back(popLSB(&rookBB));
+            }
+            castlingSquares[index] = kingside ? *std::max_element(rooks.begin(), rooks.end()) : *std::min_element(rooks.begin(), rooks.end());
+            castling |= 1 << index;
         }
-        else if (c == ' ') {
-            i++;
-            break;
-        }
+        else {
+            // Rook file is already given
+            Color side = c >= 'A' && c <= 'H' ? Color::WHITE : Color::BLACK;
+            int rookFile = side == Color::WHITE ? int(c - 'A') : int(c - 'a');
+            Square king = lsb(byColor[side] & byPiece[Piece::KING]);
+            int index = 2 * side + (rookFile < fileOf(king));
 
-        Bitboard rookBB;
-        std::vector<Square> rooks;
-
-        switch (c) {
-        case 'k':
-            castling |= CASTLING_BLACK_KINGSIDE;
-            // Chess960 support: Find black kingside rook
-            rookBB = byColor[Color::BLACK] & byPiece[Piece::ROOK] & BB::RANK_8;
-            rooks.clear();
-            while (rookBB) {
-                rooks.push_back(popLSB(&rookBB));
-            }
-            castlingSquares[2] = *std::max_element(rooks.begin(), rooks.end());
-            break;
-        case 'K':
-            castling |= CASTLING_WHITE_KINGSIDE;
-            // Chess960 support: Find white kingside rook
-            rookBB = byColor[Color::WHITE] & byPiece[Piece::ROOK] & BB::RANK_1;
-            rooks.clear();
-            while (rookBB) {
-                rooks.push_back(popLSB(&rookBB));
-            }
-            castlingSquares[0] = *std::max_element(rooks.begin(), rooks.end());
-            break;
-        case 'q':
-            castling |= CASTLING_BLACK_QUEENSIDE;
-            // Chess960 support: Find black queenside rook
-            rookBB = byColor[Color::BLACK] & byPiece[Piece::ROOK] & BB::RANK_8;
-            rooks.clear();
-            while (rookBB) {
-                rooks.push_back(popLSB(&rookBB));
-            }
-            castlingSquares[3] = *std::min_element(rooks.begin(), rooks.end());
-            break;
-        case 'Q':
-            castling |= CASTLING_WHITE_QUEENSIDE;
-            // Chess960 support: Find white queenside rook
-            rookBB = byColor[Color::WHITE] & byPiece[Piece::ROOK] & BB::RANK_1;
-            rooks.clear();
-            while (rookBB) {
-                rooks.push_back(popLSB(&rookBB));
-            }
-            castlingSquares[1] = *std::min_element(rooks.begin(), rooks.end());
-            break;
-        case ' ':
-        default:
-            // Chess960 castling
-            if (c >= 'A' && c <= 'H') {
-                // White
-                Square king = lsb(byColor[Color::WHITE] & byPiece[Piece::KING]);
-                int rookFile = int(c - 'A');
-                if (rookFile > fileOf(king)) {
-                    castling |= CASTLING_WHITE_KINGSIDE;
-                    castlingSquares[0] = Square(rookFile);
-                }
-                else {
-                    castling |= CASTLING_WHITE_QUEENSIDE;
-                    castlingSquares[1] = Square(rookFile);
-                }
-                break;
-            }
-            else if (c >= 'a' && c <= 'h') {
-                // Black
-                Square king = lsb(byColor[Color::BLACK] & byPiece[Piece::KING]);
-                int rookFile = int(c - 'a');
-                if (rookFile > fileOf(king)) {
-                    castling |= CASTLING_BLACK_KINGSIDE;
-                    castlingSquares[2] = Square(56 + rookFile);
-                }
-                else {
-                    castling |= CASTLING_BLACK_QUEENSIDE;
-                    castlingSquares[3] = Square(56 + rookFile);
-                }
-                break;
-            }
-            std::cout << "Weird char in fen castling: " << c << " (index " << i << ")" << std::endl;
-            exit(-1);
-            break;
+            castling |= 1 << index;
+            castlingSquares[index] = Square(rookFile + 56 * (side == Color::BLACK));
         }
     }
     hashes.hash ^= ZOBRIST_CASTLING[castling & CASTLING_MASK];
 
     // en passent
-    if (fen.at(i) == '-') {
+    if (epPart == "-") {
         enpassantTarget = bitboard(0);
-        i += 2;
     }
     else {
-        char epTargetString[2] = { fen.at(i), fen.at(i + 1) };
-        Square epTargetSquare = stringToSquare(epTargetString);
+        Square epTargetSquare = stringToSquare(epPart.c_str());
         enpassantTarget = bitboard(epTargetSquare);
-        i += 3;
 
         // Check if there's *actually* a pawn that can do enpassent
         Bitboard enemyPawns = byColor[flip(stm)] & byPiece[Piece::PAWN];
@@ -213,42 +134,6 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
         Bitboard epPawns = (bitboard(pawnSquare1) | bitboard(pawnSquare2)) & epRank & enemyPawns;
         if (epPawns)
             hashes.hash ^= ZOBRIST_ENPASSENT[fileOf(epTargetSquare)];
-    }
-
-    if (fen.length() <= i) {
-        rule50_ply = 0;
-        ply = 1;
-    }
-    else {
-        // 50 move rule
-        std::string rule50String = "--";
-        int rule50tmp = 0;
-        while (fen.at(i) != ' ') {
-            rule50String.replace(rule50tmp++, 1, 1, fen.at(i++));
-        }
-        if (rule50String.at(1) == '-') {
-            rule50_ply = int(rule50String.at(0)) - 48;
-        }
-        else {
-            rule50_ply = 10 * (int(rule50String.at(0)) - 48) + (int(rule50String.at(1)) - 48);
-        }
-        i++;
-
-        // Move number
-        std::string plyString = "---";
-        int plyTmp = 0;
-        while (i < fen.length() && fen.at(i) != ' ') {
-            plyString.replace(plyTmp++, 1, 1, fen.at(i++));
-        }
-        if (plyString.at(1) == '-') {
-            ply = int(plyString.at(0)) - 48;
-        }
-        else if (plyString.at(2) == '-') {
-            ply = 10 * (int(plyString.at(0)) - 48) + (int(plyString.at(1)) - 48);
-        }
-        else {
-            ply = 100 * (int(plyString.at(0)) - 48) + 10 * (int(plyString.at(1)) - 48) + (int(plyString.at(2)) - 48);
-        }
     }
 
     threats = calculateAllThreats();
@@ -263,12 +148,10 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
 
     chess960 = isChess960;
 
-    return i;
+    debugBoard();
 }
 
 std::string Board::fen() {
-    // rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
-    // r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 10
     std::string result;
 
     std::string pieceChars = "pnbrqk ";

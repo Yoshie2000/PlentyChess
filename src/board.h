@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string>
+#include <sstream>
 
 #include "move.h"
 #include "bitboard.h"
@@ -61,7 +62,11 @@ struct Board {
     bool chess960;
 
     void startpos();
-    size_t parseFen(std::string fen, bool chess960);
+    void parseFen(std::string fen, bool chess960) {
+        std::istringstream iss(fen);
+        parseFen(iss, chess960);
+    };
+    void parseFen(std::istringstream& iss, bool chess960);
     std::string fen();
 
     template<bool add>

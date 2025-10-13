@@ -223,7 +223,7 @@ void bench(Board& board, std::vector<uint64_t>& boardHistory) {
         << "\nTotal time (ms) : " << elapsed
         << "\nNodes searched  : " << nodes
         << "\nNodes/second    : " << 1000 * nodes / elapsed << std::endl;
-    
+
     UCI::Options.minimal.value = minimal;
 }
 
@@ -339,16 +339,16 @@ void seetest(Board& board) {
 }
 
 void position(std::string line, Board& board, std::vector<uint64_t>& boardHistory) {
+    std::istringstream iss(line);
+    std::string token;
+    iss >> token;
+
     // Set up startpos or moves
-    if (matchesToken(line, "startpos")) {
+    if (token == "startpos") {
         board.startpos();
-        line = line.substr(std::min(9, (int)line.length()));
     }
-    else if (matchesToken(line, "fen")) {
-        line = line.substr(4);
-        size_t fenLength = board.parseFen(line, UCI::Options.chess960.value) + 1;
-        if (line.length() > fenLength)
-            line = line.substr(fenLength);
+    else if (token == "fen") {
+        board.parseFen(iss, UCI::Options.chess960.value);
     }
     else {
         std::cout << "Not a valid position, exiting" << std::endl;
@@ -360,38 +360,27 @@ void position(std::string line, Board& board, std::vector<uint64_t>& boardHistor
     boardHistory.push_back(board.hashes.hash);
 
     // Make further moves
+    iss >> token;
+    if (token != "moves")
+        return;
+
     UCI::nnue.reset(&board);
-    if (matchesToken(line, "moves") && line.size() >= 6) {
-        line = line.substr(6);
+    iss >> token;
+    int moveCount = 0;
 
-        char move[5];
-        size_t lastStrlen = line.length();
-        int moveCount = 0;
-        while (line.length() >= 4) {
-            lastStrlen = line.length();
+    while (token.size()) {
+        Move m = stringToMove(token.c_str(), &board);
 
-            size_t i = 0;
-            move[4] = ' ';
-            while (line[i] != ' ' && i < 5 && i < line.length()) {
-                move[i] = line[i];
-                i++;
-            }
-            Move m = stringToMove(move, &board);
+        Board boardCopy = board;
+        boardCopy.doMove(m, board.hashAfter(m), &UCI::nnue);
+        boardHistory.push_back(boardCopy.hashes.hash);
 
-            Board boardCopy = board;
-            boardCopy.doMove(m, board.hashAfter(m), &UCI::nnue);
-            boardHistory.push_back(boardCopy.hashes.hash);
-
-            if (moveCount++ > 200) {
-                UCI::nnue.reset(&boardCopy);
-            }
-
-            board = boardCopy;
-
-            if (line.length() > i)
-                line = line.substr(i + 1);
-            if (line.length() >= lastStrlen) break;
+        if (moveCount++ > 200) {
+            UCI::nnue.reset(&boardCopy);
         }
+
+        board = boardCopy;
+        iss >> token;
     }
 }
 
@@ -617,7 +606,8 @@ void uciLoop(int argc, char* argv[]) {
                 UCI::optionsDirty = false;
             }
             go(line, board, boardHistory);
-        } else if (matchesToken(line, "position")) position(line.substr(9), board, boardHistory);
+        }
+        else if (matchesToken(line, "position")) position(line.substr(9), board, boardHistory);
         else if (matchesToken(line, "setoption")) setoption(line.substr(10));
 
         /* NON UCI COMMANDS */
