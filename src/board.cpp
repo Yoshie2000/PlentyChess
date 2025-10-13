@@ -648,9 +648,9 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
 
         hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][promotionPiece][target];
         if (promotionPiece == Piece::KNIGHT || promotionPiece == Piece::BISHOP)
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][promotionPiece][captureTarget];
+            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[stm][promotionPiece][captureTarget];
         else
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][promotionPiece][captureTarget];
+            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][promotionPiece][captureTarget];
 
         break;
 
