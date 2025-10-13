@@ -180,51 +180,19 @@ void generateCastling(Board* board, Move** moves, int* counter) {
 
     // Castling: Nothing on the squares between king and rook
     // Checking if we are in check, or there are attacks in the way is done later (see isLegal())
-    switch (board->stm) {
-    case Color::WHITE:
-        // Kingside
-        if ((board->castling & CASTLING_WHITE_KINGSIDE)) {
-            Square kingsideRook = board->castlingSquares[0];
-            Bitboard between = BB::BETWEEN[kingsideRook][CASTLING_ROOK_SQUARES[0]] | BB::BETWEEN[king][CASTLING_KING_SQUARES[0]];
-            between &= ~bitboard(kingsideRook) & ~bitboard(king);
+    for (auto direction : { Castling::KINGSIDE, Castling::QUEENSIDE }) {
+        if (board->castling & Castling::getMask(board->stm, direction)) {
+            Square rookOrigin = board->getCastlingRookSquare(board->stm, direction);
+            Square rookTarget = Castling::getRookSquare(board->stm, direction);
+            Square kingTarget = Castling::getKingSquare(board->stm, direction);
+
+            Bitboard between = BB::BETWEEN[rookOrigin][rookTarget] | BB::BETWEEN[king][kingTarget];
+            between &= ~bitboard(rookOrigin) & ~bitboard(king);
             if (!(occupied & between)) {
-                *(*moves)++ = createMove(king, kingsideRook) | MOVE_CASTLING;
+                *(*moves)++ = createMove(king, rookOrigin) | MOVE_CASTLING;
                 (*counter)++;
             }
         }
-        // Queenside
-        if ((board->castling & CASTLING_WHITE_QUEENSIDE)) {
-            Square queensideRook = board->castlingSquares[1];
-            Bitboard between = BB::BETWEEN[queensideRook][CASTLING_ROOK_SQUARES[1]] | BB::BETWEEN[king][CASTLING_KING_SQUARES[1]];
-            between &= ~bitboard(queensideRook) & ~bitboard(king);
-            if (!(occupied & between)) {
-                *(*moves)++ = createMove(king, queensideRook) | MOVE_CASTLING;
-                (*counter)++;
-            }
-        }
-        break;
-    case Color::BLACK:
-        // Kingside
-        if ((board->castling & CASTLING_BLACK_KINGSIDE)) {
-            Square kingsideRook = board->castlingSquares[2];
-            Bitboard between = BB::BETWEEN[kingsideRook][CASTLING_ROOK_SQUARES[2]] | BB::BETWEEN[king][CASTLING_KING_SQUARES[2]];
-            between &= ~bitboard(kingsideRook) & ~bitboard(king);
-            if (!(occupied & between)) {
-                *(*moves)++ = createMove(king, kingsideRook) | MOVE_CASTLING;
-                (*counter)++;
-            }
-        }
-        // Queenside
-        if ((board->castling & CASTLING_BLACK_QUEENSIDE)) {
-            Square queensideRook = board->castlingSquares[3];
-            Bitboard between = BB::BETWEEN[queensideRook][CASTLING_ROOK_SQUARES[3]] | BB::BETWEEN[king][CASTLING_KING_SQUARES[3]];
-            between &= ~bitboard(queensideRook) & ~bitboard(king);
-            if (!(occupied & between)) {
-                *(*moves)++ = createMove(king, queensideRook) | MOVE_CASTLING;
-                (*counter)++;
-            }
-        }
-        break;
     }
 }
 

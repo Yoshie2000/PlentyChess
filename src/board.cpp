@@ -22,7 +22,7 @@ void Board::startpos() {
 void Board::parseFen(std::istringstream& iss, bool isChess960) {
     std::string boardPart, stmPart, castlingPart, epPart;
     iss >> boardPart >> stmPart >> castlingPart >> epPart;
-    
+
     int rule50_int, ply_int;
     rule50_ply = (iss >> rule50_int) ? rule50_int : 0;
     ply = (iss >> ply_int) ? ply_int : 1;
@@ -70,7 +70,7 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
                 if (piece == Piece::ROOK || piece == Piece::QUEEN || piece == Piece::KING)
                     hashes.majorHash ^= hash;
             }
-        };
+            };
 
         std::string pieceChars = "PNBRQKpnbrqk";
         size_t idx = pieceChars.find(c);
@@ -120,7 +120,7 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
             castlingSquares[index] = Square(rookFile + 56 * (side == Color::BLACK));
         }
     }
-    hashes.hash ^= Zobrist::CASTLING[castling & CASTLING_MASK];
+    hashes.hash ^= Zobrist::CASTLING[castling];
 
     // en passent
     if (epPart == "-") {
@@ -184,10 +184,10 @@ std::string Board::fen() {
     else
         result += " b ";
 
-    if (castling & CASTLING_WHITE_KINGSIDE) result += "K";
-    if (castling & CASTLING_WHITE_QUEENSIDE) result += "Q";
-    if (castling & CASTLING_BLACK_KINGSIDE) result += "k";
-    if (castling & CASTLING_BLACK_QUEENSIDE) result += "q";
+    if (castling & Castling::getMask(Color::WHITE, Castling::KINGSIDE)) result += "K";
+    if (castling & Castling::getMask(Color::WHITE, Castling::QUEENSIDE)) result += "Q";
+    if (castling & Castling::getMask(Color::BLACK, Castling::KINGSIDE)) result += "k";
+    if (castling & Castling::getMask(Color::BLACK, Castling::QUEENSIDE)) result += "q";
     if (castling)
         result += " ";
     else
@@ -326,29 +326,17 @@ void Board::updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta) {
     }
 }
 
-void Board::updatePieceCastling(Piece piece, Square origin) {
+void Board::updatePieceCastling(Piece piece, Color pieceColor, Square origin) {
     if (piece == Piece::ROOK) {
-        if (origin == castlingSquares[0]) {
-            castling &= ~CASTLING_WHITE_KINGSIDE;
-        }
-        else if (origin == castlingSquares[1]) {
-            castling &= ~CASTLING_WHITE_QUEENSIDE;
-        }
-        else if (origin == castlingSquares[2]) {
-            castling &= ~CASTLING_BLACK_KINGSIDE;
-        }
-        else if (origin == castlingSquares[3]) {
-            castling &= ~CASTLING_BLACK_QUEENSIDE;
+        for (auto direction : { Castling::KINGSIDE, Castling::QUEENSIDE }) {
+            if (origin == getCastlingRookSquare(pieceColor, direction)) {
+                castling &= ~Castling::getMask(pieceColor, direction);
+            }
         }
     }
 
     if (piece == Piece::KING) {
-        if (stm == Color::WHITE) {
-            castling &= CASTLING_BLACK_KINGSIDE | CASTLING_BLACK_QUEENSIDE;
-        }
-        else {
-            castling &= CASTLING_WHITE_KINGSIDE | CASTLING_WHITE_QUEENSIDE;
-        }
+        castling &= ~Castling::getMask(pieceColor);
     }
 }
 
@@ -369,7 +357,7 @@ void Board::addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
     updateThreatFeaturesToPiece<true>(piece, pieceColor, square, nnue);
 
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
-    updatePieceCastling(piece, square);
+    updatePieceCastling(piece, pieceColor, square);
 };
 
 void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
@@ -389,7 +377,7 @@ void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue
     updateThreatFeaturesToPiece<false>(piece, pieceColor, square, nnue);
 
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
-    updatePieceCastling(piece, square);
+    updatePieceCastling(piece, pieceColor, square);
 };
 
 void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue) {
@@ -416,25 +404,8 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     updateThreatFeaturesToPiece<true>(piece, pieceColor, target, nnue);
 
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][origin] ^ Zobrist::PIECE_SQUARES[pieceColor][piece][target]);
-    updatePieceCastling(piece, origin);
+    updatePieceCastling(piece, pieceColor, origin);
 };
-
-void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling) {
-    if (stm == Color::WHITE) {
-        int idx = *kingTarget <= kingOrigin;
-        *rookOrigin = castlingSquares[idx];
-        *rookTarget = CASTLING_ROOK_SQUARES[idx];
-        *kingTarget = CASTLING_KING_SQUARES[idx];
-        *castling &= CASTLING_BLACK_KINGSIDE | CASTLING_BLACK_QUEENSIDE;
-    }
-    else {
-        int idx = 2 + (*kingTarget <= kingOrigin);
-        *rookOrigin = castlingSquares[idx];
-        *rookTarget = CASTLING_ROOK_SQUARES[idx];
-        *kingTarget = CASTLING_KING_SQUARES[idx];
-        *castling &= CASTLING_WHITE_KINGSIDE | CASTLING_WHITE_QUEENSIDE;
-    }
-}
 
 void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
     // Increment ply counters
@@ -476,13 +447,15 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
         break;
 
     case MOVE_CASTLING: {
-        Square rookOrigin, rookTarget;
-        calculateCastlingSquares(origin, &target, &rookOrigin, &rookTarget, &castling);
-        assert(rookOrigin < 64 && rookTarget < 64 && target < 64);
+
+        auto direction = Castling::getDirection(origin, target);
+        Square rookOrigin = getCastlingRookSquare(stm, direction);
+        Square rookTarget = Castling::getRookSquare(stm, direction);
+        Square kingTarget = Castling::getKingSquare(stm, direction);
 
         removePiece(Piece::KING, stm, origin, nnue);
         removePiece(Piece::ROOK, stm, rookOrigin, nnue);
-        addPiece(Piece::KING, stm, target, nnue);
+        addPiece(Piece::KING, stm, kingTarget, nnue);
         addPiece(Piece::ROOK, stm, rookTarget, nnue);
 
         capturedPiece = Piece::NONE;
@@ -656,19 +629,19 @@ bool Board::isPseudoLegal(Move move) {
         if (piece != Piece::KING || checkers) return false;
 
         // Check for pieces between king and rook
-        int castlingIdx = castlingIndex(stm, origin, target);
-        Square kingSquare = lsb(byColor[stm] & byPiece[Piece::KING]);
-        Square rookSquare = castlingSquares[castlingIdx];
-        Square kingTarget = CASTLING_KING_SQUARES[castlingIdx];
-        Square rookTarget = CASTLING_ROOK_SQUARES[castlingIdx];
+        auto direction = Castling::getDirection(origin, target);
+        Square kingOrigin = lsb(byColor[stm] & byPiece[Piece::KING]);
+        Square kingTarget = Castling::getKingSquare(stm, direction);
+        Square rookOrigin = getCastlingRookSquare(stm, direction);
+        Square rookTarget = Castling::getRookSquare(stm, direction);
 
-        if (kingSquare == NO_SQUARE || rookSquare == NO_SQUARE || kingTarget == NO_SQUARE || rookTarget == NO_SQUARE) return false;
+        if (kingOrigin == NO_SQUARE || rookOrigin == NO_SQUARE || kingTarget == NO_SQUARE || rookTarget == NO_SQUARE) return false;
 
-        Bitboard importantSquares = BB::BETWEEN[rookSquare][rookTarget] | BB::BETWEEN[kingSquare][kingTarget];
-        importantSquares &= ~bitboard(rookSquare) & ~bitboard(kingSquare);
+        Bitboard importantSquares = BB::BETWEEN[rookOrigin][rookTarget] | BB::BETWEEN[kingOrigin][kingTarget];
+        importantSquares &= ~bitboard(rookOrigin) & ~bitboard(kingOrigin);
         if ((byColor[Color::WHITE] | byColor[Color::BLACK]) & importantSquares) return false;
         // Check for castling flags (Attackers are done in isLegal())
-        return castling & CASTLING_FLAGS[castlingIdx];
+        return castling & Castling::getMask(stm, Castling::getDirection(origin, target));
     }
     case MOVE_ENPASSANT:
         if (piece != Piece::PAWN) return false;
@@ -767,24 +740,24 @@ bool Board::isLegal(Move move) {
     }
 
     if (type == MOVE_CASTLING) {
-        int castlingIdx = castlingIndex(stm, origin, target);
-        Square adjustedTarget = CASTLING_KING_SQUARES[castlingIdx];
+        auto direction = Castling::getDirection(origin, target);
+        Square kingTarget = Castling::getKingSquare(stm, direction);
 
         // Check that none of the important squares (including the current king position!) are being attacked
-        if (adjustedTarget < origin) {
-            for (Square s = adjustedTarget; s <= origin; s++) {
+        if (kingTarget < origin) {
+            for (Square s = kingTarget; s <= origin; s++) {
                 if (byColor[flip(stm)] & attackersTo(s))
                     return false;
             }
         }
         else {
-            for (Square s = adjustedTarget; s >= origin; s--) {
+            for (Square s = kingTarget; s >= origin; s--) {
                 if (byColor[flip(stm)] & attackersTo(s))
                     return false;
             }
         }
         // Check for castling flags
-        return (castling & CASTLING_FLAGS[castlingIdx]) && !(blockers[stm] & bitboard(target));
+        return (castling & Castling::getMask(stm, direction)) && !(blockers[stm] & bitboard(target));
     }
 
     if (pieces[origin] == Piece::KING) {
@@ -820,7 +793,7 @@ bool Board::givesCheck(Move move) {
         return BB::attackedSquares(promotionPiece, target, occ ^ bitboard(origin), stm) & enemyKing;
     }
     case MOVE_CASTLING: {
-        return BB::attackedSquares(Piece::ROOK, CASTLING_ROOK_SQUARES[castlingIndex(stm, origin, target)], occ, stm) & enemyKing;
+        return BB::attackedSquares(Piece::ROOK, Castling::getRookSquare(stm, Castling::getDirection(origin, target)), occ, stm) & enemyKing;
     }
     case MOVE_ENPASSANT: {
         Square epSquare = target - UP[stm];
@@ -844,9 +817,7 @@ uint64_t Board::hashAfter(Move move) {
     Piece piece = pieces[origin];
     Piece capturedPiece = pieces[target];
 
-    MoveType type = moveType(move);;
-
-    uint8_t newCastling = castling;
+    MoveType type = moveType(move);
 
     if (enpassantTarget != 0)
         hash ^= Zobrist::ENPASSENT[fileOf(lsb(enpassantTarget))];
@@ -870,13 +841,17 @@ uint64_t Board::hashAfter(Move move) {
     }
 
     if (type == MOVE_CASTLING) {
-        Square rookOrigin, rookTarget;
+        capturedPiece = Piece::NONE;
 
-        hash ^= Zobrist::CASTLING[newCastling];
-        calculateCastlingSquares(origin, &target, &rookOrigin, &rookTarget, &newCastling);
-        hash ^= Zobrist::CASTLING[newCastling];
+        auto direction = Castling::getDirection(origin, target);
+        Square rookOrigin = getCastlingRookSquare(stm, direction);
+        Square rookTarget = Castling::getRookSquare(stm, direction);
+        Square kingTarget = Castling::getKingSquare(stm, direction);
 
-        hash ^= Zobrist::PIECE_SQUARES[stm][Piece::KING][origin] ^ Zobrist::PIECE_SQUARES[stm][Piece::KING][target];
+        hash ^= Zobrist::CASTLING[castling];
+        hash ^= Zobrist::CASTLING[castling & ~Castling::getMask(stm)];
+
+        hash ^= Zobrist::PIECE_SQUARES[stm][Piece::KING][origin] ^ Zobrist::PIECE_SQUARES[stm][Piece::KING][kingTarget];
         hash ^= Zobrist::PIECE_SQUARES[stm][Piece::ROOK][rookOrigin] ^ Zobrist::PIECE_SQUARES[stm][Piece::ROOK][rookTarget];
     }
     else {
@@ -884,37 +859,36 @@ uint64_t Board::hashAfter(Move move) {
 
         if (capturedPiece != Piece::NONE)
             hash ^= Zobrist::PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
+
+        if (piece == Piece::KING) {
+            hash ^= Zobrist::CASTLING[castling];
+            hash ^= Zobrist::CASTLING[castling & ~Castling::getMask(stm)];
+        }
+
+        uint8_t tempCastling = castling;
+        if (piece == Piece::ROOK) {
+            hash ^= Zobrist::CASTLING[tempCastling];
+            for (auto direction : { Castling::KINGSIDE, Castling::QUEENSIDE }) {
+                if (origin == getCastlingRookSquare(stm, direction)) {
+                    tempCastling &= ~Castling::getMask(stm, direction);
+                }
+            }
+            hash ^= Zobrist::CASTLING[tempCastling];
+        }
+        if (capturedPiece == Piece::ROOK) {
+            hash ^= Zobrist::CASTLING[tempCastling];
+            for (auto direction : { Castling::KINGSIDE, Castling::QUEENSIDE }) {
+                if (captureTarget == getCastlingRookSquare(flip(stm), direction)) {
+                    tempCastling &= ~Castling::getMask(flip(stm), direction);
+                }
+            }
+            hash ^= Zobrist::CASTLING[tempCastling];
+        }
     }
 
     if (type == MOVE_PROMOTION) {
         Piece promotionPiece = PROMOTION_PIECE[promotionType(move)];
         hash ^= Zobrist::PIECE_SQUARES[stm][piece][target] ^ Zobrist::PIECE_SQUARES[stm][promotionPiece][target];
-    }
-
-    if (piece == Piece::KING) {
-        hash ^= Zobrist::CASTLING[newCastling & CASTLING_MASK];
-        if (stm == Color::WHITE)
-            newCastling &= CASTLING_BLACK_KINGSIDE | CASTLING_BLACK_QUEENSIDE;
-        else
-            newCastling &= CASTLING_WHITE_KINGSIDE | CASTLING_WHITE_QUEENSIDE;
-        hash ^= Zobrist::CASTLING[newCastling & CASTLING_MASK];
-    }
-    if (piece == Piece::ROOK || capturedPiece == Piece::ROOK) {
-        hash ^= Zobrist::CASTLING[newCastling & CASTLING_MASK];
-        Square rookSquare = piece == Piece::ROOK ? origin : captureTarget;
-        if (rookSquare == castlingSquares[0]) {
-            newCastling &= ~CASTLING_WHITE_KINGSIDE;
-        }
-        else if (rookSquare == castlingSquares[1]) {
-            newCastling &= ~CASTLING_WHITE_QUEENSIDE;
-        }
-        else if (rookSquare == castlingSquares[2]) {
-            newCastling &= ~CASTLING_BLACK_KINGSIDE;
-        }
-        else if (rookSquare == castlingSquares[3]) {
-            newCastling &= ~CASTLING_BLACK_QUEENSIDE;
-        }
-        hash ^= Zobrist::CASTLING[newCastling & CASTLING_MASK];
     }
 
     return hash;

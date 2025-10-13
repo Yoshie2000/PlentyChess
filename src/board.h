@@ -11,18 +11,34 @@
 
 class NNUE;
 
-constexpr uint8_t CASTLING_WHITE_KINGSIDE = 0x1;
-constexpr uint8_t CASTLING_WHITE_QUEENSIDE = 0x2;
-constexpr uint8_t CASTLING_BLACK_KINGSIDE = 0x4;
-constexpr uint8_t CASTLING_BLACK_QUEENSIDE = 0x8;
-constexpr uint8_t CASTLING_MASK = 0xF;
+namespace Castling {
 
-constexpr Square CASTLING_KING_SQUARES[] = { 6, 2, 62, 58 };
-constexpr Square CASTLING_ROOK_SQUARES[] = { 5, 3, 61, 59 };
-constexpr uint8_t CASTLING_FLAGS[] = { CASTLING_WHITE_KINGSIDE, CASTLING_WHITE_QUEENSIDE, CASTLING_BLACK_KINGSIDE, CASTLING_BLACK_QUEENSIDE };
+    using CastlingDirection = size_t;
+    constexpr CastlingDirection KINGSIDE = 0;
+    constexpr CastlingDirection QUEENSIDE = 1;
 
-constexpr int castlingIndex(Color side, Square kingOrigin, Square kingTarget) {
-    return 2 * (side != Color::WHITE) + (kingTarget <= kingOrigin);
+    constexpr CastlingDirection getDirection(Square kingOrigin, Square kingTarget) {
+        return (kingTarget <= kingOrigin) ? QUEENSIDE : KINGSIDE;
+    }
+    
+    constexpr uint8_t getMask(Color side, CastlingDirection direction) {
+        return 1 << (2 * side + direction);
+    }
+
+    constexpr uint8_t getMask(Color side) {
+        return getMask(side, KINGSIDE) | getMask(side, QUEENSIDE);
+    }
+
+    constexpr uint8_t getKingSquare(Color side, CastlingDirection direction) {
+        constexpr Square KING_SQUARES[] = { 6, 2, 62, 58 };
+        return KING_SQUARES[2 * side + direction];
+    }
+
+    constexpr uint8_t getRookSquare(Color side, CastlingDirection direction) {
+        constexpr Square ROOK_SQUARES[] = { 5, 3, 61, 59 };
+        return ROOK_SQUARES[2 * side + direction];
+    }
+
 }
 
 struct Threats {
@@ -77,7 +93,7 @@ struct Board {
     void updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
 
     void updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta);
-    void updatePieceCastling(Piece piece, Square origin);
+    void updatePieceCastling(Piece piece, Color pieceColor, Square origin);
 
     void addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
     void removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
@@ -100,7 +116,9 @@ struct Board {
     bool isLegal(Move move);
     bool givesCheck(Move move);
 
-    void calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling);
+    Square getCastlingRookSquare(Color side, Castling::CastlingDirection direction) {
+        return castlingSquares[2 * side + direction];
+    }
 
     uint64_t hashAfter(Move move);
 
