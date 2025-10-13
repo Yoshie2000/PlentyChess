@@ -80,7 +80,7 @@ struct Board {
 
     Threats calculateAllThreats();
     bool isSquareThreatened(Square square);
-    bool opponentHasGoodCapture();
+    bool opponentHasGoodCapture(Square square);
 
     constexpr bool isCapture(Move move) {
         MoveType type = moveType(move);

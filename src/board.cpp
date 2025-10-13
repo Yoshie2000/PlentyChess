@@ -855,35 +855,23 @@ bool Board::isSquareThreatened(Square square) {
     return threats.toSquare[square] & byColor[flip(stm)];
 }
 
-bool Board::opponentHasGoodCapture() {
-    // Calculate bitboards for our piece types
-    Bitboard queens = byColor[stm] & byPiece[Piece::QUEEN];
-    Bitboard rooks = byColor[stm] & byPiece[Piece::ROOK];
-    rooks |= queens;
-    Bitboard minors = byColor[stm] & (byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP]);
-    minors |= rooks;
-
-    // Calculate threat bitboards of opponent piece types
-    Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
-    Color them = flip(stm);
-
-    Bitboard pawnThreats = BB::pawnAttacks(byPiece[Piece::PAWN] & byColor[them], them);
-    Bitboard knightThreats = BB::knightAttacks(byPiece[Piece::KNIGHT] & byColor[them]);
-
-    Bitboard bishopThreats = 0;
-    Bitboard enemyBishops = byPiece[Piece::BISHOP] & byColor[them];
-    while (enemyBishops) {
-        bishopThreats |= getBishopMoves(popLSB(&enemyBishops), occupied);
-    }
-    Bitboard minorThreats = pawnThreats | knightThreats | bishopThreats;
-
-    Bitboard rookThreats = minorThreats;
-    Bitboard enemyRooks = byPiece[Piece::ROOK] & byColor[them];
-    while (enemyRooks) {
-        rookThreats |= getRookMoves(popLSB(&enemyRooks), occupied);
-    }
-
-    return (queens & rookThreats) | (rooks & minorThreats) | (minors & pawnThreats);
+bool Board::opponentHasGoodCapture(Square square) {
+    Piece piece = pieces[square];
+    if (piece == Piece::PAWN || piece == Piece::KING)
+        return false;
+    
+    Bitboard opponents = byColor[flip(stm)];
+    Bitboard attackers = threats.toSquare[square] & opponents;
+    
+    Bitboard lessWorthyEnemies = 0;
+    if (piece > Piece::PAWN)
+        lessWorthyEnemies |= byPiece[Piece::PAWN] & opponents;
+    if (piece > Piece::BISHOP)
+        lessWorthyEnemies |= (byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP]) & opponents;
+    if (piece > Piece::ROOK)
+        lessWorthyEnemies |= byPiece[Piece::ROOK] & opponents;
+    
+    return attackers & lessWorthyEnemies;
 }
 
 bool Board::isPseudoLegal(Move move) {
