@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <cassert>
+#include <algorithm>
 
 #include "move.h"
 #include "types.h"
@@ -23,7 +24,7 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
     uint8_t currentRank = 7;
     size_t i = 0;
 
-    // Reset everything (there might be garbage data)
+    // Clear everything
     for (Square s = 0; s < 64; s++) {
         pieces[s] = Piece::NONE;
     }
@@ -42,8 +43,7 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
     hashes.majorHash = 0;
     nullmove_ply = 0;
 
-    // Board position and everything
-    Bitboard currentSquareBB = bitboard(currentSquare);
+    // Set up pieces
     for (i = 0; i < fen.length(); i++) {
         char c = fen.at(i);
         if (c == ' ') {
@@ -51,124 +51,43 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
             break;
         }
 
-        if (currentSquare < 64)
-            currentSquareBB = bitboard(currentSquare);
-        switch (c) {
-        case 'p':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::PAWN] |= currentSquareBB;
-            pieces[currentSquare] = Piece::PAWN;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::PAWN][currentSquare];
-            hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::PAWN][currentSquare];
+        auto addPiece = [this](Piece piece, Color color, Square& currentSquare) {
+            Bitboard currentSquareBB = bitboard(currentSquare);
+            byColor[color] |= currentSquareBB;
+            byPiece[piece] |= currentSquareBB;
+            pieces[currentSquare] = piece;
+
+            uint64_t hash = ZOBRIST_PIECE_SQUARES[color][piece][currentSquare];
+            hashes.hash ^= hash;
+            if (piece == Piece::PAWN)
+                hashes.pawnHash ^= hash;
+            else {
+                hashes.nonPawnHash[color] ^= hash;
+                if (piece == Piece::KNIGHT || piece == Piece::BISHOP || piece == Piece::KING)
+                    hashes.minorHash ^= hash;
+                if (piece == Piece::ROOK || piece == Piece::QUEEN || piece == Piece::KING)
+                    hashes.majorHash ^= hash;
+            }
+
             currentSquare++;
-            break;
-        case 'P':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::PAWN] |= currentSquareBB;
-            pieces[currentSquare] = Piece::PAWN;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::PAWN][currentSquare];
-            hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::PAWN][currentSquare];
-            currentSquare++;
-            break;
-        case 'n':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::KNIGHT] |= currentSquareBB;
-            pieces[currentSquare] = Piece::KNIGHT;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KNIGHT][currentSquare];
-            hashes.nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KNIGHT][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KNIGHT][currentSquare];
-            currentSquare++;
-            break;
-        case 'N':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::KNIGHT] |= currentSquareBB;
-            pieces[currentSquare] = Piece::KNIGHT;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KNIGHT][currentSquare];
-            hashes.nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KNIGHT][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KNIGHT][currentSquare];
-            currentSquare++;
-            break;
-        case 'b':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::BISHOP] |= currentSquareBB;
-            pieces[currentSquare] = Piece::BISHOP;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::BISHOP][currentSquare];
-            hashes.nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::BISHOP][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::BISHOP][currentSquare];
-            currentSquare++;
-            break;
-        case 'B':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::BISHOP] |= currentSquareBB;
-            pieces[currentSquare] = Piece::BISHOP;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::BISHOP][currentSquare];
-            hashes.nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::BISHOP][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::BISHOP][currentSquare];
-            currentSquare++;
-            break;
-        case 'r':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::ROOK] |= currentSquareBB;
-            pieces[currentSquare] = Piece::ROOK;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::ROOK][currentSquare];
-            hashes.nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::ROOK][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::ROOK][currentSquare];
-            currentSquare++;
-            break;
-        case 'R':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::ROOK] |= currentSquareBB;
-            pieces[currentSquare] = Piece::ROOK;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::ROOK][currentSquare];
-            hashes.nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::ROOK][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::ROOK][currentSquare];
-            currentSquare++;
-            break;
-        case 'q':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::QUEEN] |= currentSquareBB;
-            pieces[currentSquare] = Piece::QUEEN;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::QUEEN][currentSquare];
-            hashes.nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::QUEEN][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::QUEEN][currentSquare];
-            currentSquare++;
-            break;
-        case 'Q':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::QUEEN] |= currentSquareBB;
-            pieces[currentSquare] = Piece::QUEEN;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::QUEEN][currentSquare];
-            hashes.nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::QUEEN][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::QUEEN][currentSquare];
-            currentSquare++;
-            break;
-        case 'k':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::KING] |= currentSquareBB;
-            pieces[currentSquare] = Piece::KING;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
-            hashes.nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
-            currentSquare++;
-            break;
-        case 'K':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::KING] |= currentSquareBB;
-            pieces[currentSquare] = Piece::KING;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
-            hashes.nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
-            currentSquare++;
-            break;
-        case '/':
+        };
+
+        auto pieceChars = { 'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r', 'Q', 'q', 'K', 'k' };
+
+        auto it = std::find(pieceChars.begin(), pieceChars.end(), c);
+        if (it != pieceChars.end()) {
+            int pieceCharIdx = it - pieceChars.begin();
+            Piece piece = static_cast<Piece>(pieceCharIdx / 2);
+            Color color = static_cast<Color>(pieceCharIdx % 2);
+            addPiece(piece, color, currentSquare);
+        }
+        else if (c == '/') {
             currentRank--;
             currentSquare = 8 * currentRank;
-            break;
-        default: // Number
+        }
+        else {
             currentSquare += int(c) - 48;
-            break;
+
         }
     }
 
