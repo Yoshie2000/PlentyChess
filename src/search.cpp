@@ -940,8 +940,25 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
-                Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
+                Square origin = moveOrigin(move), target = moveTarget(move);
+                Piece movedPiece = board->pieces[origin];
+                Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[target];
+
+                Bitboard otherAttackers = board->threats.toSquare[target] & board->byColor[board->stm] & ~bitboard(origin);
+                Bitboard defenders = board->threats.toSquare[target] & board->byColor[flip(board->stm)];
+                Piece leastValuableDefender = Piece::NONE;
+                for (Piece p = Piece::PAWN; p < Piece::KING; ++p) {
+                    if (defenders & board->byPiece[p]) {
+                        leastValuableDefender = p;
+                        break;
+                    }
+                }
+
+                int captureGain = PIECE_VALUES[capturedPiece];
+                if (leastValuableDefender != Piece::NONE && otherAttackers)
+                    captureGain = std::min(captureGain, PIECE_VALUES[capturedPiece] - PIECE_VALUES[movedPiece] + PIECE_VALUES[leastValuableDefender]);
+
+                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + captureGain + fpCaptFactor * lmrDepth / 100 <= alpha)
                     continue;
             }
 
