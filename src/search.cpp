@@ -350,8 +350,8 @@ bool Worker::hasUpcomingRepetition(Board* board, int ply) {
         compareHash -= 2;
 
         uint64_t moveHash = board->hashes.hash ^ *compareHash;
-        if ((j = H1(moveHash), CUCKOO_HASHES[j] == moveHash) || (j = H2(moveHash), CUCKOO_HASHES[j] == moveHash)) {
-            Move move = CUCKOO_MOVES[j];
+        if ((j = Zobrist::H1(moveHash), Zobrist::CUCKOO_HASHES[j] == moveHash) || (j = Zobrist::H2(moveHash), Zobrist::CUCKOO_HASHES[j] == moveHash)) {
+            Move move = Zobrist::CUCKOO_MOVES[j];
             Square origin = moveOrigin(move);
             Square target = moveTarget(move);
 

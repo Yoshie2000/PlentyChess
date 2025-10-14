@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <cassert>
+#include <algorithm>
 
 #include "move.h"
 #include "types.h"
@@ -18,12 +19,15 @@ void Board::startpos() {
     parseFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", false);
 }
 
-size_t Board::parseFen(std::string fen, bool isChess960) {
-    Square currentSquare = 56;
-    uint8_t currentRank = 7;
-    size_t i = 0;
+void Board::parseFen(std::istringstream& iss, bool isChess960) {
+    std::string boardPart, stmPart, castlingPart, epPart;
+    iss >> boardPart >> stmPart >> castlingPart >> epPart;
 
-    // Reset everything (there might be garbage data)
+    int rule50_int, ply_int;
+    rule50_ply = (iss >> rule50_int) ? rule50_int : 0;
+    ply = (iss >> ply_int) ? ply_int : 1;
+
+    // Clear everything
     for (Square s = 0; s < 64; s++) {
         pieces[s] = Piece::NONE;
     }
@@ -34,257 +38,97 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
         }
     }
     checkers = bitboard(0);
-    hashes.hash = 0;
-    hashes.pawnHash = ZOBRIST_NO_PAWNS;
-    hashes.nonPawnHash[Color::WHITE] = 0;
-    hashes.nonPawnHash[Color::BLACK] = 0;
-    hashes.minorHash = 0;
-    hashes.majorHash = 0;
+    hashes = {};
     nullmove_ply = 0;
 
-    // Board position and everything
-    Bitboard currentSquareBB = bitboard(currentSquare);
-    for (i = 0; i < fen.length(); i++) {
-        char c = fen.at(i);
-        if (c == ' ') {
-            i++;
-            break;
+    // Set up pieces
+    Square currentSquare = 56;
+    for (char c : boardPart) {
+        if (c == '/') {
+            currentSquare -= 16;
+            continue;
+        }
+        if (isdigit(c)) {
+            currentSquare += c - '0';
+            continue;
         }
 
-        if (currentSquare < 64)
-            currentSquareBB = bitboard(currentSquare);
-        switch (c) {
-        case 'p':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::PAWN] |= currentSquareBB;
-            pieces[currentSquare] = Piece::PAWN;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::PAWN][currentSquare];
-            hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::PAWN][currentSquare];
-            currentSquare++;
-            break;
-        case 'P':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::PAWN] |= currentSquareBB;
-            pieces[currentSquare] = Piece::PAWN;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::PAWN][currentSquare];
-            hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::PAWN][currentSquare];
-            currentSquare++;
-            break;
-        case 'n':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::KNIGHT] |= currentSquareBB;
-            pieces[currentSquare] = Piece::KNIGHT;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KNIGHT][currentSquare];
-            hashes.nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KNIGHT][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KNIGHT][currentSquare];
-            currentSquare++;
-            break;
-        case 'N':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::KNIGHT] |= currentSquareBB;
-            pieces[currentSquare] = Piece::KNIGHT;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KNIGHT][currentSquare];
-            hashes.nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KNIGHT][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KNIGHT][currentSquare];
-            currentSquare++;
-            break;
-        case 'b':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::BISHOP] |= currentSquareBB;
-            pieces[currentSquare] = Piece::BISHOP;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::BISHOP][currentSquare];
-            hashes.nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::BISHOP][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::BISHOP][currentSquare];
-            currentSquare++;
-            break;
-        case 'B':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::BISHOP] |= currentSquareBB;
-            pieces[currentSquare] = Piece::BISHOP;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::BISHOP][currentSquare];
-            hashes.nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::BISHOP][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::BISHOP][currentSquare];
-            currentSquare++;
-            break;
-        case 'r':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::ROOK] |= currentSquareBB;
-            pieces[currentSquare] = Piece::ROOK;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::ROOK][currentSquare];
-            hashes.nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::ROOK][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::ROOK][currentSquare];
-            currentSquare++;
-            break;
-        case 'R':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::ROOK] |= currentSquareBB;
-            pieces[currentSquare] = Piece::ROOK;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::ROOK][currentSquare];
-            hashes.nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::ROOK][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::ROOK][currentSquare];
-            currentSquare++;
-            break;
-        case 'q':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::QUEEN] |= currentSquareBB;
-            pieces[currentSquare] = Piece::QUEEN;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::QUEEN][currentSquare];
-            hashes.nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::QUEEN][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::QUEEN][currentSquare];
-            currentSquare++;
-            break;
-        case 'Q':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::QUEEN] |= currentSquareBB;
-            pieces[currentSquare] = Piece::QUEEN;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::QUEEN][currentSquare];
-            hashes.nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::QUEEN][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::QUEEN][currentSquare];
-            currentSquare++;
-            break;
-        case 'k':
-            byColor[Color::BLACK] |= currentSquareBB;
-            byPiece[Piece::KING] |= currentSquareBB;
-            pieces[currentSquare] = Piece::KING;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
-            hashes.nonPawnHash[Color::BLACK] ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::BLACK][Piece::KING][currentSquare];
-            currentSquare++;
-            break;
-        case 'K':
-            byColor[Color::WHITE] |= currentSquareBB;
-            byPiece[Piece::KING] |= currentSquareBB;
-            pieces[currentSquare] = Piece::KING;
-            hashes.hash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
-            hashes.nonPawnHash[Color::WHITE] ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[Color::WHITE][Piece::KING][currentSquare];
-            currentSquare++;
-            break;
-        case '/':
-            currentRank--;
-            currentSquare = 8 * currentRank;
-            break;
-        default: // Number
-            currentSquare += int(c) - 48;
-            break;
+        auto addPiece = [this](Piece piece, Color color, Square sq) {
+            Bitboard sqBB = bitboard(sq);
+            byColor[color] |= sqBB;
+            byPiece[piece] |= sqBB;
+            pieces[sq] = piece;
+
+            uint64_t hash = Zobrist::PIECE_SQUARES[color][piece][sq];
+            hashes.hash ^= hash;
+            if (piece == Piece::PAWN)
+                hashes.pawnHash ^= hash;
+            else {
+                hashes.nonPawnHash[color] ^= hash;
+                if (piece == Piece::KNIGHT || piece == Piece::BISHOP || piece == Piece::KING)
+                    hashes.minorHash ^= hash;
+                if (piece == Piece::ROOK || piece == Piece::QUEEN || piece == Piece::KING)
+                    hashes.majorHash ^= hash;
+            }
+            };
+
+        std::string pieceChars = "PNBRQKpnbrqk";
+        size_t idx = pieceChars.find(c);
+        if (idx != std::string::npos) {
+            Piece piece = static_cast<Piece>(idx % 6);
+            Color color = idx < 6 ? Color::WHITE : Color::BLACK;
+            addPiece(piece, color, currentSquare++);
         }
     }
 
     // Side to move
-    stm = fen.at(i) == 'w' ? Color::WHITE : Color::BLACK;
+    stm = (stmPart == "w") ? Color::WHITE : Color::BLACK;
     if (stm == Color::BLACK)
-        hashes.hash ^= ZOBRIST_STM_BLACK;
-    i += 2;
+        hashes.hash ^= Zobrist::STM_BLACK;
 
     // Castling
     castling = 0;
     castlingSquares[0] = castlingSquares[1] = castlingSquares[2] = castlingSquares[3] = NO_SQUARE;
-    for (; i < fen.length(); i++) {
-        char c = fen.at(i);
+    for (char c : castlingPart) {
+        if (c == '-') break;
 
-        if (c == '-') {
-            i += 2;
-            break;
+        auto castlingChars = { 'K', 'Q', 'k', 'q' };
+        auto it = std::find(castlingChars.begin(), castlingChars.end(), c);
+        if (it != castlingChars.end()) {
+            int index = it - castlingChars.begin();
+            Color side = static_cast<Color>(index >= 2);
+            Bitboard backrank = side == Color::WHITE ? BB::RANK_1 : BB::RANK_8;
+            bool kingside = index % 2 == 0;
+
+            // Find position of corresponding rook
+            Bitboard rookBB = byColor[side] & byPiece[Piece::ROOK] & backrank;
+            std::vector<Square> rooks;
+            while (rookBB) {
+                rooks.push_back(popLSB(&rookBB));
+            }
+            castlingSquares[index] = kingside ? *std::max_element(rooks.begin(), rooks.end()) : *std::min_element(rooks.begin(), rooks.end());
+            castling |= 1 << index;
         }
-        else if (c == ' ') {
-            i++;
-            break;
-        }
+        else {
+            // Rook file is already given
+            Color side = c >= 'A' && c <= 'H' ? Color::WHITE : Color::BLACK;
+            int rookFile = side == Color::WHITE ? int(c - 'A') : int(c - 'a');
+            Square king = lsb(byColor[side] & byPiece[Piece::KING]);
+            int index = 2 * side + (rookFile < fileOf(king));
 
-        Bitboard rookBB;
-        std::vector<Square> rooks;
-
-        switch (c) {
-        case 'k':
-            castling |= CASTLING_BLACK_KINGSIDE;
-            // Chess960 support: Find black kingside rook
-            rookBB = byColor[Color::BLACK] & byPiece[Piece::ROOK] & BB::RANK_8;
-            rooks.clear();
-            while (rookBB) {
-                rooks.push_back(popLSB(&rookBB));
-            }
-            castlingSquares[2] = *std::max_element(rooks.begin(), rooks.end());
-            break;
-        case 'K':
-            castling |= CASTLING_WHITE_KINGSIDE;
-            // Chess960 support: Find white kingside rook
-            rookBB = byColor[Color::WHITE] & byPiece[Piece::ROOK] & BB::RANK_1;
-            rooks.clear();
-            while (rookBB) {
-                rooks.push_back(popLSB(&rookBB));
-            }
-            castlingSquares[0] = *std::max_element(rooks.begin(), rooks.end());
-            break;
-        case 'q':
-            castling |= CASTLING_BLACK_QUEENSIDE;
-            // Chess960 support: Find black queenside rook
-            rookBB = byColor[Color::BLACK] & byPiece[Piece::ROOK] & BB::RANK_8;
-            rooks.clear();
-            while (rookBB) {
-                rooks.push_back(popLSB(&rookBB));
-            }
-            castlingSquares[3] = *std::min_element(rooks.begin(), rooks.end());
-            break;
-        case 'Q':
-            castling |= CASTLING_WHITE_QUEENSIDE;
-            // Chess960 support: Find white queenside rook
-            rookBB = byColor[Color::WHITE] & byPiece[Piece::ROOK] & BB::RANK_1;
-            rooks.clear();
-            while (rookBB) {
-                rooks.push_back(popLSB(&rookBB));
-            }
-            castlingSquares[1] = *std::min_element(rooks.begin(), rooks.end());
-            break;
-        case ' ':
-        default:
-            // Chess960 castling
-            if (c >= 'A' && c <= 'H') {
-                // White
-                Square king = lsb(byColor[Color::WHITE] & byPiece[Piece::KING]);
-                int rookFile = int(c - 'A');
-                if (rookFile > fileOf(king)) {
-                    castling |= CASTLING_WHITE_KINGSIDE;
-                    castlingSquares[0] = Square(rookFile);
-                }
-                else {
-                    castling |= CASTLING_WHITE_QUEENSIDE;
-                    castlingSquares[1] = Square(rookFile);
-                }
-                break;
-            }
-            else if (c >= 'a' && c <= 'h') {
-                // Black
-                Square king = lsb(byColor[Color::BLACK] & byPiece[Piece::KING]);
-                int rookFile = int(c - 'a');
-                if (rookFile > fileOf(king)) {
-                    castling |= CASTLING_BLACK_KINGSIDE;
-                    castlingSquares[2] = Square(56 + rookFile);
-                }
-                else {
-                    castling |= CASTLING_BLACK_QUEENSIDE;
-                    castlingSquares[3] = Square(56 + rookFile);
-                }
-                break;
-            }
-            std::cout << "Weird char in fen castling: " << c << " (index " << i << ")" << std::endl;
-            exit(-1);
-            break;
+            castling |= 1 << index;
+            castlingSquares[index] = Square(rookFile + 56 * (side == Color::BLACK));
         }
     }
-    hashes.hash ^= ZOBRIST_CASTLING[castling & CASTLING_MASK];
+    hashes.hash ^= Zobrist::CASTLING[castling];
 
     // en passent
-    if (fen.at(i) == '-') {
+    if (epPart == "-") {
         enpassantTarget = bitboard(0);
-        i += 2;
     }
     else {
-        char epTargetString[2] = { fen.at(i), fen.at(i + 1) };
-        Square epTargetSquare = stringToSquare(epTargetString);
+        Square epTargetSquare = stringToSquare(epPart.c_str());
         enpassantTarget = bitboard(epTargetSquare);
-        i += 3;
 
         // Check if there's *actually* a pawn that can do enpassent
         Bitboard enemyPawns = byColor[flip(stm)] & byPiece[Piece::PAWN];
@@ -293,43 +137,7 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
         Square pawnSquare2 = epTargetSquare - 1 + UP[stm];
         Bitboard epPawns = (bitboard(pawnSquare1) | bitboard(pawnSquare2)) & epRank & enemyPawns;
         if (epPawns)
-            hashes.hash ^= ZOBRIST_ENPASSENT[fileOf(epTargetSquare)];
-    }
-
-    if (fen.length() <= i) {
-        rule50_ply = 0;
-        ply = 1;
-    }
-    else {
-        // 50 move rule
-        std::string rule50String = "--";
-        int rule50tmp = 0;
-        while (fen.at(i) != ' ') {
-            rule50String.replace(rule50tmp++, 1, 1, fen.at(i++));
-        }
-        if (rule50String.at(1) == '-') {
-            rule50_ply = int(rule50String.at(0)) - 48;
-        }
-        else {
-            rule50_ply = 10 * (int(rule50String.at(0)) - 48) + (int(rule50String.at(1)) - 48);
-        }
-        i++;
-
-        // Move number
-        std::string plyString = "---";
-        int plyTmp = 0;
-        while (i < fen.length() && fen.at(i) != ' ') {
-            plyString.replace(plyTmp++, 1, 1, fen.at(i++));
-        }
-        if (plyString.at(1) == '-') {
-            ply = int(plyString.at(0)) - 48;
-        }
-        else if (plyString.at(2) == '-') {
-            ply = 10 * (int(plyString.at(0)) - 48) + (int(plyString.at(1)) - 48);
-        }
-        else {
-            ply = 100 * (int(plyString.at(0)) - 48) + 10 * (int(plyString.at(1)) - 48) + (int(plyString.at(2)) - 48);
-        }
+            hashes.hash ^= Zobrist::ENPASSENT[fileOf(epTargetSquare)];
     }
 
     threats = calculateAllThreats();
@@ -343,13 +151,9 @@ size_t Board::parseFen(std::string fen, bool isChess960) {
     updateSliderPins(Color::BLACK);
 
     chess960 = isChess960;
-
-    return i;
 }
 
 std::string Board::fen() {
-    // rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
-    // r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 10
     std::string result;
 
     std::string pieceChars = "pnbrqk ";
@@ -380,10 +184,10 @@ std::string Board::fen() {
     else
         result += " b ";
 
-    if (castling & CASTLING_WHITE_KINGSIDE) result += "K";
-    if (castling & CASTLING_WHITE_QUEENSIDE) result += "Q";
-    if (castling & CASTLING_BLACK_KINGSIDE) result += "k";
-    if (castling & CASTLING_BLACK_QUEENSIDE) result += "q";
+    if (castling & Castling::getMask(Color::WHITE, Castling::KINGSIDE)) result += "K";
+    if (castling & Castling::getMask(Color::WHITE, Castling::QUEENSIDE)) result += "Q";
+    if (castling & Castling::getMask(Color::BLACK, Castling::KINGSIDE)) result += "k";
+    if (castling & Castling::getMask(Color::BLACK, Castling::QUEENSIDE)) result += "q";
     if (castling)
         result += " ";
     else
@@ -509,9 +313,37 @@ void Board::updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square sq
     }
 }
 
-void Board::addPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue) {
+void Board::updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta) {
+    if (piece == Piece::PAWN) {
+        hashes.pawnHash ^= hashDelta;
+    }
+    else {
+        hashes.nonPawnHash[pieceColor] ^= hashDelta;
+        if (piece == Piece::KNIGHT || piece == Piece::BISHOP || piece == Piece::KING)
+            hashes.minorHash ^= hashDelta;
+        if (piece == Piece::ROOK || piece == Piece::QUEEN || piece == Piece::KING)
+            hashes.majorHash ^= hashDelta;
+    }
+}
+
+void Board::updatePieceCastling(Piece piece, Color pieceColor, Square origin) {
+    if (piece == Piece::ROOK) {
+        for (auto direction : { Castling::KINGSIDE, Castling::QUEENSIDE }) {
+            if (origin == getCastlingRookSquare(pieceColor, direction)) {
+                castling &= ~Castling::getMask(pieceColor, direction);
+            }
+        }
+    }
+
+    if (piece == Piece::KING) {
+        castling &= ~Castling::getMask(pieceColor);
+    }
+}
+
+void Board::addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
     assert(pieces[square] == Piece::NONE);
 
+    Bitboard squareBB = bitboard(square);
     byColor[pieceColor] ^= squareBB;
     byPiece[piece] ^= squareBB;
 
@@ -523,11 +355,15 @@ void Board::addPiece(Piece piece, Color pieceColor, Square square, Bitboard squa
     updateThreatFeaturesFromPiece<true>(piece, pieceColor, square, attacked, nnue);
     updatePieceThreats<true>(square, attacked, nnue);
     updateThreatFeaturesToPiece<true>(piece, pieceColor, square, nnue);
+
+    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
+    updatePieceCastling(piece, pieceColor, square);
 };
 
-void Board::removePiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue) {
+void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
     assert(pieces[square] != Piece::NONE);
 
+    Bitboard squareBB = bitboard(square);
     byColor[pieceColor] ^= squareBB;
     byPiece[piece] ^= squareBB;
 
@@ -539,9 +375,12 @@ void Board::removePiece(Piece piece, Color pieceColor, Square square, Bitboard s
     updateThreatFeaturesFromPiece<false>(piece, pieceColor, square, attacked, nnue);
     updatePieceThreats<false>(square, attacked, nnue);
     updateThreatFeaturesToPiece<false>(piece, pieceColor, square, nnue);
+
+    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
+    updatePieceCastling(piece, pieceColor, square);
 };
 
-void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square target, Bitboard fromTo, NNUE* nnue) {
+void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue) {
     assert(pieces[origin] != Piece::NONE);
     assert(pieces[target] == Piece::NONE);
 
@@ -552,6 +391,7 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     updatePieceThreats<false>(origin, attacksBefore, nnue);
     updateThreatFeaturesToPiece<false>(piece, pieceColor, origin, nnue);
 
+    Bitboard fromTo = bitboard(origin) ^ bitboard(target);
     byColor[pieceColor] ^= fromTo;
     byPiece[piece] ^= fromTo;
 
@@ -562,24 +402,10 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     updateThreatFeaturesFromPiece<true>(piece, pieceColor, target, attacksAfter, nnue);
     updatePieceThreats<true>(target, attacksAfter, nnue);
     updateThreatFeaturesToPiece<true>(piece, pieceColor, target, nnue);
-};
 
-void Board::calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling) {
-    if (stm == Color::WHITE) {
-        int idx = *kingTarget <= kingOrigin;
-        *rookOrigin = castlingSquares[idx];
-        *rookTarget = CASTLING_ROOK_SQUARES[idx];
-        *kingTarget = CASTLING_KING_SQUARES[idx];
-        *castling &= CASTLING_BLACK_KINGSIDE | CASTLING_BLACK_QUEENSIDE;
-    }
-    else {
-        int idx = 2 + (*kingTarget <= kingOrigin);
-        *rookOrigin = castlingSquares[idx];
-        *rookTarget = CASTLING_ROOK_SQUARES[idx];
-        *kingTarget = CASTLING_KING_SQUARES[idx];
-        *castling &= CASTLING_WHITE_KINGSIDE | CASTLING_WHITE_QUEENSIDE;
-    }
-}
+    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][origin] ^ Zobrist::PIECE_SQUARES[pieceColor][piece][target]);
+    updatePieceCastling(piece, pieceColor, origin);
+};
 
 void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
     // Increment ply counters
@@ -601,84 +427,43 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
     enpassantTarget = 0;
     Piece capturedPiece = pieces[target];
     Square captureTarget = target;
-    Bitboard captureTargetBB = bitboard(captureTarget);
 
     Piece piece = pieces[origin];
     Piece promotionPiece = Piece::NONE;
-
-    Bitboard originBB = bitboard(origin);
-    Bitboard targetBB = bitboard(target);
-    Bitboard fromTo = originBB | targetBB;
 
     switch (type) {
     case MOVE_PROMOTION:
 
         if (capturedPiece != Piece::NONE) {
-            removePiece(capturedPiece, flip(stm), captureTarget, captureTargetBB, nnue);
-
-            if (capturedPiece == Piece::ROOK) {
-                Square rookSquare = piece == Piece::ROOK ? origin : captureTarget;
-                if (rookSquare == castlingSquares[0]) {
-                    castling &= ~CASTLING_WHITE_KINGSIDE;
-                }
-                else if (rookSquare == castlingSquares[1]) {
-                    castling &= ~CASTLING_WHITE_QUEENSIDE;
-                }
-                else if (rookSquare == castlingSquares[2]) {
-                    castling &= ~CASTLING_BLACK_KINGSIDE;
-                }
-                else if (rookSquare == castlingSquares[3]) {
-                    castling &= ~CASTLING_BLACK_QUEENSIDE;
-                }
-            }
-
-            hashes.nonPawnHash[flip(stm)] ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
-            if (capturedPiece == Piece::KNIGHT || capturedPiece == Piece::BISHOP)
-                hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
-            else
-                hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
+            removePiece(capturedPiece, flip(stm), captureTarget, nnue);
         }
 
-        removePiece(piece, stm, origin, originBB, nnue);
+        removePiece(piece, stm, origin, nnue);
         rule50_ply = 0;
-        hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin];
 
         promotionPiece = PROMOTION_PIECE[promotionType(move)];
-        addPiece(promotionPiece, stm, target, targetBB, nnue);
-
-        hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][promotionPiece][target];
-        if (promotionPiece == Piece::KNIGHT || promotionPiece == Piece::BISHOP)
-            hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[stm][promotionPiece][captureTarget];
-        else
-            hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][promotionPiece][captureTarget];
+        addPiece(promotionPiece, stm, target, nnue);
 
         break;
 
     case MOVE_CASTLING: {
-        Square rookOrigin, rookTarget;
-        calculateCastlingSquares(origin, &target, &rookOrigin, &rookTarget, &castling);
-        assert(rookOrigin < 64 && rookTarget < 64 && target < 64);
 
-        removePiece(Piece::KING, stm, origin, originBB, nnue);
-        removePiece(Piece::ROOK, stm, rookOrigin, bitboard(rookOrigin), nnue);
-        addPiece(Piece::KING, stm, target, bitboard(target), nnue);
-        addPiece(Piece::ROOK, stm, rookTarget, bitboard(rookTarget), nnue);
+        auto direction = Castling::getDirection(origin, target);
+        Square rookOrigin = getCastlingRookSquare(stm, direction);
+        Square rookTarget = Castling::getRookSquare(stm, direction);
+        Square kingTarget = Castling::getKingSquare(stm, direction);
 
-        hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][origin];
-        hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][target];
-        hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookOrigin];
-        hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookTarget];
-
-        hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::KING][target];
-        hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::KING][target];
-        hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookTarget];
+        removePiece(Piece::KING, stm, origin, nnue);
+        removePiece(Piece::ROOK, stm, rookOrigin, nnue);
+        addPiece(Piece::KING, stm, kingTarget, nnue);
+        addPiece(Piece::ROOK, stm, rookTarget, nnue);
 
         capturedPiece = Piece::NONE;
     }
                       break;
 
     case MOVE_ENPASSANT:
-        movePiece(piece, stm, origin, target, fromTo, nnue);
+        movePiece(piece, stm, origin, target, nnue);
         rule50_ply = 0;
 
         captureTarget = target - UP[stm];
@@ -686,33 +471,22 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
 
         assert(captureTarget < 64);
 
-        removePiece(Piece::PAWN, flip(stm), captureTarget, bitboard(captureTarget), nnue);
-
-        hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][target] ^ ZOBRIST_PIECE_SQUARES[flip(stm)][Piece::PAWN][captureTarget];
+        removePiece(Piece::PAWN, flip(stm), captureTarget, nnue);
 
         break;
 
     default: // Normal moves
 
         if (capturedPiece != Piece::NONE) {
-            removePiece(capturedPiece, flip(stm), captureTarget, captureTargetBB, nnue);
-
-            if (capturedPiece == Piece::PAWN)
-                hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][Piece::PAWN][captureTarget];
-            else {
-                hashes.nonPawnHash[flip(stm)] ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
-                if (capturedPiece == Piece::KNIGHT || capturedPiece == Piece::BISHOP)
-                    hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
-                else
-                    hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
-            }
-
+            removePiece(capturedPiece, flip(stm), captureTarget, nnue);
             rule50_ply = 0;
         }
 
-        movePiece(piece, stm, origin, target, fromTo, nnue);
+        movePiece(piece, stm, origin, target, nnue);
 
         if (piece == Piece::PAWN) {
+            rule50_ply = 0;
+
             // Double push
             if ((origin ^ target) == 16) {
                 assert(target - UP[stm] < 64);
@@ -726,61 +500,9 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
                     Square epTarget = target - UP[stm];
                     enpassantTarget = bitboard(epTarget);
                 }
-
-            }
-
-            rule50_ply = 0;
-            hashes.pawnHash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::PAWN][target];
-        }
-        else {
-            hashes.nonPawnHash[stm] ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
-            if (piece == Piece::KNIGHT || piece == Piece::BISHOP)
-                hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
-            else if (piece == Piece::ROOK || piece == Piece::QUEEN)
-                hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
-            else {
-                hashes.minorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
-                hashes.majorHash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
             }
         }
 
-        // Unset castling flags if necessary
-        if (piece == Piece::KING) {
-            if (stm == Color::WHITE) {
-                castling &= CASTLING_BLACK_KINGSIDE | CASTLING_BLACK_QUEENSIDE;
-            }
-            else {
-                castling &= CASTLING_WHITE_KINGSIDE | CASTLING_WHITE_QUEENSIDE;
-            }
-        }
-        if (piece == Piece::ROOK) {
-            if (origin == castlingSquares[0]) {
-                castling &= ~CASTLING_WHITE_KINGSIDE;
-            }
-            else if (origin == castlingSquares[1]) {
-                castling &= ~CASTLING_WHITE_QUEENSIDE;
-            }
-            else if (origin == castlingSquares[2]) {
-                castling &= ~CASTLING_BLACK_KINGSIDE;
-            }
-            else if (origin == castlingSquares[3]) {
-                castling &= ~CASTLING_BLACK_QUEENSIDE;
-            }
-        }
-        if (capturedPiece == Piece::ROOK) {
-            if (captureTarget == castlingSquares[0]) {
-                castling &= ~CASTLING_WHITE_KINGSIDE;
-            }
-            else if (captureTarget == castlingSquares[1]) {
-                castling &= ~CASTLING_WHITE_QUEENSIDE;
-            }
-            else if (captureTarget == castlingSquares[2]) {
-                castling &= ~CASTLING_BLACK_KINGSIDE;
-            }
-            else if (captureTarget == castlingSquares[3]) {
-                castling &= ~CASTLING_BLACK_QUEENSIDE;
-            }
-        }
         break;
     }
 
@@ -805,11 +527,11 @@ void Board::doNullMove() {
 
     rule50_ply++;
     nullmove_ply = 0;
-    hashes.hash ^= ZOBRIST_STM_BLACK;
+    hashes.hash ^= Zobrist::STM_BLACK;
 
     // En passent square
     if (enpassantTarget != 0) {
-        hashes.hash ^= ZOBRIST_ENPASSENT[fileOf(lsb(enpassantTarget))];
+        hashes.hash ^= Zobrist::ENPASSENT[fileOf(lsb(enpassantTarget))];
     }
     enpassantTarget = 0;
 
@@ -907,19 +629,19 @@ bool Board::isPseudoLegal(Move move) {
         if (piece != Piece::KING || checkers) return false;
 
         // Check for pieces between king and rook
-        int castlingIdx = castlingIndex(stm, origin, target);
-        Square kingSquare = lsb(byColor[stm] & byPiece[Piece::KING]);
-        Square rookSquare = castlingSquares[castlingIdx];
-        Square kingTarget = CASTLING_KING_SQUARES[castlingIdx];
-        Square rookTarget = CASTLING_ROOK_SQUARES[castlingIdx];
+        auto direction = Castling::getDirection(origin, target);
+        Square kingOrigin = lsb(byColor[stm] & byPiece[Piece::KING]);
+        Square kingTarget = Castling::getKingSquare(stm, direction);
+        Square rookOrigin = getCastlingRookSquare(stm, direction);
+        Square rookTarget = Castling::getRookSquare(stm, direction);
 
-        if (kingSquare == NO_SQUARE || rookSquare == NO_SQUARE || kingTarget == NO_SQUARE || rookTarget == NO_SQUARE) return false;
+        if (kingOrigin == NO_SQUARE || rookOrigin == NO_SQUARE || kingTarget == NO_SQUARE || rookTarget == NO_SQUARE) return false;
 
-        Bitboard importantSquares = BB::BETWEEN[rookSquare][rookTarget] | BB::BETWEEN[kingSquare][kingTarget];
-        importantSquares &= ~bitboard(rookSquare) & ~bitboard(kingSquare);
+        Bitboard importantSquares = BB::BETWEEN[rookOrigin][rookTarget] | BB::BETWEEN[kingOrigin][kingTarget];
+        importantSquares &= ~bitboard(rookOrigin) & ~bitboard(kingOrigin);
         if ((byColor[Color::WHITE] | byColor[Color::BLACK]) & importantSquares) return false;
         // Check for castling flags (Attackers are done in isLegal())
-        return castling & CASTLING_FLAGS[castlingIdx];
+        return castling & Castling::getMask(stm, Castling::getDirection(origin, target));
     }
     case MOVE_ENPASSANT:
         if (piece != Piece::PAWN) return false;
@@ -1018,24 +740,24 @@ bool Board::isLegal(Move move) {
     }
 
     if (type == MOVE_CASTLING) {
-        int castlingIdx = castlingIndex(stm, origin, target);
-        Square adjustedTarget = CASTLING_KING_SQUARES[castlingIdx];
+        auto direction = Castling::getDirection(origin, target);
+        Square kingTarget = Castling::getKingSquare(stm, direction);
 
         // Check that none of the important squares (including the current king position!) are being attacked
-        if (adjustedTarget < origin) {
-            for (Square s = adjustedTarget; s <= origin; s++) {
+        if (kingTarget < origin) {
+            for (Square s = kingTarget; s <= origin; s++) {
                 if (byColor[flip(stm)] & attackersTo(s))
                     return false;
             }
         }
         else {
-            for (Square s = adjustedTarget; s >= origin; s--) {
+            for (Square s = kingTarget; s >= origin; s--) {
                 if (byColor[flip(stm)] & attackersTo(s))
                     return false;
             }
         }
         // Check for castling flags
-        return (castling & CASTLING_FLAGS[castlingIdx]) && !(blockers[stm] & bitboard(target));
+        return (castling & Castling::getMask(stm, direction)) && !(blockers[stm] & bitboard(target));
     }
 
     if (pieces[origin] == Piece::KING) {
@@ -1071,7 +793,7 @@ bool Board::givesCheck(Move move) {
         return BB::attackedSquares(promotionPiece, target, occ ^ bitboard(origin), stm) & enemyKing;
     }
     case MOVE_CASTLING: {
-        return BB::attackedSquares(Piece::ROOK, CASTLING_ROOK_SQUARES[castlingIndex(stm, origin, target)], occ, stm) & enemyKing;
+        return BB::attackedSquares(Piece::ROOK, Castling::getRookSquare(stm, Castling::getDirection(origin, target)), occ, stm) & enemyKing;
     }
     case MOVE_ENPASSANT: {
         Square epSquare = target - UP[stm];
@@ -1086,7 +808,7 @@ bool Board::givesCheck(Move move) {
 }
 
 uint64_t Board::hashAfter(Move move) {
-    uint64_t hash = hashes.hash ^ ZOBRIST_STM_BLACK;
+    uint64_t hash = hashes.hash ^ Zobrist::STM_BLACK;
 
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
@@ -1095,12 +817,10 @@ uint64_t Board::hashAfter(Move move) {
     Piece piece = pieces[origin];
     Piece capturedPiece = pieces[target];
 
-    MoveType type = moveType(move);;
-
-    uint8_t newCastling = castling;
+    MoveType type = moveType(move);
 
     if (enpassantTarget != 0)
-        hash ^= ZOBRIST_ENPASSENT[fileOf(lsb(enpassantTarget))];
+        hash ^= Zobrist::ENPASSENT[fileOf(lsb(enpassantTarget))];
 
     if (piece == Piece::PAWN) {
         if (type == MOVE_ENPASSANT) {
@@ -1116,56 +836,59 @@ uint64_t Board::hashAfter(Move move) {
             Square pawnSquare2 = target - 1;
             Bitboard epPawns = (bitboard(pawnSquare1) | bitboard(pawnSquare2)) & epRank & enemyPawns;
             if (epPawns)
-                hash ^= ZOBRIST_ENPASSENT[fileOf(origin)];
+                hash ^= Zobrist::ENPASSENT[fileOf(origin)];
         }
     }
 
     if (type == MOVE_CASTLING) {
-        Square rookOrigin, rookTarget;
+        capturedPiece = Piece::NONE;
 
-        hash ^= ZOBRIST_CASTLING[newCastling];
-        calculateCastlingSquares(origin, &target, &rookOrigin, &rookTarget, &newCastling);
-        hash ^= ZOBRIST_CASTLING[newCastling];
+        auto direction = Castling::getDirection(origin, target);
+        Square rookOrigin = getCastlingRookSquare(stm, direction);
+        Square rookTarget = Castling::getRookSquare(stm, direction);
+        Square kingTarget = Castling::getKingSquare(stm, direction);
 
-        hash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::KING][origin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::KING][target];
-        hash ^= ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookOrigin] ^ ZOBRIST_PIECE_SQUARES[stm][Piece::ROOK][rookTarget];
+        hash ^= Zobrist::CASTLING[castling];
+        hash ^= Zobrist::CASTLING[castling & ~Castling::getMask(stm)];
+
+        hash ^= Zobrist::PIECE_SQUARES[stm][Piece::KING][origin] ^ Zobrist::PIECE_SQUARES[stm][Piece::KING][kingTarget];
+        hash ^= Zobrist::PIECE_SQUARES[stm][Piece::ROOK][rookOrigin] ^ Zobrist::PIECE_SQUARES[stm][Piece::ROOK][rookTarget];
     }
     else {
-        hash ^= ZOBRIST_PIECE_SQUARES[stm][piece][origin] ^ ZOBRIST_PIECE_SQUARES[stm][piece][target];
+        hash ^= Zobrist::PIECE_SQUARES[stm][piece][origin] ^ Zobrist::PIECE_SQUARES[stm][piece][target];
 
         if (capturedPiece != Piece::NONE)
-            hash ^= ZOBRIST_PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
+            hash ^= Zobrist::PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
+
+        if (piece == Piece::KING) {
+            hash ^= Zobrist::CASTLING[castling];
+            hash ^= Zobrist::CASTLING[castling & ~Castling::getMask(stm)];
+        }
+
+        uint8_t tempCastling = castling;
+        if (piece == Piece::ROOK) {
+            hash ^= Zobrist::CASTLING[tempCastling];
+            for (auto direction : { Castling::KINGSIDE, Castling::QUEENSIDE }) {
+                if (origin == getCastlingRookSquare(stm, direction)) {
+                    tempCastling &= ~Castling::getMask(stm, direction);
+                }
+            }
+            hash ^= Zobrist::CASTLING[tempCastling];
+        }
+        if (capturedPiece == Piece::ROOK) {
+            hash ^= Zobrist::CASTLING[tempCastling];
+            for (auto direction : { Castling::KINGSIDE, Castling::QUEENSIDE }) {
+                if (captureTarget == getCastlingRookSquare(flip(stm), direction)) {
+                    tempCastling &= ~Castling::getMask(flip(stm), direction);
+                }
+            }
+            hash ^= Zobrist::CASTLING[tempCastling];
+        }
     }
 
     if (type == MOVE_PROMOTION) {
         Piece promotionPiece = PROMOTION_PIECE[promotionType(move)];
-        hash ^= ZOBRIST_PIECE_SQUARES[stm][piece][target] ^ ZOBRIST_PIECE_SQUARES[stm][promotionPiece][target];
-    }
-
-    if (piece == Piece::KING) {
-        hash ^= ZOBRIST_CASTLING[newCastling & CASTLING_MASK];
-        if (stm == Color::WHITE)
-            newCastling &= CASTLING_BLACK_KINGSIDE | CASTLING_BLACK_QUEENSIDE;
-        else
-            newCastling &= CASTLING_WHITE_KINGSIDE | CASTLING_WHITE_QUEENSIDE;
-        hash ^= ZOBRIST_CASTLING[newCastling & CASTLING_MASK];
-    }
-    if (piece == Piece::ROOK || capturedPiece == Piece::ROOK) {
-        hash ^= ZOBRIST_CASTLING[newCastling & CASTLING_MASK];
-        Square rookSquare = piece == Piece::ROOK ? origin : captureTarget;
-        if (rookSquare == castlingSquares[0]) {
-            newCastling &= ~CASTLING_WHITE_KINGSIDE;
-        }
-        else if (rookSquare == castlingSquares[1]) {
-            newCastling &= ~CASTLING_WHITE_QUEENSIDE;
-        }
-        else if (rookSquare == castlingSquares[2]) {
-            newCastling &= ~CASTLING_BLACK_KINGSIDE;
-        }
-        else if (rookSquare == castlingSquares[3]) {
-            newCastling &= ~CASTLING_BLACK_QUEENSIDE;
-        }
-        hash ^= ZOBRIST_CASTLING[newCastling & CASTLING_MASK];
+        hash ^= Zobrist::PIECE_SQUARES[stm][piece][target] ^ Zobrist::PIECE_SQUARES[stm][promotionPiece][target];
     }
 
     return hash;
