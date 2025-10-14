@@ -107,10 +107,10 @@ struct Board {
     bool opponentHasGoodCapture();
 
     constexpr bool isCapture(Move move) {
-        MoveType type = moveType(move);
-        if (type == MOVE_CASTLING) return false;
-        if (type == MOVE_ENPASSANT || (type == MOVE_PROMOTION && promotionType(move) == PROMOTION_QUEEN)) return true;
-        return pieces[moveTarget(move)] != Piece::NONE;
+        MoveType type = move.type();
+        if (type == MoveType::CASTLING) return false;
+        if (type == MoveType::ENPASSANT || (type == MoveType::PROMOTION && move.promotionPiece() == Piece::QUEEN)) return true;
+        return pieces[move.target()] != Piece::NONE;
     }
     bool isPseudoLegal(Move move);
     bool isLegal(Move move);

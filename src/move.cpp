@@ -37,25 +37,25 @@ void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targe
 
     while (pushedPawns) {
         Square target = popLSB(&pushedPawns);
-        Move move = createMove(target - UP[board->stm], target);
+        Square origin = target - UP[board->stm];
 
         if (bitboard(target) & enemyBackrank) {
             // Promotion: Queen promotions are considered captures
-            for (uint8_t promotion = 1; promotion <= 3; promotion++) {
-                *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
+            for (Piece promotionPiece : { Piece::KNIGHT, Piece::BISHOP, Piece::ROOK }) {
+                *(*moves)++ = Move::makePromotion(origin, target, promotionPiece);
                 (*counter)++;
             }
             continue;
         }
 
-        *(*moves)++ = move;
+        *(*moves)++ = Move::makeNormal(origin, target);
         (*counter)++;
     }
 
     // Double pushes
     while (doublePushedPawns) {
         Square target = popLSB(&doublePushedPawns);
-        *(*moves)++ = createMove(target - UP_DOUBLE[board->stm], target);
+        *(*moves)++ = Move::makeNormal(target - UP_DOUBLE[board->stm], target);
         (*counter)++;
     }
 }
@@ -79,7 +79,7 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
     }
     while (pushedPawns) {
         Square target = popLSB(&pushedPawns);
-        *(*moves)++ = createMove(target - UP[board->stm], target) | PROMOTION_QUEEN | MOVE_PROMOTION;
+        *(*moves)++ = Move::makePromotion(target - UP[board->stm], target, Piece::QUEEN);
         (*counter)++;
     }
 
@@ -87,35 +87,35 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
     Bitboard leftCaptures = pAttacksLeft & blockedEnemy & targetMask;
     while (leftCaptures) {
         Square target = popLSB(&leftCaptures);
-        Move move = createMove(target - UP_LEFT[board->stm], target);
+        Square origin = target - UP_LEFT[board->stm];
 
         if (bitboard(target) & enemyBackrank) {
             // Promotion
-            for (uint8_t promotion = 0; promotion <= 3; promotion++) {
-                *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
+            for (Piece promotionPiece : { Piece::KNIGHT, Piece::BISHOP, Piece::ROOK, Piece::QUEEN }) {
+                *(*moves)++ = Move::makePromotion(origin, target, promotionPiece);
                 (*counter)++;
             }
             continue;
         }
 
-        *(*moves)++ = move;
+        *(*moves)++ = Move::makeNormal(origin, target);
         (*counter)++;
     }
     Bitboard rightCaptures = pAttacksRight & blockedEnemy & targetMask;
     while (rightCaptures) {
         Square target = popLSB(&rightCaptures);
-        Move move = createMove(target - UP_RIGHT[board->stm], target);
+        Square origin = target - UP_RIGHT[board->stm];
 
         if (bitboard(target) & enemyBackrank) {
             // Promotion
-            for (uint8_t promotion = 0; promotion <= 3; promotion++) {
-                *(*moves)++ = move | (promotion << 14) | MOVE_PROMOTION;
+            for (Piece promotionPiece : { Piece::KNIGHT, Piece::BISHOP, Piece::ROOK, Piece::QUEEN }) {
+                *(*moves)++ = Move::makePromotion(origin, target, promotionPiece);
                 (*counter)++;
             }
             continue;
         }
 
-        *(*moves)++ = move;
+        *(*moves)++ = Move::makeNormal(origin, target);
         (*counter)++;
     }
 
@@ -131,14 +131,14 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
         if (leftEp) {
             Square target = popLSB(&leftEp);
             Square origin = target - UP_LEFT[board->stm];
-            *(*moves)++ = createMove(origin, target) | MOVE_ENPASSANT;
+            *(*moves)++ = Move::makeEnpassant(origin, target);
             (*counter)++;
         }
         Bitboard rightEp = pAttacksRight & epBB;
         if (rightEp) {
             Square target = popLSB(&rightEp);
             Square origin = target - UP_RIGHT[board->stm];
-            *(*moves)++ = createMove(origin, target) | MOVE_ENPASSANT;
+            *(*moves)++ = Move::makeEnpassant(origin, target);
             (*counter)++;
         }
     }
@@ -166,7 +166,7 @@ void generatePiece(Board* board, Move** moves, int* counter, bool captures, Bitb
 
         while (targets) {
             Square target = popLSB(&targets);
-            *(*moves)++ = createMove(piece, target);
+            *(*moves)++ = Move::makeNormal(piece, target);
             (*counter)++;
         }
     }
@@ -189,7 +189,7 @@ void generateCastling(Board* board, Move** moves, int* counter) {
             Bitboard between = BB::BETWEEN[rookOrigin][rookTarget] | BB::BETWEEN[king][kingTarget];
             between &= ~bitboard(rookOrigin) & ~bitboard(king);
             if (!(occupied & between)) {
-                *(*moves)++ = createMove(king, rookOrigin) | MOVE_CASTLING;
+                *(*moves)++ = Move::makeCastling(king, rookOrigin);
                 (*counter)++;
             }
         }
@@ -235,18 +235,18 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
 }
 
 // Main search
-MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(false), killer(searchStack->killer), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
-    counterMove = searchStack->ply > 0 ? history->getCounterMove((searchStack - 1)->move) : MOVE_NONE;
+MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(false), killer(searchStack->killer), generatedMoves(0), returnedMoves(0), generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
+    counterMove = searchStack->ply > 0 ? history->getCounterMove((searchStack - 1)->move) : Move::none();
 }
 
 // qSearch
-MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(onlyCaptures), killer(MOVE_NONE), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
-    counterMove = onlyCaptures || searchStack->ply == 0 ? MOVE_NONE : history->getCounterMove((searchStack - 1)->move);
+MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(onlyCaptures), generatedMoves(0), returnedMoves(0), generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
+    counterMove = onlyCaptures || searchStack->ply == 0 ? Move::none() : history->getCounterMove((searchStack - 1)->move);
 }
 
 // ProbCut
-MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(true), killer(MOVE_NONE), moveList{ MOVE_NONE }, generatedMoves(0), returnedMoves(0), badCaptureList{ MOVE_NONE }, generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(true), probCutThreshold(probCutThreshold), skipQuiets(false) {
-    counterMove = MOVE_NONE;
+MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(true), generatedMoves(0), returnedMoves(0), generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(true), probCutThreshold(probCutThreshold), skipQuiets(false) {
+    counterMove = Move::none();
 }
 
 Move MoveGen::nextMove() {
@@ -263,7 +263,7 @@ Move MoveGen::nextMove() {
     case STAGE_TTMOVE:
 
         stage++;
-        if (ttMove != MOVE_NONE && ttMove != MOVE_NULL && board->isPseudoLegal(ttMove)) {
+        if (ttMove && board->isPseudoLegal(ttMove)) {
             return ttMove;
         }
 
@@ -311,7 +311,7 @@ Move MoveGen::nextMove() {
 
         if (probCut || onlyCaptures) {
             stage = STAGE_DONE;
-            return MOVE_NONE;
+            return Move::none();
         }
         stage++;
         [[fallthrough]];
@@ -320,7 +320,7 @@ Move MoveGen::nextMove() {
 
         stage++;
 
-        if (killer != MOVE_NONE && killer != ttMove && board->isPseudoLegal(killer))
+        if (killer && killer != ttMove && board->isPseudoLegal(killer))
             return killer;
 
         [[fallthrough]];
@@ -328,7 +328,7 @@ Move MoveGen::nextMove() {
     case STAGE_COUNTERS:
 
         stage++;
-        if (counterMove != MOVE_NONE && counterMove != ttMove && counterMove != killer && !board->isCapture(counterMove) && board->isPseudoLegal(counterMove))
+        if (counterMove && counterMove != ttMove && counterMove != killer && !board->isCapture(counterMove) && board->isPseudoLegal(counterMove))
             return counterMove;
 
         [[fallthrough]];
@@ -377,7 +377,7 @@ Move MoveGen::nextMove() {
         stage = STAGE_DONE;
     }
 
-    return MOVE_NONE;
+    return Move::none();
 }
 
 int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
@@ -387,7 +387,7 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
         // Skip all previously searched moves
         if (move == ttMove) {
             moveList[i] = moveList[endIndex - 1];
-            moveList[endIndex - 1] = MOVE_NONE;
+            moveList[endIndex - 1] = Move::none();
             endIndex--;
             generatedMoves--;
             i--;
@@ -395,12 +395,12 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
         }
 
         int score = *history->getCaptureHistory(board, move);
-        if (moveType(move) == MOVE_ENPASSANT)
+        if (move.type() == MoveType::ENPASSANT)
             score += 0;
-        else if (moveType(move) == MOVE_PROMOTION)
-            score += PIECE_VALUES[PROMOTION_PIECE[promotionType(move)]] * mpPromotionScoreFactor / 100;
+        else if (move.type() == MoveType::PROMOTION)
+            score += PIECE_VALUES[move.promotionPiece()] * mpPromotionScoreFactor / 100;
         else
-            score += (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
+            score += (PIECE_VALUES[board->pieces[move.target()]] - PIECE_VALUES[board->pieces[move.origin()]]) * mpMvvLvaScoreFactor / 100;
 
         moveListScores[i] = score;
     }
@@ -416,7 +416,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
         // Skip all previously searched moves
         if (move == ttMove || move == killer || move == counterMove) {
             moveList[i] = moveList[endIndex - 1];
-            moveList[endIndex - 1] = MOVE_NONE;
+            moveList[endIndex - 1] = Move::none();
             endIndex--;
             generatedMoves--;
             i--;
@@ -424,9 +424,9 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
         }
 
         int threatScore = 0;
-        Piece piece = board->pieces[moveOrigin(move)];
-        Bitboard originAttackers = threats.toSquare[moveOrigin(move)];
-        Bitboard targetAttackers = threats.toSquare[moveTarget(move)];
+        Piece piece = board->pieces[move.origin()];
+        Bitboard originAttackers = threats.toSquare[move.origin()];
+        Bitboard targetAttackers = threats.toSquare[move.target()];
 
         Bitboard enemies = board->byColor[flip(board->stm)];
         if (piece == Piece::QUEEN) {
@@ -476,80 +476,6 @@ void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) 
     }
 }
 
-inline char fileFromSquare(Square square) {
-    int file = fileOf(square);
-    if (file == 0)
-        return 'a';
-    else if (file == 1)
-        return 'b';
-    else if (file == 2)
-        return 'c';
-    else if (file == 3)
-        return 'd';
-    else if (file == 4)
-        return 'e';
-    else if (file == 5)
-        return 'f';
-    else if (file == 6)
-        return 'g';
-    else
-        return 'h';
-}
-
-inline char rankFromSquare(Square square) {
-    int rank = rankOf(square);
-    if (rank == 0)
-        return '1';
-    else if (rank == 1)
-        return '2';
-    else if (rank == 2)
-        return '3';
-    else if (rank == 3)
-        return '4';
-    else if (rank == 4)
-        return '5';
-    else if (rank == 5)
-        return '6';
-    else if (rank == 6)
-        return '7';
-    else
-        return '8';
-}
-
-std::string squareToString(Square square) {
-    return std::string(1, fileFromSquare(square)) + std::string(1, rankFromSquare(square));
-}
-
-std::string moveToString(Move move, bool chess960) {
-    if (move == MOVE_NONE) return "move_none";
-    if (move == MOVE_NULL) return "move_null";
-    std::string result = "";
-
-    Square origin = moveOrigin(move);
-    Square target = moveTarget(move);
-    if ((move & (0x3 << 12)) == MOVE_CASTLING && !chess960) {
-        int rank = rankOf(origin);
-        int file = origin > target ? 2 : 6;
-        target = rank * 8 + file;
-    }
-
-    result += squareToString(origin);
-    result += squareToString(target);
-
-    if ((move & (0x3 << 12)) == MOVE_PROMOTION) {
-        Move promotionType = move & (0x3) << 14;
-        if (promotionType == PROMOTION_QUEEN)
-            result += 'q';
-        if (promotionType == PROMOTION_ROOK)
-            result += 'r';
-        if (promotionType == PROMOTION_BISHOP)
-            result += 'b';
-        if (promotionType == PROMOTION_KNIGHT)
-            result += 'n';
-    }
-    return result;
-}
-
 inline int fileFromString(char string) {
     if (string == 'a')
         return 0;
@@ -597,30 +523,34 @@ Square stringToSquare(const char* string) {
 Move stringToMove(const char* string, Board* board) {
     Square origin = stringToSquare(&string[0]);
     Square target = stringToSquare(&string[2]);
-    Move move = createMove(origin, target);
+    Move move;
 
     switch (string[4]) {
     case 'q':
-        move |= MOVE_PROMOTION | PROMOTION_QUEEN;
+        move = Move::makePromotion(origin, target, Piece::QUEEN);
         break;
     case 'r':
-        move |= MOVE_PROMOTION | PROMOTION_ROOK;
+        move = Move::makePromotion(origin, target, Piece::ROOK);
         break;
     case 'b':
-        move |= MOVE_PROMOTION | PROMOTION_BISHOP;
+        move = Move::makePromotion(origin, target, Piece::BISHOP);
         break;
     case 'n':
-        move |= MOVE_PROMOTION | PROMOTION_KNIGHT;
+        move = Move::makePromotion(origin, target, Piece::KNIGHT);
         break;
+    default:
+        // Figure out whether this is en passent or castling and set the flags accordingly
+        if (board->chess960 && board->pieces[origin] == Piece::KING && board->pieces[target] == Piece::ROOK && !(bitboard(target) & board->byColor[1 - board->stm]))
+            move = Move::makeCastling(origin, target);
+        else if (!board->chess960 && board->pieces[origin] == Piece::KING && std::abs(target - origin) == 2)
+            move = Move::makeCastling(origin, target);
+        else if (board->pieces[origin] == Piece::PAWN && board->pieces[target] == Piece::NONE && (std::abs(target - origin) == 7 || std::abs(target - origin) == 9))
+            move = Move::makeEnpassant(origin, target);
+        else
+            move = Move::makeNormal(origin, target);
     }
 
-    // Figure out whether this is en passent or castling and set the flags accordingly
-    if (board->chess960 && board->pieces[origin] == Piece::KING && board->pieces[target] == Piece::ROOK && !(bitboard(target) & board->byColor[1 - board->stm]))
-        move |= MOVE_CASTLING;
-    if (!board->chess960 && board->pieces[origin] == Piece::KING && std::abs(target - origin) == 2)
-        move |= MOVE_CASTLING;
-    if (board->pieces[origin] == Piece::PAWN && board->pieces[target] == Piece::NONE && (std::abs(target - origin) == 7 || std::abs(target - origin) == 9))
-        move |= MOVE_ENPASSANT;
+    assert(move);
 
     return move;
 }

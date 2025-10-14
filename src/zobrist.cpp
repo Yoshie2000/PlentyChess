@@ -64,14 +64,14 @@ namespace Zobrist {
                     for (Square squareB = squareA + 1; squareB < 64; squareB++) {
                         // Check if there is a reversible move between squareA and squareB
                         if (piece != Piece::PAWN && (BB::attackedSquares(piece, squareA, bitboard(0), side) & bitboard(squareB))) {
-                            Move move = createMove(squareA, squareB);
+                            Move move = Move::makeNormal(squareA, squareB);
                             uint64_t hash = PIECE_SQUARES[side][piece][squareA] ^ PIECE_SQUARES[side][piece][squareB] ^ STM_BLACK;
                             int i = H1(hash);
                             // Find an empty slot in the cuckoo table for this move/hash combination
                             while (true) {
                                 std::swap(CUCKOO_HASHES[i], hash);
                                 std::swap(CUCKOO_MOVES[i], move);
-                                if (move == 0)
+                                if (!move)
                                     break;
                                 i = (i == H1(hash)) ? H2(hash) : H1(hash);
                             }

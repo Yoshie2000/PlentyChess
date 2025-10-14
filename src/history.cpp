@@ -48,11 +48,7 @@ TUNE_INT(continuationCorrectionFactor, 5787, 1000, 7500);
 
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
-    for (Square s1 = 0; s1 < 64; s1++) {
-        for (Square s2 = 0; s2 < 64; s2++) {
-            counterMoves[s1][s2] = MOVE_NONE;
-        }
-    }
+    memset(counterMoves, 0, sizeof(counterMoves));
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
     memset(correctionHistory, 0, sizeof(correctionHistory));
@@ -117,33 +113,33 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
         return *getCaptureHistory(board, move);
     }
     else {
-        return getQuietHistory(move, board->stm, board) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[moveOrigin(move)], move) + getPawnHistory(board, move);
+        return getQuietHistory(move, board->stm, board) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[move.origin()], move) + getPawnHistory(board, move);
     }
 }
 
 int16_t History::getQuietHistory(Move move, Color stm, Board* board) {
-    Square origin = moveOrigin(move), target = moveTarget(move);
+    Square origin = move.origin(), target = move.target();
     return quietHistory[stm][origin][board->isSquareThreatened(origin)][target][board->isSquareThreatened(target)];
 }
 
 void History::updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus) {
     int16_t scaledBonus = bonus - getQuietHistory(move, stm, board) * std::abs(bonus) / 32000;
-    Square origin = moveOrigin(move), target = moveTarget(move);
+    Square origin = move.origin(), target = move.target();
     quietHistory[stm][origin][board->isSquareThreatened(origin)][target][board->isSquareThreatened(target)] += scaledBonus;
 }
 
 int16_t History::getPawnHistory(Board* board, Move move) {
-    return pawnHistory[board->hashes.pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)];
+    return pawnHistory[board->hashes.pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[move.origin()]][move.target()];
 }
 
 void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
     int16_t scaledBonus = bonus - getPawnHistory(board, move) * std::abs(bonus) / 32000;
-    pawnHistory[board->hashes.pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
+    pawnHistory[board->hashes.pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[move.origin()]][move.target()] += scaledBonus;
 }
 
 int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move) {
     assert(piece != Piece::NONE);
-    Square target = moveTarget(move);
+    Square target = move.target();
 
     int score = 0;
     int pieceTo = 2 * 64 * piece + 2 * target + side;
@@ -165,7 +161,7 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
 
 void History::updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus) {
     assert(piece != Piece::NONE);
-    Square target = moveTarget(move);
+    Square target = move.target();
 
     int16_t scaledBonus = bonus - getContinuationHistory(stack, side, piece, move) * std::abs(bonus) / 32000;
     int pieceTo = 2 * 64 * piece + 2 * target + side;
@@ -187,11 +183,11 @@ void History::updateContinuationHistory(SearchStack* stack, Color side, Piece pi
 }
 
 int16_t* History::getCaptureHistory(Board* board, Move move) {
-    Piece movedPiece = board->pieces[moveOrigin(move)];
-    Piece capturedPiece = board->pieces[moveTarget(move)];
-    Square target = moveTarget(move);
+    Piece movedPiece = board->pieces[move.origin()];
+    Piece capturedPiece = board->pieces[move.target()];
+    Square target = move.target();
 
-    if (capturedPiece == Piece::NONE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
+    if (capturedPiece == Piece::NONE && move.type() != MoveType::NORMAL) // for ep and promotions, just take pawns
         capturedPiece = Piece::PAWN;
 
     assert(movedPiece != Piece::NONE && capturedPiece != Piece::NONE);
@@ -231,7 +227,7 @@ void History::updateQuietHistories(int16_t depth, Board* board, SearchStack* sta
     
     // Increase stats for this move
     updateQuietHistory(move, board->stm, board, quietHistBonus * moveSearchCount);
-    updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, contHistBonus * moveSearchCount);
+    updateContinuationHistory(stack, board->stm, board->pieces[move.origin()], move, contHistBonus * moveSearchCount);
     updatePawnHistory(board, move, pawnHistBonus * moveSearchCount);
 
     // Decrease stats for all other quiets
@@ -239,15 +235,15 @@ void History::updateQuietHistories(int16_t depth, Board* board, SearchStack* sta
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
         updateQuietHistory(qMove, board->stm, board, -quietHistMalus * quietSearchCount[i]);
-        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -contHistMalus * quietSearchCount[i]);
+        updateContinuationHistory(stack, board->stm, board->pieces[qMove.origin()], qMove, -contHistMalus * quietSearchCount[i]);
         updatePawnHistory(board, qMove, -pawnHistMalus * quietSearchCount[i]);
     }
 }
 
 Move History::getCounterMove(Move move) {
-    return counterMoves[moveOrigin(move)][moveTarget(move)];
+    return counterMoves[move.origin()][move.target()];
 }
 
 void History::setCounterMove(Move move, Move counter) {
-    counterMoves[moveOrigin(move)][moveTarget(move)] = counter;
+    counterMoves[move.origin()][move.target()] = counter;
 }

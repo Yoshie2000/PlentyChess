@@ -206,7 +206,7 @@ void initReductions() {
 uint64_t perftInternal(Board& board, NNUE* nnue, int16_t depth) {
     if (depth == 0) return 1;
 
-    Move moves[MAX_MOVES] = { MOVE_NONE };
+    Move moves[MAX_MOVES];
     int moveCount = 0;
     generateMoves(&board, moves, &moveCount);
 
@@ -231,7 +231,7 @@ uint64_t perft(Board& board, int16_t depth) {
     clock_t begin = clock();
     UCI::nnue.reset(&board);
 
-    Move moves[MAX_MOVES] = { MOVE_NONE };
+    Move moves[MAX_MOVES];
     int moveCount = 0;
     generateMoves(&board, moves, &moveCount);
 
@@ -247,7 +247,7 @@ uint64_t perft(Board& board, int16_t depth) {
         uint64_t subNodes = perftInternal(boardCopy, &UCI::nnue, depth - 1);
         UCI::nnue.decrementAccumulator();
 
-        std::cout << moveToString(move, UCI::Options.chess960.value) << ": " << subNodes << std::endl;
+        std::cout << move.toString(UCI::Options.chess960.value) << ": " << subNodes << std::endl;
 
         nodes += subNodes;
     }
@@ -352,8 +352,8 @@ bool Worker::hasUpcomingRepetition(Board* board, int ply) {
         uint64_t moveHash = board->hashes.hash ^ *compareHash;
         if ((j = Zobrist::H1(moveHash), Zobrist::CUCKOO_HASHES[j] == moveHash) || (j = Zobrist::H2(moveHash), Zobrist::CUCKOO_HASHES[j] == moveHash)) {
             Move move = Zobrist::CUCKOO_MOVES[j];
-            Square origin = moveOrigin(move);
-            Square target = moveTarget(move);
+            Square origin = move.origin();
+            Square target = move.target();
 
             if (BB::BETWEEN[origin][target] & (board->byColor[Color::WHITE] | board->byColor[Color::BLACK]))
                 continue;
@@ -408,7 +408,7 @@ bool Worker::isDraw(Board* board, int ply) {
             return true;
 
         // If in check, it might be checkmate
-        Move moves[MAX_MOVES] = { MOVE_NONE };
+        Move moves[MAX_MOVES];
         int moveCount = 0;
         int legalMoveCount = 0;
         generateMoves(board, moves, &moveCount);
@@ -448,7 +448,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     // TT Lookup
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
-    Move ttMove = MOVE_NONE;
+    Move ttMove = Move::none();
     Eval ttValue = EVAL_NONE;
     Eval ttEval = EVAL_NONE;
     uint8_t ttFlag = TT_NOBOUND;
@@ -467,7 +467,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
-    Move bestMove = MOVE_NONE;
+    Move bestMove = Move::none();
     Eval bestValue, futilityValue, unadjustedEval;
 
     Eval correctionValue = history.getCorrectionValue(board, stack);
@@ -486,7 +486,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     else {
         unadjustedEval = evaluate(board, &nnue);
         stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
-        ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
+        ttEntry->update(board->hashes.hash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
     }
     futilityValue = std::min(stack->staticEval + qsFutilityOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
 
@@ -494,7 +494,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (bestValue >= beta) {
         if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
             bestValue = (bestValue + beta) / 2;
-        ttEntry->update(board->hashes.hash, MOVE_NONE, ttEntry->depth, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
+        ttEntry->update(board->hashes.hash, Move::none(), ttEntry->depth, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
         return bestValue;
     }
     if (alpha < bestValue)
@@ -512,7 +512,7 @@ movesLoopQsearch:
     Move move;
     int moveCount = 0;
     bool playedQuiet = false;
-    while ((move = movegen.nextMove()) != MOVE_NONE) {
+    while ((move = movegen.nextMove())) {
 
         bool capture = board->isCapture(move);
         if (!capture && playedQuiet && bestValue > -EVAL_TBWIN_IN_MAX_PLY)
@@ -527,7 +527,7 @@ movesLoopQsearch:
             if (!SEE(board, move, qsSeeMargin))
                 break;
 
-            if ((moveType(move) != MOVE_PROMOTION) && moveCount > 2)
+            if (move.type() != MoveType::PROMOTION && moveCount > 2)
                 continue;
         }
 
@@ -539,8 +539,8 @@ movesLoopQsearch:
         moveCount++;
         searchData.nodesSearched++;
 
-        Square origin = moveOrigin(move);
-        Square target = moveTarget(move);
+        Square origin = move.origin();
+        Square target = move.target();
         stack->capture = capture;
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
@@ -633,20 +633,20 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // Initialize some stuff
-    Move bestMove = MOVE_NONE;
+    Move bestMove = Move::none();
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
-    bool improving = false, excluded = excludedMove != MOVE_NONE;
+    bool improving = false, excluded = static_cast<bool>(excludedMove);
 
-    (stack + 1)->killer = MOVE_NONE;
-    (stack + 1)->excludedMove = MOVE_NONE;
+    (stack + 1)->killer = Move::none();
+    (stack + 1)->excludedMove = Move::none();
     stack->inCheck = board->checkerCount > 0;
 
     // TT Lookup
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
-    Move ttMove = MOVE_NONE;
+    Move ttMove = Move::none();
     Eval ttValue = EVAL_NONE, ttEval = EVAL_NONE;
     int ttDepth = 0;
     uint8_t ttFlag = TT_NOBOUND;
@@ -705,7 +705,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             }
 
             if (tbBound == TT_EXACTBOUND || (tbBound == TT_LOWERBOUND ? tbValue >= beta : tbValue <= alpha)) {
-                ttEntry->update(board->hashes.hash, MOVE_NONE, depth, EVAL_NONE, valueToTT(tbValue, stack->ply), board->rule50_ply, stack->ttPv, tbBound);
+                ttEntry->update(board->hashes.hash, Move::none(), depth, EVAL_NONE, valueToTT(tbValue, stack->ply), board->rule50_ply, stack->ttPv, tbBound);
                 return tbValue;
             }
 
@@ -746,7 +746,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         unadjustedEval = evaluate(board, &nnue);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
-        ttEntry->update(board->hashes.hash, MOVE_NONE, 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
+        ttEntry->update(board->hashes.hash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
     }
 
     // Improving
@@ -804,7 +804,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         && board->hasNonPawns()
         ) {
         stack->capture = false;
-        stack->move = MOVE_NULL;
+        stack->move = Move::none();
         stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[board->stm][0][0];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0];
@@ -845,18 +845,18 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
 
-        Move probcutTtMove = ttMove != MOVE_NONE && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : MOVE_NONE;
+        Move probcutTtMove = ttMove && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : Move::none();
         MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth / 100);
         Move move;
-        while ((move = movegen.nextMove()) != MOVE_NONE) {
+        while ((move = movegen.nextMove())) {
             if (move == excludedMove || !board->isLegal(move))
                 continue;
 
             uint64_t newHash = board->hashAfter(move);
             TT.prefetch(newHash);
 
-            Square origin = moveOrigin(move);
-            Square target = moveTarget(move);
+            Square origin = move.origin();
+            Square target = move.target();
             stack->capture = board->isCapture(move);
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
@@ -902,7 +902,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     MoveGen movegen(board, &history, stack, ttMove, depth / 100);
     Move move;
     int moveCount = 0;
-    while ((move = movegen.nextMove()) != MOVE_NONE) {
+    while ((move = movegen.nextMove())) {
 
         if (move == excludedMove)
             continue;
@@ -932,15 +932,15 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                 }
 
                 // Futility pruning
-                int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * (bestMove == MOVE_NONE));
+                int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * static_cast<bool>(bestMove));
                 if (!capture && lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
                 }
             }
 
             // Futility pruning for captures
-            if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
-                Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
+            if (!pvNode && capture && move.type() != MoveType::PROMOTION) {
+                Piece capturedPiece = move.type() == MoveType::ENPASSANT ? Piece::PAWN : board->pieces[move.target()];
                 if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
                     continue;
             }
@@ -975,7 +975,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             bool currTtPv = stack->ttPv;
             stack->excludedMove = move;
             Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
-            stack->excludedMove = MOVE_NONE;
+            stack->excludedMove = Move::none();
             stack->ttPv = currTtPv;
 
             if (stopped || exiting)
@@ -1029,8 +1029,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         }
 
         // Some setup stuff
-        Square origin = moveOrigin(move);
-        Square target = moveTarget(move);
+        Square origin = move.origin();
+        Square target = move.target();
         stack->capture = capture;
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
@@ -1047,7 +1047,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
+        if (moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth) {
             bool importantCapture = stack->ttPv && capture && !cutNode;
 
             int16_t reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
@@ -1237,7 +1237,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         ttEntry->update(board->hashes.hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
 
     // Adjust correction history
-    if (!board->checkers && (bestMove == MOVE_NONE || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
+    if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
         int bonus = std::clamp((int(bestValue - stack->staticEval) * depth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         history.updateCorrectionHistory(board, stack, bonus);
     }
@@ -1252,13 +1252,31 @@ Move tbProbeMoveRoot(unsigned result) {
     Square target = TB_GET_TO(result);
     int promotion = TB_GET_PROMOTES(result);
 
-    if (promotion)
-        return createMove(origin, target) | MOVE_PROMOTION | ((promotion - 1) << 14);
+    if (promotion) {
+        Piece promotionPiece;
+        switch (promotion) {
+            case TB_PROMOTES_KNIGHT:
+                promotionPiece = Piece::KNIGHT;
+                break;
+            case TB_PROMOTES_BISHOP:
+                promotionPiece = Piece::BISHOP;
+                break;
+            case TB_PROMOTES_ROOK:
+                promotionPiece = Piece::ROOK;
+                break;
+            case TB_PROMOTES_QUEEN:
+                promotionPiece = Piece::QUEEN;
+                break;
+            default:
+                assert(false);
+        }
+        return Move::makePromotion(origin, target, promotionPiece);
+    }
 
     if (TB_GET_EP(result))
-        return createMove(origin, target) | MOVE_ENPASSANT;
+        return Move::makeEnpassant(origin, target);
 
-    return createMove(origin, target);
+    return Move::makeNormal(origin, target);
 }
 
 void Worker::tsearch() {
@@ -1267,7 +1285,7 @@ void Worker::tsearch() {
 
     nnue.reset(&rootBoard);
 
-    Move bestTbMove = MOVE_NONE;
+    Move bestTbMove = Move::none();
     if (mainThread && BB::popcount(rootBoard.byColor[Color::WHITE] | rootBoard.byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
         unsigned result = tb_probe_root(
             rootBoard.byColor[Color::WHITE],
@@ -1308,10 +1326,11 @@ void Worker::tsearch() {
         }
 
         if (!UCI::Options.ponder.value || bestThread->rootMoves[0].pv.size() < 2) {
-            std::cout << "bestmove " << moveToString(bestTbMove != MOVE_NONE && std::abs(bestThread->rootMoves[0].value) < EVAL_MATE_IN_MAX_PLY ? bestTbMove : bestThread->rootMoves[0].move, UCI::Options.chess960.value) << std::endl;
+            Move bestMove = bestTbMove && std::abs(bestThread->rootMoves[0].value) < EVAL_MATE_IN_MAX_PLY ? bestTbMove : bestThread->rootMoves[0].move;
+            std::cout << "bestmove " << bestMove.toString(UCI::Options.chess960.value) << std::endl;
         }
         else {
-            std::cout << "bestmove " << moveToString(bestThread->rootMoves[0].move, UCI::Options.chess960.value) << " ponder " << moveToString(bestThread->rootMoves[0].pv[1], UCI::Options.chess960.value) << std::endl;
+            std::cout << "bestmove " << bestThread->rootMoves[0].move.toString(UCI::Options.chess960.value) << " ponder " << bestThread->rootMoves[0].pv[1].toString(UCI::Options.chess960.value) << std::endl;
         }
     }
 }
@@ -1319,7 +1338,7 @@ void Worker::tsearch() {
 void Worker::iterativeDeepening() {
     int multiPvCount = 0;
     {
-        Move moves[MAX_MOVES] = { MOVE_NONE };
+        Move moves[MAX_MOVES];
         int m = 0;
         generateMoves(&rootBoard, moves, &m);
         for (int i = 0; i < m; i++) {
@@ -1337,7 +1356,7 @@ void Worker::iterativeDeepening() {
     int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : std::min<int16_t>(MAX_PLY - 1, searchParameters.depth);
 
     Eval previousValue = EVAL_NONE;
-    Move previousMove = MOVE_NONE;
+    Move previousMove = Move::none();
 
     int bestMoveStability = 0;
 
@@ -1359,10 +1378,10 @@ void Worker::iterativeDeepening() {
                 stackList[i].pvLength = 0;
                 stackList[i].ply = i - STACK_OVERHEAD;
                 stackList[i].staticEval = EVAL_NONE;
-                stackList[i].excludedMove = MOVE_NONE;
-                stackList[i].killer = MOVE_NONE;
+                stackList[i].excludedMove = Move::none();
+                stackList[i].killer = Move::none();
                 stackList[i].movedPiece = Piece::NONE;
-                stackList[i].move = MOVE_NONE;
+                stackList[i].move = Move::none();
                 stackList[i].capture = false;
                 stackList[i].inCheck = false;
                 stackList[i].correctionValue = 0;
@@ -1472,7 +1491,7 @@ void Worker::printUCI(Worker* thread, int multiPvCount) {
 
         // Send PV
         for (Move move : rootMove.pv)
-            std::cout << moveToString(move, UCI::Options.chess960.value) << " ";
+            std::cout << move.toString(UCI::Options.chess960.value) << " ";
         std::cout << std::endl;
     }
 }
@@ -1547,7 +1566,7 @@ void Worker::tdatagen() {
     searchData.tbHits = 0;
     initTimeManagement(rootBoard, searchParameters, searchData);
     {
-        Move moves[MAX_MOVES] = { MOVE_NONE };
+        Move moves[MAX_MOVES];
         int m = 0;
         generateMoves(&rootBoard, moves, &m);
         for (int i = 0; i < m; i++) {
@@ -1578,10 +1597,10 @@ void Worker::tdatagen() {
             stackList[i].pvLength = 0;
             stackList[i].ply = i - STACK_OVERHEAD;
             stackList[i].staticEval = EVAL_NONE;
-            stackList[i].excludedMove = MOVE_NONE;
-            stackList[i].killer = MOVE_NONE;
+            stackList[i].excludedMove = Move::none();
+            stackList[i].killer = Move::none();
             stackList[i].movedPiece = Piece::NONE;
-            stackList[i].move = MOVE_NONE;
+            stackList[i].move = Move::none();
             stackList[i].capture = false;
             stackList[i].inCheck = false;
             stackList[i].correctionValue = 0;
@@ -1649,5 +1668,5 @@ void Worker::tdatagen() {
     sortRootMoves();
     printUCI(this);
 
-    std::cout << "bestmove " << moveToString(rootMoves[0].move, UCI::Options.chess960.value) << std::endl;
+    std::cout << "bestmove " << rootMoves[0].move.toString(UCI::Options.chess960.value) << std::endl;
 }

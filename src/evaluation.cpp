@@ -73,11 +73,11 @@ bool SEE(Board* board, Move move, Eval threshold) {
     assert(board->isPseudoLegal(move));
 
     // "Special" moves pass SEE
-    if (move >> 12)
+    if (move.type() != MoveType::NORMAL)
         return true;
 
-    Square origin = moveOrigin(move);
-    Square target = moveTarget(move);
+    Square origin = move.origin();
+    Square target = move.target();
 
     // If winning the piece on the target square (if there is one) for free doesn't pass the threshold, fail
     int value = SEE_VALUES[board->pieces[target]] - threshold;

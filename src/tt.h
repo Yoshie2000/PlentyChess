@@ -57,7 +57,7 @@ extern uint8_t TT_GENERATION_COUNTER;
 
 struct TTEntry {
     uint16_t hash = 0;
-    Move bestMove = 0;
+    Move bestMove = Move::none();
     int16_t depth = 0;
     int16_t eval = 0;
     int16_t value = 0;

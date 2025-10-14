@@ -19,7 +19,7 @@ struct RootMove {
     Eval meanScore = EVAL_NONE;
     int16_t depth = 0;
     int selDepth = 0;
-    Move move = MOVE_NULL;
+    Move move = Move::none();
     std::vector<Move> pv;
 };
 
