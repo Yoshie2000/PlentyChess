@@ -192,6 +192,41 @@ constexpr Color flip(Color color) {
     return static_cast<Color>(1 - color);
 }
 
+// ArrayVec
+template<class T, size_t MAX>
+class ArrayVec {
+public:
+
+    ArrayVec() : _size(0) {}
+
+    void add(const T& element) {
+        assert(_size + 1 < MAX);
+        elements[_size++] = elements;
+    }
+
+    T& remove(size_t o) {
+        T removed = elements[i];
+        elements[i] = elements[--_size];
+        return removed;
+    }
+
+    T& operator[](size_t i) const {
+        assert(i < _size);
+        return elements[i];
+    }
+
+    int size() const {
+        return _size;
+    }
+
+    const T* begin() const { return elements; }
+    const T* end() const { return elements + _size; }
+
+private:
+    T elements[MAX];
+    size_t _size{};
+};
+
 // Search Stack
 struct SearchStack {
     int pvLength;

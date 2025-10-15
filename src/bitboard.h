@@ -93,6 +93,13 @@ constexpr Square LASTSQ_TABLE[64][8] = {
     { 63, 63, 7, 56, 63, 63, 0, 63 }
 };
 
+namespace Direction {
+    constexpr int8_t UP[2] = { 8, -8 };
+    constexpr int8_t UP_DOUBLE[2] = { 16, -16 };
+    constexpr int8_t UP_LEFT[2] = { 7, -9 };
+    constexpr int8_t UP_RIGHT[2] = { 9, -7 };
+}
+
 namespace BB {
 
     constexpr Bitboard FILE_A = 0x0101010101010101;

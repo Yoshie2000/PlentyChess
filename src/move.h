@@ -8,26 +8,29 @@
 struct Board;
 class History;
 
-constexpr int8_t UP[2] = { 8, -8 };
-constexpr int8_t UP_DOUBLE[2] = { 16, -16 };
-constexpr int8_t UP_LEFT[2] = { 7, -9 };
-constexpr int8_t UP_RIGHT[2] = { 9, -7 };
+using MoveList = ArrayVec<Move, MAX_MOVES>;
 
-void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures = false);
+void generateMoves(Board* board, MoveList& moves, bool onlyCaptures = false);
 
 Square stringToSquare(const char* string);
 Move stringToMove(const char* string, Board* board);
 
-typedef int MoveGenStage;
-constexpr MoveGenStage STAGE_TTMOVE = 0;
-constexpr MoveGenStage STAGE_GEN_CAPTURES = 1;
-constexpr MoveGenStage STAGE_PLAY_GOOD_CAPTURES = 2;
-constexpr MoveGenStage STAGE_KILLER = 3;
-constexpr MoveGenStage STAGE_COUNTERS = 4;
-constexpr MoveGenStage STAGE_GEN_QUIETS = 5;
-constexpr MoveGenStage STAGE_PLAY_QUIETS = 6;
-constexpr MoveGenStage STAGE_PLAY_BAD_CAPTURES = 7;
-constexpr MoveGenStage STAGE_DONE = 100;
+enum MoveGenStage {
+    STAGE_TTMOVE,
+    STAGE_GEN_CAPTURES,
+    STAGE_PLAY_GOOD_CAPTURES,
+    STAGE_KILLER,
+    STAGE_COUNTERS,
+    STAGE_GEN_QUIETS,
+    STAGE_PLAY_QUIETS,
+    STAGE_PLAY_BAD_CAPTURES,
+    STAGE_DONE = 100
+};
+
+constexpr MoveGenStage& operator++(MoveGenStage& stage) {
+    stage = static_cast<MoveGenStage>(static_cast<int>(stage) + 1);
+    return stage;
+}
 
 class MoveGen {
 
@@ -40,17 +43,15 @@ public:
     bool onlyCaptures;
     Move killer;
 
-    Move moveList[MAX_MOVES];
-    int moveListScores[MAX_MOVES];
-    int generatedMoves;
+    MoveList moveList;
+    ArrayVec<int, MAX_MOVES> moveListScores;
     int returnedMoves;
 
-    Move badCaptureList[MAX_CAPTURES];
-    int generatedBadCaptures; // Bad captures only count as "generated" when they are sorted out by SEE
+    MoveList badCaptureList;
     int returnedBadCaptures;
 
     MoveGenStage stage;
-    int16_t depth;
+    Depth depth;
 
     bool probCut;
     int probCutThreshold;
@@ -58,11 +59,11 @@ public:
     bool skipQuiets;
 
     // Main search
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int16_t depth);
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, Depth depth);
     // qSearch
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int16_t depth);
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, Depth depth);
     // ProbCut
-    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int16_t depth);
+    MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, Depth depth);
 
     Move nextMove();
 

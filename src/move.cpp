@@ -37,7 +37,7 @@ void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targe
 
     while (pushedPawns) {
         Square target = popLSB(&pushedPawns);
-        Square origin = target - UP[board->stm];
+        Square origin = target - Direction::UP[board->stm];
 
         if (bitboard(target) & enemyBackrank) {
             // Promotion: Queen promotions are considered captures
@@ -55,7 +55,7 @@ void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targe
     // Double pushes
     while (doublePushedPawns) {
         Square target = popLSB(&doublePushedPawns);
-        *(*moves)++ = Move::makeNormal(target - UP_DOUBLE[board->stm], target);
+        *(*moves)++ = Move::makeNormal(target - Direction::UP_DOUBLE[board->stm], target);
         (*counter)++;
     }
 }
@@ -79,7 +79,7 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
     }
     while (pushedPawns) {
         Square target = popLSB(&pushedPawns);
-        *(*moves)++ = Move::makePromotion(target - UP[board->stm], target, Piece::QUEEN);
+        *(*moves)++ = Move::makePromotion(target - Direction::UP[board->stm], target, Piece::QUEEN);
         (*counter)++;
     }
 
@@ -87,7 +87,7 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
     Bitboard leftCaptures = pAttacksLeft & blockedEnemy & targetMask;
     while (leftCaptures) {
         Square target = popLSB(&leftCaptures);
-        Square origin = target - UP_LEFT[board->stm];
+        Square origin = target - Direction::UP_LEFT[board->stm];
 
         if (bitboard(target) & enemyBackrank) {
             // Promotion
@@ -104,7 +104,7 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
     Bitboard rightCaptures = pAttacksRight & blockedEnemy & targetMask;
     while (rightCaptures) {
         Square target = popLSB(&rightCaptures);
-        Square origin = target - UP_RIGHT[board->stm];
+        Square origin = target - Direction::UP_RIGHT[board->stm];
 
         if (bitboard(target) & enemyBackrank) {
             // Promotion
@@ -130,14 +130,14 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
         Bitboard leftEp = pAttacksLeft & epBB;
         if (leftEp) {
             Square target = popLSB(&leftEp);
-            Square origin = target - UP_LEFT[board->stm];
+            Square origin = target - Direction::UP_LEFT[board->stm];
             *(*moves)++ = Move::makeEnpassant(origin, target);
             (*counter)++;
         }
         Bitboard rightEp = pAttacksRight & epBB;
         if (rightEp) {
             Square target = popLSB(&rightEp);
-            Square origin = target - UP_RIGHT[board->stm];
+            Square origin = target - Direction::UP_RIGHT[board->stm];
             *(*moves)++ = Move::makeEnpassant(origin, target);
             (*counter)++;
         }
@@ -146,7 +146,7 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
 
 // For all pieces other than pawns
 template <Piece pieceType>
-void generatePiece(Board* board, Move** moves, int* counter, bool captures, Bitboard targetMask) {
+void generatePiece(Board* board, MoveList& moves, bool captures, Bitboard targetMask) {
     Bitboard blockedUs = board->byColor[board->stm];
     Bitboard blockedEnemy = board->byColor[1 - board->stm];
     Bitboard occupied = blockedUs | blockedEnemy;
@@ -235,17 +235,17 @@ void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
 }
 
 // Main search
-MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(false), killer(searchStack->killer), generatedMoves(0), returnedMoves(0), generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
+MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(false), killer(searchStack->killer), returnedMoves(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
     counterMove = searchStack->ply > 0 ? history->getCounterMove((searchStack - 1)->move) : Move::none();
 }
 
 // qSearch
-MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(onlyCaptures), generatedMoves(0), returnedMoves(0), generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
+MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, bool onlyCaptures, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(onlyCaptures), returnedMoves(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
     counterMove = onlyCaptures || searchStack->ply == 0 ? Move::none() : history->getCounterMove((searchStack - 1)->move);
 }
 
 // ProbCut
-MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(true), generatedMoves(0), returnedMoves(0), generatedBadCaptures(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(true), probCutThreshold(probCutThreshold), skipQuiets(false) {
+MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, int probCutThreshold, int16_t depth) : board(board), history(history), searchStack(searchStack), ttMove(ttMove), onlyCaptures(true), returnedMoves(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(depth), probCut(true), probCutThreshold(probCutThreshold), skipQuiets(false) {
     counterMove = Move::none();
 }
 
@@ -255,14 +255,11 @@ Move MoveGen::nextMove() {
     if (skipQuiets && stage >= STAGE_KILLER && stage != STAGE_DONE)
         stage = STAGE_PLAY_BAD_CAPTURES;
 
-    Move* moves;
-    int beginIndex, endIndex;
-
     // Generate moves for the current stage
     switch (stage) {
     case STAGE_TTMOVE:
 
-        stage++;
+        ++stage;
         if (ttMove && board->isPseudoLegal(ttMove)) {
             return ttMove;
         }
@@ -270,8 +267,6 @@ Move MoveGen::nextMove() {
         [[fallthrough]];
 
     case STAGE_GEN_CAPTURES:
-        beginIndex = generatedMoves;
-        moves = moveList + generatedMoves;
         // If in double check, only generate king moves
         if (board->checkerCount > 1) {
             generatePiece<Piece::KING>(board, &moves, &generatedMoves, true, ~bitboard(0));
@@ -292,7 +287,7 @@ Move MoveGen::nextMove() {
         endIndex = scoreCaptures(beginIndex, endIndex);
         sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
-        stage++;
+        ++stage;
         [[fallthrough]];
 
     case STAGE_PLAY_GOOD_CAPTURES:
@@ -313,12 +308,12 @@ Move MoveGen::nextMove() {
             stage = STAGE_DONE;
             return Move::none();
         }
-        stage++;
+        ++stage;
         [[fallthrough]];
 
     case STAGE_KILLER:
 
-        stage++;
+        ++stage;
 
         if (killer && killer != ttMove && board->isPseudoLegal(killer))
             return killer;
@@ -327,7 +322,7 @@ Move MoveGen::nextMove() {
 
     case STAGE_COUNTERS:
 
-        stage++;
+        ++stage;
         if (counterMove && counterMove != ttMove && counterMove != killer && !board->isCapture(counterMove) && board->isPseudoLegal(counterMove))
             return counterMove;
 
@@ -358,7 +353,7 @@ Move MoveGen::nextMove() {
         endIndex = scoreQuiets(beginIndex, endIndex);
         sortMoves(moveList, moveListScores, beginIndex, endIndex);
 
-        stage++;
+        ++stage;
         [[fallthrough]];
 
     case STAGE_PLAY_QUIETS:
@@ -366,7 +361,7 @@ Move MoveGen::nextMove() {
         if (returnedMoves < generatedMoves)
             return moveList[returnedMoves++];
 
-        stage++;
+        ++stage;
         [[fallthrough]];
 
     case STAGE_PLAY_BAD_CAPTURES:
@@ -375,6 +370,10 @@ Move MoveGen::nextMove() {
             return badCaptureList[returnedBadCaptures++];
 
         stage = STAGE_DONE;
+        break;
+
+    default:
+        break;
     }
 
     return Move::none();
@@ -476,47 +475,9 @@ void MoveGen::sortMoves(Move* moves, int* scores, int beginIndex, int endIndex) 
     }
 }
 
-inline int fileFromString(char string) {
-    if (string == 'a')
-        return 0;
-    else if (string == 'b')
-        return 1;
-    else if (string == 'c')
-        return 2;
-    else if (string == 'd')
-        return 3;
-    else if (string == 'e')
-        return 4;
-    else if (string == 'f')
-        return 5;
-    else if (string == 'g')
-        return 6;
-    else
-        return 7;
-}
-
-inline int rankFromString(char string) {
-    if (string == '1')
-        return 0;
-    else if (string == '2')
-        return 1;
-    else if (string == '3')
-        return 2;
-    else if (string == '4')
-        return 3;
-    else if (string == '5')
-        return 4;
-    else if (string == '6')
-        return 5;
-    else if (string == '7')
-        return 6;
-    else
-        return 7;
-}
-
 Square stringToSquare(const char* string) {
-    int file = fileFromString(string[0]);
-    int rank = rankFromString(string[1]);
+    int file = string[0] - '1';
+    int rank = string[1] - 'a';
     return (Square)(8 * rank + file);
 }
 

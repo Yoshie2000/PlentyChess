@@ -133,8 +133,8 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
         // Check if there's *actually* a pawn that can do enpassent
         Bitboard enemyPawns = byColor[flip(stm)] & byPiece[Piece::PAWN];
         Bitboard epRank = stm == Color::WHITE ? BB::RANK_4 : BB::RANK_5;
-        Square pawnSquare1 = epTargetSquare + 1 + UP[stm];
-        Square pawnSquare2 = epTargetSquare - 1 + UP[stm];
+        Square pawnSquare1 = epTargetSquare + 1 + Direction::UP[stm];
+        Square pawnSquare2 = epTargetSquare - 1 + Direction::UP[stm];
         Bitboard epPawns = (bitboard(pawnSquare1) | bitboard(pawnSquare2)) & epRank & enemyPawns;
         if (epPawns)
             hashes.hash ^= Zobrist::ENPASSENT[fileOf(epTargetSquare)];
@@ -465,7 +465,7 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
         movePiece(piece, stm, origin, target, nnue);
         rule50_ply = 0;
 
-        captureTarget = target - UP[stm];
+        captureTarget = target - Direction::UP[stm];
         capturedPiece = Piece::PAWN;
 
         assert(captureTarget < 64);
@@ -488,7 +488,7 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
 
             // Double push
             if ((origin ^ target) == 16) {
-                assert(target - UP[stm] < 64);
+                assert(target - Direction::UP[stm] < 64);
 
                 Bitboard enemyPawns = byColor[flip(stm)] & byPiece[Piece::PAWN];
                 Bitboard epRank = stm == Color::WHITE ? BB::RANK_4 : BB::RANK_5;
@@ -496,7 +496,7 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
                 Square pawnSquare2 = target - 1;
                 Bitboard epPawns = (bitboard(pawnSquare1) | bitboard(pawnSquare2)) & epRank & enemyPawns;
                 if (epPawns) {
-                    Square epTarget = target - UP[stm];
+                    Square epTarget = target - Direction::UP[stm];
                     enpassantTarget = bitboard(epTarget);
                 }
             }
@@ -645,9 +645,9 @@ bool Board::isPseudoLegal(Move move) {
     case MoveType::ENPASSANT:
         if (piece != Piece::PAWN) return false;
         if (checkerCount > 1) return false;
-        if (checkers && !(lsb(checkers) == target - UP[stm])) return false;
+        if (checkers && !(lsb(checkers) == target - Direction::UP[stm])) return false;
         // Check for EP flag on the right file
-        return (bitboard(target) & enpassantTarget) && pieces[target - UP[stm]] == Piece::PAWN;
+        return (bitboard(target) & enpassantTarget) && pieces[target - Direction::UP[stm]] == Piece::PAWN;
     case MoveType::PROMOTION:
         if (piece != Piece::PAWN) return false;
         if (checkerCount > 1) return false;
@@ -659,7 +659,7 @@ bool Board::isPseudoLegal(Move move) {
         }
         if (
             !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[flip(stm)]) && // Capture promotion?
-            !(origin + UP[stm] == target && pieces[target] == Piece::NONE)) // Push promotion?
+            !(origin + Direction::UP[stm] == target && pieces[target] == Piece::NONE)) // Push promotion?
             return false;
         return true;
     default:
@@ -673,8 +673,8 @@ bool Board::isPseudoLegal(Move move) {
 
         if (
             !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[flip(stm)]) && // Capture?
-            !(origin + UP[stm] == target && pieces[target] == Piece::NONE) && // Single push?
-            !(origin + 2 * UP[stm] == target && pieces[target] == Piece::NONE && pieces[target - UP[stm]] == Piece::NONE && (originBB & (BB::RANK_2 | BB::RANK_7))) // Double push?
+            !(origin + Direction::UP[stm] == target && pieces[target] == Piece::NONE) && // Single push?
+            !(origin + 2 * Direction::UP[stm] == target && pieces[target] == Piece::NONE && pieces[target - Direction::UP[stm]] == Piece::NONE && (originBB & (BB::RANK_2 | BB::RANK_7))) // Double push?
             )
             return false;
         break;
@@ -726,7 +726,7 @@ bool Board::isLegal(Move move) {
     MoveType type = move.type();
     if (type == MoveType::ENPASSANT) {
         // Check if king would be in check after this move
-        Square epSquare = target - UP[stm];
+        Square epSquare = target - Direction::UP[stm];
 
         Bitboard epSquareBB = bitboard(epSquare);
         Bitboard targetBB = bitboard(target);
@@ -795,7 +795,7 @@ bool Board::givesCheck(Move move) {
         return BB::attackedSquares(Piece::ROOK, Castling::getRookSquare(stm, Castling::getDirection(origin, target)), occ, stm) & enemyKing;
     }
     case MoveType::ENPASSANT: {
-        Square epSquare = target - UP[stm];
+        Square epSquare = target - Direction::UP[stm];
         Bitboard occupied = (occ ^ bitboard(origin) ^ bitboard(epSquare)) | bitboard(target);
         Square ek = lsb(enemyKing);
         return (BB::attackedSquares(Piece::ROOK, ek, occupied, stm) & byColor[stm] & (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]))
@@ -824,7 +824,7 @@ uint64_t Board::hashAfter(Move move) {
     if (piece == Piece::PAWN) {
         if (type == MoveType::ENPASSANT) {
             capturedPiece = Piece::PAWN;
-            captureTarget = target - UP[stm];
+            captureTarget = target - Direction::UP[stm];
         }
 
         // Double push
