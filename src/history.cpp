@@ -202,22 +202,21 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
     *captHistScore += scaledBonus;
 }
 
-void History::updateCaptureHistory(Depth depth, Board* board, Move move, int moveSearchCount, Move* captureMoves, int* captureSearchCount, int captureMoveCount) {
+void History::updateCaptureHistory(Depth depth, Board* board, Move bestMove, int bestMoveSearchCount, SearchedMoveList& searchedCaptures) {
     int captHistBonus = std::min(historyBonusCaptureBase + historyBonusCaptureFactor * depth, historyBonusCaptureMax);
     int captHistMalus = std::min(historyMalusCaptureBase + historyMalusCaptureFactor * depth, historyMalusCaptureMax);
 
-    if (board->isCapture(move)) {
-        updateSingleCaptureHistory(board, move, captHistBonus * moveSearchCount);
+    if (board->isCapture(bestMove)) {
+        updateSingleCaptureHistory(board, bestMove, captHistBonus * bestMoveSearchCount);
     }
 
-    for (int i = 0; i < captureMoveCount; i++) {
-        Move cMove = captureMoves[i];
-        if (move == cMove) continue;
-        updateSingleCaptureHistory(board, cMove, -captHistMalus * captureSearchCount[i]);
+    for (auto& [move, moveSearchCount] : searchedCaptures) {
+        if (move == bestMove) continue;
+        updateSingleCaptureHistory(board, move, -captHistMalus * moveSearchCount);
     }
 }
 
-void History::updateQuietHistories(Depth depth, Board* board, SearchStack* stack, Move move, int moveSearchCount, Move* quietMoves, int* quietSearchCount, int quietMoveCount) {
+void History::updateQuietHistories(Depth depth, Board* board, SearchStack* stack, Move bestMove, int bestMoveSearchCount, SearchedMoveList& searchedQuiets) {
     int quietHistBonus = std::min(historyBonusQuietBase + historyBonusQuietFactor * depth, historyBonusQuietMax);
     int quietHistMalus = std::min(historyMalusQuietBase + historyMalusQuietFactor * depth, historyMalusQuietMax);
     int contHistBonus = std::min(historyBonusContinuationBase + historyBonusContinuationFactor * depth, historyBonusContinuationMax);
@@ -226,17 +225,16 @@ void History::updateQuietHistories(Depth depth, Board* board, SearchStack* stack
     int pawnHistMalus = std::min(historyMalusPawnBase + historyMalusPawnFactor * depth, historyMalusPawnMax);
     
     // Increase stats for this move
-    updateQuietHistory(move, board->stm, board, quietHistBonus * moveSearchCount);
-    updateContinuationHistory(stack, board->stm, board->pieces[move.origin()], move, contHistBonus * moveSearchCount);
-    updatePawnHistory(board, move, pawnHistBonus * moveSearchCount);
+    updateQuietHistory(bestMove, board->stm, board, quietHistBonus * bestMoveSearchCount);
+    updateContinuationHistory(stack, board->stm, board->pieces[bestMove.origin()], bestMove, contHistBonus * bestMoveSearchCount);
+    updatePawnHistory(board, bestMove, pawnHistBonus * bestMoveSearchCount);
 
     // Decrease stats for all other quiets
-    for (int i = 0; i < quietMoveCount; i++) {
-        Move qMove = quietMoves[i];
-        if (move == qMove) continue;
-        updateQuietHistory(qMove, board->stm, board, -quietHistMalus * quietSearchCount[i]);
-        updateContinuationHistory(stack, board->stm, board->pieces[qMove.origin()], qMove, -contHistMalus * quietSearchCount[i]);
-        updatePawnHistory(board, qMove, -pawnHistMalus * quietSearchCount[i]);
+    for (auto& [move, moveSearchCount] : searchedQuiets) {
+        if (move == bestMove) continue;
+        updateQuietHistory(move, board->stm, board, -quietHistMalus * moveSearchCount);
+        updateContinuationHistory(stack, board->stm, board->pieces[move.origin()], move, -contHistMalus * moveSearchCount);
+        updatePawnHistory(board, move, -pawnHistMalus * moveSearchCount);
     }
 }
 

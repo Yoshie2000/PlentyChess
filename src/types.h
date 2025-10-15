@@ -94,23 +94,23 @@ struct Move {
         return Move(origin | (target << 6) | (MoveType::CASTLING << 12));
     }
 
-    constexpr Square origin() {
+    constexpr Square origin() const {
         return Square(data & 0x3F);
     }
-    constexpr Square target() {
+    constexpr Square target() const {
         return Square((data >> 6) & 0x3F);
     }
-    constexpr MoveType type() {
+    constexpr MoveType type() const {
         assert(*this);
         return MoveType((data >> 12) & 0x3);
     }
-    constexpr Piece promotionPiece() {
+    constexpr Piece promotionPiece() const {
         assert(*this);
         assert(type() == MoveType::PROMOTION);
         return Piece((data >> 14) + 1);
     }
 
-    constexpr operator bool() {
+    constexpr operator bool() const {
         return static_cast<bool>(data);
     }
 
@@ -202,7 +202,7 @@ public:
     ArrayVec() : _size(0) {}
 
     void add(const T& element) {
-        assert(_size + 1 < MAX);
+        assert(_size < MAX);
         elements[_size++] = element;
     }
 
@@ -224,6 +224,10 @@ public:
 
     int size() const {
         return _size;
+    }
+
+    int capacity() const {
+        return MAX;
     }
 
     const T* begin() const { return elements; }

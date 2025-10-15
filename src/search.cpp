@@ -883,12 +883,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (stopped || exiting)
         return 0;
 
-    Move quietMoves[32];
-    Move captureMoves[32];
-    int quietSearchCount[32];
-    int captureSearchCount[32];
-    int quietMoveCount = 0;
-    int captureMoveCount = 0;
+    SearchedMoveList quietMoves, captureMoves;
 
     // Moves loop
     MoveGen movegen(board, &history, stack, ttMove, depth / 100);
@@ -1007,19 +1002,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         Hash newHash = board->hashAfter(move);
         TT.prefetch(newHash);
 
-        if (!capture) {
-            if (quietMoveCount < 32) {
-                quietMoves[quietMoveCount] = move;
-                quietSearchCount[quietMoveCount] = 0;
-            }
-        }
-        else {
-            if (captureMoveCount < 32) {
-                captureMoves[captureMoveCount] = move;
-                captureSearchCount[captureMoveCount] = 0;
-            }
-        }
-
         // Some setup stuff
         Square origin = move.origin();
         Square target = move.target();
@@ -1036,6 +1018,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         Eval value = 0;
         int newDepth = depth - 100 + 100 * extension;
+        int8_t moveSearchCount = 0;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
@@ -1074,15 +1057,13 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
             stack->inLMR = true;
+
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
+            moveSearchCount++;
+
             stack->inLMR = false;
             reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
             stack->reduction = 0;
-
-            if (capture && captureMoveCount < 32)
-                captureSearchCount[captureMoveCount]++;
-            else if (!capture && quietMoveCount < 32)
-                quietSearchCount[quietMoveCount]++;
 
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100;
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
@@ -1090,11 +1071,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
-
-                if (capture && captureMoveCount < 32)
-                    captureSearchCount[captureMoveCount]++;
-                else if (!capture && quietMoveCount < 32)
-                    quietSearchCount[quietMoveCount]++;
+                moveSearchCount++;
 
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth / 100 : reducedDepth / 100), lmrPassBonusMax);
@@ -1107,11 +1084,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 newDepth = std::max(100, newDepth);
 
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
-
-            if (capture && captureMoveCount < 32)
-                captureSearchCount[captureMoveCount]++;
-            else if (!capture && quietMoveCount < 32)
-                quietSearchCount[quietMoveCount]++;
+            moveSearchCount++;
         }
 
         // PV moves will be researched at full depth if good enough
@@ -1120,20 +1093,15 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 newDepth = std::max(100, newDepth);
 
             value = -search<PV_NODE>(boardCopy, stack + 1, newDepth, -beta, -alpha, false);
-
-            if (capture && captureMoveCount < 32)
-                captureSearchCount[captureMoveCount]++;
-            else if (!capture && quietMoveCount < 32)
-                quietSearchCount[quietMoveCount]++;
+            moveSearchCount++;
         }
 
         undoMove();
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
-        if (capture && captureMoveCount < 32)
-            captureMoveCount++;
-        else if (!capture && quietMoveCount < 32)
-            quietMoveCount++;
+        SearchedMoveList& list = capture ? captureMoves : quietMoves;
+        if (list.size() < list.capacity())
+            list.add({move, moveSearchCount});
 
         if (stopped || exiting)
             return 0;
@@ -1191,10 +1159,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                         if (stack->ply > 0)
                             history.setCounterMove((stack - 1)->move, move);
 
-                        history.updateQuietHistories(historyUpdateDepth, board, stack, move, quietSearchCount[quietMoveCount - 1], quietMoves, quietSearchCount, quietMoveCount);
+                        history.updateQuietHistories(historyUpdateDepth, board, stack, move, moveSearchCount, quietMoves);
                     }
-                    if (captureMoveCount > 0)
-                        history.updateCaptureHistory(historyUpdateDepth, board, move, captureSearchCount[captureMoveCount - 1], captureMoves, captureSearchCount, captureMoveCount);
+                    if (captureMoves.size())
+                        history.updateCaptureHistory(historyUpdateDepth, board, move, moveSearchCount, captureMoves);
                     break;
                 }
 
