@@ -127,9 +127,14 @@ int16_t History::getQuietHistory(Move move, Color stm, Board* board) {
 }
 
 void History::updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus) {
-    int16_t scaledBonus = bonus - getQuietHistory(move, stm, board) * std::abs(bonus) / 32000;
+
+    int16_t absoluteBonus = std::abs(bonus);
+    int16_t scaled = getQuietHistory(move, stm, board) * absoluteBonus / HISTORY_LIMIT;
+    int16_t order1 = bonus - scaled;
+    int16_t order2 = order1 * absoluteBonus / (2 * HISTORY_LIMIT);
+
     Square origin = moveOrigin(move), target = moveTarget(move);
-    quietHistory[stm][origin][board->isSquareThreatened(origin)][target][board->isSquareThreatened(target)] += scaledBonus;
+    quietHistory[stm][origin][board->isSquareThreatened(origin)][target][board->isSquareThreatened(target)] += order1 - order2;
 }
 
 int16_t History::getPawnHistory(Board* board, Move move) {
@@ -137,7 +142,7 @@ int16_t History::getPawnHistory(Board* board, Move move) {
 }
 
 void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
-    int16_t scaledBonus = bonus - getPawnHistory(board, move) * std::abs(bonus) / 32000;
+    int16_t scaledBonus = bonus - getPawnHistory(board, move) * std::abs(bonus) / HISTORY_LIMIT;
     pawnHistory[board->hashes.pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[moveOrigin(move)]][moveTarget(move)] += scaledBonus;
 }
 
@@ -167,7 +172,7 @@ void History::updateContinuationHistory(SearchStack* stack, Color side, Piece pi
     assert(piece != Piece::NONE);
     Square target = moveTarget(move);
 
-    int16_t scaledBonus = bonus - getContinuationHistory(stack, side, piece, move) * std::abs(bonus) / 32000;
+    int16_t scaledBonus = bonus - getContinuationHistory(stack, side, piece, move) * std::abs(bonus) / HISTORY_LIMIT;
     int pieceTo = 2 * 64 * piece + 2 * target + side;
 
     if ((stack - 1)->movedPiece != Piece::NONE)
@@ -202,7 +207,7 @@ int16_t* History::getCaptureHistory(Board* board, Move move) {
 void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus) {
     int16_t* captHistScore = getCaptureHistory(board, move);
 
-    int16_t scaledBonus = bonus - *captHistScore * std::abs(bonus) / 32000;
+    int16_t scaledBonus = bonus - *captHistScore * std::abs(bonus) / HISTORY_LIMIT;
     *captHistScore += scaledBonus;
 }
 

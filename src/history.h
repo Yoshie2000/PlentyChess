@@ -3,6 +3,7 @@
 #include "types.h"
 #include "board.h"
 
+constexpr int HISTORY_LIMIT = 32000;
 constexpr int PAWN_HISTORY_SIZE = 8192;
 constexpr int CORRECTION_HISTORY_SIZE = 16384;
 constexpr int CORRECTION_HISTORY_LIMIT = 1024;
