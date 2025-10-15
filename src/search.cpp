@@ -206,14 +206,11 @@ void initReductions() {
 uint64_t perftInternal(Board& board, NNUE* nnue, int16_t depth) {
     if (depth == 0) return 1;
 
-    Move moves[MAX_MOVES];
-    int moveCount = 0;
-    generateMoves(&board, moves, &moveCount);
+    MoveList moves;
+    generateMoves(&board, moves);
 
     uint64_t nodes = 0;
-    for (int i = 0; i < moveCount; i++) {
-        Move move = moves[i];
-
+    for (Move move : moves) {
         if (!board.isLegal(move))
             continue;
 
@@ -231,14 +228,11 @@ uint64_t perft(Board& board, int16_t depth) {
     clock_t begin = clock();
     UCI::nnue.reset(&board);
 
-    Move moves[MAX_MOVES];
-    int moveCount = 0;
-    generateMoves(&board, moves, &moveCount);
+    MoveList moves;
+    generateMoves(&board, moves);
 
     uint64_t nodes = 0;
-    for (int i = 0; i < moveCount; i++) {
-        Move move = moves[i];
-
+    for (Move move : moves) {
         if (!board.isLegal(move))
             continue;
 
@@ -408,12 +402,10 @@ bool Worker::isDraw(Board* board, int ply) {
             return true;
 
         // If in check, it might be checkmate
-        Move moves[MAX_MOVES];
-        int moveCount = 0;
+        MoveList moves;
+        generateMoves(board, moves);
         int legalMoveCount = 0;
-        generateMoves(board, moves, &moveCount);
-        for (int i = 0; i < moveCount; i++) {
-            Move move = moves[i];
+        for (Move move : moves) {
             if (!board->isLegal(move))
                 continue;
             legalMoveCount++;
@@ -1338,15 +1330,14 @@ void Worker::tsearch() {
 void Worker::iterativeDeepening() {
     int multiPvCount = 0;
     {
-        Move moves[MAX_MOVES];
-        int m = 0;
-        generateMoves(&rootBoard, moves, &m);
-        for (int i = 0; i < m; i++) {
-            if (rootBoard.isLegal(moves[i])) {
+        MoveList moves;
+        generateMoves(&rootBoard, moves);
+        for (Move move : moves) {
+            if (rootBoard.isLegal(move)) {
                 multiPvCount++;
 
                 RootMove rootMove = {};
-                rootMove.move = moves[i];
+                rootMove.move = move;
                 rootMoves.push_back(rootMove);
             }
         }
@@ -1566,13 +1557,12 @@ void Worker::tdatagen() {
     searchData.tbHits = 0;
     initTimeManagement(rootBoard, searchParameters, searchData);
     {
-        Move moves[MAX_MOVES];
-        int m = 0;
-        generateMoves(&rootBoard, moves, &m);
-        for (int i = 0; i < m; i++) {
-            if (rootBoard.isLegal(moves[i])) {
+        MoveList moves;
+        generateMoves(&rootBoard, moves);
+        for (Move move : moves) {
+            if (rootBoard.isLegal(move)) {
                 RootMove rootMove = {};
-                rootMove.move = moves[i];
+                rootMove.move = move;
                 rootMoves.push_back(rootMove);
             }
         }

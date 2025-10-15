@@ -73,9 +73,9 @@ public:
 
 private:
 
-    int scoreCaptures(int beginIndex, int endIndex);
-    int scoreQuiets(int beginIndex, int endIndex);
+    void scoreCaptures();
+    void scoreQuiets();
 
-    void sortMoves(Move* moves, int* scores, int beginIndex, int endIndex);
+    void sortMoves();
 
 };

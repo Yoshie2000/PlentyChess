@@ -4,6 +4,7 @@
 #include <cassert>
 #include <string>
 #include <sstream>
+#include <iostream>
 
 // General constants and types
 typedef int32_t Eval;
@@ -201,16 +202,21 @@ public:
 
     void add(const T& element) {
         assert(_size + 1 < MAX);
-        elements[_size++] = elements;
+        elements[_size++] = element;
     }
 
-    T& remove(size_t o) {
+    T remove(size_t i) {
         T removed = elements[i];
         elements[i] = elements[--_size];
         return removed;
     }
 
-    T& operator[](size_t i) const {
+    T& operator[](size_t i) {
+        assert(i < _size);
+        return elements[i];
+    }
+
+    T const& operator[](size_t i) const {
         assert(i < _size);
         return elements[i];
     }

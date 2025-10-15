@@ -271,17 +271,17 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
         }
     }
 
-    while (addFeatures.count() && subFeatures.count()) {
+    while (addFeatures.size() && subFeatures.size()) {
         addSubToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0), subFeatures.remove(0));
         inputAcc = outputAcc;
     }
 
-    while (addFeatures.count()) {
+    while (addFeatures.size()) {
         addToAccumulator<side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0));
         inputAcc = outputAcc;
     }
 
-    while (subFeatures.count()) {
+    while (subFeatures.size()) {
         subFromAccumulator<side>(inputAcc->threatState, outputAcc->threatState, subFeatures.remove(0));
         inputAcc = outputAcc;
     }

@@ -1,13 +1,12 @@
 #include "thread.h"
 
 std::vector<Move> generateLegalMoves(Board& board) {
-    Move moves[MAX_MOVES];
-    int m = 0;
-    generateMoves(&board, moves, &m);
+    MoveList moves;
+    generateMoves(&board, moves);
     std::vector<Move> legalMoves;
-    for (int i = 0; i < m; i++) {
-        if (board.isLegal(moves[i])) {
-            legalMoves.push_back(moves[i]);
+    for (Move move : moves) {
+        if (board.isLegal(move)) {
+            legalMoves.push_back(move);
         }
     }
     return legalMoves;
