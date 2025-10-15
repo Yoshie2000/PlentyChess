@@ -46,11 +46,11 @@ struct Threats {
 };
 
 struct Hashes {
-    uint64_t hash;
-    uint64_t pawnHash;
-    uint64_t nonPawnHash[2];
-    uint64_t minorHash;
-    uint64_t majorHash;
+    Hash hash;
+    Hash pawnHash;
+    Hash nonPawnHash[2];
+    Hash minorHash;
+    Hash majorHash;
 };
 
 struct Board {
@@ -92,14 +92,14 @@ struct Board {
     template<bool add>
     void updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
 
-    void updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta);
+    void updatePieceHash(Piece piece, Color pieceColor, Hash hashDelta);
     void updatePieceCastling(Piece piece, Color pieceColor, Square origin);
 
     void addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
     void removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
     void movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue);
 
-    void doMove(Move move, uint64_t newHash, NNUE* nnue);
+    void doMove(Move move, Hash newHash, NNUE* nnue);
     void doNullMove();
 
     Threats calculateAllThreats();
@@ -120,7 +120,7 @@ struct Board {
         return castlingSquares[2 * side + direction];
     }
 
-    uint64_t hashAfter(Move move);
+    Hash hashAfter(Move move);
 
     void updateSliderPins(Color side);
 

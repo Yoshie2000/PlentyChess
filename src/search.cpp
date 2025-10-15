@@ -194,7 +194,7 @@ void initReductions() {
         }
     }
 
-    for (int16_t depth = 0; depth < MAX_PLY; depth++) {
+    for (Depth depth = 0; depth < MAX_PLY; depth++) {
         SEE_MARGIN[depth][0] = seeMarginNoisy * depth * depth; // non-quiet
         SEE_MARGIN[depth][1] = seeMarginQuiet * depth; // quiet
 
@@ -203,7 +203,7 @@ void initReductions() {
     }
 }
 
-uint64_t perftInternal(Board& board, NNUE* nnue, int16_t depth) {
+uint64_t perftInternal(Board& board, Depth depth) {
     if (depth == 0) return 1;
 
     MoveList moves;
@@ -215,8 +215,8 @@ uint64_t perftInternal(Board& board, NNUE* nnue, int16_t depth) {
             continue;
 
         Board boardCopy = board;
-        boardCopy.doMove(move, boardCopy.hashAfter(move), nnue);
-        uint64_t subNodes = perftInternal(boardCopy, nnue, depth - 1);
+        boardCopy.doMove(move, boardCopy.hashAfter(move), &UCI::nnue);
+        uint64_t subNodes = perftInternal(boardCopy, depth - 1);
         UCI::nnue.decrementAccumulator();
 
         nodes += subNodes;
@@ -224,7 +224,7 @@ uint64_t perftInternal(Board& board, NNUE* nnue, int16_t depth) {
     return nodes;
 }
 
-uint64_t perft(Board& board, int16_t depth) {
+uint64_t perft(Board& board, Depth depth) {
     clock_t begin = clock();
     UCI::nnue.reset(&board);
 
@@ -238,7 +238,7 @@ uint64_t perft(Board& board, int16_t depth) {
 
         Board boardCopy = board;
         boardCopy.doMove(move, boardCopy.hashAfter(move), &UCI::nnue);
-        uint64_t subNodes = perftInternal(boardCopy, &UCI::nnue, depth - 1);
+        uint64_t subNodes = perftInternal(boardCopy, depth - 1);
         UCI::nnue.decrementAccumulator();
 
         std::cout << move.toString(UCI::Options.chess960.value) << ": " << subNodes << std::endl;
@@ -301,7 +301,7 @@ Eval drawEval(Worker* thread) {
     return 4 - (thread->searchData.nodesSearched & 3);  // Small overhead to avoid 3-fold blindness
 }
 
-Board* Worker::doMove(Board* board, uint64_t newHash, Move move) {
+Board* Worker::doMove(Board* board, Hash newHash, Move move) {
     Board* boardCopy = board + 1;
     *boardCopy = *board;
 
@@ -337,13 +337,13 @@ bool Worker::hasUpcomingRepetition(Board* board, int ply) {
 
     assert(boardHistory.size() >= 2);
 
-    uint64_t* compareHash = &boardHistory[boardHistory.size() - 2];
+    Hash* compareHash = &boardHistory[boardHistory.size() - 2];
 
     int j = 0;
     for (int i = 3; i <= maxPlyOffset; i += 2) {
         compareHash -= 2;
 
-        uint64_t moveHash = board->hashes.hash ^ *compareHash;
+        Hash moveHash = board->hashes.hash ^ *compareHash;
         if ((j = Zobrist::H1(moveHash), Zobrist::CUCKOO_HASHES[j] == moveHash) || (j = Zobrist::H2(moveHash), Zobrist::CUCKOO_HASHES[j] == moveHash)) {
             Move move = Zobrist::CUCKOO_MOVES[j];
             Square origin = move.origin();
@@ -361,7 +361,7 @@ bool Worker::hasUpcomingRepetition(Board* board, int ply) {
                 continue;
 
             // Check for 2-fold repetition
-            uint64_t* compareHash2 = compareHash;
+            Hash* compareHash2 = compareHash;
             for (int k = i + 4; k <= maxPlyOffset; k += 2) {
                 if (k == i + 4)
                     compareHash2 -= 2;
@@ -384,7 +384,7 @@ bool Worker::isDraw(Board* board, int ply) {
 
     // 2-fold repetition
     int maxPlyOffset = std::min(board->rule50_ply, board->nullmove_ply);
-    uint64_t* compareHash = &boardHistory[boardHistory.size() - 3];
+    Hash* compareHash = &boardHistory[boardHistory.size() - 3];
 
     bool twofold = false;
     for (int i = 4; i <= maxPlyOffset; i += 2) {
@@ -526,7 +526,7 @@ movesLoopQsearch:
         if (!board->isLegal(move))
             continue;
 
-        uint64_t newHash = board->hashAfter(move);
+        Hash newHash = board->hashAfter(move);
         TT.prefetch(newHash);
         moveCount++;
         searchData.nodesSearched++;
@@ -583,7 +583,7 @@ movesLoopQsearch:
 }
 
 template <NodeType nt>
-Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha, Eval beta, bool cutNode) {
+Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, Eval beta, bool cutNode) {
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
     constexpr NodeType nodeType = nt == ROOT_NODE ? PV_NODE : NON_PV_NODE;
@@ -844,7 +844,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             if (move == excludedMove || !board->isLegal(move))
                 continue;
 
-            uint64_t newHash = board->hashAfter(move);
+            Hash newHash = board->hashAfter(move);
             TT.prefetch(newHash);
 
             Square origin = move.origin();
@@ -904,7 +904,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         if (!board->isLegal(move))
             continue;
 
-        uint64_t nodesBeforeMove = searchData.nodesSearched;
+        Hash nodesBeforeMove = searchData.nodesSearched;
 
         bool capture = board->isCapture(move);
         int moveHistory = history.getHistory(board, stack, move, capture);
@@ -914,7 +914,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             && board->hasNonPawns()
             ) {
 
-            int16_t lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth / 100][moveCount] - earlyLmrImproving * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            Depth lmrDepth = std::max(0, depth - REDUCTIONS[!capture][depth / 100][moveCount] - earlyLmrImproving * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
 
             if (!movegen.skipQuiets) {
 
@@ -937,7 +937,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                     continue;
             }
 
-            lmrDepth = std::min(std::min<int16_t>(depth + 100, MAX_DEPTH), lmrDepth);
+            lmrDepth = std::min(std::min<Depth>(depth + 100, MAX_DEPTH), lmrDepth);
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
@@ -1004,7 +1004,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                 extension = -2;
         }
 
-        uint64_t newHash = board->hashAfter(move);
+        Hash newHash = board->hashAfter(move);
         TT.prefetch(newHash);
 
         if (!capture) {
@@ -1042,7 +1042,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth) {
             bool importantCapture = stack->ttPv && capture && !cutNode;
 
-            int16_t reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
+            Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
             reduction += lmrReductionOffset(importantCapture);
             reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
 
@@ -1344,7 +1344,7 @@ void Worker::iterativeDeepening() {
     }
     multiPvCount = std::min(multiPvCount, UCI::Options.multiPV.value);
 
-    int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : std::min<int16_t>(MAX_PLY - 1, searchParameters.depth);
+    int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : std::min<Depth>(MAX_PLY - 1, searchParameters.depth);
 
     Eval previousValue = EVAL_NONE;
     Move previousMove = Move::none();
@@ -1361,7 +1361,7 @@ void Worker::iterativeDeepening() {
 
     rootMoveNodes.clear();
 
-    for (int16_t depth = 1; depth <= maxDepth; depth++) {
+    for (Depth depth = 1; depth <= maxDepth; depth++) {
         excludedRootMoves.clear();
         for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
 
@@ -1580,9 +1580,9 @@ void Worker::tdatagen() {
 
     rootMoveNodes.clear();
 
-    int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : std::min<int16_t>(MAX_PLY - 1, searchParameters.depth);
+    int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : std::min<Depth>(MAX_PLY - 1, searchParameters.depth);
 
-    for (int16_t depth = 1; depth <= maxDepth; depth++) {
+    for (Depth depth = 1; depth <= maxDepth; depth++) {
         for (int i = 0; i < MAX_PLY + STACK_OVERHEAD + 2; i++) {
             stackList[i].pvLength = 0;
             stackList[i].ply = i - STACK_OVERHEAD;

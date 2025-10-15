@@ -7,10 +7,11 @@
 #include <iostream>
 
 // General constants and types
-typedef int32_t Eval;
-typedef uint8_t Square;
-typedef uint64_t Bitboard;
-typedef int16_t Depth;
+using Eval = int32_t;
+using Square = uint8_t;
+using Bitboard = uint64_t;
+using Depth = int16_t;
+using Hash = uint64_t;
 
 constexpr int MAX_PLY = 246;
 constexpr Depth MAX_DEPTH = (MAX_PLY - 1) * 100;
@@ -246,7 +247,7 @@ struct SearchStack {
     Piece movedPiece;
     bool inCheck, capture;
     int correctionValue;
-    int16_t reduction;
+    Depth reduction;
     bool inLMR, ttPv;
 
     Move excludedMove;

@@ -106,7 +106,7 @@ bool nextToken(std::string* line, std::string* token) {
     return true;
 }
 
-void bench(Board& board, std::vector<uint64_t>& boardHistory) {
+void bench(Board& board, std::vector<Hash>& boardHistory) {
     boardHistory.clear();
     boardHistory.push_back(0);
 
@@ -153,7 +153,7 @@ void bench(Board& board, std::vector<uint64_t>& boardHistory) {
     UCI::Options.minimal.value = minimal;
 }
 
-void perfttest(Board& board, std::vector<uint64_t>& boardHistory) {
+void perfttest(Board& board, std::vector<Hash>& boardHistory) {
     boardHistory.clear();
     boardHistory.push_back(0);
 
@@ -233,7 +233,7 @@ std::vector<std::string> splitString(const std::string& input, char delimiter) {
     return tokens;
 }
 
-void position(std::string line, Board& board, std::vector<uint64_t>& boardHistory) {
+void position(std::string line, Board& board, std::vector<Hash>& boardHistory) {
     std::istringstream iss(line);
     std::string token;
     iss >> token;
@@ -331,7 +331,7 @@ void setoption(std::string line) {
     }
 }
 
-void go(std::string line, Board& board, std::vector<uint64_t>& boardHistory) {
+void go(std::string line, Board& board, std::vector<Hash>& boardHistory) {
     SearchParameters parameters;
     if (line.size() == 2) {
         line = "";
@@ -400,7 +400,7 @@ void go(std::string line, Board& board, std::vector<uint64_t>& boardHistory) {
     threads.startSearching(board, boardHistory, parameters);
 }
 
-void genfens(std::string params, Board& board, std::vector<uint64_t>& boardHistory) {
+void genfens(std::string params, Board& board, std::vector<Hash>& boardHistory) {
     std::string token;
     SearchParameters parameters;
     parameters.genfens = true;
@@ -438,7 +438,7 @@ struct printOptions
 };
 
 void uciLoop(int argc, char* argv[]) {
-    std::vector<uint64_t> boardHistory;
+    std::vector<Hash> boardHistory;
     Board board;
     board.startpos();
 

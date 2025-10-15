@@ -58,21 +58,21 @@ extern uint8_t TT_GENERATION_COUNTER;
 struct TTEntry {
     uint16_t hash = 0;
     Move bestMove = Move::none();
-    int16_t depth = 0;
+    Depth depth = 0;
     int16_t eval = 0;
     int16_t value = 0;
     uint8_t flags = 0;
     uint8_t rule50 = 0;
 
     constexpr Move getMove() { return bestMove; };
-    constexpr int16_t getDepth() { return depth; };
+    constexpr Depth getDepth() { return depth; };
     constexpr uint8_t getFlag() { return flags & 0x3; };
     constexpr uint8_t getRule50() { return rule50; };
     constexpr Eval getEval() { return eval; };
     constexpr Eval getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
 
-    void update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, uint8_t rule50, bool wasPv, int _flags);
+    void update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, uint8_t rule50, bool wasPv, int _flags);
     bool isInitialised() { return hash != 0; };
 };
 
@@ -120,17 +120,17 @@ public:
         clear();
     }
 
-    size_t index(uint64_t hash) {
+    size_t index(Hash hash) {
         // Find entry
         __extension__ using uint128 = unsigned __int128;
         return ((uint128)hash * (uint128)clusterCount) >> 64;
     }
 
-    void prefetch(uint64_t hash) {
+    void prefetch(Hash hash) {
         __builtin_prefetch(&table[index(hash)]);
     }
 
-    TTEntry* probe(uint64_t hash, bool* found);
+    TTEntry* probe(Hash hash, bool* found);
 
     int hashfull() {
         int count = 0;

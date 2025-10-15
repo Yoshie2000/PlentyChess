@@ -59,7 +59,7 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
             byPiece[piece] |= sqBB;
             pieces[sq] = piece;
 
-            uint64_t hash = Zobrist::PIECE_SQUARES[color][piece][sq];
+            Hash hash = Zobrist::PIECE_SQUARES[color][piece][sq];
             hashes.hash ^= hash;
             if (piece == Piece::PAWN)
                 hashes.pawnHash ^= hash;
@@ -313,7 +313,7 @@ void Board::updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square sq
     }
 }
 
-void Board::updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta) {
+void Board::updatePieceHash(Piece piece, Color pieceColor, Hash hashDelta) {
     if (piece == Piece::PAWN) {
         hashes.pawnHash ^= hashDelta;
     }
@@ -407,7 +407,7 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     updatePieceCastling(piece, pieceColor, origin);
 };
 
-void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
+void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
     // Increment ply counters
     rule50_ply++;
     nullmove_ply++;
@@ -806,8 +806,8 @@ bool Board::givesCheck(Move move) {
     }
 }
 
-uint64_t Board::hashAfter(Move move) {
-    uint64_t hash = hashes.hash ^ Zobrist::STM_BLACK;
+Hash Board::hashAfter(Move move) {
+    Hash hash = hashes.hash ^ Zobrist::STM_BLACK;
 
     Square origin = move.origin();
     Square target = move.target();
