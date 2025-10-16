@@ -242,14 +242,8 @@ void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNU
         Piece slidingPiece = pieces[slidingPieceSquare];
         Color slidingPieceColor = (byColor[Color::WHITE] & slidingPieceBB) ? Color::WHITE : Color::BLACK;
 
-        Bitboard ray = BB::RAY_PASS[slidingPieceSquare][square] & ~BB::BETWEEN[slidingPieceSquare][square];
-        debugBitboard(bitboard(slidingPieceSquare));
-        debugBitboard(bitboard(square));
-        debugBitboard(bitboard(ray));
-        debugBitboard(BB::RAY_PASS[slidingPieceSquare][square]);
-        Bitboard threatened = ray & occupancy & (getBishopMoves(square, 0) | getRookMoves(square, 0));
-
-        debugBitboard(threatened);
+        Bitboard ray = BB::RAY_PASS[slidingPieceSquare][square];
+        Bitboard threatened = ray & occupancy & (getBishopMoves(square, occupancy) | getRookMoves(square, occupancy));
 
         assert(BB::popcount(threatened) < 2);
 

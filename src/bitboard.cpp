@@ -78,9 +78,10 @@ namespace BB {
 
                 for (Piece piece : {Piece::BISHOP, Piece::ROOK}) {
                     Bitboard pseudoAttacks = piece == Piece::ROOK ? getRookMoves(a, 0) : getBishopMoves(a, 0);
-                    if (pseudoAttacks & b) {
+                    if (pseudoAttacks & bitboard(b)) {
                         RAY_PASS[a][b] = pseudoAttacks;
                         RAY_PASS[a][b] &= (piece == Piece::ROOK ? getRookMoves(b, bitboard(a)) : getBishopMoves(b, bitboard(a))) | bitboard(b);
+                        RAY_PASS[a][b] &= ~BETWEEN[a][b];
                     }
                 }
             }
