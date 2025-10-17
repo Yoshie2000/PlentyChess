@@ -408,8 +408,6 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
 }
 
 int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
-    Threats threats = board->calculateAllThreats();
-
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
 
@@ -425,8 +423,8 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
 
         int threatScore = 0;
         Piece piece = board->pieces[moveOrigin(move)];
-        Bitboard originAttackers = threats.toSquare[moveOrigin(move)];
-        Bitboard targetAttackers = threats.toSquare[moveTarget(move)];
+        Bitboard originAttackers = board->attackersTo(moveOrigin(move));
+        Bitboard targetAttackers = board->attackersTo(moveTarget(move));
 
         Bitboard enemies = board->byColor[flip(board->stm)];
         if (piece == Piece::QUEEN) {

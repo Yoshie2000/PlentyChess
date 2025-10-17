@@ -514,8 +514,7 @@ Threats Board::calculateAllThreats() {
 }
 
 bool Board::isSquareThreatened(Square square) {
-    Threats threats = calculateAllThreats();
-    return threats.toSquare[square] & byColor[flip(stm)];
+    return attackersTo(square) & byColor[flip(stm)];
 }
 
 bool Board::opponentHasGoodCapture() {
@@ -860,8 +859,7 @@ void Board::updateSliderPins(Color side) {
 }
 
 Bitboard Board::attackersTo(Square s) {
-    Threats threats = calculateAllThreats();
-    return threats.toSquare[s];
+    return attackersTo(s, byColor[Color::WHITE] | byColor[Color::BLACK]);
 }
 
 Bitboard Board::attackersTo(Square s, Bitboard occupied) {
