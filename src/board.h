@@ -41,6 +41,15 @@ namespace Castling {
 
 }
 
+struct Threats {
+    Bitboard pawnThreats;
+    Bitboard knightThreats;
+    Bitboard bishopThreats;
+    Bitboard rookThreats;
+    Bitboard queenThreats;
+    Bitboard kingThreats;
+};
+
 struct Hashes {
     uint64_t hash;
     uint64_t pawnHash;
@@ -50,6 +59,7 @@ struct Hashes {
 };
 
 struct Board {
+    Threats threats;
     Hashes hashes;
 
     Bitboard byPiece[Piece::TOTAL];
@@ -92,6 +102,7 @@ struct Board {
     void doMove(Move move, uint64_t newHash, NNUE* nnue);
     void doNullMove();
 
+    void calculateThreats();
     bool isSquareThreatened(Square square);
     bool opponentHasGoodCapture();
 
