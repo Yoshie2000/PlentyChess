@@ -487,32 +487,6 @@ void Board::doNullMove() {
     lastMove = MOVE_NULL;
 }
 
-Threats Board::calculateAllThreats() {
-    Threats threats;
-    memset(&threats, 0, sizeof(Threats));
-
-    Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
-
-    for (Color color = Color::WHITE; color <= Color::BLACK; ++color) {
-        for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
-            Bitboard pieceBB = byColor[color] & byPiece[piece];
-
-            while (pieceBB) {
-                Square square = popLSB(&pieceBB);
-                Bitboard pieceAttacks = BB::attackedSquares(piece, square, occupied, color);
-
-                while (pieceAttacks) {
-                    Square attackedSquare = popLSB(&pieceAttacks);
-
-                    threats.toSquare[attackedSquare] |= bitboard(square);
-                }
-            }
-        }
-    }
-
-    return threats;
-}
-
 bool Board::isSquareThreatened(Square square) {
     return attackersTo(square) & byColor[flip(stm)];
 }
