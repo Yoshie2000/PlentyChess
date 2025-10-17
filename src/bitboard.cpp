@@ -12,8 +12,7 @@ namespace BB {
     Bitboard LINE[64][64];
     Bitboard KING_ATTACKS[64];
     Bitboard KNIGHT_ATTACKS[64];
-
-    Bitboard DIRECTION_BETWEEN[64][64];
+    Bitboard RAY_PASS[64][64];
 
     Bitboard kingAttacks(Square origin) {
         Bitboard attacksBB = bitboard(0);
@@ -77,33 +76,13 @@ namespace BB {
                 BETWEEN[a][b] |= bitboard(b);
                 BETWEEN[a][b] &= LINE[a][b];
 
-
-                if (fileOf(a) == fileOf(b)) {
-                    DIRECTION_BETWEEN[a][b] = b > a ? DIRECTION_UP : DIRECTION_DOWN;
-                }
-                else if (rankOf(a) == rankOf(b)) {
-                    DIRECTION_BETWEEN[a][b] = b > a ? DIRECTION_RIGHT : DIRECTION_LEFT;
-                }
-                else if (std::abs(fileOf(a) - fileOf(b)) == std::abs(rankOf(a) - rankOf(b))) {
-                    if (b > a) {
-                        if (fileOf(b) > fileOf(a)) {
-                            DIRECTION_BETWEEN[a][b] = DIRECTION_UP_RIGHT;
-                        }
-                        else {
-                            DIRECTION_BETWEEN[a][b] = DIRECTION_UP_LEFT;
-                        }
+                for (Piece piece : {Piece::BISHOP, Piece::ROOK}) {
+                    Bitboard pseudoAttacks = piece == Piece::ROOK ? getRookMoves(a, 0) : getBishopMoves(a, 0);
+                    if (pseudoAttacks & bitboard(b)) {
+                        RAY_PASS[a][b] = pseudoAttacks;
+                        RAY_PASS[a][b] &= (piece == Piece::ROOK ? getRookMoves(b, bitboard(a)) : getBishopMoves(b, bitboard(a))) | bitboard(b);
+                        RAY_PASS[a][b] &= ~BETWEEN[a][b];
                     }
-                    else {
-                        if (fileOf(b) > fileOf(a)) {
-                            DIRECTION_BETWEEN[a][b] = DIRECTION_DOWN_RIGHT;
-                        }
-                        else {
-                            DIRECTION_BETWEEN[a][b] = DIRECTION_DOWN_LEFT;
-                        }
-                    }
-                }
-                else {
-                    DIRECTION_BETWEEN[a][b] = DIRECTION_NONE;
                 }
             }
 
