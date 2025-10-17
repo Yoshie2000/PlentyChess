@@ -54,7 +54,6 @@ struct Hashes {
 };
 
 struct Board {
-    Threats threats;
     Hashes hashes;
 
     Bitboard byPiece[Piece::TOTAL];

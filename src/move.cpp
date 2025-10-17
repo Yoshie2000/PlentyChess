@@ -408,7 +408,7 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
 }
 
 int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
-    Threats& threats = board->threats;
+    Threats threats = board->calculateAllThreats();
 
     for (int i = beginIndex; i < endIndex; i++) {
         Move move = moveList[i];
