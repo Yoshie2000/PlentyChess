@@ -41,10 +41,6 @@ namespace Castling {
 
 }
 
-struct Threats {
-    Bitboard toSquare[64];
-};
-
 struct Hashes {
     uint64_t hash;
     uint64_t pawnHash;
@@ -96,7 +92,6 @@ struct Board {
     void doMove(Move move, uint64_t newHash, NNUE* nnue);
     void doNullMove();
 
-    Threats calculateAllThreats();
     bool isSquareThreatened(Square square);
     bool opponentHasGoodCapture();
 

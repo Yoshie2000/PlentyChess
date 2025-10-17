@@ -21,8 +21,6 @@ namespace ThreatInputs {
     }
 
     void addThreatFeatures(Board* board, Color pov, FeatureList& features) {
-        Threats threats = board->calculateAllThreats();
-
         // Check HM and get occupancies
         Square king = lsb(board->byColor[pov] & board->byPiece[Piece::KING]);
         bool hm = fileOf(king) >= 4;
@@ -48,9 +46,8 @@ namespace ThreatInputs {
                     Square relativeSquare = square ^ (56 * pov);
 
                     // Add the threat features
-                    Bitboard attacks = threats.toSquare[indexSquare];
+                    Bitboard attacks = board->attackersTo(indexSquare);
                     if (hm) attacks = mirrorBitboard(attacks);
-                    attacks &= occupancy;
                     while (attacks) {
                         Square attackingSquare = popLSB(&attacks);
                         Square attackingIndexSquare = attackingSquare ^ (hm * 7);
