@@ -425,29 +425,24 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
 
         int threatScore = 0;
         Piece piece = board->pieces[moveOrigin(move)];
-        Bitboard originAttackers = threats.toSquare[moveOrigin(move)];
-        Bitboard targetAttackers = threats.toSquare[moveTarget(move)];
-
-        Bitboard enemies = board->byColor[flip(board->stm)];
+        Bitboard fromBB = bitboard(moveOrigin(move));
+        Bitboard toBB = bitboard(moveTarget(move));
         if (piece == Piece::QUEEN) {
-            Bitboard enemyMajors = (board->byPiece[Piece::PAWN] | board->byPiece[Piece::KNIGHT] | board->byPiece[Piece::BISHOP] | board->byPiece[Piece::ROOK]) & enemies;
-            if (originAttackers & enemyMajors)
+            if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
                 threatScore += 20000;
-            if (targetAttackers & enemyMajors)
+            if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
                 threatScore -= 20000;
         }
         else if (piece == Piece::ROOK) {
-            Bitboard enemyMinors = (board->byPiece[Piece::PAWN] | board->byPiece[Piece::KNIGHT] | board->byPiece[Piece::BISHOP]) & enemies;
-            if (originAttackers & enemyMinors)
+            if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
                 threatScore += 12500;
-            if (targetAttackers & enemyMinors)
+            if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
                 threatScore -= 12500;
         }
         else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
-            Bitboard enemyPawns = board->byPiece[Piece::PAWN] & enemies;
-            if (originAttackers & enemyPawns)
+            if (fromBB & threats.pawnThreats)
                 threatScore += 7500;
-            if (targetAttackers & enemyPawns)
+            if (toBB & threats.pawnThreats)
                 threatScore -= 7500;
         }
 

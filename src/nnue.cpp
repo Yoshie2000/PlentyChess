@@ -80,12 +80,12 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     memset(acc->pieceState[side], 0, sizeof(acc->pieceState[side]));
 
     ThreatInputs::FeatureList threatFeatures;
-    ThreatInputs::addThreatFeatures(board->byColor, board->byPiece, board->pieces, &board->threats, side, threatFeatures);
+    ThreatInputs::addThreatFeatures(board, side, threatFeatures);
     for (int featureIndex : threatFeatures)
         addToAccumulator<side>(acc->threatState, acc->threatState, featureIndex);
 
     ThreatInputs::FeatureList pieceFeatures;
-    ThreatInputs::addPieceFeatures(board->byColor, board->byPiece, side, pieceFeatures, KING_BUCKET_LAYOUT);
+    ThreatInputs::addPieceFeatures(board, side, pieceFeatures, KING_BUCKET_LAYOUT);
     for (int featureIndex : pieceFeatures)
         addToAccumulator<side>(acc->pieceState, acc->pieceState, featureIndex);
 
@@ -207,7 +207,7 @@ void NNUE::refreshThreatFeatures(Accumulator* acc) {
     memcpy(acc->threatState[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
     ThreatInputs::FeatureList threatFeatures;
-    ThreatInputs::addThreatFeatures(acc->board->byColor, acc->board->byPiece, acc->board->pieces, &acc->board->threats, side, threatFeatures);
+    ThreatInputs::addThreatFeatures(acc->board, side, threatFeatures);
     for (int featureIndex : threatFeatures)
         addToAccumulator<side>(acc->threatState, acc->threatState, featureIndex);
 }

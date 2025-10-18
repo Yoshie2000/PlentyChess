@@ -140,8 +140,6 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
             hashes.hash ^= Zobrist::ENPASSENT[fileOf(epTargetSquare)];
     }
 
-    threats = calculateAllThreats();
-
     // Update king checking stuff
     Square enemyKing = lsb(byColor[stm] & byPiece[Piece::KING]);
     checkers = attackersTo(enemyKing) & byColor[flip(stm)];
@@ -151,6 +149,8 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
     updateSliderPins(Color::BLACK);
 
     chess960 = isChess960;
+
+    calculateThreats();
 }
 
 std::string Board::fen() {
@@ -207,35 +207,27 @@ std::string Board::fen() {
 
 template<bool add>
 void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
-    // Add this piece as an attacker to its attacked squares, regardless of that squares occupancy
-    // OR: Remove it as an attacker
-    Bitboard squareBB = bitboard(square);
+    // Process attacks of the current piece to other pieces
     Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
-    Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor);
+    Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor) & occupancy;
     while (attacked) {
         Square attackedSquare = popLSB(&attacked);
         Piece attackedPiece = pieces[attackedSquare];
         Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
 
-        if (add) {
-            assert((threats.toSquare[attackedSquare] & squareBB) == 0);
-            threats.toSquare[attackedSquare] |= squareBB;
-        }
-        else {
-            assert((threats.toSquare[attackedSquare] & squareBB) != 0);
-            threats.toSquare[attackedSquare] &= ~squareBB;
-        }
+        assert(attackedPiece != Piece::NONE);
 
-        if (attackedPiece != Piece::NONE) {
-            nnue->updateThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add);
-        }
+        nnue->updateThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add);
     }
 
-    // Remove attacks of sliding pieces that are now blocked by this piece
-    // OR: Add attacks that are no longer blocked
-    Bitboard slidingPieces = byPiece[Piece::BISHOP] | byPiece[Piece::ROOK] | byPiece[Piece::QUEEN];
-    slidingPieces &= ~squareBB;
-    slidingPieces &= threats.toSquare[square];
+    Bitboard rookAttacks = getRookMoves(square, occupancy);
+    Bitboard bishopAttacks = getBishopMoves(square, occupancy);
+    Bitboard queenAttacks = rookAttacks | bishopAttacks;
+
+    Bitboard slidingPieces = (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]) & bishopAttacks;
+    slidingPieces |= (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]) & rookAttacks;
+
+    // Process attacks of sliding pieces that are now blocked by this piece
     while (slidingPieces) {
         Square slidingPieceSquare = popLSB(&slidingPieces);
         Bitboard slidingPieceBB = bitboard(slidingPieceSquare);
@@ -243,7 +235,7 @@ void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNU
         Color slidingPieceColor = (byColor[Color::WHITE] & slidingPieceBB) ? Color::WHITE : Color::BLACK;
 
         Bitboard ray = BB::RAY_PASS[slidingPieceSquare][square];
-        Bitboard threatened = ray & occupancy & (getBishopMoves(square, occupancy) | getRookMoves(square, occupancy));
+        Bitboard threatened = ray & occupancy & queenAttacks;
 
         assert(BB::popcount(threatened) < 2);
 
@@ -256,22 +248,14 @@ void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNU
             nnue->updateThreat(slidingPiece, attackedPiece, slidingPieceSquare, attackedSquare, slidingPieceColor, attackedColor, !add);
         }
 
-        while (ray) {
-            Square raySquare = popLSB(&ray);
-            if (add) {
-                assert((threats.toSquare[raySquare] & slidingPieceBB) != 0);
-                threats.toSquare[raySquare] &= ~slidingPieceBB;
-            }
-            else {
-                assert((threats.toSquare[raySquare] & slidingPieceBB) == 0);
-                threats.toSquare[raySquare] |= slidingPieceBB;
-            }
-        }
+        nnue->updateThreat(slidingPiece, piece, slidingPieceSquare, square, slidingPieceColor, pieceColor, add);
     }
 
-    // Add threat features of pieces that were already attacking this square
-    // OR: Remove them
-    Bitboard attackingSquares = threats.toSquare[square] & ~bitboard(square);
+    // Process attacks of non-slider pieces that were already attacking this square
+    Bitboard attackingPawns = byPiece[Piece::PAWN] & ((byColor[Color::BLACK] & BB::pawnAttacks(bitboard(square), Color::WHITE)) | (byColor[Color::WHITE] & BB::pawnAttacks(bitboard(square), Color::BLACK)));
+    Bitboard attackingKnights = byPiece[Piece::KNIGHT] & BB::KNIGHT_ATTACKS[square];
+    Bitboard attackingKings = byPiece[Piece::KING] & BB::KING_ATTACKS[square];
+    Bitboard attackingSquares = attackingPawns | attackingKnights | attackingKings;
     while (attackingSquares) {
         Square attackingSquare = popLSB(&attackingSquares);
         Piece attackingPiece = pieces[attackingSquare];
@@ -475,6 +459,8 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
     lastMove = move;
 
     nnue->finalizeMove(this);
+
+    calculateThreats();
 }
 
 void Board::doNullMove() {
@@ -500,67 +486,60 @@ void Board::doNullMove() {
 
     stm = flip(stm);
     lastMove = MOVE_NULL;
+
+    calculateThreats();
 }
 
-Threats Board::calculateAllThreats() {
-    Threats threats;
-    memset(&threats, 0, sizeof(Threats));
-
+void Board::calculateThreats() {
     Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
+    Color them = flip(stm);
 
-    for (Color color = Color::WHITE; color <= Color::BLACK; ++color) {
-        for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
-            Bitboard pieceBB = byColor[color] & byPiece[piece];
+    threats.pawnThreats = BB::pawnAttacks(byPiece[Piece::PAWN] & byColor[them], them);
+    threats.knightThreats = BB::knightAttacks(byPiece[Piece::KNIGHT] & byColor[them]);
 
-            while (pieceBB) {
-                Square square = popLSB(&pieceBB);
-                Bitboard pieceAttacks = BB::attackedSquares(piece, square, occupied, color);
-
-                while (pieceAttacks) {
-                    Square attackedSquare = popLSB(&pieceAttacks);
-
-                    threats.toSquare[attackedSquare] |= bitboard(square);
-                }
-            }
-        }
+    threats.bishopThreats = 0;
+    Bitboard bishops = byPiece[Piece::BISHOP] & byColor[them];
+    while (bishops) {
+        threats.bishopThreats |= getBishopMoves(popLSB(&bishops), occupied);
     }
 
-    return threats;
+    threats.rookThreats = 0;
+    Bitboard rooks = byPiece[Piece::ROOK] & byColor[them];
+    while (rooks) {
+        threats.rookThreats |= getRookMoves(popLSB(&rooks), occupied);
+    }
+
+    threats.queenThreats = 0;
+    Bitboard queens = byPiece[Piece::QUEEN] & byColor[them];
+    while (queens) {
+        Square square = popLSB(&queens);
+        threats.queenThreats |= getRookMoves(square, occupied);
+        threats.queenThreats |= getBishopMoves(square, occupied);
+    }
+
+    threats.kingThreats = 0;
+    Bitboard kings = byPiece[Piece::KING] & byColor[them];
+    while (kings) {
+        threats.kingThreats |= BB::KING_ATTACKS[popLSB(&kings)];
+    };
 }
 
 bool Board::isSquareThreatened(Square square) {
-    return threats.toSquare[square] & byColor[flip(stm)];
+    Bitboard squareBB = bitboard(square);
+    return squareBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats | threats.queenThreats | threats.kingThreats);
 }
 
 bool Board::opponentHasGoodCapture() {
-    // Calculate bitboards for our piece types
     Bitboard queens = byColor[stm] & byPiece[Piece::QUEEN];
     Bitboard rooks = byColor[stm] & byPiece[Piece::ROOK];
     rooks |= queens;
     Bitboard minors = byColor[stm] & (byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP]);
     minors |= rooks;
 
-    // Calculate threat bitboards of opponent piece types
-    Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
-    Color them = flip(stm);
+    Bitboard minorThreats = threats.knightThreats | threats.bishopThreats | threats.pawnThreats;
+    Bitboard rookThreats = minorThreats | threats.rookThreats;
 
-    Bitboard pawnThreats = BB::pawnAttacks(byPiece[Piece::PAWN] & byColor[them], them);
-    Bitboard knightThreats = BB::knightAttacks(byPiece[Piece::KNIGHT] & byColor[them]);
-
-    Bitboard bishopThreats = 0;
-    Bitboard enemyBishops = byPiece[Piece::BISHOP] & byColor[them];
-    while (enemyBishops) {
-        bishopThreats |= getBishopMoves(popLSB(&enemyBishops), occupied);
-    }
-    Bitboard minorThreats = pawnThreats | knightThreats | bishopThreats;
-
-    Bitboard rookThreats = minorThreats;
-    Bitboard enemyRooks = byPiece[Piece::ROOK] & byColor[them];
-    while (enemyRooks) {
-        rookThreats |= getRookMoves(popLSB(&enemyRooks), occupied);
-    }
-
-    return (queens & rookThreats) | (rooks & minorThreats) | (minors & pawnThreats);
+    return (queens & rookThreats) | (rooks & minorThreats) | (minors & threats.pawnThreats);
 }
 
 bool Board::isPseudoLegal(Move move) {
@@ -874,7 +853,7 @@ void Board::updateSliderPins(Color side) {
 }
 
 Bitboard Board::attackersTo(Square s) {
-    return threats.toSquare[s];
+    return attackersTo(s, byColor[Color::WHITE] | byColor[Color::BLACK]);
 }
 
 Bitboard Board::attackersTo(Square s, Bitboard occupied) {
