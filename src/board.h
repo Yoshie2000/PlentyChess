@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string>
+#include <sstream>
 
 #include "move.h"
 #include "bitboard.h"
@@ -10,23 +11,43 @@
 
 class NNUE;
 
-constexpr uint8_t CASTLING_WHITE_KINGSIDE = 0x1;
-constexpr uint8_t CASTLING_WHITE_QUEENSIDE = 0x2;
-constexpr uint8_t CASTLING_BLACK_KINGSIDE = 0x4;
-constexpr uint8_t CASTLING_BLACK_QUEENSIDE = 0x8;
-constexpr uint8_t CASTLING_MASK = 0xF;
+namespace Castling {
 
-constexpr Square CASTLING_KING_SQUARES[] = { 6, 2, 62, 58 };
-constexpr Square CASTLING_ROOK_SQUARES[] = { 5, 3, 61, 59 };
-constexpr uint8_t CASTLING_FLAGS[] = { CASTLING_WHITE_KINGSIDE, CASTLING_WHITE_QUEENSIDE, CASTLING_BLACK_KINGSIDE, CASTLING_BLACK_QUEENSIDE };
+    using CastlingDirection = size_t;
+    constexpr CastlingDirection KINGSIDE = 0;
+    constexpr CastlingDirection QUEENSIDE = 1;
 
-constexpr int castlingIndex(Color side, Square kingOrigin, Square kingTarget) {
-    return 2 * (side != Color::WHITE) + (kingTarget <= kingOrigin);
+    constexpr CastlingDirection getDirection(Square kingOrigin, Square kingTarget) {
+        return (kingTarget <= kingOrigin) ? QUEENSIDE : KINGSIDE;
+    }
+    
+    constexpr uint8_t getMask(Color side, CastlingDirection direction) {
+        return 1 << (2 * side + direction);
+    }
+
+    constexpr uint8_t getMask(Color side) {
+        return getMask(side, KINGSIDE) | getMask(side, QUEENSIDE);
+    }
+
+    constexpr uint8_t getKingSquare(Color side, CastlingDirection direction) {
+        constexpr Square KING_SQUARES[] = { 6, 2, 62, 58 };
+        return KING_SQUARES[2 * side + direction];
+    }
+
+    constexpr uint8_t getRookSquare(Color side, CastlingDirection direction) {
+        constexpr Square ROOK_SQUARES[] = { 5, 3, 61, 59 };
+        return ROOK_SQUARES[2 * side + direction];
+    }
+
 }
 
 struct Threats {
-    Bitboard byPiece[6];
-    Bitboard toSquare[64];
+    Bitboard pawnThreats;
+    Bitboard knightThreats;
+    Bitboard bishopThreats;
+    Bitboard rookThreats;
+    Bitboard queenThreats;
+    Bitboard kingThreats;
 };
 
 struct Hashes {
@@ -62,26 +83,28 @@ struct Board {
     bool chess960;
 
     void startpos();
-    size_t parseFen(std::string fen, bool chess960);
+    void parseFen(std::string fen, bool chess960) {
+        std::istringstream iss(fen);
+        parseFen(iss, chess960);
+    };
+    void parseFen(std::istringstream& iss, bool chess960);
     std::string fen();
 
     template<bool add>
-    void updatePieceThreats(Square square, Bitboard attacked, NNUE* nnue);
-     template<bool add>
-    void updateThreatFeaturesFromPiece(Piece piece, Color pieceColor, Square square, Bitboard attacked, NNUE* nnue);
-    template<bool add>
-    void updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
+    void updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue);
+    void updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta);
+    void updatePieceCastling(Piece piece, Color pieceColor, Square origin);
 
-    void addPiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
-    void removePiece(Piece piece, Color pieceColor, Square square, Bitboard squareBB, NNUE* nnue);
-    void movePiece(Piece piece, Color pieceColor, Square origin, Square target, Bitboard fromTo, NNUE* nnue);
+    void addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
+    void removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
+    void movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue);
 
     void doMove(Move move, uint64_t newHash, NNUE* nnue);
     void doNullMove();
 
-    void finishThreatsUpdate();
-    Threats calculateAllThreats();
+    void calculateThreats();
     bool isSquareThreatened(Square square);
+    bool opponentHasGoodCapture();
 
     constexpr bool isCapture(Move move) {
         MoveType type = moveType(move);
@@ -93,7 +116,9 @@ struct Board {
     bool isLegal(Move move);
     bool givesCheck(Move move);
 
-    void calculateCastlingSquares(Square kingOrigin, Square* kingTarget, Square* rookOrigin, Square* rookTarget, uint8_t* castling);
+    Square getCastlingRookSquare(Color side, Castling::CastlingDirection direction) {
+        return castlingSquares[2 * side + direction];
+    }
 
     uint64_t hashAfter(Move move);
 
@@ -102,19 +127,6 @@ struct Board {
     constexpr bool hasNonPawns() {
         Bitboard nonPawns = byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP] | byPiece[Piece::ROOK] | byPiece[Piece::QUEEN];
         return BB::popcount(byColor[stm] & nonPawns) > 0;
-    }
-
-    constexpr bool opponentHasGoodCapture() {
-        Bitboard queens = byColor[stm] & byPiece[Piece::QUEEN];
-        Bitboard rooks = byColor[stm] & byPiece[Piece::ROOK];
-        rooks |= queens;
-        Bitboard minors = byColor[stm] & (byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP]);
-        minors |= rooks;
-
-        Bitboard minorThreats = threats.byPiece[Piece::KNIGHT] | threats.byPiece[Piece::BISHOP] | threats.byPiece[Piece::PAWN];
-        Bitboard rookThreats = minorThreats | threats.byPiece[Piece::ROOK];
-
-        return (queens & rookThreats) | (rooks & minorThreats) | (minors & threats.byPiece[Piece::PAWN]);
     }
 
     Bitboard attackersTo(Square square, Bitboard occupied);

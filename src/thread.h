@@ -43,7 +43,9 @@ inline bool shouldConfigureNuma() {
     // Only bind when claiming the majority of the systems cores
     static int availableCores = getAvailableCores();
     if (UCI::Options.threads.value <= availableCores / 2)
-        return;
+        return false;
+    
+    return true;
 #else
     return false;
 #endif
