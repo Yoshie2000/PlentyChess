@@ -154,7 +154,7 @@ void transposePermuteNetwork() {
     constexpr int permutation[packusBlocks] = { 0, 2, 1, 3 };
 #endif
 
-// Transpose biases
+    // Transpose biases
     __m128i* biasVec = reinterpret_cast<__m128i*>(tmp.inputBiases);
     __m128i biasRegs[packusBlocks];
     for (int i = 0; i < L1_SIZE / weightsPerBlock; i += packusBlocks) {

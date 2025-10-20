@@ -33,7 +33,6 @@ constexpr int INPUT_SHIFT_1 = 6;
 constexpr int INPUT_SHIFT_2 = 5;
 
 constexpr float L1_NORMALISATION = static_cast<float>(1 << (16 - (INPUT_SHIFT_1 + INPUT_SHIFT_2))) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
-constexpr float L1_DIVISOR = 1 / L1_NORMALISATION;
 
 constexpr int ALIGNMENT = 64;
 
