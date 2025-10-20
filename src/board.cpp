@@ -206,7 +206,7 @@ std::string Board::fen() {
 }
 
 template<bool add>
-void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
+void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue, bool computeRays) {
     // Process attacks of the current piece to other pieces
     Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
     Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor) & occupancy;
@@ -239,7 +239,7 @@ void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNU
 
         assert(BB::popcount(threatened) < 2);
 
-        if (threatened) {
+        if (computeRays && threatened) {
             Square attackedSquare = lsb(threatened);
             Piece attackedPiece = pieces[attackedSquare];
             Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
@@ -359,7 +359,7 @@ void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) 
     pieces[square] = Piece::NONE;
 
     nnue->removePiece(square, oldPiece, oldPieceColor);
-    updatePieceThreats<false>(oldPiece, oldPieceColor, square, nnue);
+    updatePieceThreats<false>(oldPiece, oldPieceColor, square, nnue, false);
     updatePieceHash(oldPiece, oldPieceColor, Zobrist::PIECE_SQUARES[oldPieceColor][oldPiece][square]);
     updatePieceCastling(oldPiece, oldPieceColor, square);
 
@@ -369,7 +369,7 @@ void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) 
     pieces[square] = piece;
 
     nnue->addPiece(square, piece, pieceColor);
-    updatePieceThreats<true>(piece, pieceColor, square, nnue);
+    updatePieceThreats<true>(piece, pieceColor, square, nnue, false);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 };
