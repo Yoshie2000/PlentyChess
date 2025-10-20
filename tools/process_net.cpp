@@ -22,7 +22,7 @@ constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
 constexpr int INPUT_QUANT = 63;
-constexpr int L1_QUANT = 64;
+constexpr int L1_QUANT = 127;
 
 constexpr int ALIGNMENT = 64;
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
