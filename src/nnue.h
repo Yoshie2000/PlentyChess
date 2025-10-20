@@ -29,9 +29,10 @@ constexpr int OUTPUT_BUCKETS = 8;
 constexpr int NETWORK_SCALE = 287;
 constexpr int INPUT_QUANT = 362;
 constexpr int L1_QUANT = 64;
-constexpr int INPUT_SHIFT = 10;
+constexpr int INPUT_SHIFT_1 = 4;
+constexpr int INPUT_SHIFT_2 = 3;
 
-constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
+constexpr float L1_NORMALISATION = static_cast<float>(1 << (16 - INPUT_SHIFT_1 - INPUT_SHIFT_2)) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
 
 constexpr int ALIGNMENT = 64;
 

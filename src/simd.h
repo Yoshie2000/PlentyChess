@@ -113,7 +113,7 @@ inline float reduceAddPs(VecF* v) {
 }
 
 inline uint32_t vecNNZ(VecI32 chunk) {
-  return _mm512_cmpgt_epi32_mask(chunk, _mm512_setzero_si512());
+  return _mm512_cmpneq_epi32_mask(chunk, _mm512_setzero_si512());
 }
 
 #elif defined(__AVX2__)
@@ -221,7 +221,7 @@ inline float reduceAddPs(VecF* v) {
 }
 
 inline uint32_t vecNNZ(VecI32 chunk) {
-  return _mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(chunk, _mm256_setzero_si256())));
+  return ~_mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpeq_epi32(chunk, _mm256_setzero_si256()))) & 0xFF;
 }
 
 #elif defined(ARCH_X86)
@@ -333,7 +333,7 @@ inline float reduceAddPs(VecF* sums) {
 }
 
 inline uint32_t vecNNZ(VecI32 chunk) {
-  return _mm_movemask_ps(_mm_castsi128_ps(_mm_cmpgt_epi32(chunk, _mm_setzero_si128())));
+  return ~_mm_movemask_ps(_mm_castsi128_ps(_mm_cmpeq_epi32(chunk, _mm_setzero_si128()))) & 0xF;
 }
 
 #else
@@ -460,13 +460,14 @@ inline float reduceAddPs(VecF* sums) {
 }
 
 inline uint32_t vecNNZ(VecI32 chunk) {
-  uint32x4_t mask = vcgtq_s32(chunk, vdupq_n_s32(0));
+  uint32x4_t mask = vceq_s32(chunk, vdupq_n_s32(0));
   uint16x4_t narrowed_mask = vmovn_u32(mask);
   uint64_t packed_mask = vget_lane_u64(vreinterpret_u64_u16(narrowed_mask), 0);
-  return ((packed_mask & (1ULL << 0)) >> 0) |
+  uint32_t result = ((packed_mask & (1ULL << 0)) >> 0) |
     ((packed_mask & (1ULL << 16)) >> 15) |
     ((packed_mask & (1ULL << 32)) >> 30) |
     ((packed_mask & (1ULL << 48)) >> 45);
+  return ~result & 0xF;
 }
 
 #endif
