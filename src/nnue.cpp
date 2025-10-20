@@ -348,32 +348,35 @@ Eval NNUE::evaluate(Board* board) {
     alignas(ALIGNMENT) uint8_t pairwiseOutputs[L1_SIZE];
     VecIu8* pairwiseOutputsVec = reinterpret_cast<VecIu8*>(pairwiseOutputs);
 
-    constexpr int inverseShift = 16 - INPUT_SHIFT;
     constexpr int pairwiseOffset = L1_SIZE / I16_VEC_SIZE / 2;
     for (int pw = 0; pw < pairwiseOffset; pw += 2) {
         // STM
         VecI16 clipped1 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw], stmThreatAcc[pw]), i16Zero), i16Quant);
         VecI16 clipped2 = minEpi16(addEpi16(stmPieceAcc[pw + pairwiseOffset], stmThreatAcc[pw + pairwiseOffset]), i16Quant);
-        VecI16 shift = slliEpi16(clipped1, inverseShift);
-        VecI16 mul1 = mulhiEpi16(shift, clipped2);
+        VecI16 shift1 = slliEpi16(clipped1, INPUT_SHIFT_1);
+        VecI16 shift2 = slliEpi16(clipped2, INPUT_SHIFT_2);
+        VecI16 mul1 = mulhiEpi16(shift1, shift2);
 
         clipped1 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw + 1], stmThreatAcc[pw + 1]), i16Zero), i16Quant);
         clipped2 = minEpi16(addEpi16(stmPieceAcc[pw + 1 + pairwiseOffset], stmThreatAcc[pw + 1 + pairwiseOffset]), i16Quant);
-        shift = slliEpi16(clipped1, inverseShift);
-        VecI16 mul2 = mulhiEpi16(shift, clipped2);
+        shift1 = slliEpi16(clipped1, INPUT_SHIFT_1);
+        shift2 = slliEpi16(clipped2, INPUT_SHIFT_2);
+        VecI16 mul2 = mulhiEpi16(shift1, shift2);
 
         pairwiseOutputsVec[pw / 2] = packusEpi16(mul1, mul2);
 
         // NSTM
         clipped1 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw], oppThreatAcc[pw]), i16Zero), i16Quant);
         clipped2 = minEpi16(addEpi16(oppPieceAcc[pw + pairwiseOffset], oppThreatAcc[pw + pairwiseOffset]), i16Quant);
-        shift = slliEpi16(clipped1, inverseShift);
-        mul1 = mulhiEpi16(shift, clipped2);
+        shift1 = slliEpi16(clipped1, INPUT_SHIFT_1);
+        shift2 = slliEpi16(clipped2, INPUT_SHIFT_2);
+        mul1 = mulhiEpi16(shift1, shift2);
 
         clipped1 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw + 1], oppThreatAcc[pw + 1]), i16Zero), i16Quant);
         clipped2 = minEpi16(addEpi16(oppPieceAcc[pw + 1 + pairwiseOffset], oppThreatAcc[pw + 1 + pairwiseOffset]), i16Quant);
-        shift = slliEpi16(clipped1, inverseShift);
-        mul2 = mulhiEpi16(shift, clipped2);
+        shift1 = slliEpi16(clipped1, INPUT_SHIFT_1);
+        shift2 = slliEpi16(clipped2, INPUT_SHIFT_2);
+        mul2 = mulhiEpi16(shift1, shift2);
 
         pairwiseOutputsVec[pw / 2 + pairwiseOffset / 2] = packusEpi16(mul1, mul2);
     }
