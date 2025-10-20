@@ -98,6 +98,7 @@ struct Board {
     void addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
     void removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
     void movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue);
+    void swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
 
     void doMove(Move move, Hash newHash, NNUE* nnue);
     void doNullMove();

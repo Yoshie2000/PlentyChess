@@ -346,6 +346,34 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     updatePieceCastling(piece, pieceColor, origin);
 };
 
+void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
+    assert(pieces[square] != Piece::NONE);
+
+    Bitboard squareBB = bitboard(square);
+    Piece oldPiece = pieces[square];
+    Color oldPieceColor = (byColor[Color::WHITE] & squareBB) ? Color::WHITE : Color::BLACK;
+
+    // Remove old piece
+    byColor[oldPieceColor] ^= squareBB;
+    byPiece[oldPiece] ^= squareBB;
+    pieces[square] = Piece::NONE;
+
+    nnue->removePiece(square, oldPiece, oldPieceColor);
+    updatePieceThreats<false>(oldPiece, oldPieceColor, square, nnue);
+    updatePieceHash(oldPiece, oldPieceColor, Zobrist::PIECE_SQUARES[oldPieceColor][oldPiece][square]);
+    updatePieceCastling(oldPiece, oldPieceColor, square);
+
+    // Add new piece
+    byColor[pieceColor] ^= squareBB;
+    byPiece[piece] ^= squareBB;
+    pieces[square] = piece;
+
+    nnue->addPiece(square, piece, pieceColor);
+    updatePieceThreats<true>(piece, pieceColor, square, nnue);
+    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
+    updatePieceCastling(piece, pieceColor, square);
+};
+
 void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
     // Increment ply counters
     rule50_ply++;
@@ -415,11 +443,13 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
     default: // Normal moves
 
         if (capturedPiece != Piece::NONE) {
-            removePiece(capturedPiece, flip(stm), captureTarget, nnue);
+            assert(target == captureTarget);
+            removePiece(piece, stm, origin, nnue);
+            swapPiece(piece, stm, target, nnue);
             rule50_ply = 0;
+        } else {
+            movePiece(piece, stm, origin, target, nnue);
         }
-
-        movePiece(piece, stm, origin, target, nnue);
 
         if (piece == Piece::PAWN) {
             rule50_ply = 0;
