@@ -27,7 +27,7 @@ constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 287;
-constexpr int INPUT_QUANT = 362;
+constexpr int INPUT_QUANT = 64;
 constexpr int L1_QUANT = 64;
 constexpr int INPUT_SHIFT = 10;
 
@@ -93,7 +93,7 @@ struct FinnyEntry {
 };
 
 struct NetworkData {
-  alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
+  alignas(ALIGNMENT) int8_t  inputWeights[INPUT_SIZE * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -199,7 +199,7 @@ public:
     }
   }
 
-  int16_t oldInputWeights[INPUT_SIZE * L1_SIZE];
+  int8_t oldInputWeights[INPUT_SIZE * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
   int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   NetworkData nnzOutNet;

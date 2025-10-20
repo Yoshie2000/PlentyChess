@@ -284,42 +284,39 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
 
 template<Color side>
 void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
-    int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
-
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
-    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
+    __m256i* weightsVec = (__m256i*)&networkData->inputWeights[featureIndex * L1_SIZE];
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < L1_ITERATIONS; ++i)
-        outputVec[i] = addEpi16(inputVec[i], weightsVec[weightOffset + i]);
+    for (int i = 0; i < L1_ITERATIONS; ++i) {
+        VecI16 addWeights = _mm512_cvtepi8_epi16(weightsVec[i]);
+        outputVec[i] = addEpi16(inputVec[i], addWeights);
+    }
 }
 
 template<Color side>
 void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
-    int weightOffset = featureIndex * L1_SIZE / I16_VEC_SIZE;
-
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
-    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
+    __m256i* weightsVec = (__m256i*)&networkData->inputWeights[featureIndex * L1_SIZE];
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
-    for (int i = 0; i < L1_ITERATIONS; ++i)
-        outputVec[i] = subEpi16(inputVec[i], weightsVec[weightOffset + i]);
+    for (int i = 0; i < L1_ITERATIONS; ++i) {
+        VecI16 subWeights = _mm512_cvtepi8_epi16(weightsVec[i]);
+        outputVec[i] = subEpi16(inputVec[i], subWeights);
+    }
 }
 
 template<Color side>
 void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex) {
-    int subtractWeightOffset = subIndex * L1_SIZE / I16_VEC_SIZE;
-    int addWeightOffset = addIndex * L1_SIZE / I16_VEC_SIZE;
-
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
-    VecI16* weightsVec = (VecI16*)networkData->inputWeights;
+    __m256i* addWeightsVec = (__m256i*)&networkData->inputWeights[addIndex * L1_SIZE];
+    __m256i* subWeightsVec = (__m256i*)&networkData->inputWeights[subIndex * L1_SIZE];
 
-    // The number of iterations to compute the hidden layer depends on the size of the vector registers
     for (int i = 0; i < L1_ITERATIONS; ++i) {
-        outputVec[i] = subEpi16(addEpi16(inputVec[i], weightsVec[addWeightOffset + i]), weightsVec[subtractWeightOffset + i]);
+        VecI16 addWeights = _mm512_cvtepi8_epi16(addWeightsVec[i]);
+        VecI16 subWeights = _mm512_cvtepi8_epi16(subWeightsVec[i]);
+        outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeights), subWeights);
     }
 }
 

@@ -21,7 +21,7 @@ constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
-constexpr int INPUT_QUANT = 362;
+constexpr int INPUT_QUANT = 64;
 constexpr int L1_QUANT = 64;
 
 constexpr int ALIGNMENT = 64;
@@ -39,14 +39,14 @@ struct RawNetworkData {
 };
 
 struct NetworkData {
-    alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
+    alignas(ALIGNMENT) int8_t  inputWeights[INPUT_SIZE * L1_SIZE];
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
-    alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-    alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
-    alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-    alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
-    alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
+    alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+    alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
+    alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
+    alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
+    alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
+    alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
 };
 
 RawNetworkData raw;
@@ -54,8 +54,8 @@ NetworkData tmp;
 NetworkData out;
 
 template<int Q>
-int16_t quantize(float number) {
-    return static_cast<int16_t>(std::round(number * static_cast<float>(Q)));
+int quantize(float number) {
+    return static_cast<int>(std::round(number * static_cast<float>(Q)));
 }
 
 uint64_t readULEB128(std::istream& is) {
@@ -99,8 +99,11 @@ float readFloat(std::istream& is) {
 
 void quantizeNetwork() {
     // Add factorized input weights to buckets, and quantize
+    int min = 1000, max = -1000;
     for (int w = 0; w < THREAT_INPUT_SIZE * L1_SIZE; w++) {
         tmp.inputWeights[w] = quantize<INPUT_QUANT>(raw.inputWeights[w + 768 * L1_SIZE /* factoriser bucket at the beginning */]);
+        min = std::min<int>(min, quantize<INPUT_QUANT>(raw.inputWeights[w + 768 * L1_SIZE /* factoriser bucket at the beginning */]));
+        max = std::max<int>(max, quantize<INPUT_QUANT>(raw.inputWeights[w + 768 * L1_SIZE /* factoriser bucket at the beginning */]));
     }
     for (int kb = 0; kb < KING_BUCKETS; kb++) {
         for (int w = 0; w < 768 * L1_SIZE; w++) {
@@ -108,8 +111,11 @@ void quantizeNetwork() {
             int rawIdx = 768 * L1_SIZE + idx; // skip factoriser
             int factoriserIdx = w;
             tmp.inputWeights[idx] = quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]);
+            min = std::min<int>(min, quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]));
+            max = std::max<int>(max, quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]));
         }
     }
+    std::cout << min << " " << max << std::endl;
 
     // Quantize input biases
     for (int b = 0; b < L1_SIZE; b++) {
@@ -147,19 +153,29 @@ void transposePermuteNetwork() {
     constexpr int packusBlocks = 4;
     constexpr int permutation[packusBlocks] = { 0, 2, 1, 3 };
 #endif
-    __m128i regs[packusBlocks];
 
-    for (int limit : { 1, INPUT_SIZE }) {
-        __m128i* vec = reinterpret_cast<__m128i*>(limit == 1 ? (int16_t*)tmp.inputBiases : (int16_t*)tmp.inputWeights);
+// Transpose biases
+    __m128i* biasVec = reinterpret_cast<__m128i*>(tmp.inputBiases);
+    __m128i biasRegs[packusBlocks];
+    for (int i = 0; i < L1_SIZE / weightsPerBlock; i += packusBlocks) {
+        for (int j = 0; j < packusBlocks; j++)
+            biasRegs[j] = biasVec[i + j];
 
-        for (int i = 0; i < limit * L1_SIZE / weightsPerBlock; i += packusBlocks) {
-            for (int j = 0; j < packusBlocks; j++)
-                regs[j] = vec[i + j];
-
-            for (int j = 0; j < packusBlocks; j++)
-                vec[i + j] = regs[permutation[j]];
-        }
+        for (int j = 0; j < packusBlocks; j++)
+            biasVec[i + j] = biasRegs[permutation[j]];
     }
+
+    // Transpose weights
+    uint64_t* weightsVec = reinterpret_cast<uint64_t*>(tmp.inputWeights);
+    uint64_t weightsRegs[packusBlocks];
+    for (int i = 0; i < INPUT_SIZE * L1_SIZE / weightsPerBlock; i += packusBlocks) {
+        for (int j = 0; j < packusBlocks; j++)
+            weightsRegs[j] = weightsVec[i + j];
+
+        for (int j = 0; j < packusBlocks; j++)
+            weightsVec[i + j] = weightsRegs[permutation[j]];
+    }
+
 #endif
 
     // Transpose L1 / L2 / L3 weights
@@ -237,7 +253,7 @@ int main(int argc, char* argv[]) {
             std::cerr << "Error opening compressed file for reading (" << infile_name << ")" << std::endl;
             return -1;
         }
-        for (auto& v : tmp.inputWeights) v = (int16_t)readSLEB128(infile);
+        for (auto& v : tmp.inputWeights) v = (int8_t)readSLEB128(infile);
         for (auto& v : tmp.inputBiases)  v = (int16_t)readSLEB128(infile);
         for (auto& b : tmp.l1Weights)    for (auto& v : b) v = (int8_t)readSLEB128(infile);
         for (auto& b : tmp.l1Biases)     for (auto& v : b) v = readFloat(infile);
