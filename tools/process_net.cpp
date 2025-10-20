@@ -21,7 +21,7 @@ constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
-constexpr int INPUT_QUANT = 63;
+constexpr int INPUT_QUANT = 127;
 constexpr int L1_QUANT = 64;
 
 constexpr int ALIGNMENT = 64;
@@ -110,9 +110,9 @@ void quantizeNetwork() {
             int idx = THREAT_INPUT_SIZE * L1_SIZE + kb * 768 * L1_SIZE + w;
             int rawIdx = 768 * L1_SIZE + idx; // skip factoriser
             int factoriserIdx = w;
-            tmp.inputWeights[idx] = quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]);
-            min = std::min<int>(min, quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]));
-            max = std::max<int>(max, quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]));
+            tmp.inputWeights[idx] = quantize<INPUT_QUANT>(raw.inputWeights[rawIdx] + raw.inputWeights[factoriserIdx]) / 2;
+            min = std::min<int>(min, quantize<INPUT_QUANT>(raw.inputWeights[rawIdx] + raw.inputWeights[factoriserIdx]) / 2);
+            max = std::max<int>(max, quantize<INPUT_QUANT>(raw.inputWeights[rawIdx] + raw.inputWeights[factoriserIdx]) / 2);
         }
     }
     std::cout << min << " " << max << std::endl;
