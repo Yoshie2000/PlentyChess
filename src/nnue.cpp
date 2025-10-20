@@ -286,10 +286,10 @@ template<Color side>
 void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
-    __m256i* weightsVec = (__m256i*)&networkData->inputWeights[featureIndex * L1_SIZE];
+    VecI16s* weightsVec = (VecI16s*)&networkData->inputWeights[featureIndex * L1_SIZE];
 
     for (int i = 0; i < L1_ITERATIONS; ++i) {
-        VecI16 addWeights = _mm512_cvtepi8_epi16(weightsVec[i]);
+        VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
         outputVec[i] = addEpi16(inputVec[i], addWeights);
     }
 }
@@ -298,10 +298,10 @@ template<Color side>
 void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
-    __m256i* weightsVec = (__m256i*)&networkData->inputWeights[featureIndex * L1_SIZE];
+    VecI16s* weightsVec = (VecI16s*)&networkData->inputWeights[featureIndex * L1_SIZE];
 
     for (int i = 0; i < L1_ITERATIONS; ++i) {
-        VecI16 subWeights = _mm512_cvtepi8_epi16(weightsVec[i]);
+        VecI16 subWeights = convertEpi8Epi16(weightsVec[i]);
         outputVec[i] = subEpi16(inputVec[i], subWeights);
     }
 }
@@ -310,12 +310,12 @@ template<Color side>
 void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex) {
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
-    __m256i* addWeightsVec = (__m256i*)&networkData->inputWeights[addIndex * L1_SIZE];
-    __m256i* subWeightsVec = (__m256i*)&networkData->inputWeights[subIndex * L1_SIZE];
+    VecI16s* addWeightsVec = (VecI16s*)&networkData->inputWeights[addIndex * L1_SIZE];
+    VecI16s* subWeightsVec = (VecI16s*)&networkData->inputWeights[subIndex * L1_SIZE];
 
     for (int i = 0; i < L1_ITERATIONS; ++i) {
-        VecI16 addWeights = _mm512_cvtepi8_epi16(addWeightsVec[i]);
-        VecI16 subWeights = _mm512_cvtepi8_epi16(subWeightsVec[i]);
+        VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
+        VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
         outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeights), subWeights);
     }
 }
@@ -352,13 +352,13 @@ Eval NNUE::evaluate(Board* board) {
     for (int pw = 0; pw < pairwiseOffset; pw += 2) {
         // STM
         VecI16 clipped1 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw], stmThreatAcc[pw]), i16Zero), i16Quant);
-        VecI16 clipped2 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw + pairwiseOffset], stmThreatAcc[pw + pairwiseOffset]), i16Zero), i16Quant);
+        VecI16 clipped2 = minEpi16(addEpi16(stmPieceAcc[pw + pairwiseOffset], stmThreatAcc[pw + pairwiseOffset]), i16Quant);
         VecI16 shift1 = slliEpi16(clipped1, INPUT_SHIFT_1);
         VecI16 shift2 = slliEpi16(clipped2, INPUT_SHIFT_2);
         VecI16 mul1 = mulhiEpi16(shift1, shift2);
 
         clipped1 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw + 1], stmThreatAcc[pw + 1]), i16Zero), i16Quant);
-        clipped2 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw + 1 + pairwiseOffset], stmThreatAcc[pw + 1 + pairwiseOffset]), i16Zero), i16Quant);
+        clipped2 = minEpi16(addEpi16(stmPieceAcc[pw + 1 + pairwiseOffset], stmThreatAcc[pw + 1 + pairwiseOffset]), i16Quant);
         shift1 = slliEpi16(clipped1, INPUT_SHIFT_1);
         shift2 = slliEpi16(clipped2, INPUT_SHIFT_2);
         VecI16 mul2 = mulhiEpi16(shift1, shift2);
@@ -367,13 +367,13 @@ Eval NNUE::evaluate(Board* board) {
 
         // NSTM
         clipped1 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw], oppThreatAcc[pw]), i16Zero), i16Quant);
-        clipped2 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw + pairwiseOffset], oppThreatAcc[pw + pairwiseOffset]), i16Zero), i16Quant);
+        clipped2 = minEpi16(addEpi16(oppPieceAcc[pw + pairwiseOffset], oppThreatAcc[pw + pairwiseOffset]), i16Quant);
         shift1 = slliEpi16(clipped1, INPUT_SHIFT_1);
         shift2 = slliEpi16(clipped2, INPUT_SHIFT_2);
         mul1 = mulhiEpi16(shift1, shift2);
 
         clipped1 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw + 1], oppThreatAcc[pw + 1]), i16Zero), i16Quant);
-        clipped2 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw + 1 + pairwiseOffset], oppThreatAcc[pw + 1 + pairwiseOffset]), i16Zero), i16Quant);
+        clipped2 = minEpi16(addEpi16(oppPieceAcc[pw + 1 + pairwiseOffset], oppThreatAcc[pw + 1 + pairwiseOffset]), i16Quant);
         shift1 = slliEpi16(clipped1, INPUT_SHIFT_1);
         shift2 = slliEpi16(clipped2, INPUT_SHIFT_2);
         mul2 = mulhiEpi16(shift1, shift2);
