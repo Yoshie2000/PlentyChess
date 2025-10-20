@@ -27,12 +27,13 @@ constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 287;
-constexpr int INPUT_QUANT = 64;
+constexpr int INPUT_QUANT = 63;
 constexpr int L1_QUANT = 64;
-constexpr int INPUT_SHIFT_1 = 4; // 2097360
-constexpr int INPUT_SHIFT_2 = 4;
+constexpr int INPUT_SHIFT_1 = 6;
+constexpr int INPUT_SHIFT_2 = 5;
 
-constexpr float L1_NORMALISATION = static_cast<float>(1 << (INPUT_SHIFT_1 + INPUT_SHIFT_2)) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
+constexpr float L1_NORMALISATION = static_cast<float>(1 << (16 - (INPUT_SHIFT_1 + INPUT_SHIFT_2))) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
+constexpr float L1_DIVISOR = 1 / L1_NORMALISATION;
 
 constexpr int ALIGNMENT = 64;
 
