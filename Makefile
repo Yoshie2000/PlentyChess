@@ -135,8 +135,8 @@ else ifeq ($(arch), fma)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -mfma
 	CFLAGS := $(CFLAGS) -mssse3 -mfma
 else ifeq ($(arch), ssse3)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3
-	CFLAGS := $(CFLAGS) -mssse3
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -finline-functions -fno-exceptions -ffast-math -pipe -fno-rtti -fstrict-aliasing -fomit-frame-pointer -funsafe-math-optimizations -fsee
+	CFLAGS := $(CFLAGS) -mssse3 -finline-functions -fno-exceptions -ffast-math -pipe -fno-rtti -fstrict-aliasing -fomit-frame-pointer -funsafe-math-optimizations -fsee
 else ifeq ($(arch), generic)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
 else
