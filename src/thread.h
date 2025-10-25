@@ -63,7 +63,7 @@ inline void configureThreadBinding(int threadId) {
             return nodeCoreMasks;
         }
 
-        for (int node = 0; node <= numa_num_configured_nodes(); ++node) {
+        for (int node = 0; node < numa_num_configured_nodes(); ++node) {
             struct bitmask* coreMask = numa_allocate_cpumask();
             if (numa_node_to_cpus(node, coreMask) != 0) {
                 std::cerr << "info string Could not get core mask for NUMA node " << node << std::endl;
