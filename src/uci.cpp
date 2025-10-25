@@ -480,6 +480,9 @@ void uciLoop(int argc, char* argv[]) {
             threads.searchParameters.ponderhit = true;
             threads.stopSearching();
         }
+        else if (matchesToken(line, "wait")) {
+            threads.waitForSearchFinished();
+        }
 
         else if (matchesToken(line, "isready")) std::cout << "readyok" << std::endl;
         else if (matchesToken(line, "ucinewgame")) {
