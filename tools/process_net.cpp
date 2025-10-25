@@ -11,6 +11,7 @@
 #else
 #include <arm_neon.h>
 #endif
+#include <algorithm>
 
 constexpr int KING_BUCKETS = 12;
 constexpr int OUTPUT_BUCKETS = 8;
@@ -21,7 +22,7 @@ constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
-constexpr int INPUT_QUANT = 362;
+constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
 
 constexpr int ALIGNMENT = 64;
@@ -39,7 +40,8 @@ struct RawNetworkData {
 };
 
 struct NetworkData {
-    alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+    alignas(ALIGNMENT) int8_t inputThreatWeights[THREAT_INPUT_SIZE * L1_SIZE];
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
     alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
     alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -100,14 +102,15 @@ float readFloat(std::istream& is) {
 void quantizeNetwork() {
     // Add factorized input weights to buckets, and quantize
     for (int w = 0; w < THREAT_INPUT_SIZE * L1_SIZE; w++) {
-        tmp.inputWeights[w] = quantize<INPUT_QUANT>(raw.inputWeights[w + 768 * L1_SIZE /* factoriser bucket at the beginning */]);
+        tmp.inputThreatWeights[w] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights[w + 768 * L1_SIZE /* factoriser bucket at the beginning */]), -128, 127);
     }
     for (int kb = 0; kb < KING_BUCKETS; kb++) {
         for (int w = 0; w < 768 * L1_SIZE; w++) {
-            int idx = THREAT_INPUT_SIZE * L1_SIZE + kb * 768 * L1_SIZE + w;
+            int psqIdx = kb * 768 * L1_SIZE + w;
+            int idx = THREAT_INPUT_SIZE * L1_SIZE + psqIdx;
             int rawIdx = 768 * L1_SIZE + idx; // skip factoriser
             int factoriserIdx = w;
-            tmp.inputWeights[idx] = quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]);
+            tmp.inputPsqWeights[psqIdx] = quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]);
         }
     }
 
@@ -149,8 +152,8 @@ void transposePermuteNetwork() {
 #endif
     __m128i regs[packusBlocks];
 
-    for (int limit : { 1, INPUT_SIZE }) {
-        __m128i* vec = reinterpret_cast<__m128i*>(limit == 1 ? (int16_t*)tmp.inputBiases : (int16_t*)tmp.inputWeights);
+    for (int limit : { 1, 768 * KING_BUCKETS }) {
+        __m128i* vec = reinterpret_cast<__m128i*>(limit == 1 ? (int16_t*)tmp.inputBiases : (int16_t*)tmp.inputPsqWeights);
 
         for (int i = 0; i < limit * L1_SIZE / weightsPerBlock; i += packusBlocks) {
             for (int j = 0; j < packusBlocks; j++)
@@ -159,6 +162,16 @@ void transposePermuteNetwork() {
             for (int j = 0; j < packusBlocks; j++)
                 vec[i + j] = regs[permutation[j]];
         }
+    }
+
+    uint64_t* weightsVec = reinterpret_cast<uint64_t*>(tmp.inputThreatWeights);
+    uint64_t weightsRegs[packusBlocks];
+    for (int i = 0; i < INPUT_SIZE * L1_SIZE / weightsPerBlock; i += packusBlocks) {
+        for (int j = 0; j < packusBlocks; j++)
+            weightsRegs[j] = weightsVec[i + j];
+
+        for (int j = 0; j < packusBlocks; j++)
+            weightsVec[i + j] = weightsRegs[permutation[j]];
     }
 #endif
 
@@ -192,7 +205,8 @@ void transposePermuteNetwork() {
     }
 
     // std::memcpy the rest
-    std::memcpy(out.inputWeights, tmp.inputWeights, sizeof(tmp.inputWeights));
+    std::memcpy(out.inputPsqWeights, tmp.inputPsqWeights, sizeof(tmp.inputPsqWeights));
+    std::memcpy(out.inputThreatWeights, tmp.inputThreatWeights, sizeof(tmp.inputThreatWeights));
     std::memcpy(out.inputBiases, tmp.inputBiases, sizeof(tmp.inputBiases));
     std::memcpy(out.l1Biases, tmp.l1Biases, sizeof(tmp.l1Biases));
     std::memcpy(out.l2Biases, tmp.l2Biases, sizeof(tmp.l2Biases));
@@ -237,7 +251,8 @@ int main(int argc, char* argv[]) {
             std::cerr << "Error opening compressed file for reading (" << infile_name << ")" << std::endl;
             return -1;
         }
-        for (auto& v : tmp.inputWeights) v = (int16_t)readSLEB128(infile);
+        for (auto& v : tmp.inputPsqWeights) v = (int16_t)readSLEB128(infile);
+        for (auto& v : tmp.inputThreatWeights) v = (int8_t)readSLEB128(infile);
         for (auto& v : tmp.inputBiases)  v = (int16_t)readSLEB128(infile);
         for (auto& b : tmp.l1Weights)    for (auto& v : b) v = (int8_t)readSLEB128(infile);
         for (auto& b : tmp.l1Biases)     for (auto& v : b) v = readFloat(infile);
