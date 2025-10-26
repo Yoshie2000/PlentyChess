@@ -1065,6 +1065,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                 reduction -= lmrTtPv(importantCapture);
                 reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
             }
+            
+            if (improving)
+                reduction -= 50;
 
             if (capture) {
                 reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
@@ -1078,8 +1081,6 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             else {
                 reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
                 reduction -= lmrQuietPvNodeOffset * pvNode;
-
-                reduction -= 50 * improving;
             }
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
