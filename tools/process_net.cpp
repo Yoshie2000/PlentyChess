@@ -166,7 +166,7 @@ void transposePermuteNetwork() {
 
     uint64_t* weightsVec = reinterpret_cast<uint64_t*>(tmp.inputThreatWeights);
     uint64_t weightsRegs[packusBlocks];
-    for (int i = 0; i < INPUT_SIZE * L1_SIZE / weightsPerBlock; i += packusBlocks) {
+    for (int i = 0; i < THREAT_INPUT_SIZE * L1_SIZE / weightsPerBlock; i += packusBlocks) {
         for (int j = 0; j < packusBlocks; j++)
             weightsRegs[j] = weightsVec[i + j];
 

@@ -234,7 +234,7 @@ public:
         nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1] = oldInputPsqWeights[ip * L1_SIZE + order[l1]];
         nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputPsqWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
       }
-      for (int ip = 0; ip < 2 * ThreatInputs::PieceOffsets::END * KING_BUCKETS; ip++) {
+      for (int ip = 0; ip < 2 * ThreatInputs::PieceOffsets::END; ip++) {
         nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1] = oldInputThreatWeights[ip * L1_SIZE + order[l1]];
         nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputThreatWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
       }
