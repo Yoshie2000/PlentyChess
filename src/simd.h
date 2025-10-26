@@ -252,9 +252,19 @@ inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return _mm_sub_epi16(x, y);
 }
 
+#if defined(__FMA__)
 inline VecI16 convertEpi8Epi16(VecI16s x) {
-  return _mm_cvtepi8_epi16(_mm_set1_epi64(x));
+  return _mm_cvtepi8_epi16(_mm_set_epi64x(0, x));
 }
+#else
+inline VecI16 convertEpi8Epi16(VecI16s x) {
+  __m128i v8 = _mm_cvtsi64_si128(x);
+  v8 = _mm_slli_si128(v8, 8);
+  v8 = _mm_srli_si128(v8, 8);
+  __m128i sign = _mm_cmpgt_epi8(_mm_setzero_si128(), v8);
+  return _mm_unpacklo_epi8(v8, sign);
+}
+#endif
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
   return _mm_min_epi16(x, y);
@@ -371,7 +381,7 @@ inline VecI16 subEpi16(VecI16 x, VecI16 y) {
 }
 
 inline VecI16 convertEpi8Epi16(VecI16s x) {
-  return vmovl_u8(x);
+  return vshll_n_s8(x, 0);
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
