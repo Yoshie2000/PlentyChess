@@ -497,7 +497,7 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
 #else
-    for (int ft = 0; ft < 2 * L1_SIZE; ft++) {
+    for (int ft = 0; ft < L1_SIZE; ft++) {
         if (!pairwiseOutputs[ft])
             continue;
 
