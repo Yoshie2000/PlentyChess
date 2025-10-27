@@ -12,7 +12,6 @@
 using VecI8 = __m512i;
 using VecIu8 = __m512i;
 using VecI16 = __m512i;
-using VecI16s = __m256i;
 using VecIu16 = __m512i;
 using VecI32 = __m512i;
 using VecF = __m512;
@@ -25,8 +24,13 @@ inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return _mm512_sub_epi16(x, y);
 }
 
-inline VecI16 convertEpi8Epi16(VecI16s x) {
-  return _mm512_cvtepi8_epi16(x);
+inline VecI16 sraiEpi16(VecI16 x, int s) {
+  return _mm512_srai_epi16(x, s);
+}
+
+inline VecI16 maddubsEpi16(VecI16 x, VecI16 y) {
+  // return _mm512_maddubs_epi16(x, y);
+  return _mm512_srai_epi16(_mm512_slli_epi16(x, 8), 8);
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
@@ -126,7 +130,6 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 using VecI8 = __m256i;
 using VecIu8 = __m256i;
 using VecI16 = __m256i;
-using VecI16s = __m128i;
 using VecIu16 = __m256i;
 using VecI32 = __m256i;
 using VecF = __m256;
@@ -139,8 +142,12 @@ inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return _mm256_sub_epi16(x, y);
 }
 
-inline VecI16 convertEpi8Epi16(VecI16s x) {
-  return _mm256_cvtepi8_epi16(x);
+inline VecI16 sraiEpi16(VecI16 x, int s) {
+  return _mm256_srai_epi16(x, s);
+}
+
+inline VecI16 maddubsEpi16(VecI16 x, VecI16 y) {
+  return _mm256_maddubs_epi16(x, y);
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
@@ -239,7 +246,6 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 using VecI8 = __m128i;
 using VecIu8 = __m128i;
 using VecI16 = __m128i;
-using VecI16s = uint64_t;
 using VecIu16 = __m128i;
 using VecI32 = __m128i;
 using VecF = __m128;
@@ -252,12 +258,16 @@ inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return _mm_sub_epi16(x, y);
 }
 
-inline VecI16 convertEpi8Epi16(VecI16s x) {
-  return _mm_cvtepi8_epi16(_mm_set1_epi64(x));
+inline VecI16 sraiEpi16(VecI16 x, int s) {
+  return _mm_srai_epi16(x, s);
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
   return _mm_min_epi16(x, y);
+}
+
+inline VecI16 maddubsEpi16(VecI16 x, VecI16 y) {
+  return _mm_maddubs_epi16(x, y);
 }
 
 inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
@@ -356,7 +366,6 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 using VecI8 = int8x16_t;
 using VecIu8 = uint8x16_t;
 using VecI16 = int16x8_t;
-using VecI16s = int8x8_t;
 using VecIu16 = uint16x8_t;
 using VecI32 = int32x4_t;
 using VecF = float32x4_t;
@@ -370,8 +379,12 @@ inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return vsubq_s16(x, y);
 }
 
-inline VecI16 convertEpi8Epi16(VecI16s x) {
-  return vmovl_u8(x);
+inline VecI16 sraiEpi16(VecI16 x, int s) {
+  return vshrq_n_s16(x, s);
+}
+
+inline VecI16 maddubsEpi16(VecI16 x, VecI16 y) {
+  return vdupq_n_s16(0); // TODO
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
