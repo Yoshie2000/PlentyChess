@@ -176,7 +176,15 @@ void transposePermuteNetwork() {
 #endif
 
     // Transpose threat input weights for faster simd
+#if defined(__AVX512F__) && defined(__AVX512BW__)
     constexpr int I8_VEC_SIZE = sizeof(__m512i) / sizeof(int8_t);
+#elif defined(__AVX2__)
+    constexpr int I8_VEC_SIZE = sizeof(__m256i) / sizeof(int8_t);
+#elif defined(ARCH_X86)
+    constexpr int I8_VEC_SIZE = sizeof(__m128i) / sizeof(int8_t);
+#elif defined(ARCH_ARM)
+    constexpr int I8_VEC_SIZE = sizeof(int8x16_t) / sizeof(int8_t);
+#endif
     std::memcpy(out.inputThreatWeights, tmp.inputThreatWeights, sizeof(tmp.inputThreatWeights));
     for (int j = 0; j < THREAT_INPUT_SIZE; j++) {
         for (int i = 0; i < L1_SIZE; i += I8_VEC_SIZE) {

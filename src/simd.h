@@ -29,8 +29,7 @@ inline VecI16 sraiEpi16(VecI16 x, int s) {
 }
 
 inline VecI16 maddubsEpi16(VecI16 x, VecI16 y) {
-  // return _mm512_maddubs_epi16(x, y);
-  return _mm512_srai_epi16(_mm512_slli_epi16(x, 8), 8);
+  return _mm512_maddubs_epi16(x, y);
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
