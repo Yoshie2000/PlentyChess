@@ -1073,6 +1073,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                     reduction -= lmrImportantCaptureOffset;
                     reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
                     reduction = lmrImportantCaptureFactor * reduction / 100;
+                } else {
+                    reduction -= 50 * improving;
                 }
             }
             else {
