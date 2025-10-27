@@ -1072,7 +1072,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                 if (importantCapture) {
                     reduction -= lmrImportantCaptureOffset;
                     reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
-                    reduction = lmrImportantCaptureFactor * reduction / 100;
+                    if (pvNode || movegen.stage != STAGE_PLAY_BAD_CAPTURES)
+                        reduction = lmrImportantCaptureFactor * reduction / 100;
                 }
             }
             else {
