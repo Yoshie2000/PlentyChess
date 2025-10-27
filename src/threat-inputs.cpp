@@ -95,7 +95,7 @@ namespace ThreatInputs {
     }
 
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket) {
-        return 2 * PieceOffsets::END + (384 * relativeColor + 64 * piece + relativeSquare) + 768 * kingBucket;
+        return 768 * kingBucket + 384 * relativeColor + 64 * piece + relativeSquare;
     }
 
     void initialise() {

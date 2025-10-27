@@ -121,7 +121,7 @@ endif
 
 # CPU Flags
 ifeq ($(arch), arm64)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
+	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a+simd
 else ifeq ($(arch), avx512vnni)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=cascadelake
 	CFLAGS := $(CFLAGS) -march=cascadelake
