@@ -19,7 +19,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Compile
-      run: make -j profile-build EXE=PlentyChess
+      run: make -j profile-build EXE=PlentyChess INCLUDE_DEBUG_SYMBOLS=true
 
     - name: Bench
       run: |
