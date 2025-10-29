@@ -79,7 +79,7 @@ TUNE_INT(staticHistoryMax, 313, 1, 1000);
 TUNE_INT(staticHistoryTempo, 27, 1, 200);
 
 TUNE_INT(rfpDepth, 1072, 200, 2000);
-TUNE_INT(rfpFactor, 72, 1, 250);
+TUNE_INT(rfpFactor, 42, 1, 250);
 
 TUNE_INT(razoringDepth, 535, 200, 2000);
 TUNE_INT(razoringFactor, 292, 1, 1000);
@@ -781,8 +781,13 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && eval - rfpFactor * (depth - 100 * (improving && !board->opponentHasGoodCapture())) / 100 >= beta)
-        return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
+    if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
+        int rfpDepth = depth - 100 * (improving && !board->opponentHasGoodCapture());
+        int rfpMargin = rfpFactor * rfpDepth / 100 + 6 * rfpDepth * rfpDepth / 10000;
+        if (eval - rfpMargin >= beta) {
+            return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
+        }
+    }
 
     // Razoring
     if (!rootNode && !board->checkers && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
