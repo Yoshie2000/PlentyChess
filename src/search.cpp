@@ -153,6 +153,7 @@ TUNE_INT(lmrHistoryFactorImportantCapture, 2988932, 2500000, 4000000);
 TUNE_INT(lmrImportantBadCaptureOffset, 102, 0, 500);
 TUNE_INT(lmrImportantCaptureFactor, 51, 0, 250);
 TUNE_INT(lmrQuietPvNodeOffset, 18, 0, 250);
+TUNE_INT(lmrQuietImproving, 50, 0, 250);
 
 inline int lmrReductionOffset(bool importantCapture) { return importantCapture ? lmrReductionOffsetImportantCapture : lmrReductionOffsetQuietOrNormalCapture; };
 inline int lmrCheck(bool importantCapture) { return importantCapture ? lmrCheckImportantCapture : lmrCheckQuietOrNormalCapture; };
@@ -1096,8 +1097,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             else {
                 reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
                 reduction -= lmrQuietPvNodeOffset * pvNode;
-
-                reduction -= 50 * improving;
+                reduction -= lmrQuietImproving * improving;
             }
 
             int reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
