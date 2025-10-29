@@ -79,7 +79,14 @@ TUNE_INT(staticHistoryMax, 313, 1, 1000);
 TUNE_INT(staticHistoryTempo, 27, 1, 200);
 
 TUNE_INT(rfpDepth, 1072, 200, 2000);
-TUNE_INT(rfpFactor, 42, 1, 250);
+TUNE_INT(rfpBase, 0, -100, 100);
+TUNE_INT(rfpFactorLinear, 42, 1, 250);
+TUNE_INT(rfpFactorQuadratic, 600, 1, 1800);
+TUNE_INT(rfpImprovingOffset, 100, 1, 200);
+TUNE_INT(rfpBaseCheck, 0, -100, 100);
+TUNE_INT(rfpFactorLinearCheck, 42, 1, 250);
+TUNE_INT(rfpFactorQuadraticCheck, 600, 1, 1800);
+TUNE_INT(rfpImprovingOffsetCheck, 100, 1, 200);
 
 TUNE_INT(razoringDepth, 535, 200, 2000);
 TUNE_INT(razoringFactor, 292, 1, 1000);
@@ -130,7 +137,7 @@ TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT(lmrMinDepth, 291, 100, 600);
 
 TUNE_INT(lmrReductionOffsetQuietOrNormalCapture, 143, 0, 500);
-TUNE_INT(lmrReductionOffsetImportantCapture, 112, 0, 500);
+TUNE_INT(lmrReductionOffsetImportantCapture, 14, 0, 500);
 TUNE_INT(lmrCheckQuietOrNormalCapture, 89, 0, 500);
 TUNE_INT(lmrCheckImportantCapture, 56, 0, 500);
 TUNE_INT(lmrTtPvQuietOrNormalCapture, 213, 0, 500);
@@ -143,7 +150,6 @@ TUNE_INT(lmrCorrectionDivisorImportantCapture, 146733, 10000, 200000);
 TUNE_INT(lmrQuietHistoryDivisor, 28404, 10000, 30000);
 TUNE_INT(lmrHistoryFactorCapture, 3068670, 2500000, 4000000);
 TUNE_INT(lmrHistoryFactorImportantCapture, 2988932, 2500000, 4000000);
-TUNE_INT(lmrImportantCaptureOffset, 98, 0, 500);
 TUNE_INT(lmrImportantBadCaptureOffset, 102, 0, 500);
 TUNE_INT(lmrImportantCaptureFactor, 51, 0, 250);
 TUNE_INT(lmrQuietPvNodeOffset, 18, 0, 250);
@@ -782,8 +788,14 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
     // Reverse futility pruning
     if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
-        int rfpDepth = depth - 100 * (improving && !board->opponentHasGoodCapture());
-        int rfpMargin = rfpFactor * rfpDepth / 100 + 6 * rfpDepth * rfpDepth / 10000;
+        int rfpMargin, rfpDepth;
+        if (board->checkers) {
+            rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
+            rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
+        } else {
+            rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
+            rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
+        }
         if (eval - rfpMargin >= beta) {
             return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
         }
@@ -921,6 +933,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         uint64_t nodesBeforeMove = searchData.nodesSearched;
 
         bool capture = board->isCapture(move);
+        bool importantCapture = stack->ttPv && capture && !cutNode;
         int moveHistory = history.getHistory(board, stack, move, capture);
 
         if (!rootNode
@@ -928,7 +941,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             && board->hasNonPawns()
             ) {
 
-            int16_t lmrDepth = std::max(0, depth - REDUCTIONS[capture][depth / 100][moveCount] - earlyLmrImproving * !improving + 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet));
+            int16_t reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
+            reduction += earlyLmrImproving * !improving;
+            reduction -= 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet);
+            int16_t lmrDepth = std::max(0, depth - reduction);
 
             if (!movegen.skipQuiets) {
 
@@ -1054,8 +1070,6 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - (ttMove != MOVE_NONE) && depth >= lmrMinDepth) {
-            bool importantCapture = stack->ttPv && capture && !cutNode;
-
             int16_t reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
             reduction += lmrReductionOffset(importantCapture);
             reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
@@ -1075,7 +1089,6 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                 reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
 
                 if (importantCapture) {
-                    reduction -= lmrImportantCaptureOffset;
                     reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
                     reduction = lmrImportantCaptureFactor * reduction / 100;
                 }
