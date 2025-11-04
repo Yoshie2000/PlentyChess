@@ -4,14 +4,12 @@
 #include <cmath>
 #include <fstream>
 #include <cstdint>
+#include <algorithm>
 
 #if defined(ARCH_X86)
 #include <immintrin.h>
 #include <xmmintrin.h>
-#else
-#include <arm_neon.h>
 #endif
-#include <algorithm>
 
 constexpr int KING_BUCKETS = 12;
 constexpr int OUTPUT_BUCKETS = 8;
