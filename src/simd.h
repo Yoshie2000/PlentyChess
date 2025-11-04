@@ -25,11 +25,11 @@ inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return _mm512_sub_epi16(x, y);
 }
 
-inline VecI16 sraiEpi16(VecI16 x, int s) {
-  return _mm512_srai_epi16(x, s);
+inline VecI16 extractHighByteEpi16(VecI16 x) {
+  return _mm512_srai_epi16(x, 8);
 }
 
-inline VecI16 maddubsEpi16(VecI16 x) {
+inline VecI16 extractLowByteEpi16(VecI16 x) {
   return _mm512_srai_epi16(_mm512_slli_epi16(x, 8), 8);
 }
 
@@ -143,11 +143,11 @@ inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return _mm256_sub_epi16(x, y);
 }
 
-inline VecI16 sraiEpi16(VecI16 x, int s) {
-  return _mm256_srai_epi16(x, s);
+inline VecI16 extractHighByteEpi16(VecI16 x) {
+  return _mm256_srai_epi16(x, 8);
 }
 
-inline VecI16 maddubsEpi16(VecI16 x) {
+inline VecI16 extractLowByteEpi16(VecI16 x) {
   return _mm256_srai_epi16(_mm256_slli_epi16(x, 8), 8);
 }
 
@@ -260,15 +260,15 @@ inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return _mm_sub_epi16(x, y);
 }
 
-inline VecI16 sraiEpi16(VecI16 x, int s) {
-  return _mm_srai_epi16(x, s);
+inline VecI16 extractHighByteEpi16(VecI16 x) {
+  return _mm_srai_epi16(x, 8);
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
   return _mm_min_epi16(x, y);
 }
 
-inline VecI16 maddubsEpi16(VecI16 x) {
+inline VecI16 extractLowByteEpi16(VecI16 x) {
   return _mm_srai_epi16(_mm_slli_epi16(x, 8), 8);
 }
 
@@ -382,11 +382,11 @@ inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return vsubq_s16(x, y);
 }
 
-inline VecI16 sraiEpi16(VecI16 x, int s) {
-  return vshrq_n_s16(x, s);
+inline VecI16 extractHighByteEpi16(VecI16 x) {
+  return vshrq_n_s16(x, 8);
 }
 
-inline VecI16 maddubsEpi16(VecI16 x, VecI16 y) {
+inline VecI16 extractLowByteEpi16(VecI16 x, VecI16 y) {
   return vdupq_n_s16(0); // TODO
 }
 
