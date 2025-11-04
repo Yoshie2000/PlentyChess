@@ -1,6 +1,6 @@
 CXX = clang++
 CC  = $(CXX)
-CFLAGS = -mpopcnt -w -pthread -O3
+CFLAGS = -w -pthread -O3
 CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
 LDFLAGS = 
 CXXFLAGS_EXTRA = 
@@ -120,7 +120,12 @@ $(info Autodetected architecture: $(arch))
 endif
 
 # CPU Flags
-ifeq ($(arch), arm64)
+ifeq ($(arch), android)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a+simd -static
+	LDFLAGS := $(LDFLAGS) -lstdc++
+	CXX := aarch64-linux-android29-clang++
+	CC := aarch64-linux-android29-clang
+else ifeq ($(arch), arm64)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a+simd
 else ifeq ($(arch), avx512vnni)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=cascadelake
