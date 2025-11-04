@@ -12,6 +12,7 @@
 using VecI8 = __m512i;
 using VecIu8 = __m512i;
 using VecI16 = __m512i;
+using VecI16s = __m256i;
 using VecIu16 = __m512i;
 using VecI32 = __m512i;
 using VecF = __m512;
@@ -129,6 +130,7 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 using VecI8 = __m256i;
 using VecIu8 = __m256i;
 using VecI16 = __m256i;
+using VecI16s = __m128i;
 using VecIu16 = __m256i;
 using VecI32 = __m256i;
 using VecF = __m256;
@@ -245,6 +247,7 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 using VecI8 = __m128i;
 using VecIu8 = __m128i;
 using VecI16 = __m128i;
+using VecI16s = uint64_t;
 using VecIu16 = __m128i;
 using VecI32 = __m128i;
 using VecF = __m128;
@@ -365,6 +368,7 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 using VecI8 = int8x16_t;
 using VecIu8 = uint8x16_t;
 using VecI16 = int16x8_t;
+using VecI16s = int8x8_t;
 using VecIu16 = uint16x8_t;
 using VecI32 = int32x4_t;
 using VecF = float32x4_t;
