@@ -6,12 +6,17 @@ on:
 
 jobs:
   engine:
-    name: PlentyChess Build & Bench
+    name: PlentyChess Binaries
     runs-on: ${{matrix.os}}
     strategy:
       fail-fast: true
       matrix:
         include:
+
+          - os: ubuntu-24.04
+            binary_name: linux-generic
+            makefile_arch: generic
+            makefile_target:
 
           - os: ubuntu-24.04-arm
             binary_name: linux-neon
@@ -65,6 +70,7 @@ jobs:
     
     - name: Upload binary
       uses: actions/upload-artifact@v4
+      if: ${{matrix.makefile_arch != 'generic'}}
       with:
         name: PlentyChess-${{github.sha}}-${{matrix.binary_name}}
         path: ./PlentyChess-${{matrix.binary_name}}
