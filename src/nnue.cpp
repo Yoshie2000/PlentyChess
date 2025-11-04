@@ -289,12 +289,11 @@ void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L
 
     if (I8) {
         VecI16* weightsVec = (VecI16*)&networkData->inputThreatWeights[featureIndex * L1_SIZE];
-        VecI16 ones = set1Epi16(1);
 
         for (int i = 0; i < L1_ITERATIONS; i += 2) {
             VecI16 addWeights = weightsVec[i / 2];
             outputVec[i + 1] = addEpi16(inputVec[i + 1], sraiEpi16(addWeights, 8));
-            outputVec[i] = addEpi16(inputVec[i], maddubsEpi16(ones, addWeights));
+            outputVec[i] = addEpi16(inputVec[i], maddubsEpi16(addWeights));
         }
     } else {
         VecI16* weightsVec = (VecI16*)&networkData->inputPsqWeights[featureIndex * L1_SIZE];
@@ -312,12 +311,11 @@ void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)
 
     if (I8) {
         VecI16* weightsVec = (VecI16*)&networkData->inputThreatWeights[featureIndex * L1_SIZE];
-        VecI16 ones = set1Epi16(1);
 
         for (int i = 0; i < L1_ITERATIONS; i += 2) {
             VecI16 subWeights = weightsVec[i / 2];
             outputVec[i + 1] = subEpi16(inputVec[i + 1], sraiEpi16(subWeights, 8));
-            outputVec[i] = subEpi16(inputVec[i], maddubsEpi16(ones, subWeights));
+            outputVec[i] = subEpi16(inputVec[i], maddubsEpi16(subWeights));
         }
     } else {
         VecI16* weightsVec = (VecI16*)&networkData->inputPsqWeights[featureIndex * L1_SIZE];
@@ -336,13 +334,12 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData
     if (I8) {
         VecI16* addWeightsVec = (VecI16*)&networkData->inputThreatWeights[addIndex * L1_SIZE];
         VecI16* subWeightsVec = (VecI16*)&networkData->inputThreatWeights[subIndex * L1_SIZE];
-        VecI16 ones = set1Epi16(1);
 
         for (int i = 0; i < L1_ITERATIONS; i += 2) {
             VecI16 addWeights = addWeightsVec[i / 2];
             VecI16 subWeights = subWeightsVec[i / 2];
             outputVec[i + 1] = subEpi16(addEpi16(inputVec[i + 1], sraiEpi16(addWeights, 8)), sraiEpi16(subWeights, 8));
-            outputVec[i] = subEpi16(addEpi16(inputVec[i], maddubsEpi16(ones, addWeights)), maddubsEpi16(ones, subWeights));
+            outputVec[i] = subEpi16(addEpi16(inputVec[i], maddubsEpi16(addWeights)), maddubsEpi16(subWeights));
         }
     } else {
         VecI16* addWeightsVec = (VecI16*)&networkData->inputPsqWeights[addIndex * L1_SIZE];

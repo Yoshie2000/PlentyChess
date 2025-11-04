@@ -29,8 +29,8 @@ inline VecI16 sraiEpi16(VecI16 x, int s) {
   return _mm512_srai_epi16(x, s);
 }
 
-inline VecI16 maddubsEpi16(VecI16 x, VecI16 y) {
-  return _mm512_maddubs_epi16(x, y);
+inline VecI16 maddubsEpi16(VecI16 x) {
+  return _mm512_srai_epi16(_mm512_slli_epi16(x, 8), 8);
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
@@ -147,8 +147,8 @@ inline VecI16 sraiEpi16(VecI16 x, int s) {
   return _mm256_srai_epi16(x, s);
 }
 
-inline VecI16 maddubsEpi16(VecI16 x, VecI16 y) {
-  return _mm256_maddubs_epi16(x, y);
+inline VecI16 maddubsEpi16(VecI16 x) {
+  return _mm256_srai_epi16(_mm256_slli_epi16(x, 8), 8);
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
@@ -268,8 +268,8 @@ inline VecI16 minEpi16(VecI16 x, VecI16 y) {
   return _mm_min_epi16(x, y);
 }
 
-inline VecI16 maddubsEpi16(VecI16 x, VecI16 y) {
-  return _mm_maddubs_epi16(x, y);
+inline VecI16 maddubsEpi16(VecI16 x) {
+  return _mm_srai_epi16(_mm_slli_epi16(x, 8), 8);
 }
 
 inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
