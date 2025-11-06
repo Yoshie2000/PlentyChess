@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <cassert>
 
-constexpr int MAX_PLY = 246;
+constexpr int MAX_PLY = 250;
 constexpr int16_t MAX_DEPTH = (MAX_PLY - 1) * 100;
 constexpr int MAX_MOVES = 218;
 constexpr int MAX_CAPTURES = 74;

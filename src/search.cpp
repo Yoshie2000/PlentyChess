@@ -516,7 +516,7 @@ movesLoopQsearch:
         return alpha;
 
     // Moves loop
-    MoveGen movegen(board, &history, stack, ttMove, !board->checkers, 1);
+    MoveGen& movegen = movepickers[stack->ply][false] = MoveGen(board, &history, stack, ttMove, !board->checkers, 1);
     Move move;
     int moveCount = 0;
     bool playedQuiet = false;
@@ -918,7 +918,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     int captureMoveCount = 0;
 
     // Moves loop
-    MoveGen movegen(board, &history, stack, ttMove, depth / 100);
+    MoveGen& movegen = movepickers[stack->ply][excluded] = MoveGen(board, &history, stack, ttMove, depth / 100);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove()) != MOVE_NONE) {
@@ -1363,12 +1363,16 @@ void Worker::iterativeDeepening() {
     int bestMoveStability = 0;
 
     constexpr int STACK_OVERHEAD = 6;
-    SearchStack stackList[MAX_PLY + STACK_OVERHEAD + 2];
+    std::vector<SearchStack> stackList;
+    stackList.reserve(MAX_PLY + STACK_OVERHEAD + 2);
     SearchStack* stack = &stackList[STACK_OVERHEAD];
 
-    Board boardList[MAX_PLY + 2];
+    std::vector<Board> boardList;
+    boardList.reserve(MAX_PLY + 2);
     boardList[0] = rootBoard;
     Board* board = &boardList[0];
+
+    movepickers.reserve(MAX_PLY + 2);
 
     rootMoveNodes.clear();
 
@@ -1376,7 +1380,7 @@ void Worker::iterativeDeepening() {
         excludedRootMoves.clear();
         for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
 
-            for (int i = 0; i < MAX_PLY + STACK_OVERHEAD + 2; i++) {
+            for (size_t i = 0; i < stackList.capacity(); i++) {
                 stackList[i].pvLength = 0;
                 stackList[i].ply = i - STACK_OVERHEAD;
                 stackList[i].staticEval = EVAL_NONE;
