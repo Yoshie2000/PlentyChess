@@ -1033,7 +1033,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
             else if (cutNode)
                 extension = -2;
-        } else if (pvNode && stack->ply > 0 && move == ttMove && board->isCapture(move) && (stack - 1)->capture && moveTarget(move) == moveTarget((stack - 1)->move)) {
+        } else if (doExtensions && pvNode && stack->ply > 0 && move == ttMove && board->isCapture(move) && (stack - 1)->capture && moveTarget(move) == moveTarget((stack - 1)->move)) {
             extension = 1;
         }
 
