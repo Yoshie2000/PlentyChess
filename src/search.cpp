@@ -982,9 +982,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         }
 
         // Extensions
-        bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
-        if (doExtensions
+        if (!rootNode
             && depth >= extensionMinDepth
             && move == ttMove
             && !excluded
