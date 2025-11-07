@@ -787,6 +787,12 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         (stack - 1)->reduction += additionalReduction;
     }
 
+    // Post-NMP depth adjustments
+    if ((stack - 1)->inNMP) {
+        if (depth > 2 && stack->staticEval <= -(stack - 1)->staticEval)
+            depth++;
+    }
+
     // Reverse futility pruning
     if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
         int rfpMargin, rfpDepth;
@@ -830,7 +836,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
         Board* boardCopy = doNullMove(board);
+        stack->inNMP = true;
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
+        stack->inNMP = false;
         undoNullMove();
 
         if (stopped || exiting)
@@ -1393,6 +1401,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].correctionValue = 0;
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
+                stackList[i].inNMP = false;
                 stackList[i].ttPv = false;
             }
 
@@ -1612,6 +1621,7 @@ void Worker::tdatagen() {
             stackList[i].correctionValue = 0;
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
+            stackList[i].inNMP = false;
             stackList[i].ttPv = false;
         }
 
