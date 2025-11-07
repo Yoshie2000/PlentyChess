@@ -759,11 +759,15 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
     // Improving
     if (!board->checkers) {
-        if ((stack - 2)->staticEval != EVAL_NONE) {
-            improving = stack->staticEval > (stack - 2)->staticEval;
+        SearchStack* prevStack = (stack - 1)->inNMP || (stack - 2)->inNMP ? (stack - 3) : (stack - 2);
+        if (prevStack->staticEval != EVAL_NONE) {
+            improving = stack->staticEval > prevStack->staticEval;
         }
-        else if ((stack - 4)->staticEval != EVAL_NONE) {
-            improving = stack->staticEval > (stack - 4)->staticEval;
+        else {
+            prevStack = (prevStack - 1)->inNMP || (prevStack - 2)->inNMP ? (prevStack - 3) : (prevStack - 2);
+            if (prevStack->staticEval != EVAL_NONE) {
+                improving = stack->staticEval > prevStack->staticEval;
+            }
         }
     }
 
@@ -830,7 +834,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
         Board* boardCopy = doNullMove(board);
+        stack->inNMP = true;
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
+        stack->inNMP = false;
         undoNullMove();
 
         if (stopped || exiting)
@@ -1393,6 +1399,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].correctionValue = 0;
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
+                stackList[i].inNMP = false;
                 stackList[i].ttPv = false;
             }
 
@@ -1612,6 +1619,7 @@ void Worker::tdatagen() {
             stackList[i].correctionValue = 0;
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
+            stackList[i].inNMP = false;
             stackList[i].ttPv = false;
         }
 
