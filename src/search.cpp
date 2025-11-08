@@ -752,11 +752,13 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // Improving
-    if ((stack - 2)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 2)->staticEval;
-    }
-    else if ((stack - 4)->staticEval != EVAL_NONE) {
-        improving = stack->staticEval > (stack - 4)->staticEval;
+    if (!board->checkers) {
+        if ((stack - 2)->staticEval != EVAL_NONE) {
+            improving = stack->staticEval > (stack - 2)->staticEval;
+        }
+        else if ((stack - 4)->staticEval != EVAL_NONE) {
+            improving = stack->staticEval > (stack - 4)->staticEval;
+        }
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
@@ -785,8 +787,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         if (board->checkers) {
             rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
-        }
-        else {
+        } else {
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
