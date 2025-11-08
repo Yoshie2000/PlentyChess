@@ -527,7 +527,7 @@ Eval NNUE::evaluate(Board* board) {
     }
 #else
     for (int l1 = 0; l1 < L2_SIZE; l1++) {
-        float l1Result = static_cast<float>(l1MatmulOutputs[l1]) * L1_NORMALISATION + networkData->l1Biases[bucket][l1];
+        float l1Result = std::fma(static_cast<float>(l1MatmulOutputs[l1]), L1_NORMALISATION, networkData->l1Biases[bucket][l1]);
         l1Outputs[l1] = std::clamp(l1Result, 0.0f, 1.0f);
         l1Outputs[l1 + L2_SIZE] = std::clamp(l1Result * l1Result, 0.0f, 1.0f);
     }
@@ -586,7 +586,7 @@ Eval NNUE::evaluate(Board* board) {
 
     float result = networkData->l3Biases[bucket] + reduceAddPs(resultSums);
 #else
-    constexpr int chunks = sizeof(VecF) / sizeof(float);
+    constexpr int chunks = 64 / sizeof(float);
     float resultSums[chunks] = {};
 
     for (int l2 = 0; l2 < L3_SIZE; l2 += chunks) {
