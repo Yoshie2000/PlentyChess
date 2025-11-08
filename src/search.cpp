@@ -734,13 +734,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
     Eval correctionValue = history.getCorrectionValue(board, stack);
     stack->correctionValue = correctionValue;
-    if (board->checkers) {
-        stack->staticEval = EVAL_NONE;
-
-        if (ttHit && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
-            eval = ttValue;
-    }
-    else if (excluded) {
+    if (excluded) {
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
@@ -758,13 +752,11 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // Improving
-    if (!board->checkers) {
-        if ((stack - 2)->staticEval != EVAL_NONE) {
-            improving = stack->staticEval > (stack - 2)->staticEval;
-        }
-        else if ((stack - 4)->staticEval != EVAL_NONE) {
-            improving = stack->staticEval > (stack - 4)->staticEval;
-        }
+    if ((stack - 2)->staticEval != EVAL_NONE) {
+        improving = stack->staticEval > (stack - 2)->staticEval;
+    }
+    else if ((stack - 4)->staticEval != EVAL_NONE) {
+        improving = stack->staticEval > (stack - 4)->staticEval;
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
@@ -793,7 +785,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         if (board->checkers) {
             rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
-        } else {
+        }
+        else {
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }

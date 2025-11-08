@@ -40,8 +40,6 @@ int getMaterialScale(Board* board) {
 }
 
 Eval evaluate(Board* board, NNUE* nnue) {
-    assert(!board->checkers);
-
     Eval eval = nnue->evaluate(board);    
     eval = (eval * getMaterialScale(board)) / 1024;
 
