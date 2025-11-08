@@ -791,7 +791,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
         int rfpMargin, rfpDepth;
         if (board->checkers) {
-            rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
+            rfpDepth = depth;
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
         } else {
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
@@ -962,9 +962,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             }
 
             // Futility pruning for captures
-            if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
+            if (capture && moveType(move) != MOVE_PROMOTION) {
                 Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
-                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
+                int fpValue = eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * (bestMove == MOVE_NONE));
+                if (lmrDepth < fpCaptDepth && fpValue <= alpha)
                     continue;
             }
 
