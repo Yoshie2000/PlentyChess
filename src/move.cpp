@@ -18,7 +18,7 @@ TUNE_INT_DISABLED(mpMvvLvaScoreFactor, 147, 10, 10000);
 TUNE_INT_DISABLED(mpSeeDivisor, 83, 10, 150);
 
 void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targetMask) {
-    Bitboard pawns = board->byPiece[Piece::PAWN] & board->byColor[board->stm];
+    Bitboard pawns = board->byPiece[PieceType::PAWN] & board->byColor[board->stm];
     Bitboard free = ~(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
 
     Bitboard pushedPawns, secondRankPawns, doublePushedPawns, enemyBackrank;
@@ -62,7 +62,7 @@ void generatePawn_quiet(Board* board, Move** moves, int* counter, Bitboard targe
 
 void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard targetMask) {
     // Captures
-    Bitboard pawns = board->byPiece[Piece::PAWN] & board->byColor[board->stm];
+    Bitboard pawns = board->byPiece[PieceType::PAWN] & board->byColor[board->stm];
     Bitboard pAttacksLeft = BB::pawnAttacksLeft(pawns, board->stm);
     Bitboard pAttacksRight = BB::pawnAttacksRight(pawns, board->stm);
     Bitboard blockedEnemy = board->byColor[1 - board->stm];
@@ -145,7 +145,7 @@ void generatePawn_capture(Board* board, Move** moves, int* counter, Bitboard tar
 }
 
 // For all pieces other than pawns
-template <Piece pieceType>
+template <PieceType pieceType>
 void generatePiece(Board* board, Move** moves, int* counter, bool captures, Bitboard targetMask) {
     Bitboard blockedUs = board->byColor[board->stm];
     Bitboard blockedEnemy = board->byColor[1 - board->stm];
@@ -161,7 +161,7 @@ void generatePiece(Board* board, Move** moves, int* counter, bool captures, Bitb
     Bitboard pieces = board->byPiece[pieceType] & blockedUs;
     while (pieces) {
         Square piece = popLSB(&pieces);
-        Bitboard targets = pieceType == Piece::KNIGHT ? BB::KNIGHT_ATTACKS[piece] : pieceType == Piece::BISHOP ? getBishopMoves(piece, occupied) : pieceType == Piece::ROOK ? getRookMoves(piece, occupied) : pieceType == Piece::QUEEN ? (getRookMoves(piece, occupied) | getBishopMoves(piece, occupied)) : pieceType == Piece::KING ? BB::KING_ATTACKS[lsb(board->byPiece[Piece::KING] & board->byColor[board->stm])] : bitboard(0);
+        Bitboard targets = pieceType == PieceType::KNIGHT ? BB::KNIGHT_ATTACKS[piece] : pieceType == PieceType::BISHOP ? getBishopMoves(piece, occupied) : pieceType == PieceType::ROOK ? getRookMoves(piece, occupied) : pieceType == PieceType::QUEEN ? (getRookMoves(piece, occupied) | getBishopMoves(piece, occupied)) : pieceType == PieceType::KING ? BB::KING_ATTACKS[lsb(board->byPiece[PieceType::KING] & board->byColor[board->stm])] : bitboard(0);
         targets &= mask;
 
         while (targets) {
@@ -173,9 +173,9 @@ void generatePiece(Board* board, Move** moves, int* counter, bool captures, Bitb
 }
 
 void generateCastling(Board* board, Move** moves, int* counter) {
-    assert((board->byPiece[Piece::KING] & board->byColor[board->stm]) > 0);
+    assert((board->byPiece[PieceType::KING] & board->byColor[board->stm]) > 0);
 
-    Square king = lsb(board->byPiece[Piece::KING] & board->byColor[board->stm]);
+    Square king = lsb(board->byPiece[PieceType::KING] & board->byColor[board->stm]);
     Bitboard occupied = board->byColor[Color::WHITE] | board->byColor[Color::BLACK];
 
     // Castling: Nothing on the squares between king and rook
@@ -197,35 +197,35 @@ void generateCastling(Board* board, Move** moves, int* counter) {
 }
 
 void generateMoves(Board* board, Move* moves, int* counter, bool onlyCaptures) {
-    assert((board->byColor[board->stm] & board->byPiece[Piece::KING]) > 0);
+    assert((board->byColor[board->stm] & board->byPiece[PieceType::KING]) > 0);
 
     // If in double check, only generate king moves
     if (board->checkerCount > 1) {
-        generatePiece<Piece::KING>(board, &moves, counter, true, ~bitboard(0));
+        generatePiece<PieceType::KING>(board, &moves, counter, true, ~bitboard(0));
         if (!onlyCaptures)
-            generatePiece<Piece::KING>(board, &moves, counter, false, ~bitboard(0));
+            generatePiece<PieceType::KING>(board, &moves, counter, false, ~bitboard(0));
         return;
     }
 
     // If in check, only generate targets that take care of the check
-    Bitboard checkMask = board->checkers ? BB::BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[Piece::KING])][lsb(board->checkers)] : ~bitboard(0);
+    Bitboard checkMask = board->checkers ? BB::BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[PieceType::KING])][lsb(board->checkers)] : ~bitboard(0);
 
     // ------------------- CAPTURES ----------------------
     generatePawn_capture(board, &moves, counter, checkMask);
-    generatePiece<Piece::KNIGHT>(board, &moves, counter, true, checkMask);
-    generatePiece<Piece::BISHOP>(board, &moves, counter, true, checkMask);
-    generatePiece<Piece::ROOK>(board, &moves, counter, true, checkMask);
-    generatePiece<Piece::QUEEN>(board, &moves, counter, true, checkMask);
-    generatePiece<Piece::KING>(board, &moves, counter, true, ~bitboard(0));
+    generatePiece<PieceType::KNIGHT>(board, &moves, counter, true, checkMask);
+    generatePiece<PieceType::BISHOP>(board, &moves, counter, true, checkMask);
+    generatePiece<PieceType::ROOK>(board, &moves, counter, true, checkMask);
+    generatePiece<PieceType::QUEEN>(board, &moves, counter, true, checkMask);
+    generatePiece<PieceType::KING>(board, &moves, counter, true, ~bitboard(0));
 
     // ------------------- NON CAPTURES ----------------------
     if (!onlyCaptures) {
         generatePawn_quiet(board, &moves, counter, checkMask);
-        generatePiece<Piece::KNIGHT>(board, &moves, counter, false, checkMask);
-        generatePiece<Piece::BISHOP>(board, &moves, counter, false, checkMask);
-        generatePiece<Piece::ROOK>(board, &moves, counter, false, checkMask);
-        generatePiece<Piece::QUEEN>(board, &moves, counter, false, checkMask);
-        generatePiece<Piece::KING>(board, &moves, counter, false, ~bitboard(0));
+        generatePiece<PieceType::KNIGHT>(board, &moves, counter, false, checkMask);
+        generatePiece<PieceType::BISHOP>(board, &moves, counter, false, checkMask);
+        generatePiece<PieceType::ROOK>(board, &moves, counter, false, checkMask);
+        generatePiece<PieceType::QUEEN>(board, &moves, counter, false, checkMask);
+        generatePiece<PieceType::KING>(board, &moves, counter, false, ~bitboard(0));
     }
 
     // ------------------- CASTLING ----------------------
@@ -250,7 +250,7 @@ MoveGen::MoveGen(Board* board, History* history, SearchStack* searchStack, Move 
 }
 
 Move MoveGen::nextMove() {
-    assert((board->byColor[board->stm] & board->byPiece[Piece::KING]) > 0);
+    assert((board->byColor[board->stm] & board->byPiece[PieceType::KING]) > 0);
 
     if (skipQuiets && stage >= STAGE_KILLER && stage != STAGE_DONE)
         stage = STAGE_PLAY_BAD_CAPTURES;
@@ -274,18 +274,18 @@ Move MoveGen::nextMove() {
         moves = moveList + generatedMoves;
         // If in double check, only generate king moves
         if (board->checkerCount > 1) {
-            generatePiece<Piece::KING>(board, &moves, &generatedMoves, true, ~bitboard(0));
+            generatePiece<PieceType::KING>(board, &moves, &generatedMoves, true, ~bitboard(0));
         }
         else {
             // If in check, only generate targets that take care of the check
-            Bitboard checkMask = board->checkers ? BB::BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[Piece::KING])][lsb(board->checkers)] : ~bitboard(0);
+            Bitboard checkMask = board->checkers ? BB::BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[PieceType::KING])][lsb(board->checkers)] : ~bitboard(0);
 
             generatePawn_capture(board, &moves, &generatedMoves, checkMask);
-            generatePiece<Piece::KNIGHT>(board, &moves, &generatedMoves, true, checkMask);
-            generatePiece<Piece::BISHOP>(board, &moves, &generatedMoves, true, checkMask);
-            generatePiece<Piece::ROOK>(board, &moves, &generatedMoves, true, checkMask);
-            generatePiece<Piece::QUEEN>(board, &moves, &generatedMoves, true, checkMask);
-            generatePiece<Piece::KING>(board, &moves, &generatedMoves, true, ~bitboard(0));
+            generatePiece<PieceType::KNIGHT>(board, &moves, &generatedMoves, true, checkMask);
+            generatePiece<PieceType::BISHOP>(board, &moves, &generatedMoves, true, checkMask);
+            generatePiece<PieceType::ROOK>(board, &moves, &generatedMoves, true, checkMask);
+            generatePiece<PieceType::QUEEN>(board, &moves, &generatedMoves, true, checkMask);
+            generatePiece<PieceType::KING>(board, &moves, &generatedMoves, true, ~bitboard(0));
         }
         endIndex = generatedMoves;
 
@@ -338,18 +338,18 @@ Move MoveGen::nextMove() {
         moves = moveList + generatedMoves;
         // If in double check, only generate king moves
         if (board->checkerCount > 1) {
-            generatePiece<Piece::KING>(board, &moves, &generatedMoves, false, ~bitboard(0));
+            generatePiece<PieceType::KING>(board, &moves, &generatedMoves, false, ~bitboard(0));
         }
         else {
             // If in check, only generate targets that take care of the check
-            Bitboard checkMask = board->checkers ? BB::BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[Piece::KING])][lsb(board->checkers)] : ~bitboard(0);
+            Bitboard checkMask = board->checkers ? BB::BETWEEN[lsb(board->byColor[board->stm] & board->byPiece[PieceType::KING])][lsb(board->checkers)] : ~bitboard(0);
 
             generatePawn_quiet(board, &moves, &generatedMoves, checkMask);
-            generatePiece<Piece::KNIGHT>(board, &moves, &generatedMoves, false, checkMask);
-            generatePiece<Piece::BISHOP>(board, &moves, &generatedMoves, false, checkMask);
-            generatePiece<Piece::ROOK>(board, &moves, &generatedMoves, false, checkMask);
-            generatePiece<Piece::QUEEN>(board, &moves, &generatedMoves, false, checkMask);
-            generatePiece<Piece::KING>(board, &moves, &generatedMoves, false, ~bitboard(0));
+            generatePiece<PieceType::KNIGHT>(board, &moves, &generatedMoves, false, checkMask);
+            generatePiece<PieceType::BISHOP>(board, &moves, &generatedMoves, false, checkMask);
+            generatePiece<PieceType::ROOK>(board, &moves, &generatedMoves, false, checkMask);
+            generatePiece<PieceType::QUEEN>(board, &moves, &generatedMoves, false, checkMask);
+            generatePiece<PieceType::KING>(board, &moves, &generatedMoves, false, ~bitboard(0));
             if (!board->checkers)
                 generateCastling(board, &moves, &generatedMoves);
         }
@@ -424,22 +424,22 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
         }
 
         int threatScore = 0;
-        Piece piece = board->pieces[moveOrigin(move)];
+        PieceType piece = typeOf(board->pieces[moveOrigin(move)]);
         Bitboard fromBB = bitboard(moveOrigin(move));
         Bitboard toBB = bitboard(moveTarget(move));
-        if (piece == Piece::QUEEN) {
+        if (piece == PieceType::QUEEN) {
             if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
                 threatScore += 20000;
             if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
                 threatScore -= 20000;
         }
-        else if (piece == Piece::ROOK) {
+        else if (piece == PieceType::ROOK) {
             if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
                 threatScore += 12500;
             if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
                 threatScore -= 12500;
         }
-        else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
+        else if (piece == PieceType::KNIGHT || piece == PieceType::BISHOP) {
             if (fromBB & threats.pawnThreats)
                 threatScore += 7500;
             if (toBB & threats.pawnThreats)
@@ -610,11 +610,13 @@ Move stringToMove(const char* string, Board* board) {
     }
 
     // Figure out whether this is en passent or castling and set the flags accordingly
-    if (board->chess960 && board->pieces[origin] == Piece::KING && board->pieces[target] == Piece::ROOK && !(bitboard(target) & board->byColor[1 - board->stm]))
+    PieceType fromPiece = typeOf(board->pieces[origin]);
+    PieceType toPiece = typeOf(board->pieces[target]);
+    if (board->chess960 && fromPiece == PieceType::KING && toPiece == PieceType::ROOK && !(bitboard(target) & board->byColor[1 - board->stm]))
         move |= MOVE_CASTLING;
-    if (!board->chess960 && board->pieces[origin] == Piece::KING && std::abs(target - origin) == 2)
+    if (!board->chess960 && fromPiece == PieceType::KING && std::abs(target - origin) == 2)
         move |= MOVE_CASTLING;
-    if (board->pieces[origin] == Piece::PAWN && board->pieces[target] == Piece::NONE && (std::abs(target - origin) == 7 || std::abs(target - origin) == 9))
+    if (fromPiece == PieceType::PAWN && toPiece == PieceType::NONE && (std::abs(target - origin) == 7 || std::abs(target - origin) == 9))
         move |= MOVE_ENPASSANT;
 
     return move;

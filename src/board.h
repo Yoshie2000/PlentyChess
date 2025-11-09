@@ -62,7 +62,7 @@ struct Board {
     Threats threats;
     Hashes hashes;
 
-    Bitboard byPiece[Piece::TOTAL];
+    Bitboard byPiece[PieceType::TOTAL];
     Bitboard byColor[2];
     Bitboard enpassantTarget;
     Bitboard blockers[2];
@@ -91,13 +91,13 @@ struct Board {
     std::string fen();
 
     template<bool add>
-    void updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue);
-    void updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta);
-    void updatePieceCastling(Piece piece, Color pieceColor, Square origin);
+    void updatePieceThreats(Piece piece, Square square, NNUE* nnue);
+    void updatePieceHash(Piece piece, uint64_t hashDelta);
+    void updatePieceCastling(Piece piece, Square origin);
 
-    void addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
-    void removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
-    void movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue);
+    void addPiece(Piece piece, Square square, NNUE* nnue);
+    void removePiece(Piece piece, Square square, NNUE* nnue);
+    void movePiece(Piece piece, Square origin, Square target, NNUE* nnue);
 
     void doMove(Move move, uint64_t newHash, NNUE* nnue);
     void doNullMove();
@@ -110,7 +110,7 @@ struct Board {
         MoveType type = moveType(move);
         if (type == MOVE_CASTLING) return false;
         if (type == MOVE_ENPASSANT || (type == MOVE_PROMOTION && promotionType(move) == PROMOTION_QUEEN)) return true;
-        return pieces[moveTarget(move)] != Piece::NONE;
+        return pieces[moveTarget(move)] != Piece::NO_PIECE;
     }
     bool isPseudoLegal(Move move);
     bool isLegal(Move move);
@@ -125,7 +125,7 @@ struct Board {
     void updateSliderPins(Color side);
 
     constexpr bool hasNonPawns() {
-        Bitboard nonPawns = byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP] | byPiece[Piece::ROOK] | byPiece[Piece::QUEEN];
+        Bitboard nonPawns = byPiece[PieceType::KNIGHT] | byPiece[PieceType::BISHOP] | byPiece[PieceType::ROOK] | byPiece[PieceType::QUEEN];
         return BB::popcount(byColor[stm] & nonPawns) > 0;
     }
 

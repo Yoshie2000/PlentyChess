@@ -14,7 +14,7 @@ constexpr uint8_t DIRECTION_UP_LEFT = 7;
 constexpr uint8_t DIRECTION_NONE = 8;
 
 // Start & End indices in the direction indices for each piece type
-constexpr uint8_t DIRECTIONS[Piece::TOTAL][2] = {
+constexpr uint8_t DIRECTIONS[PieceType::TOTAL][2] = {
     { DIRECTION_NONE, DIRECTION_NONE }, // pawn
     { DIRECTION_NONE, DIRECTION_NONE }, // knight
     { DIRECTION_UP_RIGHT, DIRECTION_UP_LEFT }, // bishop
@@ -144,7 +144,7 @@ namespace BB {
 
     Bitboard kingAttacks(Square origin);
     Bitboard knightAttacks(Bitboard knightBB);
-    Bitboard attackedSquares(Piece pieceType, Square square, Bitboard occupied, Color stm);
+    Bitboard attackedSquares(PieceType pieceType, Square square, Bitboard occupied, Color stm);
 
     void init();
 

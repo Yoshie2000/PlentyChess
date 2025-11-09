@@ -369,7 +369,7 @@ bool Worker::hasUpcomingRepetition(Board* board, int ply) {
             if (ply > i)
                 return true;
 
-            Square pieceSquare = board->pieces[origin] == Piece::NONE ? target : origin;
+            Square pieceSquare = board->pieces[origin] == Piece::NO_PIECE ? target : origin;
             Color pieceColor = (board->byColor[Color::WHITE] & bitboard(pieceSquare)) ? Color::WHITE : Color::BLACK;
             if (pieceColor != board->stm)
                 continue;
@@ -551,9 +551,9 @@ movesLoopQsearch:
         Square target = moveTarget(move);
         stack->capture = capture;
         stack->move = move;
-        stack->movedPiece = board->pieces[origin];
-        stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+        stack->movedPiece = typeOf(board->pieces[origin]);
+        stack->contHist = history.continuationHistory[stack->movedPiece][target];
+        stack->contCorrHist = &history.continuationCorrectionHistory[stack->movedPiece][target];
 
         playedQuiet |= move != ttMove && !capture;
 
@@ -681,12 +681,12 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         unsigned result = tb_probe_wdl(
             board->byColor[Color::WHITE],
             board->byColor[Color::BLACK],
-            board->byPiece[Piece::KING],
-            board->byPiece[Piece::QUEEN],
-            board->byPiece[Piece::ROOK],
-            board->byPiece[Piece::BISHOP],
-            board->byPiece[Piece::KNIGHT],
-            board->byPiece[Piece::PAWN],
+            board->byPiece[PieceType::KING],
+            board->byPiece[PieceType::QUEEN],
+            board->byPiece[PieceType::ROOK],
+            board->byPiece[PieceType::BISHOP],
+            board->byPiece[PieceType::KNIGHT],
+            board->byPiece[PieceType::PAWN],
             board->rule50_ply,
             board->castling,
             board->enpassantTarget ? lsb(board->enpassantTarget) : 0,
@@ -768,7 +768,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
-    if (!excluded && !board->checkers && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
+    if (!excluded && !board->checkers && (stack - 1)->movedPiece != PieceType::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
         int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + staticHistoryTempo;
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, bonus);
     }
@@ -817,16 +817,16 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         && stack->staticEval + nmpEvalDepth * depth / 100 - nmpEvalBase >= beta
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY
         && !excluded
-        && (stack - 1)->movedPiece != Piece::NONE
+        && (stack - 1)->movedPiece != PieceType::NONE
         && depth >= nmpMinDepth
         && stack->ply >= searchData.nmpPlies
         && board->hasNonPawns()
         ) {
         stack->capture = false;
         stack->move = MOVE_NULL;
-        stack->movedPiece = Piece::NONE;
-        stack->contHist = history.continuationHistory[board->stm][0][0];
-        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0];
+        stack->movedPiece = PieceType::NONE;
+        stack->contHist = history.continuationHistory[board->stm][0];
+        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0];
         int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
         Board* boardCopy = doNullMove(board);
@@ -878,9 +878,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             Square target = moveTarget(move);
             stack->capture = board->isCapture(move);
             stack->move = move;
-            stack->movedPiece = board->pieces[origin];
-            stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-            stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+            stack->movedPiece = typeOf(board->pieces[origin]);
+            stack->contHist = history.continuationHistory[stack->movedPiece][target];
+            stack->contCorrHist = &history.continuationCorrectionHistory[stack->movedPiece][target];
 
             Board* boardCopy = doMove(board, newHash, move);
 
@@ -963,7 +963,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
             // Futility pruning for captures
             if (!pvNode && capture && moveType(move) != MOVE_PROMOTION) {
-                Piece capturedPiece = moveType(move) == MOVE_ENPASSANT ? Piece::PAWN : board->pieces[moveTarget(move)];
+                PieceType capturedPiece = moveType(move) == MOVE_ENPASSANT ? PieceType::PAWN : typeOf(board->pieces[moveTarget(move)]);
                 if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
                     continue;
             }
@@ -1056,9 +1056,9 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         Square target = moveTarget(move);
         stack->capture = capture;
         stack->move = move;
-        stack->movedPiece = board->pieces[origin];
-        stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+        stack->movedPiece = typeOf(board->pieces[origin]);
+        stack->contHist = history.continuationHistory[stack->movedPiece][target];
+        stack->contCorrHist = &history.continuationCorrectionHistory[stack->movedPiece][target];
 
         moveCount++;
         searchData.nodesSearched++;
@@ -1127,7 +1127,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth / 100 : reducedDepth / 100), lmrPassBonusMax);
-                    history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
+                    history.updateContinuationHistory(stack, makePiece(stack->movedPiece, board->stm), move, bonus);
                 }
             }
         }
@@ -1293,12 +1293,12 @@ void Worker::tsearch() {
         unsigned result = tb_probe_root(
             rootBoard.byColor[Color::WHITE],
             rootBoard.byColor[Color::BLACK],
-            rootBoard.byPiece[Piece::KING],
-            rootBoard.byPiece[Piece::QUEEN],
-            rootBoard.byPiece[Piece::ROOK],
-            rootBoard.byPiece[Piece::BISHOP],
-            rootBoard.byPiece[Piece::KNIGHT],
-            rootBoard.byPiece[Piece::PAWN],
+            rootBoard.byPiece[PieceType::KING],
+            rootBoard.byPiece[PieceType::QUEEN],
+            rootBoard.byPiece[PieceType::ROOK],
+            rootBoard.byPiece[PieceType::BISHOP],
+            rootBoard.byPiece[PieceType::KNIGHT],
+            rootBoard.byPiece[PieceType::PAWN],
             rootBoard.rule50_ply,
             rootBoard.castling,
             rootBoard.enpassantTarget ? lsb(rootBoard.enpassantTarget) : 0,
@@ -1386,7 +1386,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].staticEval = EVAL_NONE;
                 stackList[i].excludedMove = MOVE_NONE;
                 stackList[i].killer = MOVE_NONE;
-                stackList[i].movedPiece = Piece::NONE;
+                stackList[i].movedPiece = PieceType::NONE;
                 stackList[i].move = MOVE_NONE;
                 stackList[i].capture = false;
                 stackList[i].inCheck = false;
@@ -1605,7 +1605,7 @@ void Worker::tdatagen() {
             stackList[i].staticEval = EVAL_NONE;
             stackList[i].excludedMove = MOVE_NONE;
             stackList[i].killer = MOVE_NONE;
-            stackList[i].movedPiece = Piece::NONE;
+            stackList[i].movedPiece = PieceType::NONE;
             stackList[i].move = MOVE_NONE;
             stackList[i].capture = false;
             stackList[i].inCheck = false;

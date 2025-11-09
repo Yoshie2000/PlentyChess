@@ -27,7 +27,7 @@ Bitboard BISHOP_MOVES[64][4096] = { {bitboard(0)} };
 
 #endif
 
-Bitboard sliderMoves(Piece pieceType, Square origin, Bitboard blockers) {
+Bitboard sliderMoves(PieceType pieceType, Square origin, Bitboard blockers) {
     Bitboard attacksBB = bitboard(0);
 
     int8_t delta, direction;
@@ -49,7 +49,7 @@ Bitboard sliderMoves(Piece pieceType, Square origin, Bitboard blockers) {
     return attacksBB;
 }
 
-Bitboard relevantBlockers(Piece pieceType, Square origin) {
+Bitboard relevantBlockers(PieceType pieceType, Square origin) {
     Bitboard attacksBB = bitboard(0);
 
     int8_t delta, direction;
@@ -72,7 +72,7 @@ Bitboard relevantBlockers(Piece pieceType, Square origin) {
 #if defined(USE_BMI2)
 
 // Finds magics for a given piece/square combination
-void findMagics(Piece slider, MagicEntry* magicTable, Bitboard* table) {
+void findMagics(PieceType slider, MagicEntry* magicTable, Bitboard* table) {
     for (Square square = 0; square < 64; square++) {
         MagicEntry* outMagicEntry = &magicTable[square];
 
@@ -84,7 +84,7 @@ void findMagics(Piece slider, MagicEntry* magicTable, Bitboard* table) {
 
         for (int index = 0; blockers != bitboard(0) || index == 0; index++) {
             Bitboard moves = sliderMoves(slider, square, blockers);
-            if (slider == Piece::ROOK)
+            if (slider == PieceType::ROOK)
                 outMagicEntry->tableIndex[magicIndexRook(square, blockers)] = moves;
             else
                 outMagicEntry->tableIndex[magicIndexBishop(square, blockers)] = moves;
@@ -98,7 +98,7 @@ void findMagics(Piece slider, MagicEntry* magicTable, Bitboard* table) {
 
 // Attempt to fill in a hash table using a magic number.
 // Fails if there are any non-constructive collisions.
-bool tryMakeTable(Piece slider, Square square, MagicEntry magicEntry, Bitboard* table) {
+bool tryMakeTable(PieceType slider, Square square, MagicEntry magicEntry, Bitboard* table) {
     for (int i = 0; i < 4096; i++)
         table[i] = bitboard(0);
 
@@ -121,7 +121,7 @@ bool tryMakeTable(Piece slider, Square square, MagicEntry magicEntry, Bitboard* 
 }
 
 // Finds magics for a given piece/square combination
-void findMagic(uint32_t seed, Piece slider, Square square, uint8_t indexBits, MagicEntry* outMagicEntry, Bitboard* table) {
+void findMagic(uint32_t seed, PieceType slider, Square square, uint8_t indexBits, MagicEntry* outMagicEntry, Bitboard* table) {
     std::mt19937 rng;
     rng.seed(seed);
     std::uniform_int_distribution<uint64_t> dist;
@@ -148,14 +148,14 @@ void generateMagics() {
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
 #if defined(USE_BMI2)
-    findMagics(Piece::ROOK, ROOK_MAGICS, ROOK_MOVES);
-    findMagics(Piece::BISHOP, BISHOP_MAGICS, BISHOP_MOVES);
+    findMagics(PieceType::ROOK, ROOK_MAGICS, ROOK_MOVES);
+    findMagics(PieceType::BISHOP, BISHOP_MAGICS, BISHOP_MOVES);
 #else
     uint32_t seed = 2816384844;
 
     for (Square square = 0; square < 64; square++) {
-        findMagic(seed, Piece::ROOK, square, 12, &ROOK_MAGICS[square], ROOK_MOVES[square]);
-        findMagic(seed, Piece::BISHOP, square, 9, &BISHOP_MAGICS[square], BISHOP_MOVES[square]);
+        findMagic(seed, PieceType::ROOK, square, 12, &ROOK_MAGICS[square], ROOK_MOVES[square]);
+        findMagic(seed, PieceType::BISHOP, square, 9, &BISHOP_MAGICS[square], BISHOP_MOVES[square]);
     }
 #endif
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();

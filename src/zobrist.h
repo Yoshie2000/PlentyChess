@@ -4,7 +4,7 @@
 
 namespace Zobrist {
 
-    extern uint64_t PIECE_SQUARES[2][Piece::TOTAL][64];
+    extern uint64_t PIECE_SQUARES[Piece::TOTAL_PIECES][64];
     extern uint64_t STM_BLACK;
     extern uint64_t NO_PAWNS;
     extern uint64_t CASTLING[16]; // 2^4

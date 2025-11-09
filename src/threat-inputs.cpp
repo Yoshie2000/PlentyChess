@@ -22,7 +22,7 @@ namespace ThreatInputs {
 
     void addThreatFeatures(Board* board, Color pov, FeatureList& features) {
         // Check HM and get occupancies
-        Square king = lsb(board->byColor[pov] & board->byPiece[Piece::KING]);
+        Square king = lsb(board->byColor[pov] & board->byPiece[PieceType::KING]);
         bool hm = fileOf(king) >= 4;
 
         Bitboard occupancy = board->byColor[Color::WHITE] | board->byColor[Color::BLACK];
@@ -36,7 +36,7 @@ namespace ThreatInputs {
             Bitboard enemyOccupancy = board->byColor[flip(side)];
             if (hm) enemyOccupancy = mirrorBitboard(enemyOccupancy);
 
-            for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
+            for (PieceType piece = PieceType::PAWN; piece < PieceType::TOTAL; ++piece) {
                 Bitboard pieceBitboard = board->byColor[side] & board->byPiece[piece];
 
                 // Add features for this piece
@@ -53,15 +53,15 @@ namespace ThreatInputs {
                         Square attackingIndexSquare = attackingSquare ^ (hm * 7);
                         Square relativeAttackingSquare = attackingSquare ^ (56 * pov);
                         Piece attackingPiece = board->pieces[attackingIndexSquare];
-                        Color attackingSide = (board->byColor[Color::WHITE] & bitboard(attackingIndexSquare)) ? Color::WHITE : Color::BLACK;
+                        Color attackingSide = colorOf(attackingPiece);
 
                         Color relativeSide = static_cast<Color>(pov != side);
                         bool enemy = attackingSide != side;
                         int sideOffset = (attackingSide != pov) * PieceOffsets::END;
 
-                        assert(attackingPiece != Piece::NONE);
+                        assert(attackingPiece != Piece::NO_PIECE);
 
-                        int threatFeature = getThreatFeature(attackingPiece, relativeAttackingSquare, relativeSquare, piece, relativeSide, enemy);
+                        int threatFeature = getThreatFeature(typeOf(attackingPiece), relativeAttackingSquare, relativeSquare, piece, relativeSide, enemy);
                         if (threatFeature != -1)
                             features.add(threatFeature + sideOffset);
                     }
@@ -72,13 +72,13 @@ namespace ThreatInputs {
 
     void addPieceFeatures(Board* board, Color pov, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT) {
         // Check HM and get occupancies
-        Square king = lsb(board->byColor[pov] & board->byPiece[Piece::KING]);
+        Square king = lsb(board->byColor[pov] & board->byPiece[PieceType::KING]);
         uint8_t kingBucket = KING_BUCKET_LAYOUT[king ^ (56 * pov)];
         bool hm = fileOf(king) >= 4;
 
         // Loop through sides and pieces
         for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-            for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
+            for (PieceType piece = PieceType::PAWN; piece < PieceType::TOTAL; ++piece) {
                 Bitboard pieceBitboard = board->byColor[side] & board->byPiece[piece];
 
                 // Add features for this piece
@@ -94,21 +94,21 @@ namespace ThreatInputs {
         }
     }
 
-    int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket) {
+    int getPieceFeature(PieceType piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket) {
         return 768 * kingBucket + 384 * relativeColor + 64 * piece + relativeSquare;
     }
 
     void initialise() {
         memset(INDEX_LOOKUP, 0xFFFF, sizeof(INDEX_LOOKUP));
 
-        for (Piece attackingPiece = Piece::PAWN; attackingPiece < Piece::TOTAL; ++attackingPiece) {
-            for (Piece attackedPiece = Piece::PAWN; attackedPiece < Piece::TOTAL; ++attackedPiece) {
+        for (PieceType attackingPiece = PieceType::PAWN; attackingPiece < PieceType::TOTAL; ++attackingPiece) {
+            for (PieceType attackedPiece = PieceType::PAWN; attackedPiece < PieceType::TOTAL; ++attackedPiece) {
                 for (Color attackingColor = Color::WHITE; attackingColor <= Color::BLACK; ++attackingColor) {
                     for (Color attackedColor = Color::WHITE; attackedColor <= Color::BLACK; ++attackedColor) {
                         for (Color pov = Color::WHITE; pov <= Color::BLACK; ++pov) {
                             for (Square attackingSquare = 0; attackingSquare < 64; attackingSquare++) {
 
-                                if (attackingPiece == Piece::PAWN && (attackingSquare < 8 || attackingSquare >= 56))
+                                if (attackingPiece == PieceType::PAWN && (attackingSquare < 8 || attackingSquare >= 56))
                                     continue;
 
                                 Bitboard attacks = BB::attackedSquares(attackingPiece, attackingSquare, 0, attackingColor);
@@ -130,30 +130,30 @@ namespace ThreatInputs {
         }
     }
 
-    int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy) {
-        assert(piece != Piece::NONE);
+    int getThreatFeature(PieceType piece, Square from, Square to, PieceType target, Color relativeSide, bool enemy) {
+        assert(piece != PieceType::NONE);
 
         int featureIndex;
         switch (piece) {
-        case Piece::PAWN:
+        case PieceType::PAWN:
             featureIndex = getPawnThreatFeature(from, to, target, relativeSide, enemy);
             break;
-        case Piece::KNIGHT:
+        case PieceType::KNIGHT:
             featureIndex = getKnightThreatFeature(from, to, target, relativeSide);
             break;
-        case Piece::BISHOP:
+        case PieceType::BISHOP:
             featureIndex = getBishopThreatFeature(from, to, target, relativeSide);
             break;
-        case Piece::ROOK:
+        case PieceType::ROOK:
             featureIndex = getRookThreatFeature(from, to, target, relativeSide);
             break;
-        case Piece::QUEEN:
+        case PieceType::QUEEN:
             featureIndex = getQueenThreatFeature(from, to, target, relativeSide);
             break;
-        case Piece::KING:
+        case PieceType::KING:
             featureIndex = getKingThreatFeature(from, to, target, relativeSide);
             break;
-        case Piece::NONE:
+        default:
             featureIndex = -1;
             assert(false);
         }
@@ -161,12 +161,12 @@ namespace ThreatInputs {
         return featureIndex;
     }
 
-    int getPawnThreatFeature(Square from, Square to, Piece target, Color relativeSide, bool enemy) {
+    int getPawnThreatFeature(Square from, Square to, PieceType target, Color relativeSide, bool enemy) {
         // Allow threats to pawns, knights and rooks
         constexpr int OFFSETS[] = { 0, 1, MAX, 2, MAX, MAX, 3, 4, MAX, 5, MAX, MAX };
 
         // Also skip enemy pawns with to > from to prevent duplicates
-        if (OFFSETS[target] == MAX || (enemy && to > from && target == Piece::PAWN))
+        if (OFFSETS[target] == MAX || (enemy && to > from && target == PieceType::PAWN))
             return -1;
 
         bool up = to > from;
@@ -181,11 +181,11 @@ namespace ThreatInputs {
         return threat;
     }
 
-    int getKnightThreatFeature(Square from, Square to, Piece target, Color relativeSide) {
+    int getKnightThreatFeature(Square from, Square to, PieceType target, Color relativeSide) {
         // Allow threats to all piece types
 
         // Skip knights with to > from to prevent duplicates
-        if (to > from && target == Piece::KNIGHT)
+        if (to > from && target == PieceType::KNIGHT)
             return -1;
 
         int localIndex = SquareThreatCounts::KNIGHT[from] + localThreatIndex(to, BB::KNIGHT_ATTACKS[from]);
@@ -197,12 +197,12 @@ namespace ThreatInputs {
         return threat;
     }
 
-    int getBishopThreatFeature(Square from, Square to, Piece target, Color relativeSide) {
+    int getBishopThreatFeature(Square from, Square to, PieceType target, Color relativeSide) {
         // Allow threats to everything but queens
         constexpr int OFFSETS[] = { 0, 1, 2, 3, MAX, 4, 5, 6, 7, 8, MAX, 9 };
 
         // Also skip bishops with to > from to prevent duplicates
-        if (OFFSETS[target] == MAX || (to > from && target == Piece::BISHOP))
+        if (OFFSETS[target] == MAX || (to > from && target == PieceType::BISHOP))
             return -1;
 
         int localIndex = SquareThreatCounts::BISHOP[from] + localThreatIndex(to, getBishopMoves(from, 0));
@@ -214,12 +214,12 @@ namespace ThreatInputs {
         return threat;
     }
 
-    int getRookThreatFeature(Square from, Square to, Piece target, Color relativeSide) {
+    int getRookThreatFeature(Square from, Square to, PieceType target, Color relativeSide) {
         // Allow threats to everything but queens
         constexpr int OFFSETS[] = { 0, 1, 2, 3, MAX, 4, 5, 6, 7, 8, MAX, 9 };
 
         // Also skip rooks with to > from to prevent duplicates
-        if (OFFSETS[target] == MAX || (to > from && target == Piece::ROOK))
+        if (OFFSETS[target] == MAX || (to > from && target == PieceType::ROOK))
             return -1;
 
         int localIndex = SquareThreatCounts::ROOK[from] + localThreatIndex(to, getRookMoves(from, 0));
@@ -231,11 +231,11 @@ namespace ThreatInputs {
         return threat;
     }
 
-    int getQueenThreatFeature(Square from, Square to, Piece target, Color relativeSide) {
+    int getQueenThreatFeature(Square from, Square to, PieceType target, Color relativeSide) {
         // Allow threats to all pieces
 
         // Skip queens with to > from to prevent duplicates
-        if (to > from && target == Piece::QUEEN)
+        if (to > from && target == PieceType::QUEEN)
             return -1;
 
         int localIndex = SquareThreatCounts::QUEEN[from] + localThreatIndex(to, getRookMoves(from, 0) | getBishopMoves(from, 0));
@@ -247,7 +247,7 @@ namespace ThreatInputs {
         return threat;
     }
 
-    int getKingThreatFeature(Square from, Square to, Piece target, Color relativeSide) {
+    int getKingThreatFeature(Square from, Square to, PieceType target, Color relativeSide) {
         // Allow threats to pawns, knights, bishops and rooks
         constexpr int OFFSETS[] = { 0, 1, 2, 3, MAX, MAX, 4, 5, 6, 7, MAX, MAX };
 

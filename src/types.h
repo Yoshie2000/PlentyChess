@@ -18,7 +18,7 @@ constexpr Color& operator++(Color& color) {
     return color;
 }
 
-enum Piece: uint8_t {
+enum PieceType: uint8_t {
     PAWN = 0,
     KNIGHT = 1,
     BISHOP = 2,
@@ -29,10 +29,51 @@ enum Piece: uint8_t {
     TOTAL = 6
 };
 
+enum Piece : uint8_t {
+    WHITE_PAWN = 0,
+    WHITE_KNIGHT = 1,
+    WHITE_BISHOP = 2,
+    WHITE_ROOK = 3,
+    WHITE_QUEEN = 4,
+    WHITE_KING = 5,
+    BLACK_PAWN = 6,
+    BLACK_KNIGHT = 7,
+    BLACK_BISHOP = 8,
+    BLACK_ROOK = 9,
+    BLACK_QUEEN = 10,
+    BLACK_KING = 11,
+    NO_PIECE = 12,
+    TOTAL_PIECES = 12
+};
+
+constexpr PieceType& operator++(PieceType& piece) {
+    piece = static_cast<PieceType>(static_cast<int>(piece) + 1);
+    return piece;
+}
+
 constexpr Piece& operator++(Piece& piece) {
     piece = static_cast<Piece>(static_cast<int>(piece) + 1);
     return piece;
 }
+
+constexpr PieceType typeOf(Piece& piece) {
+    assert(piece < Piece::NO_PIECE);
+    return static_cast<PieceType>(piece % 6);
+}
+
+constexpr Color colorOf(Piece& piece) {
+    assert(piece < Piece::NO_PIECE);
+    return static_cast<Color>(piece / 6);
+}
+
+constexpr Piece makePiece(PieceType type, Color color) {
+    return static_cast<Piece>(6 * color + type);
+}
+
+constexpr bool operator==(Piece& piece, PieceType& type) = delete;
+constexpr bool operator==(Piece piece, PieceType type) = delete;
+constexpr bool operator!=(Piece& piece, PieceType& type) = delete;
+constexpr bool operator!=(Piece piece, PieceType type) = delete;
 
 // 00 promotion piece 00 special move type 000000 target 000000 origin
 // Special move type: 01 == promotion, 10 == en passant, 11 == castling
@@ -106,7 +147,7 @@ struct SearchStack {
     Eval staticEval;
 
     Move move;
-    Piece movedPiece;
+    PieceType movedPiece;
     bool inCheck, capture;
     int correctionValue;
     int16_t reduction;

@@ -19,23 +19,23 @@ TUNE_INT_DISABLED(materialScaleDivisor, 48, 32, 64);
 
 Eval fakePiece = 0;
 
-Eval PIECE_VALUES[Piece::TOTAL + 1] = {
+Eval PIECE_VALUES[PieceType::TOTAL + 1] = {
     pawnValue, knightValue, bishopValue, rookValue, queenValue, fakePiece, fakePiece
 };
 
-constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
+constexpr Eval SEE_VALUES[PieceType::TOTAL + 1] = {
     90, 290, 310, 570, 1000, 0, 0
 };
 
 
 int getMaterialScale(Board* board) {
-    int pawnCount = BB::popcount(board->byPiece[Piece::PAWN]);
-    int knightCount = BB::popcount(board->byPiece[Piece::KNIGHT]);
-    int bishopCount = BB::popcount(board->byPiece[Piece::BISHOP]);
-    int rookCount = BB::popcount(board->byPiece[Piece::ROOK]);
-    int queenCount = BB::popcount(board->byPiece[Piece::QUEEN]);
+    int pawnCount = BB::popcount(board->byPiece[PieceType::PAWN]);
+    int knightCount = BB::popcount(board->byPiece[PieceType::KNIGHT]);
+    int bishopCount = BB::popcount(board->byPiece[PieceType::BISHOP]);
+    int rookCount = BB::popcount(board->byPiece[PieceType::ROOK]);
+    int queenCount = BB::popcount(board->byPiece[PieceType::QUEEN]);
 
-    int materialValue = PIECE_VALUES[Piece::PAWN] * pawnCount + PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
+    int materialValue = PIECE_VALUES[PieceType::PAWN] * pawnCount + PIECE_VALUES[PieceType::KNIGHT] * knightCount + PIECE_VALUES[PieceType::BISHOP] * bishopCount + PIECE_VALUES[PieceType::ROOK] * rookCount + PIECE_VALUES[PieceType::QUEEN] * queenCount;
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
@@ -90,13 +90,13 @@ bool SEE(Board* board, Move move, Eval threshold) {
     Bitboard occupied = (board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) ^ (bitboard(origin));
     Bitboard attackersToTarget = board->attackersTo(target, occupied);
 
-    Bitboard bishops = board->byPiece[Piece::BISHOP] | board->byPiece[Piece::QUEEN];
-    Bitboard rooks = board->byPiece[Piece::ROOK] | board->byPiece[Piece::QUEEN];
+    Bitboard bishops = board->byPiece[PieceType::BISHOP] | board->byPiece[PieceType::QUEEN];
+    Bitboard rooks = board->byPiece[PieceType::ROOK] | board->byPiece[PieceType::QUEEN];
 
     Color side = flip(board->stm);
 
-    Square whiteKing = lsb(board->byColor[Color::WHITE] & board->byPiece[Piece::KING]);
-    Square blackKing = lsb(board->byColor[Color::BLACK] & board->byPiece[Piece::KING]);
+    Square whiteKing = lsb(board->byColor[Color::WHITE] & board->byPiece[PieceType::KING]);
+    Square blackKing = lsb(board->byColor[Color::BLACK] & board->byPiece[PieceType::KING]);
     Bitboard blockers = board->blockers[Color::WHITE] | board->blockers[Color::BLACK];
     Bitboard alignedBlockers = (board->blockers[Color::WHITE] & BB::LINE[target][whiteKing]) | (board->blockers[Color::BLACK] & BB::LINE[target][blackKing]);
 
@@ -111,8 +111,8 @@ bool SEE(Board* board, Move move, Eval threshold) {
         if (!stmAttackers) break;
 
         // Find least valuable piece
-        Piece piece;
-        for (piece = Piece::PAWN; piece < Piece::KING; ++piece) {
+        PieceType piece;
+        for (piece = PieceType::PAWN; piece < PieceType::KING; ++piece) {
             // If the piece attacks the target square, stop
             if (stmAttackers & board->byPiece[piece])
                 break;
@@ -123,7 +123,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
 
         // Value beats (or can't beat) threshold (negamax)
         if (value >= 0) {
-            if (piece == Piece::KING && (attackersToTarget & board->byColor[side]))
+            if (piece == PieceType::KING && (attackersToTarget & board->byColor[side]))
                 side = flip(side);
             break;
         }
@@ -135,9 +135,9 @@ bool SEE(Board* board, Move move, Eval threshold) {
         alignedBlockers &= ~bitboard(pieceSquare);
 
         // Add discovered attacks
-        if (piece == Piece::PAWN || piece == Piece::BISHOP || piece == Piece::QUEEN)
+        if (piece == PieceType::PAWN || piece == PieceType::BISHOP || piece == PieceType::QUEEN)
             attackersToTarget |= getBishopMoves(target, occupied) & bishops;
-        if (piece == Piece::ROOK || piece == Piece::QUEEN)
+        if (piece == PieceType::ROOK || piece == PieceType::QUEEN)
             attackersToTarget |= getRookMoves(target, occupied) & rooks;
     }
 

@@ -21,7 +21,7 @@ namespace BB {
         Square lastSquare, toSquare;
         Bitboard toSquareBB;
 
-        for (direction = DIRECTIONS[Piece::KING][0]; direction <= DIRECTIONS[Piece::KING][1]; direction++) {
+        for (direction = DIRECTIONS[PieceType::KING][0]; direction <= DIRECTIONS[PieceType::KING][1]; direction++) {
             lastSquare = LASTSQ_TABLE[origin][direction];
             toSquare = origin + DIRECTION_DELTAS[direction];
             if (toSquare >= 64) continue;
@@ -43,17 +43,17 @@ namespace BB {
         return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
     }
 
-    Bitboard attackedSquares(Piece pieceType, Square square, Bitboard occupied, Color stm) {
+    Bitboard attackedSquares(PieceType pieceType, Square square, Bitboard occupied, Color stm) {
         switch (pieceType) {
-        case Piece::PAWN:
+        case PieceType::PAWN:
             return pawnAttacks(bitboard(square), stm);
-        case Piece::KNIGHT:
+        case PieceType::KNIGHT:
             return KNIGHT_ATTACKS[square];
-        case Piece::KING:
+        case PieceType::KING:
             return KING_ATTACKS[square];
-        case Piece::BISHOP:
+        case PieceType::BISHOP:
             return getBishopMoves(square, occupied);
-        case Piece::ROOK:
+        case PieceType::ROOK:
             return getRookMoves(square, occupied);
         default:
             return getBishopMoves(square, occupied) | getRookMoves(square, occupied);
@@ -76,11 +76,11 @@ namespace BB {
                 BETWEEN[a][b] |= bitboard(b);
                 BETWEEN[a][b] &= LINE[a][b];
 
-                for (Piece piece : {Piece::BISHOP, Piece::ROOK}) {
-                    Bitboard pseudoAttacks = piece == Piece::ROOK ? getRookMoves(a, 0) : getBishopMoves(a, 0);
+                for (PieceType piece : {PieceType::BISHOP, PieceType::ROOK}) {
+                    Bitboard pseudoAttacks = piece == PieceType::ROOK ? getRookMoves(a, 0) : getBishopMoves(a, 0);
                     if (pseudoAttacks & bitboard(b)) {
                         RAY_PASS[a][b] = pseudoAttacks;
-                        RAY_PASS[a][b] &= (piece == Piece::ROOK ? getRookMoves(b, bitboard(a)) : getBishopMoves(b, bitboard(a))) | bitboard(b);
+                        RAY_PASS[a][b] &= (piece == PieceType::ROOK ? getRookMoves(b, bitboard(a)) : getBishopMoves(b, bitboard(a))) | bitboard(b);
                         RAY_PASS[a][b] &= ~BETWEEN[a][b];
                     }
                 }

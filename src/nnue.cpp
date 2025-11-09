@@ -89,37 +89,37 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     for (int featureIndex : pieceFeatures)
         addToAccumulator<false, side>(acc->pieceState, acc->pieceState, featureIndex);
 
-    acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
+    acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[PieceType::KING]));
     acc->board = board;
 }
 
-void NNUE::addPiece(Square square, Piece piece, Color pieceColor) {
-    assert(piece < Piece::NONE);
+void NNUE::addPiece(Square square, Piece piece) {
+    assert(piece < Piece::NO_PIECE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyPieces[acc->numDirtyPieces++] = { NO_SQUARE, square, piece, pieceColor };
+    acc->dirtyPieces[acc->numDirtyPieces++] = { NO_SQUARE, square, piece };
 }
 
-void NNUE::removePiece(Square square, Piece piece, Color pieceColor) {
-    assert(piece < Piece::NONE);
+void NNUE::removePiece(Square square, Piece piece) {
+    assert(piece < Piece::NO_PIECE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyPieces[acc->numDirtyPieces++] = { square, NO_SQUARE, piece, pieceColor };
+    acc->dirtyPieces[acc->numDirtyPieces++] = { square, NO_SQUARE, piece };
 }
 
-void NNUE::movePiece(Square origin, Square target, Piece piece, Color pieceColor) {
-    assert(piece < Piece::NONE);
+void NNUE::movePiece(Square origin, Square target, Piece piece) {
+    assert(piece < Piece::NO_PIECE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyPieces[acc->numDirtyPieces++] = { origin, target, piece, pieceColor };
+    acc->dirtyPieces[acc->numDirtyPieces++] = { origin, target, piece };
 }
 
-void NNUE::updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add) {
-    assert(piece != Piece::NONE);
-    assert(attackedPiece != Piece::NONE);
+void NNUE::updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, bool add) {
+    assert(piece != Piece::NO_PIECE);
+    assert(attackedPiece != Piece::NO_PIECE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyThreats[acc->numDirtyThreats++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add };
+    acc->dirtyThreats[acc->numDirtyThreats++] = { piece, attackedPiece, square, attackedSquare, add };
 }
 
 void NNUE::incrementAccumulator() {
@@ -140,7 +140,7 @@ void NNUE::finalizeMove(Board* board) {
     accumulator->board = board;
 
     for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-        accumulator->kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
+        accumulator->kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[PieceType::KING] & board->byColor[side]));
     }
 }
 
@@ -175,7 +175,7 @@ void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
 
     // Update matching finny table with the changed pieces
     for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
-        for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
+        for (PieceType p = PieceType::PAWN; p < PieceType::TOTAL; ++p) {
             Bitboard finnyBB = finnyEntry->byColor[side][c] & finnyEntry->byPiece[side][p];
             Bitboard accBB = acc->board->byColor[c] & acc->board->byPiece[p];
 
@@ -217,19 +217,19 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
     for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
         DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
 
-        Color relativeColor = static_cast<Color>(dirtyPiece.pieceColor != side);
+        Color relativeColor = static_cast<Color>(colorOf(dirtyPiece.piece) != side);
 
         if (dirtyPiece.origin == NO_SQUARE) {
-            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+            int featureIndex = ThreatInputs::getPieceFeature(typeOf(dirtyPiece.piece), dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
             addToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, featureIndex);
         }
         else if (dirtyPiece.target == NO_SQUARE) {
-            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+            int featureIndex = ThreatInputs::getPieceFeature(typeOf(dirtyPiece.piece), dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
             subFromAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, featureIndex);
         }
         else {
-            int subIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
-            int addIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+            int subIndex = ThreatInputs::getPieceFeature(typeOf(dirtyPiece.piece), dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+            int addIndex = ThreatInputs::getPieceFeature(typeOf(dirtyPiece.piece), dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
             addSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, addIndex, subIndex);
         }
         inputAcc = outputAcc;
@@ -248,11 +248,11 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
         Square square = dirtyThreat.square ^ (56 * side) ^ (7 * kingBucket->mirrored);
         Square attackedSquare = dirtyThreat.attackedSquare ^ (56 * side) ^ (7 * kingBucket->mirrored);
 
-        Color relativeSide = static_cast<Color>(side != dirtyThreat.attackedColor);
-        bool enemy = dirtyThreat.pieceColor != dirtyThreat.attackedColor;
-        bool hasSideOffset = dirtyThreat.pieceColor != side;
+        Color relativeSide = static_cast<Color>(side != colorOf(attackedPiece));
+        bool enemy = colorOf(piece) != colorOf(attackedPiece);
+        bool hasSideOffset = colorOf(piece) != side;
 
-        int featureIndex = ThreatInputs::lookupThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy);
+        int featureIndex = ThreatInputs::lookupThreatFeature(typeOf(piece), square, attackedSquare, typeOf(attackedPiece), relativeSide, enemy);
 
         if (featureIndex != -1) {
             featureIndex += hasSideOffset * ThreatInputs::PieceOffsets::END;

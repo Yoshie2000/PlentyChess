@@ -47,7 +47,6 @@ struct DirtyPiece {
   Square origin;
   Square target;
   Piece piece;
-  Color pieceColor;
 };
 
 struct DirtyThreat {
@@ -55,8 +54,6 @@ struct DirtyThreat {
   Piece attackedPiece;
   Square square;
   Square attackedSquare;
-  Color pieceColor;
-  Color attackedColor;
   bool add;
 };
 
@@ -89,7 +86,7 @@ struct FinnyEntry {
   alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
 
   Bitboard byColor[2][2];
-  Bitboard byPiece[2][Piece::TOTAL];
+  Bitboard byPiece[2][PieceType::TOTAL];
 };
 
 struct NetworkData {
@@ -119,10 +116,10 @@ public:
 
   FinnyEntry finnyTable[2][KING_BUCKETS];
 
-  void addPiece(Square square, Piece piece, Color pieceColor);
-  void removePiece(Square square, Piece piece, Color pieceColor);
-  void movePiece(Square origin, Square target, Piece piece, Color pieceColor);
-  void updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add);
+  void addPiece(Square square, Piece piece);
+  void removePiece(Square square, Piece piece);
+  void movePiece(Square origin, Square target, Piece piece);
+  void updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, bool add);
 
   void incrementAccumulator();
   void decrementAccumulator();

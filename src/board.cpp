@@ -29,11 +29,11 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
 
     // Clear everything
     for (Square s = 0; s < 64; s++) {
-        pieces[s] = Piece::NONE;
+        pieces[s] = Piece::NO_PIECE;
     }
     for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
         byColor[c] = bitboard(0);
-        for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
+        for (PieceType p = PieceType::PAWN; p < PieceType::TOTAL; ++p) {
             byPiece[p] = bitboard(0);
         }
     }
@@ -53,21 +53,21 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
             continue;
         }
 
-        auto addPiece = [this](Piece piece, Color color, Square sq) {
+        auto addPiece = [this](PieceType piece, Color color, Square sq) {
             Bitboard sqBB = bitboard(sq);
             byColor[color] |= sqBB;
             byPiece[piece] |= sqBB;
-            pieces[sq] = piece;
+            pieces[sq] = makePiece(piece, color);
 
-            uint64_t hash = Zobrist::PIECE_SQUARES[color][piece][sq];
+            uint64_t hash = Zobrist::PIECE_SQUARES[pieces[sq]][sq];
             hashes.hash ^= hash;
-            if (piece == Piece::PAWN)
+            if (piece == PieceType::PAWN)
                 hashes.pawnHash ^= hash;
             else {
                 hashes.nonPawnHash[color] ^= hash;
-                if (piece == Piece::KNIGHT || piece == Piece::BISHOP || piece == Piece::KING)
+                if (piece == PieceType::KNIGHT || piece == PieceType::BISHOP || piece == PieceType::KING)
                     hashes.minorHash ^= hash;
-                if (piece == Piece::ROOK || piece == Piece::QUEEN || piece == Piece::KING)
+                if (piece == PieceType::ROOK || piece == PieceType::QUEEN || piece == PieceType::KING)
                     hashes.majorHash ^= hash;
             }
             };
@@ -75,7 +75,7 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
         std::string pieceChars = "PNBRQKpnbrqk";
         size_t idx = pieceChars.find(c);
         if (idx != std::string::npos) {
-            Piece piece = static_cast<Piece>(idx % 6);
+            PieceType piece = static_cast<PieceType>(idx % 6);
             Color color = idx < 6 ? Color::WHITE : Color::BLACK;
             addPiece(piece, color, currentSquare++);
         }
@@ -101,7 +101,7 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
             bool kingside = index % 2 == 0;
 
             // Find position of corresponding rook
-            Bitboard rookBB = byColor[side] & byPiece[Piece::ROOK] & backrank;
+            Bitboard rookBB = byColor[side] & byPiece[PieceType::ROOK] & backrank;
             std::vector<Square> rooks;
             while (rookBB) {
                 rooks.push_back(popLSB(&rookBB));
@@ -113,7 +113,7 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
             // Rook file is already given
             Color side = c >= 'A' && c <= 'H' ? Color::WHITE : Color::BLACK;
             int rookFile = side == Color::WHITE ? int(c - 'A') : int(c - 'a');
-            Square king = lsb(byColor[side] & byPiece[Piece::KING]);
+            Square king = lsb(byColor[side] & byPiece[PieceType::KING]);
             int index = 2 * side + (rookFile < fileOf(king));
 
             castling |= 1 << index;
@@ -131,7 +131,7 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
         enpassantTarget = bitboard(epTargetSquare);
 
         // Check if there's *actually* a pawn that can do enpassent
-        Bitboard enemyPawns = byColor[flip(stm)] & byPiece[Piece::PAWN];
+        Bitboard enemyPawns = byColor[flip(stm)] & byPiece[PieceType::PAWN];
         Bitboard epRank = stm == Color::WHITE ? BB::RANK_4 : BB::RANK_5;
         Square pawnSquare1 = epTargetSquare + 1 + UP[stm];
         Square pawnSquare2 = epTargetSquare - 1 + UP[stm];
@@ -141,7 +141,7 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
     }
 
     // Update king checking stuff
-    Square enemyKing = lsb(byColor[stm] & byPiece[Piece::KING]);
+    Square enemyKing = lsb(byColor[stm] & byPiece[PieceType::KING]);
     checkers = attackersTo(enemyKing) & byColor[flip(stm)];
     checkerCount = BB::popcount(checkers);
 
@@ -163,14 +163,14 @@ std::string Board::fen() {
         for (int file = 0; file < 8; file++) {
             Square s = Square(8 * rank + file);
             Piece p = pieces[s];
-            if (p == Piece::NONE)
+            if (p == Piece::NO_PIECE)
                 freeSquares++;
             else {
                 if (freeSquares != 0) {
                     result += std::to_string(freeSquares);
                     freeSquares = 0;
                 }
-                result += (byColor[Color::WHITE] & bitboard(s)) ? toupper(pieceChars[p]) : pieceChars[p];
+                result += (byColor[Color::WHITE] & bitboard(s)) ? toupper(pieceChars[typeOf(p)]) : pieceChars[typeOf(p)];
             }
         }
         if (freeSquares != 0)
@@ -206,33 +206,30 @@ std::string Board::fen() {
 }
 
 template<bool add>
-void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
+void Board::updatePieceThreats(Piece piece, Square square, NNUE* nnue) {
     // Process attacks of the current piece to other pieces
     Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
-    Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor) & occupancy;
+    Bitboard attacked = BB::attackedSquares(typeOf(piece), square, occupancy, colorOf(piece)) & occupancy;
     while (attacked) {
         Square attackedSquare = popLSB(&attacked);
         Piece attackedPiece = pieces[attackedSquare];
-        Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
 
-        assert(attackedPiece != Piece::NONE);
+        assert(attackedPiece != Piece::NO_PIECE);
 
-        nnue->updateThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add);
+        nnue->updateThreat(piece, attackedPiece, square, attackedSquare, add);
     }
 
     Bitboard rookAttacks = getRookMoves(square, occupancy);
     Bitboard bishopAttacks = getBishopMoves(square, occupancy);
     Bitboard queenAttacks = rookAttacks | bishopAttacks;
 
-    Bitboard slidingPieces = (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]) & bishopAttacks;
-    slidingPieces |= (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]) & rookAttacks;
+    Bitboard slidingPieces = (byPiece[PieceType::BISHOP] | byPiece[PieceType::QUEEN]) & bishopAttacks;
+    slidingPieces |= (byPiece[PieceType::ROOK] | byPiece[PieceType::QUEEN]) & rookAttacks;
 
     // Process attacks of sliding pieces that are now blocked by this piece
     while (slidingPieces) {
         Square slidingPieceSquare = popLSB(&slidingPieces);
-        Bitboard slidingPieceBB = bitboard(slidingPieceSquare);
         Piece slidingPiece = pieces[slidingPieceSquare];
-        Color slidingPieceColor = (byColor[Color::WHITE] & slidingPieceBB) ? Color::WHITE : Color::BLACK;
 
         Bitboard ray = BB::RAY_PASS[slidingPieceSquare][square];
         Bitboard threatened = ray & occupancy & queenAttacks;
@@ -242,46 +239,47 @@ void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNU
         if (threatened) {
             Square attackedSquare = lsb(threatened);
             Piece attackedPiece = pieces[attackedSquare];
-            Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
 
             ray &= BB::BETWEEN[square][attackedSquare];
-            nnue->updateThreat(slidingPiece, attackedPiece, slidingPieceSquare, attackedSquare, slidingPieceColor, attackedColor, !add);
+            nnue->updateThreat(slidingPiece, attackedPiece, slidingPieceSquare, attackedSquare, !add);
         }
 
-        nnue->updateThreat(slidingPiece, piece, slidingPieceSquare, square, slidingPieceColor, pieceColor, add);
+        nnue->updateThreat(slidingPiece, piece, slidingPieceSquare, square, add);
     }
 
     // Process attacks of non-slider pieces that were already attacking this square
-    Bitboard attackingPawns = byPiece[Piece::PAWN] & ((byColor[Color::BLACK] & BB::pawnAttacks(bitboard(square), Color::WHITE)) | (byColor[Color::WHITE] & BB::pawnAttacks(bitboard(square), Color::BLACK)));
-    Bitboard attackingKnights = byPiece[Piece::KNIGHT] & BB::KNIGHT_ATTACKS[square];
-    Bitboard attackingKings = byPiece[Piece::KING] & BB::KING_ATTACKS[square];
+    Bitboard attackingPawns = byPiece[PieceType::PAWN] & ((byColor[Color::BLACK] & BB::pawnAttacks(bitboard(square), Color::WHITE)) | (byColor[Color::WHITE] & BB::pawnAttacks(bitboard(square), Color::BLACK)));
+    Bitboard attackingKnights = byPiece[PieceType::KNIGHT] & BB::KNIGHT_ATTACKS[square];
+    Bitboard attackingKings = byPiece[PieceType::KING] & BB::KING_ATTACKS[square];
     Bitboard attackingSquares = attackingPawns | attackingKnights | attackingKings;
     while (attackingSquares) {
         Square attackingSquare = popLSB(&attackingSquares);
         Piece attackingPiece = pieces[attackingSquare];
-        Color attackingColor = (bitboard(attackingSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
 
-        assert(attackingPiece != Piece::NONE);
+        assert(attackingPiece != Piece::NO_PIECE);
 
-        nnue->updateThreat(attackingPiece, piece, attackingSquare, square, attackingColor, pieceColor, add);
+        nnue->updateThreat(attackingPiece, piece, attackingSquare, square, add);
     }
 }
 
-void Board::updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta) {
-    if (piece == Piece::PAWN) {
+void Board::updatePieceHash(Piece piece, uint64_t hashDelta) {
+    PieceType type = typeOf(piece);
+    if (type == PieceType::PAWN) {
         hashes.pawnHash ^= hashDelta;
     }
     else {
-        hashes.nonPawnHash[pieceColor] ^= hashDelta;
-        if (piece == Piece::KNIGHT || piece == Piece::BISHOP || piece == Piece::KING)
+        hashes.nonPawnHash[colorOf(piece)] ^= hashDelta;
+        if (type == PieceType::KNIGHT || type == PieceType::BISHOP || type == PieceType::KING)
             hashes.minorHash ^= hashDelta;
-        if (piece == Piece::ROOK || piece == Piece::QUEEN || piece == Piece::KING)
+        if (type == PieceType::ROOK || type == PieceType::QUEEN || type == PieceType::KING)
             hashes.majorHash ^= hashDelta;
     }
 }
 
-void Board::updatePieceCastling(Piece piece, Color pieceColor, Square origin) {
-    if (piece == Piece::ROOK) {
+void Board::updatePieceCastling(Piece piece, Square origin) {
+    PieceType type = typeOf(piece);
+    Color pieceColor = colorOf(piece);
+    if (type == PieceType::ROOK) {
         for (auto direction : { Castling::KINGSIDE, Castling::QUEENSIDE }) {
             if (origin == getCastlingRookSquare(pieceColor, direction)) {
                 castling &= ~Castling::getMask(pieceColor, direction);
@@ -289,61 +287,61 @@ void Board::updatePieceCastling(Piece piece, Color pieceColor, Square origin) {
         }
     }
 
-    if (piece == Piece::KING) {
+    if (type == PieceType::KING) {
         castling &= ~Castling::getMask(pieceColor);
     }
 }
 
-void Board::addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
-    assert(pieces[square] == Piece::NONE);
+void Board::addPiece(Piece piece, Square square, NNUE* nnue) {
+    assert(pieces[square] == Piece::NO_PIECE);
 
     Bitboard squareBB = bitboard(square);
-    byColor[pieceColor] ^= squareBB;
-    byPiece[piece] ^= squareBB;
+    byColor[colorOf(piece)] ^= squareBB;
+    byPiece[typeOf(piece)] ^= squareBB;
 
     pieces[square] = piece;
 
-    nnue->addPiece(square, piece, pieceColor);
+    nnue->addPiece(square, piece);
 
-    updatePieceThreats<true>(piece, pieceColor, square, nnue);
-    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
-    updatePieceCastling(piece, pieceColor, square);
+    updatePieceThreats<true>(piece, square, nnue);
+    updatePieceHash(piece, Zobrist::PIECE_SQUARES[piece][square]);
+    updatePieceCastling(piece, square);
 };
 
-void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
-    assert(pieces[square] != Piece::NONE);
+void Board::removePiece(Piece piece, Square square, NNUE* nnue) {
+    assert(pieces[square] != Piece::NO_PIECE);
 
     Bitboard squareBB = bitboard(square);
-    byColor[pieceColor] ^= squareBB;
-    byPiece[piece] ^= squareBB;
+    byColor[colorOf(piece)] ^= squareBB;
+    byPiece[typeOf(piece)] ^= squareBB;
 
-    pieces[square] = Piece::NONE;
+    pieces[square] = Piece::NO_PIECE;
 
-    nnue->removePiece(square, piece, pieceColor);
+    nnue->removePiece(square, piece);
 
-    updatePieceThreats<false>(piece, pieceColor, square, nnue);
-    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
-    updatePieceCastling(piece, pieceColor, square);
+    updatePieceThreats<false>(piece, square, nnue);
+    updatePieceHash(piece, Zobrist::PIECE_SQUARES[piece][square]);
+    updatePieceCastling(piece, square);
 };
 
-void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue) {
-    assert(pieces[origin] != Piece::NONE);
-    assert(pieces[target] == Piece::NONE);
+void Board::movePiece(Piece piece, Square origin, Square target, NNUE* nnue) {
+    assert(pieces[origin] != Piece::NO_PIECE);
+    assert(pieces[target] == Piece::NO_PIECE);
 
-    nnue->movePiece(origin, target, piece, pieceColor);
+    nnue->movePiece(origin, target, piece);
 
-    updatePieceThreats<false>(piece, pieceColor, origin, nnue);
+    updatePieceThreats<false>(piece, origin, nnue);
 
     Bitboard fromTo = bitboard(origin) ^ bitboard(target);
-    byColor[pieceColor] ^= fromTo;
-    byPiece[piece] ^= fromTo;
+    byColor[colorOf(piece)] ^= fromTo;
+    byPiece[typeOf(piece)] ^= fromTo;
 
-    pieces[origin] = Piece::NONE;
+    pieces[origin] = Piece::NO_PIECE;
     pieces[target] = piece;
 
-    updatePieceThreats<true>(piece, pieceColor, target, nnue);
-    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][origin] ^ Zobrist::PIECE_SQUARES[pieceColor][piece][target]);
-    updatePieceCastling(piece, pieceColor, origin);
+    updatePieceThreats<true>(piece, target, nnue);
+    updatePieceHash(piece, Zobrist::PIECE_SQUARES[piece][origin] ^ Zobrist::PIECE_SQUARES[piece][target]);
+    updatePieceCastling(piece, origin);
 };
 
 void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
@@ -368,20 +366,20 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
     Square captureTarget = target;
 
     Piece piece = pieces[origin];
-    Piece promotionPiece = Piece::NONE;
+    Piece promotionPiece = Piece::NO_PIECE;
 
     switch (type) {
     case MOVE_PROMOTION:
 
-        if (capturedPiece != Piece::NONE) {
-            removePiece(capturedPiece, flip(stm), captureTarget, nnue);
+        if (capturedPiece != Piece::NO_PIECE) {
+            removePiece(capturedPiece, captureTarget, nnue);
         }
 
-        removePiece(piece, stm, origin, nnue);
+        removePiece(piece, origin, nnue);
         rule50_ply = 0;
 
-        promotionPiece = PROMOTION_PIECE[promotionType(move)];
-        addPiece(promotionPiece, stm, target, nnue);
+        promotionPiece = makePiece(PROMOTION_PIECE[promotionType(move)], stm);
+        addPiece(promotionPiece, target, nnue);
 
         break;
 
@@ -392,45 +390,47 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
         Square rookTarget = Castling::getRookSquare(stm, direction);
         Square kingTarget = Castling::getKingSquare(stm, direction);
 
-        removePiece(Piece::KING, stm, origin, nnue);
-        removePiece(Piece::ROOK, stm, rookOrigin, nnue);
-        addPiece(Piece::KING, stm, kingTarget, nnue);
-        addPiece(Piece::ROOK, stm, rookTarget, nnue);
+        Piece kingPiece = makePiece(PieceType::KING, stm);
+        Piece rookPiece = makePiece(PieceType::ROOK, stm);
+        removePiece(kingPiece, origin, nnue);
+        removePiece(rookPiece, rookOrigin, nnue);
+        addPiece(kingPiece, kingTarget, nnue);
+        addPiece(rookPiece, rookTarget, nnue);
 
-        capturedPiece = Piece::NONE;
+        capturedPiece = Piece::NO_PIECE;
     }
                       break;
 
     case MOVE_ENPASSANT:
-        movePiece(piece, stm, origin, target, nnue);
+        movePiece(piece, origin, target, nnue);
         rule50_ply = 0;
 
         captureTarget = target - UP[stm];
-        capturedPiece = Piece::PAWN;
+        capturedPiece = makePiece(PieceType::PAWN, flip(stm));
 
         assert(captureTarget < 64);
 
-        removePiece(Piece::PAWN, flip(stm), captureTarget, nnue);
+        removePiece(capturedPiece, captureTarget, nnue);
 
         break;
 
     default: // Normal moves
 
-        if (capturedPiece != Piece::NONE) {
-            removePiece(capturedPiece, flip(stm), captureTarget, nnue);
+        if (capturedPiece != Piece::NO_PIECE) {
+            removePiece(capturedPiece, captureTarget, nnue);
             rule50_ply = 0;
         }
 
-        movePiece(piece, stm, origin, target, nnue);
+        movePiece(piece, origin, target, nnue);
 
-        if (piece == Piece::PAWN) {
+        if (typeOf(piece) == PieceType::PAWN) {
             rule50_ply = 0;
 
             // Double push
             if ((origin ^ target) == 16) {
                 assert(target - UP[stm] < 64);
 
-                Bitboard enemyPawns = byColor[flip(stm)] & byPiece[Piece::PAWN];
+                Bitboard enemyPawns = byColor[flip(stm)] & byPiece[PieceType::PAWN];
                 Bitboard epRank = stm == Color::WHITE ? BB::RANK_4 : BB::RANK_5;
                 Square pawnSquare1 = target + 1;
                 Square pawnSquare2 = target - 1;
@@ -446,10 +446,10 @@ void Board::doMove(Move move, uint64_t newHash, NNUE* nnue) {
     }
 
     // Update king checking stuff
-    assert((byColor[flip(stm)] & byPiece[Piece::KING]) > 0);
-    assert((byColor[stm] & byPiece[Piece::KING]) > 0);
+    assert((byColor[flip(stm)] & byPiece[PieceType::KING]) > 0);
+    assert((byColor[stm] & byPiece[PieceType::KING]) > 0);
 
-    Square enemyKing = lsb(byColor[flip(stm)] & byPiece[Piece::KING]);
+    Square enemyKing = lsb(byColor[flip(stm)] & byPiece[PieceType::KING]);
     checkers = attackersTo(enemyKing) & byColor[stm];
     checkerCount = checkers ? BB::popcount(checkers) : 0;
     updateSliderPins(Color::WHITE);
@@ -477,7 +477,7 @@ void Board::doNullMove() {
     enpassantTarget = 0;
 
     // Update king checking stuff
-    assert((byColor[flip(stm)] & byPiece[Piece::KING]) > 0);
+    assert((byColor[flip(stm)] & byPiece[PieceType::KING]) > 0);
 
     checkers = bitboard(0);
     checkerCount = 0;
@@ -494,23 +494,23 @@ void Board::calculateThreats() {
     Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
     Color them = flip(stm);
 
-    threats.pawnThreats = BB::pawnAttacks(byPiece[Piece::PAWN] & byColor[them], them);
-    threats.knightThreats = BB::knightAttacks(byPiece[Piece::KNIGHT] & byColor[them]);
+    threats.pawnThreats = BB::pawnAttacks(byPiece[PieceType::PAWN] & byColor[them], them);
+    threats.knightThreats = BB::knightAttacks(byPiece[PieceType::KNIGHT] & byColor[them]);
 
     threats.bishopThreats = 0;
-    Bitboard bishops = byPiece[Piece::BISHOP] & byColor[them];
+    Bitboard bishops = byPiece[PieceType::BISHOP] & byColor[them];
     while (bishops) {
         threats.bishopThreats |= getBishopMoves(popLSB(&bishops), occupied);
     }
 
     threats.rookThreats = 0;
-    Bitboard rooks = byPiece[Piece::ROOK] & byColor[them];
+    Bitboard rooks = byPiece[PieceType::ROOK] & byColor[them];
     while (rooks) {
         threats.rookThreats |= getRookMoves(popLSB(&rooks), occupied);
     }
 
     threats.queenThreats = 0;
-    Bitboard queens = byPiece[Piece::QUEEN] & byColor[them];
+    Bitboard queens = byPiece[PieceType::QUEEN] & byColor[them];
     while (queens) {
         Square square = popLSB(&queens);
         threats.queenThreats |= getRookMoves(square, occupied);
@@ -518,7 +518,7 @@ void Board::calculateThreats() {
     }
 
     threats.kingThreats = 0;
-    Bitboard kings = byPiece[Piece::KING] & byColor[them];
+    Bitboard kings = byPiece[PieceType::KING] & byColor[them];
     while (kings) {
         threats.kingThreats |= BB::KING_ATTACKS[popLSB(&kings)];
     };
@@ -530,10 +530,10 @@ bool Board::isSquareThreatened(Square square) {
 }
 
 bool Board::opponentHasGoodCapture() {
-    Bitboard queens = byColor[stm] & byPiece[Piece::QUEEN];
-    Bitboard rooks = byColor[stm] & byPiece[Piece::ROOK];
+    Bitboard queens = byColor[stm] & byPiece[PieceType::QUEEN];
+    Bitboard rooks = byColor[stm] & byPiece[PieceType::ROOK];
     rooks |= queens;
-    Bitboard minors = byColor[stm] & (byPiece[Piece::KNIGHT] | byPiece[Piece::BISHOP]);
+    Bitboard minors = byColor[stm] & (byPiece[PieceType::KNIGHT] | byPiece[PieceType::BISHOP]);
     minors |= rooks;
 
     Bitboard minorThreats = threats.knightThreats | threats.bishopThreats | threats.pawnThreats;
@@ -551,7 +551,7 @@ bool Board::isPseudoLegal(Move move) {
     MoveType type = moveType(move);
 
     // A valid piece needs to be on the origin square
-    if (pieces[origin] == Piece::NONE) return false;
+    if (pieces[origin] == Piece::NO_PIECE) return false;
     // We can't capture our own piece, except in castling
     if (type != MOVE_CASTLING && (byColor[stm] & targetBB)) return false;
     // We can't move the enemies piece
@@ -560,11 +560,11 @@ bool Board::isPseudoLegal(Move move) {
     // Non-standard movetypes
     switch (type) {
     case MOVE_CASTLING: {
-        if (piece != Piece::KING || checkers) return false;
+        if (typeOf(piece) != PieceType::KING || checkers) return false;
 
         // Check for pieces between king and rook
         auto direction = Castling::getDirection(origin, target);
-        Square kingOrigin = lsb(byColor[stm] & byPiece[Piece::KING]);
+        Square kingOrigin = lsb(byColor[stm] & byPiece[PieceType::KING]);
         Square kingTarget = Castling::getKingSquare(stm, direction);
         Square rookOrigin = getCastlingRookSquare(stm, direction);
         Square rookTarget = Castling::getRookSquare(stm, direction);
@@ -578,23 +578,23 @@ bool Board::isPseudoLegal(Move move) {
         return castling & Castling::getMask(stm, Castling::getDirection(origin, target));
     }
     case MOVE_ENPASSANT:
-        if (piece != Piece::PAWN) return false;
+        if (typeOf(piece) != PieceType::PAWN) return false;
         if (checkerCount > 1) return false;
         if (checkers && !(lsb(checkers) == target - UP[stm])) return false;
         // Check for EP flag on the right file
-        return (bitboard(target) & enpassantTarget) && pieces[target - UP[stm]] == Piece::PAWN;
+        return (bitboard(target) & enpassantTarget) && typeOf(pieces[target - UP[stm]]) == PieceType::PAWN;
     case MOVE_PROMOTION:
-        if (piece != Piece::PAWN) return false;
+        if (typeOf(piece) != PieceType::PAWN) return false;
         if (checkerCount > 1) return false;
         if (checkers) {
             bool capturesChecker = target == lsb(checkers);
-            bool blocksCheck = BB::BETWEEN[lsb(byColor[stm] & byPiece[Piece::KING])][lsb(checkers)] & bitboard(target);
+            bool blocksCheck = BB::BETWEEN[lsb(byColor[stm] & byPiece[PieceType::KING])][lsb(checkers)] & bitboard(target);
             if (!capturesChecker && !blocksCheck)
                 return false;
         }
         if (
             !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[flip(stm)]) && // Capture promotion?
-            !(origin + UP[stm] == target && pieces[target] == Piece::NONE)) // Push promotion?
+            !(origin + UP[stm] == target && pieces[target] == Piece::NO_PIECE)) // Push promotion?
             return false;
         return true;
     default:
@@ -602,30 +602,30 @@ bool Board::isPseudoLegal(Move move) {
     }
 
     Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
-    switch (piece) {
-    case Piece::PAWN:
+    switch (typeOf(piece)) {
+    case PieceType::PAWN:
         if (targetBB & (BB::RANK_8 | BB::RANK_1)) return false;
 
         if (
             !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[flip(stm)]) && // Capture?
-            !(origin + UP[stm] == target && pieces[target] == Piece::NONE) && // Single push?
-            !(origin + 2 * UP[stm] == target && pieces[target] == Piece::NONE && pieces[target - UP[stm]] == Piece::NONE && (originBB & (BB::RANK_2 | BB::RANK_7))) // Double push?
+            !(origin + UP[stm] == target && pieces[target] == Piece::NO_PIECE) && // Single push?
+            !(origin + 2 * UP[stm] == target && pieces[target] == Piece::NO_PIECE && pieces[target - UP[stm]] == Piece::NO_PIECE && (originBB & (BB::RANK_2 | BB::RANK_7))) // Double push?
             )
             return false;
         break;
-    case Piece::KNIGHT:
+    case PieceType::KNIGHT:
         if (!(BB::KNIGHT_ATTACKS[origin] & targetBB)) return false;
         break;
-    case Piece::BISHOP:
+    case PieceType::BISHOP:
         if (!(getBishopMoves(origin, occupied) & targetBB)) return false;
         break;
-    case Piece::ROOK:
+    case PieceType::ROOK:
         if (!(getRookMoves(origin, occupied) & targetBB)) return false;
         break;
-    case Piece::QUEEN:
+    case PieceType::QUEEN:
         if (!((getBishopMoves(origin, occupied) | getRookMoves(origin, occupied)) & targetBB)) return false;
         break;
-    case Piece::KING:
+    case PieceType::KING:
         if (!(BB::KING_ATTACKS[origin] & targetBB)) return false;
         break;
     default:
@@ -633,13 +633,13 @@ bool Board::isPseudoLegal(Move move) {
     }
 
     if (checkers) {
-        if (piece != Piece::KING) {
+        if (typeOf(piece) != PieceType::KING) {
             // Double check requires king moves
             if (checkerCount > 1)
                 return false;
 
             bool capturesChecker = target == lsb(checkers);
-            bool blocksCheck = BB::BETWEEN[lsb(byColor[stm] & byPiece[Piece::KING])][lsb(checkers)] & bitboard(target);
+            bool blocksCheck = BB::BETWEEN[lsb(byColor[stm] & byPiece[PieceType::KING])][lsb(checkers)] & bitboard(target);
             if (!capturesChecker && !blocksCheck)
                 return false;
         }
@@ -656,7 +656,7 @@ bool Board::isLegal(Move move) {
     Square target = moveTarget(move);
     Bitboard originBB = bitboard(origin);
 
-    Square king = lsb(byPiece[Piece::KING] & byColor[stm]);
+    Square king = lsb(byPiece[PieceType::KING] & byColor[stm]);
 
     MoveType type = moveType(move);
     if (type == MOVE_ENPASSANT) {
@@ -668,8 +668,8 @@ bool Board::isLegal(Move move) {
         Bitboard occupied = ((byColor[Color::WHITE] | byColor[Color::BLACK]) ^ originBB ^ epSquareBB) | targetBB;
 
         // Check if any rooks/queens/bishops attack the king square, given the occupied pieces after this EP move
-        Bitboard rookAttacks = getRookMoves(king, occupied) & (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]) & byColor[flip(stm)];
-        Bitboard bishopAttacks = getBishopMoves(king, occupied) & (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]) & byColor[flip(stm)];
+        Bitboard rookAttacks = getRookMoves(king, occupied) & (byPiece[PieceType::ROOK] | byPiece[PieceType::QUEEN]) & byColor[flip(stm)];
+        Bitboard bishopAttacks = getBishopMoves(king, occupied) & (byPiece[PieceType::BISHOP] | byPiece[PieceType::QUEEN]) & byColor[flip(stm)];
         return !rookAttacks && !bishopAttacks;
     }
 
@@ -694,7 +694,7 @@ bool Board::isLegal(Move move) {
         return (castling & Castling::getMask(stm, direction)) && !(blockers[stm] & bitboard(target));
     }
 
-    if (pieces[origin] == Piece::KING) {
+    if (typeOf(pieces[origin]) == PieceType::KING) {
         // Check that we're not moving into an attack
         Bitboard occupied = byColor[Color::WHITE] | byColor[Color::BLACK];
         return !(byColor[flip(stm)] & attackersTo(target, occupied ^ bitboard(origin)));
@@ -709,10 +709,10 @@ bool Board::givesCheck(Move move) {
     Square origin = moveOrigin(move);
     Square target = moveTarget(move);
     Bitboard occ = byColor[Color::WHITE] | byColor[Color::BLACK];
-    Bitboard enemyKing = byColor[flip(stm)] & byPiece[Piece::KING];
+    Bitboard enemyKing = byColor[flip(stm)] & byPiece[PieceType::KING];
 
     // Direct check
-    Bitboard attacks = BB::attackedSquares(pieces[origin], target, occ ^ bitboard(origin) ^ bitboard(target), stm);
+    Bitboard attacks = BB::attackedSquares(typeOf(pieces[origin]), target, occ ^ bitboard(origin) ^ bitboard(target), stm);
     if (attacks & enemyKing)
         return true;
 
@@ -723,18 +723,18 @@ bool Board::givesCheck(Move move) {
 
     switch (type) {
     case MOVE_PROMOTION: {
-        Piece promotionPiece = PROMOTION_PIECE[promotionType(move)];
+        PieceType promotionPiece = PROMOTION_PIECE[promotionType(move)];
         return BB::attackedSquares(promotionPiece, target, occ ^ bitboard(origin), stm) & enemyKing;
     }
     case MOVE_CASTLING: {
-        return BB::attackedSquares(Piece::ROOK, Castling::getRookSquare(stm, Castling::getDirection(origin, target)), occ, stm) & enemyKing;
+        return BB::attackedSquares(PieceType::ROOK, Castling::getRookSquare(stm, Castling::getDirection(origin, target)), occ, stm) & enemyKing;
     }
     case MOVE_ENPASSANT: {
         Square epSquare = target - UP[stm];
         Bitboard occupied = (occ ^ bitboard(origin) ^ bitboard(epSquare)) | bitboard(target);
         Square ek = lsb(enemyKing);
-        return (BB::attackedSquares(Piece::ROOK, ek, occupied, stm) & byColor[stm] & (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]))
-            | (BB::attackedSquares(Piece::BISHOP, ek, occupied, stm) & byColor[stm] & (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]));
+        return (BB::attackedSquares(PieceType::ROOK, ek, occupied, stm) & byColor[stm] & (byPiece[PieceType::ROOK] | byPiece[PieceType::QUEEN]))
+            | (BB::attackedSquares(PieceType::BISHOP, ek, occupied, stm) & byColor[stm] & (byPiece[PieceType::BISHOP] | byPiece[PieceType::QUEEN]));
     }
     default:
         return false;
@@ -751,20 +751,22 @@ uint64_t Board::hashAfter(Move move) {
     Piece piece = pieces[origin];
     Piece capturedPiece = pieces[target];
 
+    assert(piece != Piece::NO_PIECE);
+
     MoveType type = moveType(move);
 
     if (enpassantTarget != 0)
         hash ^= Zobrist::ENPASSENT[fileOf(lsb(enpassantTarget))];
 
-    if (piece == Piece::PAWN) {
+    if (typeOf(piece) == PieceType::PAWN) {
         if (type == MOVE_ENPASSANT) {
-            capturedPiece = Piece::PAWN;
+            capturedPiece = makePiece(PieceType::PAWN, flip(stm));
             captureTarget = target - UP[stm];
         }
 
         // Double push
         if ((origin ^ target) == 16) {
-            Bitboard enemyPawns = byColor[flip(stm)] & byPiece[Piece::PAWN];
+            Bitboard enemyPawns = byColor[flip(stm)] & byPiece[PieceType::PAWN];
             Bitboard epRank = stm == Color::WHITE ? BB::RANK_4 : BB::RANK_5;
             Square pawnSquare1 = target + 1;
             Square pawnSquare2 = target - 1;
@@ -775,7 +777,7 @@ uint64_t Board::hashAfter(Move move) {
     }
 
     if (type == MOVE_CASTLING) {
-        capturedPiece = Piece::NONE;
+        capturedPiece = Piece::NO_PIECE;
 
         auto direction = Castling::getDirection(origin, target);
         Square rookOrigin = getCastlingRookSquare(stm, direction);
@@ -785,22 +787,24 @@ uint64_t Board::hashAfter(Move move) {
         hash ^= Zobrist::CASTLING[castling];
         hash ^= Zobrist::CASTLING[castling & ~Castling::getMask(stm)];
 
-        hash ^= Zobrist::PIECE_SQUARES[stm][Piece::KING][origin] ^ Zobrist::PIECE_SQUARES[stm][Piece::KING][kingTarget];
-        hash ^= Zobrist::PIECE_SQUARES[stm][Piece::ROOK][rookOrigin] ^ Zobrist::PIECE_SQUARES[stm][Piece::ROOK][rookTarget];
+        Piece kingPiece = makePiece(PieceType::KING, stm);
+        Piece rookPiece = makePiece(PieceType::ROOK, stm);
+        hash ^= Zobrist::PIECE_SQUARES[kingPiece][origin] ^ Zobrist::PIECE_SQUARES[kingPiece][kingTarget];
+        hash ^= Zobrist::PIECE_SQUARES[rookPiece][rookOrigin] ^ Zobrist::PIECE_SQUARES[rookPiece][rookTarget];
     }
     else {
-        hash ^= Zobrist::PIECE_SQUARES[stm][piece][origin] ^ Zobrist::PIECE_SQUARES[stm][piece][target];
+        hash ^= Zobrist::PIECE_SQUARES[piece][origin] ^ Zobrist::PIECE_SQUARES[piece][target];
 
-        if (capturedPiece != Piece::NONE)
-            hash ^= Zobrist::PIECE_SQUARES[flip(stm)][capturedPiece][captureTarget];
+        if (capturedPiece != Piece::NO_PIECE)
+            hash ^= Zobrist::PIECE_SQUARES[capturedPiece][captureTarget];
 
-        if (piece == Piece::KING) {
+        if (typeOf(piece) == PieceType::KING) {
             hash ^= Zobrist::CASTLING[castling];
             hash ^= Zobrist::CASTLING[castling & ~Castling::getMask(stm)];
         }
 
         uint8_t tempCastling = castling;
-        if (piece == Piece::ROOK) {
+        if (typeOf(piece) == PieceType::ROOK) {
             hash ^= Zobrist::CASTLING[tempCastling];
             for (auto direction : { Castling::KINGSIDE, Castling::QUEENSIDE }) {
                 if (origin == getCastlingRookSquare(stm, direction)) {
@@ -809,7 +813,7 @@ uint64_t Board::hashAfter(Move move) {
             }
             hash ^= Zobrist::CASTLING[tempCastling];
         }
-        if (capturedPiece == Piece::ROOK) {
+        if (typeOf(capturedPiece) == PieceType::ROOK) {
             hash ^= Zobrist::CASTLING[tempCastling];
             for (auto direction : { Castling::KINGSIDE, Castling::QUEENSIDE }) {
                 if (captureTarget == getCastlingRookSquare(flip(stm), direction)) {
@@ -821,22 +825,22 @@ uint64_t Board::hashAfter(Move move) {
     }
 
     if (type == MOVE_PROMOTION) {
-        Piece promotionPiece = PROMOTION_PIECE[promotionType(move)];
-        hash ^= Zobrist::PIECE_SQUARES[stm][piece][target] ^ Zobrist::PIECE_SQUARES[stm][promotionPiece][target];
+        PieceType promotionPiece = PROMOTION_PIECE[promotionType(move)];
+        hash ^= Zobrist::PIECE_SQUARES[piece][target] ^ Zobrist::PIECE_SQUARES[promotionPiece][target];
     }
 
     return hash;
 }
 
 void Board::updateSliderPins(Color side) {
-    assert((byColor[side] & byPiece[Piece::KING]) > 0);
+    assert((byColor[side] & byPiece[PieceType::KING]) > 0);
 
-    Square king = lsb(byColor[side] & byPiece[Piece::KING]);
+    Square king = lsb(byColor[side] & byPiece[PieceType::KING]);
 
     blockers[side] = 0;
 
-    Bitboard possiblePinnersRook = getRookMoves(king, bitboard(0)) & (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]);
-    Bitboard possiblePinnersBishop = getBishopMoves(king, bitboard(0)) & (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]);
+    Bitboard possiblePinnersRook = getRookMoves(king, bitboard(0)) & (byPiece[PieceType::ROOK] | byPiece[PieceType::QUEEN]);
+    Bitboard possiblePinnersBishop = getBishopMoves(king, bitboard(0)) & (byPiece[PieceType::BISHOP] | byPiece[PieceType::QUEEN]);
     Bitboard possiblePinners = (possiblePinnersBishop | possiblePinnersRook) & byColor[flip(side)];
     Bitboard occupied = (byColor[side] | byColor[flip(side)]) ^ possiblePinners;
 
@@ -859,11 +863,11 @@ Bitboard Board::attackersTo(Square s) {
 Bitboard Board::attackersTo(Square s, Bitboard occupied) {
     Bitboard sBB = bitboard(s);
 
-    Bitboard pawnAtks = byPiece[Piece::PAWN] & ((byColor[Color::BLACK] & BB::pawnAttacks(sBB, Color::WHITE)) | (byColor[Color::WHITE] & BB::pawnAttacks(sBB, Color::BLACK)));
-    Bitboard knightAtks = byPiece[Piece::KNIGHT] & BB::KNIGHT_ATTACKS[s];
-    Bitboard bishopAtks = (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]) & getBishopMoves(s, occupied);
-    Bitboard rookAtks = (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]) & getRookMoves(s, occupied);
-    Bitboard kingAtks = byPiece[Piece::KING] & BB::KING_ATTACKS[s];
+    Bitboard pawnAtks = byPiece[PieceType::PAWN] & ((byColor[Color::BLACK] & BB::pawnAttacks(sBB, Color::WHITE)) | (byColor[Color::WHITE] & BB::pawnAttacks(sBB, Color::BLACK)));
+    Bitboard knightAtks = byPiece[PieceType::KNIGHT] & BB::KNIGHT_ATTACKS[s];
+    Bitboard bishopAtks = (byPiece[PieceType::BISHOP] | byPiece[PieceType::QUEEN]) & getBishopMoves(s, occupied);
+    Bitboard rookAtks = (byPiece[PieceType::ROOK] | byPiece[PieceType::QUEEN]) & getRookMoves(s, occupied);
+    Bitboard kingAtks = byPiece[PieceType::KING] & BB::KING_ATTACKS[s];
     return pawnAtks | knightAtks | bishopAtks | rookAtks | kingAtks;
 }
 
@@ -885,29 +889,29 @@ void Board::debugBoard() {
                 std::cout << "| E ";
             else if (((byColor[Color::WHITE] | byColor[Color::BLACK]) & mask) == 0)
                 std::cout << "|   ";
-            else if ((byColor[Color::WHITE] & byPiece[Piece::PAWN] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::PAWN] & mask) != 0)
                 std::cout << "| ♙ ";
-            else if ((byColor[Color::BLACK] & byPiece[Piece::PAWN] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::PAWN] & mask) != 0)
                 std::cout << "| ♟︎ ";
-            else if ((byColor[Color::WHITE] & byPiece[Piece::KNIGHT] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::KNIGHT] & mask) != 0)
                 std::cout << "| ♘ ";
-            else if ((byColor[Color::BLACK] & byPiece[Piece::KNIGHT] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::KNIGHT] & mask) != 0)
                 std::cout << "| ♞ ";
-            else if ((byColor[Color::WHITE] & byPiece[Piece::BISHOP] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::BISHOP] & mask) != 0)
                 std::cout << "| ♗ ";
-            else if ((byColor[Color::BLACK] & byPiece[Piece::BISHOP] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::BISHOP] & mask) != 0)
                 std::cout << "| ♝ ";
-            else if ((byColor[Color::WHITE] & byPiece[Piece::ROOK] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::ROOK] & mask) != 0)
                 std::cout << "| ♖ ";
-            else if ((byColor[Color::BLACK] & byPiece[Piece::ROOK] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::ROOK] & mask) != 0)
                 std::cout << "| ♜ ";
-            else if ((byColor[Color::WHITE] & byPiece[Piece::QUEEN] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::QUEEN] & mask) != 0)
                 std::cout << "| ♕ ";
-            else if ((byColor[Color::BLACK] & byPiece[Piece::QUEEN] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::QUEEN] & mask) != 0)
                 std::cout << "| ♛ ";
-            else if ((byColor[Color::WHITE] & byPiece[Piece::KING] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::KING] & mask) != 0)
                 std::cout << "| ♔ ";
-            else if ((byColor[Color::BLACK] & byPiece[Piece::KING] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::KING] & mask) != 0)
                 std::cout << "| ♚ ";
             else
                 std::cout << "| ? ";
@@ -933,60 +937,60 @@ int Board::validateBoard() {
             int second = 0;
             if ((enpassantTarget & mask) != 0)
                 first = 1;
-            else if (pieces[idx] == Piece::NONE)
+            else if (typeOf(pieces[idx]) == PieceType::NONE)
                 first = 2;
-            else if (pieces[idx] == Piece::PAWN && (byColor[Color::WHITE] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::PAWN && (byColor[Color::WHITE] & mask) != 0)
                 first = 3;
-            else if (pieces[idx] == Piece::PAWN && (byColor[Color::BLACK] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::PAWN && (byColor[Color::BLACK] & mask) != 0)
                 first = 4;
-            else if (pieces[idx] == Piece::KNIGHT && (byColor[Color::WHITE] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::KNIGHT && (byColor[Color::WHITE] & mask) != 0)
                 first = 5;
-            else if (pieces[idx] == Piece::KNIGHT && (byColor[Color::BLACK] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::KNIGHT && (byColor[Color::BLACK] & mask) != 0)
                 first = 6;
-            else if (pieces[idx] == Piece::BISHOP && (byColor[Color::WHITE] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::BISHOP && (byColor[Color::WHITE] & mask) != 0)
                 first = 7;
-            else if (pieces[idx] == Piece::BISHOP && (byColor[Color::BLACK] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::BISHOP && (byColor[Color::BLACK] & mask) != 0)
                 first = 8;
-            else if (pieces[idx] == Piece::ROOK && (byColor[Color::WHITE] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::ROOK && (byColor[Color::WHITE] & mask) != 0)
                 first = 9;
-            else if (pieces[idx] == Piece::ROOK && (byColor[Color::BLACK] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::ROOK && (byColor[Color::BLACK] & mask) != 0)
                 first = 10;
-            else if (pieces[idx] == Piece::QUEEN && (byColor[Color::WHITE] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::QUEEN && (byColor[Color::WHITE] & mask) != 0)
                 first = 11;
-            else if (pieces[idx] == Piece::QUEEN && (byColor[Color::BLACK] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::QUEEN && (byColor[Color::BLACK] & mask) != 0)
                 first = 12;
-            else if (pieces[idx] == Piece::KING && (byColor[Color::WHITE] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::KING && (byColor[Color::WHITE] & mask) != 0)
                 first = 13;
-            else if (pieces[idx] == Piece::KING && (byColor[Color::BLACK] & mask) != 0)
+            else if (typeOf(pieces[idx]) == PieceType::KING && (byColor[Color::BLACK] & mask) != 0)
                 first = 14;
 
             if ((enpassantTarget & mask) != 0)
                 second = 1;
             else if (((byColor[Color::WHITE] | byColor[Color::BLACK]) & mask) == 0)
                 second = 2;
-            else if ((byColor[Color::WHITE] & byPiece[Piece::PAWN] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::PAWN] & mask) != 0)
                 second = 3;
-            else if ((byColor[Color::BLACK] & byPiece[Piece::PAWN] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::PAWN] & mask) != 0)
                 second = 4;
-            else if ((byColor[Color::WHITE] & byPiece[Piece::KNIGHT] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::KNIGHT] & mask) != 0)
                 second = 5;
-            else if ((byColor[Color::BLACK] & byPiece[Piece::KNIGHT] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::KNIGHT] & mask) != 0)
                 second = 6;
-            else if ((byColor[Color::WHITE] & byPiece[Piece::BISHOP] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::BISHOP] & mask) != 0)
                 second = 7;
-            else if ((byColor[Color::BLACK] & byPiece[Piece::BISHOP] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::BISHOP] & mask) != 0)
                 second = 8;
-            else if ((byColor[Color::WHITE] & byPiece[Piece::ROOK] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::ROOK] & mask) != 0)
                 second = 9;
-            else if ((byColor[Color::BLACK] & byPiece[Piece::ROOK] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::ROOK] & mask) != 0)
                 second = 10;
-            else if ((byColor[Color::WHITE] & byPiece[Piece::QUEEN] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::QUEEN] & mask) != 0)
                 second = 11;
-            else if ((byColor[Color::BLACK] & byPiece[Piece::QUEEN] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::QUEEN] & mask) != 0)
                 second = 12;
-            else if ((byColor[Color::WHITE] & byPiece[Piece::KING] & mask) != 0)
+            else if ((byColor[Color::WHITE] & byPiece[PieceType::KING] & mask) != 0)
                 second = 13;
-            else if ((byColor[Color::BLACK] & byPiece[Piece::KING] & mask) != 0)
+            else if ((byColor[Color::BLACK] & byPiece[PieceType::KING] & mask) != 0)
                 second = 14;
 
             if (first != second) {

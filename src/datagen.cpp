@@ -41,10 +41,10 @@ bool playRandomMoves(Board& board, Worker* thread, int remainingMoves) {
     Move move = MOVE_NONE;
     while (move == MOVE_NONE) {
         int r = std::rand() % 100;
-        Piece randomPiece = r < 35 ? Piece::PAWN : r < 50 ? Piece::KNIGHT : r < 65 ? Piece::BISHOP : r < 80 ? Piece::QUEEN : r < 95 ? Piece::KING : Piece::ROOK;
+        PieceType randomPiece = r < 35 ? PieceType::PAWN : r < 50 ? PieceType::KNIGHT : r < 65 ? PieceType::BISHOP : r < 80 ? PieceType::QUEEN : r < 95 ? PieceType::KING : PieceType::ROOK;
         std::vector<Move> pieceMoves;
         for (Move m : legalMoves) {
-            if (board.pieces[moveOrigin(m)] == randomPiece)
+            if (typeOf(board.pieces[moveOrigin(m)]) == randomPiece)
                 pieceMoves.push_back(m);
         }
         if (!pieceMoves.empty()) {
