@@ -1010,7 +1010,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
                     extension = 2;
                     depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
-                    if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
+                    if (!importantCapture && singularValue + tripleExtensionMargin < singularBeta)
                         extension = 3;
                 }
             }
