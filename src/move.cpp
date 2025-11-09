@@ -424,6 +424,7 @@ int MoveGen::scoreQuiets(int beginIndex, int endIndex) {
         }
 
         int threatScore = 0;
+        assert(board->pieces[moveOrigin(move)] < Piece::NO_PIECE);
         PieceType piece = typeOf(board->pieces[moveOrigin(move)]);
         Bitboard fromBB = bitboard(moveOrigin(move));
         Bitboard toBB = bitboard(moveTarget(move));
@@ -610,8 +611,8 @@ Move stringToMove(const char* string, Board* board) {
     }
 
     // Figure out whether this is en passent or castling and set the flags accordingly
-    PieceType fromPiece = typeOf(board->pieces[origin]);
-    PieceType toPiece = typeOf(board->pieces[target]);
+    PieceType fromPiece = board->pieces[origin] != Piece::NO_PIECE ? typeOf(board->pieces[origin]) : PieceType::NONE;
+    PieceType toPiece = board->pieces[target] != Piece::NO_PIECE ? typeOf(board->pieces[target]) : PieceType::NONE;
     if (board->chess960 && fromPiece == PieceType::KING && toPiece == PieceType::ROOK && !(bitboard(target) & board->byColor[1 - board->stm]))
         move |= MOVE_CASTLING;
     if (!board->chess960 && fromPiece == PieceType::KING && std::abs(target - origin) == 2)

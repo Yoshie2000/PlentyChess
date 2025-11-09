@@ -751,8 +751,6 @@ uint64_t Board::hashAfter(Move move) {
     Piece piece = pieces[origin];
     Piece capturedPiece = pieces[target];
 
-    assert(piece != Piece::NO_PIECE);
-
     MoveType type = moveType(move);
 
     if (enpassantTarget != 0)
@@ -813,7 +811,7 @@ uint64_t Board::hashAfter(Move move) {
             }
             hash ^= Zobrist::CASTLING[tempCastling];
         }
-        if (typeOf(capturedPiece) == PieceType::ROOK) {
+        if (capturedPiece != Piece::NO_PIECE && typeOf(capturedPiece) == PieceType::ROOK) {
             hash ^= Zobrist::CASTLING[tempCastling];
             for (auto direction : { Castling::KINGSIDE, Castling::QUEENSIDE }) {
                 if (captureTarget == getCastlingRookSquare(flip(stm), direction)) {

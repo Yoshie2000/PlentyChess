@@ -186,7 +186,8 @@ void History::updateContinuationHistory(SearchStack* stack, Piece piece, Move mo
 
 int16_t* History::getCaptureHistory(Board* board, Move move) {
     Piece movedPiece = board->pieces[moveOrigin(move)];
-    PieceType capturedPieceType = typeOf(board->pieces[moveTarget(move)]);
+    Piece capturedPiece = board->pieces[moveTarget(move)];
+    PieceType capturedPieceType = capturedPiece != Piece::NO_PIECE ? typeOf(capturedPiece) : PieceType::NONE;
     Square target = moveTarget(move);
 
     if (capturedPieceType == PieceType::NONE && (move & 0x3000) != 0) // for ep and promotions, just take pawns
