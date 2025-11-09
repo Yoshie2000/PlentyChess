@@ -202,6 +202,8 @@ std::string Board::fen() {
 
     result += std::to_string(rule50_ply) + " " + std::to_string(ply);
 
+    lastMove = MOVE_NULL;
+
     return result;
 }
 

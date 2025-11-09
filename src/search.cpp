@@ -1475,6 +1475,10 @@ void Worker::iterativeDeepening() {
             // Based on fraction of nodes that went into the best move
             tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched);
 
+            // Based on whether the best move is a recapture
+            bool isRecapture = rootBoard.isCapture(rootMoves[0].move) && rootBoard.lastMove != MOVE_NULL && rootBoard.isCapture(rootBoard.lastMove) && moveTarget(rootMoves[0].move) == moveTarget(rootBoard.lastMove);
+            tmAdjustment *= isRecapture ? 0.9 : 1.0;
+
             if (timeOverDepthCleared(searchParameters, searchData, tmAdjustment)) {
                 threadPool->stopSearching();
                 return;
