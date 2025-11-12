@@ -660,6 +660,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     uint8_t ttFlag = TT_NOBOUND;
     stack->ttPv = excluded ? stack->ttPv : pvNode;
 
+    bool ttMoveEntryHit = false;
+    uint64_t ttMoveHash;
+    TTEntry ttMoveEntry;
+
     if (!excluded) {
         ttEntry = TT.probe(board->hashes.hash, &ttHit);
         if (ttHit) {
@@ -669,6 +673,11 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             ttDepth = ttEntry->getDepth();
             ttFlag = ttEntry->getFlag();
             stack->ttPv = stack->ttPv || ttEntry->getTtPv();
+
+            if (!pvNode && board->isPseudoLegal(ttMove) && board->isLegal(ttMove)) {
+                ttMoveHash = board->hashAfter(ttMove);
+                TT.prefetch(ttMoveHash);
+            }
         }
     }
 
@@ -793,7 +802,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         if (board->checkers) {
             rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
-        } else {
+        }
+        else {
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
@@ -981,6 +991,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
         }
 
+        if (!pvNode && move == ttMove) {
+            ttMoveEntry = *TT.probe(ttMoveHash, &ttMoveEntryHit);
+        }
+
         // Extensions
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
@@ -1051,6 +1065,20 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             }
         }
 
+        Eval value = 0;
+        int newDepth = depth - 100 + 100 * extension;
+
+        // doMove() skip for ttmoves
+        if (!pvNode && move == ttMove && ttMoveEntryHit) {
+            Eval nextAlpha = -alpha - 1;
+            Eval nextBeta = -alpha;
+            Eval nextTtValue = valueFromTt(ttMoveEntry.getValue(), stack->ply, board->rule50_ply); // ply and fmr dont matter here
+            uint8_t nextTtFlag = ttMoveEntry.getFlag();
+            // TT cutoff
+            if (ttMoveEntry.depth >= newDepth - ttCutOffset + ttCutFailHighMargin * (nextTtValue >= nextBeta) && nextTtValue != EVAL_NONE && ((nextTtFlag == TT_UPPERBOUND && nextTtValue <= nextAlpha) || (nextTtFlag == TT_LOWERBOUND && nextTtValue >= nextBeta) || (nextTtFlag == TT_EXACTBOUND)))
+                return -nextTtValue;
+        }
+
         // Some setup stuff
         Square origin = moveOrigin(move);
         Square target = moveTarget(move);
@@ -1064,9 +1092,6 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         searchData.nodesSearched++;
 
         Board* boardCopy = doMove(board, newHash, move);
-
-        Eval value = 0;
-        int newDepth = depth - 100 + 100 * extension;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
