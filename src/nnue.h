@@ -560,7 +560,7 @@ struct Board;
 class NNUE {
 public:
 
-  Accumulator accumulatorStack[MAX_PLY];
+  Accumulator accumulatorStack[1000];
   int currentAccumulator;
   int lastCalculatedAccumulator[2];
 

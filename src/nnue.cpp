@@ -248,10 +248,10 @@ Eval NNUE::evaluate(Board* board) {
     assert(currentAccumulator >= lastCalculatedAccumulator[Color::WHITE] && currentAccumulator >= lastCalculatedAccumulator[Color::BLACK]);
 
     // Make sure the current accumulators are up to date
-    refreshAccumulator<Color::WHITE>(&accumulatorStack[currentAccumulator]);
-    refreshAccumulator<Color::BLACK>(&accumulatorStack[currentAccumulator]);
+    calculateAccumulators<Color::WHITE>();
+    calculateAccumulators<Color::BLACK>();
 
-    // assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
+    assert(currentAccumulator == lastCalculatedAccumulator[Color::WHITE] && currentAccumulator == lastCalculatedAccumulator[Color::BLACK]);
 
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
@@ -438,18 +438,18 @@ Eval NNUE::evaluate(Board* board) {
 
     alignas(ALIGNMENT) float l4Neurons[L4_SIZE];
     memcpy(l4Neurons, networkData->l3Biases[bucket], sizeof(l4Neurons));
+    VecF* l4NeuronsVec = reinterpret_cast<VecF*>(l4Neurons);
 
     for (int l3 = 0; l3 < L3_SIZE; l3++) {
-        float l3Activated = std::clamp(l3Neurons[l3], 0.0f, 1.0f);
-        l3Activated *= l3Activated;
-
-        for (int l4 = 0; l4 < L4_SIZE; l4++) {
-            l4Neurons[l4] = std::fma(l3Activated, networkData->l3Weights[bucket][l3 * L4_SIZE + l4], l4Neurons[l4]);
+        VecF l3Activated = maxPs(minPs(set1Ps(l3Neurons[l3]), psOne), psZero);
+        l3Activated = mulPs(l3Activated, l3Activated);
+        VecF* weights = reinterpret_cast<VecF*>(&networkData->l3Weights[bucket][l3 * L4_SIZE]);
+        for (int l4 = 0; l4 < L4_SIZE / FLOAT_VEC_SIZE; l4++) {
+            l4NeuronsVec[l4] = fmaddPs(l3Activated, weights[l4], l4NeuronsVec[l4]);
         }
     }
 
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-    VecF* l4NeuronsVec = reinterpret_cast<VecF*>(l4Neurons);
     constexpr int chunks = 64 / sizeof(VecF);
 
     VecF resultSums[chunks];

@@ -28,6 +28,7 @@
 namespace UCI {
     UCIOptions Options;
     NNUE nnue;
+    NNUE nnue2;
     bool optionsDirty = false;
 }
 
@@ -223,7 +224,7 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
         << "\nTotal time (ms) : " << elapsed
         << "\nNodes searched  : " << nodes
         << "\nNodes/second    : " << 1000 * nodes / elapsed << std::endl;
-    
+
     UCI::Options.minimal.value = minimal;
 }
 
@@ -337,6 +338,182 @@ struct __attribute__((packed)) BulletEntry {
     std::uint8_t  extra[3];
 };
 
+struct __attribute__((packed)) PackedBoard {
+    std::uint64_t occ;
+    std::uint8_t  pcs[16];
+    std::uint8_t  stm_ep_square;
+    std::uint8_t  halfmove_clock;
+    std::uint16_t fullmove_number;
+    std::int16_t  score;
+    std::uint8_t  result;
+    std::uint8_t  extra;
+};
+
+struct __attribute__((packed)) ScoredMove {
+    std::uint16_t move;
+    std::int16_t eval;
+};
+
+void relabelViriformat(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
+    *stackQueue = std::deque<BoardStack>(1);
+    board->stack = &stackQueue->back();
+
+    board->startpos();
+    UCI::nnue.reset(board);
+    UCI::nnue.incrementAccumulator();
+
+    std::ifstream is(line, std::ios::binary);
+    std::ofstream os(line + ".rlbd-debug", std::ios::binary);
+
+    if (!is.is_open()) {
+        std::cout << "Failed to open input file." << std::endl;
+        return;
+    }
+
+    if (!os.is_open()) {
+        std::cout << "Failed to open output file." << std::endl;
+        return;
+    }
+
+    std::cout << "Relabling from viriformat file " << std::quoted(line) << " to "
+        << std::quoted(line + ".rlbd") << "..." << std::endl;
+
+    PackedBoard currEntry;
+    std::vector<ScoredMove> currMoves;
+
+    int64_t gameCounter = 0;
+    while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry))) {
+        stackQueue->resize(1);
+        board->stack = &stackQueue->front();
+        board->parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
+        Bitboard occ = currEntry.occ;
+        size_t count = 0;
+        bool seenKing[2] = { false, false };
+        while (occ) {
+            Square sq = popLSB(&occ);
+            uint8_t packedPieces = currEntry.pcs[count / 2];
+            int pieceWithColor = ((count % 2 == 0) ? packedPieces & 0b1111 : packedPieces >> 4);
+            Piece piece = static_cast<Piece>(pieceWithColor & 0b111);
+            Color pieceColor = static_cast<Color>(pieceWithColor >> 3);
+            count++;
+            if (piece == Piece::NONE) { // Piece::NONE == 6 == UNMOVED_ROOK => do some castling stuff
+                if (seenKing[pieceColor]) {
+                    board->castlingSquares[2 * pieceColor + 0] = sq; // kingside
+                    board->stack->castling |= 1 << (2 * pieceColor + 0);
+                }
+                else {
+                    board->castlingSquares[2 * pieceColor + 1] = sq; // queenside
+                    board->stack->castling |= 1 << (2 * pieceColor + 1);
+                }
+                piece = Piece::ROOK;
+            }
+            if (piece == Piece::KING)
+                seenKing[pieceColor] = true;
+
+            board->pieces[sq] = piece;
+            board->byColor[pieceColor] ^= bitboard(sq);
+            board->byPiece[piece] ^= bitboard(sq);
+        }
+        board->stack->enpassantTarget = (currEntry.stm_ep_square & 0b01111111) < 64 ? bitboard(Square(currEntry.stm_ep_square & 0b01111111)) : 0;
+        board->stm = (currEntry.stm_ep_square >> 7) != 0 ? Color::BLACK : Color::WHITE;
+        board->stack->rule50_ply = currEntry.halfmove_clock;
+        board->ply = currEntry.fullmove_number;
+        Square enemyKing = lsb(board->byColor[board->stm] & board->byPiece[Piece::KING]);
+        board->stack->checkers = board->attackersTo(enemyKing, board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) & board->byColor[flip(board->stm)];
+        board->stack->checkerCount = BB::popcount(board->stack->checkers);
+        board->updateSliderPins(Color::WHITE);
+        board->updateSliderPins(Color::BLACK);
+        board->calculateThreats();
+
+        UCI::nnue.reset(board);
+        currMoves.clear();
+
+        bool gameLegal = true;
+
+        int resetCounter = 0;
+        while (true) {
+            ScoredMove scoredMove;
+            is.read(reinterpret_cast<char*>(&scoredMove), sizeof(scoredMove));
+            if (scoredMove.move == 0 && scoredMove.eval == 0) {
+                break;
+            }
+
+            Move move = scoredMove.move & 0b0000111111111111; // lower 12 bits are from-to squares
+            if ((scoredMove.move & 0b1100000000000000) == 0b1100000000000000) { // promotion
+                move |= MOVE_PROMOTION;
+                int promotionPieceData = ((scoredMove.move >> 12) & 0b11);
+                assert(promotionPieceData >= 0);
+                assert(promotionPieceData <= 3);
+                move |= (3 - promotionPieceData) << 14;
+            }
+            else if ((scoredMove.move & 0b0100000000000000) == 0b0100000000000000) // enpassant
+                move |= MOVE_ENPASSANT;
+            else if ((scoredMove.move & 0b1000000000000000) == 0b1000000000000000) // castling
+                move |= MOVE_CASTLING;
+
+            // if (!board->isPseudoLegal(move)) {
+            //     board->debugBoard();
+            //     BoardStack* stack = board->stack;
+            //     while (stack) {
+            //         std::cout << moveToString(stack->move, false) << std::endl;
+            //         stack = stack->previous;
+            //     }
+            //     std::cout << g << std::endl;
+            //     os.write(reinterpret_cast<const char*>(&scoredMove), sizeof(scoredMove));
+            //     scoredMove.eval = 0;
+            //     scoredMove.move = 0;
+            //     os.write(reinterpret_cast<const char*>(&scoredMove), sizeof(scoredMove));
+            //     os.close();
+            // }
+
+            if (!board->isPseudoLegal(move) || !board->isLegal(move)) {
+                gameLegal = false;
+                std::cout << "Encountered an illegal move: " << moveToString(move, false) << std::endl;
+                std::cout << board->fen() << std::endl;
+                while (true) {
+                    is.read(reinterpret_cast<char*>(&scoredMove), sizeof(scoredMove));
+                    if (scoredMove.move == 0 && scoredMove.eval == 0) {
+                        break;
+                    }
+                }
+                break;
+            }
+
+            // assert(board->isPseudoLegal(move));
+            // assert(board->isLegal(move));
+
+            Eval eval = UCI::nnue.evaluate(board);
+            // UCI::nnue2.reset(board);
+            // assert(eval == UCI::nnue2.evaluate(board));
+
+            scoredMove.eval = board->stm == Color::BLACK ? -eval : eval;
+            currMoves.push_back(scoredMove);
+
+            stackQueue->emplace_back();
+            board->doMove(&stackQueue->back(), move, board->hashAfter(move), &UCI::nnue);
+            if (resetCounter++ > 950) {
+                UCI::nnue.reset(board);
+                resetCounter = 0;
+            }
+        }
+
+        if (gameLegal) {
+            os.write(reinterpret_cast<const char*>(&currEntry), sizeof(currEntry));
+            for (auto scoredMove : currMoves) {
+                os.write(reinterpret_cast<const char*>(&scoredMove), sizeof(scoredMove));
+            }
+            ScoredMove scoredMove;
+            scoredMove.eval = 0;
+            scoredMove.move = 0;
+            os.write(reinterpret_cast<const char*>(&scoredMove), sizeof(scoredMove));
+        }
+
+        gameCounter++;
+        if (gameCounter % 10000 == 0)
+            std::cout << "Parsed " << gameCounter << " games" << std::endl;
+    }
+}
+
 void relabel(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
     *stackQueue = std::deque<BoardStack>(1);
     board->stack = &stackQueue->back();
@@ -359,12 +536,11 @@ void relabel(std::string line, Board* board, std::deque<BoardStack>* stackQueue)
     }
 
     std::cout << "Relabling from bulletformat file " << std::quoted(line) << " to "
-              << std::quoted(line + ".out2") << "..." << std::endl;
+        << std::quoted(line + ".out2") << "..." << std::endl;
 
     BulletEntry currEntry;
 
-    while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry)))
-    {
+    while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry))) {
         board->parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
         Bitboard occ = currEntry.occ;
         size_t count = 0;
@@ -621,7 +797,7 @@ void uciLoop(int argc, char* argv[]) {
 
     if (argc > 1 && matchesToken(argv[1], "relabel")) {
         std::string param(argv[2]);
-        relabel(param, &board, &stackQueue);
+        relabelViriformat(param, &board, &stackQueue);
         return;
     }
 
@@ -673,9 +849,10 @@ void uciLoop(int argc, char* argv[]) {
                 UCI::optionsDirty = false;
             }
             go(line, &board, &stackQueue);
-        } else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
+        }
+        else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
         else if (matchesToken(line, "setoption")) setoption(line.substr(10));
-        else if (matchesToken(line, "relabel")) relabel(line.substr(8), &board, &stackQueue);
+        else if (matchesToken(line, "relabel")) relabelViriformat(line.substr(8), &board, &stackQueue);
 
         /* NON UCI COMMANDS */
         else if (matchesToken(line, "bench")) bench(&stackQueue, &board);
