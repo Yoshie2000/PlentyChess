@@ -363,7 +363,7 @@ void relabelViriformat(std::string line, Board* board, std::deque<BoardStack>* s
     UCI::nnue.incrementAccumulator();
 
     std::ifstream is(line, std::ios::binary);
-    std::ofstream os(line + ".rlbd-debug", std::ios::binary);
+    std::ofstream os(line + ".rlbd.2", std::ios::binary);
 
     if (!is.is_open()) {
         std::cout << "Failed to open input file." << std::endl;
@@ -482,11 +482,13 @@ void relabelViriformat(std::string line, Board* board, std::deque<BoardStack>* s
             // assert(board->isPseudoLegal(move));
             // assert(board->isLegal(move));
 
-            Eval eval = UCI::nnue.evaluate(board);
-            // UCI::nnue2.reset(board);
-            // assert(eval == UCI::nnue2.evaluate(board));
+            if (std::abs(scoredMove.eval) <= 32000 && !board->stack->checkers && !board->isCapture(move)) {
+                Eval eval = UCI::nnue.evaluate(board);
+                // UCI::nnue2.reset(board);
+                // assert(eval == UCI::nnue2.evaluate(board));
 
-            scoredMove.eval = board->stm == Color::BLACK ? -eval : eval;
+                scoredMove.eval = board->stm == Color::BLACK ? -eval : eval;
+            }
             currMoves.push_back(scoredMove);
 
             stackQueue->emplace_back();
