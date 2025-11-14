@@ -51,10 +51,9 @@ constexpr MoveGenStage STAGE_TTMOVE = 0;
 constexpr MoveGenStage STAGE_GEN_CAPTURES = 1;
 constexpr MoveGenStage STAGE_PLAY_GOOD_CAPTURES = 2;
 constexpr MoveGenStage STAGE_KILLER = 3;
-constexpr MoveGenStage STAGE_COUNTERS = 4;
-constexpr MoveGenStage STAGE_GEN_QUIETS = 5;
-constexpr MoveGenStage STAGE_PLAY_QUIETS = 6;
-constexpr MoveGenStage STAGE_PLAY_BAD_CAPTURES = 7;
+constexpr MoveGenStage STAGE_GEN_QUIETS = 4;
+constexpr MoveGenStage STAGE_PLAY_QUIETS = 5;
+constexpr MoveGenStage STAGE_PLAY_BAD_CAPTURES = 6;
 constexpr MoveGenStage STAGE_DONE = 100;
 
 class MoveGen {
@@ -64,7 +63,7 @@ public:
     Board* board;
     History* history;
     SearchStack* searchStack;
-    Move ttMove, counterMove;
+    Move ttMove;
     bool onlyCaptures;
     Move killer;
 

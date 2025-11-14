@@ -10,7 +10,6 @@ constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 class History {
 
     int16_t quietHistory[2][64][2][64][2];
-    Move counterMoves[64][64];
     int16_t captureHistory[2][Piece::TOTAL][64][Piece::TOTAL];
 
     int16_t correctionHistory[2][CORRECTION_HISTORY_SIZE];
@@ -47,8 +46,5 @@ public:
     void updateCaptureHistory(int16_t depth, Board* board, Move move, int moveSearchCount, Move* captureMoves, int* captureSearchCount, int captureMoveCount);
 
     void updateQuietHistories(int16_t depth, Board* board, SearchStack* stack, Move move, int moveSearchCount, Move* quietMoves, int* quietSearchCount, int quietMoveCount);
-
-    Move getCounterMove(Move move);
-    void setCounterMove(Move move, Move counter);
 
 };
