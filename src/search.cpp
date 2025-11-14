@@ -1083,7 +1083,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
             if (stack->ttPv) {
                 reduction -= lmrTtPv(importantCapture);
-                reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
+                reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha) * (1 + (!importantCapture && ttDepth - 400 >= newDepth && (ttFlag & TT_UPPERBOUND)));
             }
 
             if (capture) {
