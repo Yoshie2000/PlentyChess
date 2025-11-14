@@ -119,7 +119,7 @@ void NNUE::updateThreat(Piece piece, Piece attackedPiece, Square square, Square 
     assert(attackedPiece != Piece::NONE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyThreats[acc->numDirtyThreats++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add };
+    acc->dirtyThreats[acc->numDirtyThreats++] = { static_cast<uint8_t>(piece | (pieceColor << 3)), static_cast<uint8_t>(attackedPiece | (attackedColor << 3)), square, static_cast<uint8_t>(attackedSquare | (add << 6)) };
 }
 
 void NNUE::incrementAccumulator() {
@@ -239,27 +239,31 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
 template<Color side>
 void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
     ThreatInputs::FeatureList addFeatures, subFeatures;
+    constexpr uint8_t sideMask = side << 3;
 
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
         DirtyThreat dirtyThreat = outputAcc->dirtyThreats[dp];
+        bool add = dirtyThreat.attackedSquare >> 6;
 
-        Piece piece = dirtyThreat.piece;
-        Piece attackedPiece = dirtyThreat.attackedPiece;
+        Piece piece = static_cast<Piece>(dirtyThreat.piece & 0x7);
+        uint8_t pieceColorMask = dirtyThreat.piece & 0x8;
+
+        Piece attackedPiece = static_cast<Piece>(dirtyThreat.attackedPiece & 0x7);
+        uint8_t attackedPieceColorMask = dirtyThreat.attackedPiece & 0x8;
+
         Square square = dirtyThreat.square ^ (56 * side) ^ (7 * kingBucket->mirrored);
-        Square attackedSquare = dirtyThreat.attackedSquare ^ (56 * side) ^ (7 * kingBucket->mirrored);
+        Square attackedSquare = (dirtyThreat.attackedSquare & 0b111111) ^ (56 * side) ^ (7 * kingBucket->mirrored);
 
-        Color relativeSide = static_cast<Color>(side != dirtyThreat.attackedColor);
-        bool enemy = dirtyThreat.pieceColor != dirtyThreat.attackedColor;
-        bool hasSideOffset = dirtyThreat.pieceColor != side;
+        Color relativeSide = static_cast<Color>(sideMask != attackedPieceColorMask);
+        bool enemy = pieceColorMask != attackedPieceColorMask;
+        bool hasSideOffset = pieceColorMask != sideMask;
 
         int featureIndex = ThreatInputs::lookupThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy);
 
         if (featureIndex != -1) {
             featureIndex += hasSideOffset * ThreatInputs::PieceOffsets::END;
-            if (dirtyThreat.add)
-                addFeatures.add(featureIndex);
-            else
-                subFeatures.add(featureIndex);
+            ThreatInputs::FeatureList& list = add ? addFeatures : subFeatures;
+            list.add(featureIndex);
         }
     }
 

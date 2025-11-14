@@ -51,13 +51,10 @@ struct DirtyPiece {
 };
 
 struct DirtyThreat {
-  Piece piece;
-  Piece attackedPiece;
-  Square square;
-  Square attackedSquare;
-  Color pieceColor;
-  Color attackedColor;
-  bool add;
+  uint8_t piece;
+  uint8_t attackedPiece;
+  uint8_t square;
+  uint8_t attackedSquare;
 };
 
 struct KingBucketInfo {
