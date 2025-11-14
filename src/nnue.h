@@ -93,7 +93,7 @@ struct FinnyEntry {
 };
 
 struct NetworkData {
-  alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+  alignas(ALIGNMENT) int8_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
   alignas(ALIGNMENT) int8_t inputThreatWeights[2 * ThreatInputs::PieceOffsets::END * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
@@ -200,7 +200,7 @@ public:
     }
   }
 
-  int16_t oldInputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+  int8_t oldInputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
   int8_t oldInputThreatWeights[2 * ThreatInputs::PieceOffsets::END * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
   int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];

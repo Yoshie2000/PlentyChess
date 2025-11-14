@@ -38,7 +38,7 @@ struct RawNetworkData {
 };
 
 struct NetworkData {
-    alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+    alignas(ALIGNMENT) int8_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
     alignas(ALIGNMENT) int8_t inputThreatWeights[THREAT_INPUT_SIZE * L1_SIZE];
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
     alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
@@ -108,7 +108,7 @@ void quantizeNetwork() {
             int idx = THREAT_INPUT_SIZE * L1_SIZE + psqIdx;
             int rawIdx = 768 * L1_SIZE + idx; // skip factoriser
             int factoriserIdx = w;
-            tmp.inputPsqWeights[psqIdx] = quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]);
+            tmp.inputPsqWeights[psqIdx] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]), -128, 127);
         }
     }
 
@@ -148,28 +148,34 @@ void transposePermuteNetwork() {
     constexpr int packusBlocks = 4;
     constexpr int permutation[packusBlocks] = { 0, 2, 1, 3 };
 #endif
-    __m128i regs[packusBlocks];
+    __m128i regsI16[packusBlocks];
+    uint64_t regsI8[packusBlocks];
 
-    for (int limit : { 1, 768 * KING_BUCKETS }) {
-        __m128i* vec = reinterpret_cast<__m128i*>(limit == 1 ? (int16_t*)tmp.inputBiases : (int16_t*)tmp.inputPsqWeights);
+    __m128i* biasesVec = reinterpret_cast<__m128i*>(tmp.inputBiases);
+    for (int i = 0; i < L1_SIZE / weightsPerBlock; i += packusBlocks) {
+        for (int j = 0; j < packusBlocks; j++)
+            regsI16[j] = biasesVec[i + j];
 
-        for (int i = 0; i < limit * L1_SIZE / weightsPerBlock; i += packusBlocks) {
-            for (int j = 0; j < packusBlocks; j++)
-                regs[j] = vec[i + j];
-
-            for (int j = 0; j < packusBlocks; j++)
-                vec[i + j] = regs[permutation[j]];
-        }
+        for (int j = 0; j < packusBlocks; j++)
+            biasesVec[i + j] = regsI16[permutation[j]];
     }
 
-    uint64_t* weightsVec = reinterpret_cast<uint64_t*>(tmp.inputThreatWeights);
-    uint64_t weightsRegs[packusBlocks];
+    uint64_t* threatWeightsVec = reinterpret_cast<uint64_t*>(tmp.inputThreatWeights);
     for (int i = 0; i < THREAT_INPUT_SIZE * L1_SIZE / weightsPerBlock; i += packusBlocks) {
         for (int j = 0; j < packusBlocks; j++)
-            weightsRegs[j] = weightsVec[i + j];
+            regsI8[j] = threatWeightsVec[i + j];
 
         for (int j = 0; j < packusBlocks; j++)
-            weightsVec[i + j] = weightsRegs[permutation[j]];
+            threatWeightsVec[i + j] = regsI8[permutation[j]];
+    }
+
+    uint64_t* psqWeightsVec = reinterpret_cast<uint64_t*>(tmp.inputPsqWeights);
+    for (int i = 0; i < 768 * KING_BUCKETS * L1_SIZE / weightsPerBlock; i += packusBlocks) {
+        for (int j = 0; j < packusBlocks; j++)
+            regsI8[j] = psqWeightsVec[i + j];
+
+        for (int j = 0; j < packusBlocks; j++)
+            psqWeightsVec[i + j] = regsI8[permutation[j]];
     }
 #endif
 
@@ -249,7 +255,7 @@ int main(int argc, char* argv[]) {
             std::cerr << "Error opening compressed file for reading (" << infile_name << ")" << std::endl;
             return -1;
         }
-        for (auto& v : tmp.inputPsqWeights) v = (int16_t)readSLEB128(infile);
+        for (auto& v : tmp.inputPsqWeights) v = (int8_t)readSLEB128(infile);
         for (auto& v : tmp.inputThreatWeights) v = (int8_t)readSLEB128(infile);
         for (auto& v : tmp.inputBiases)  v = (int16_t)readSLEB128(infile);
         for (auto& b : tmp.l1Weights)    for (auto& v : b) v = (int8_t)readSLEB128(infile);

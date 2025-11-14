@@ -295,10 +295,11 @@ void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L
             outputVec[i] = addEpi16(inputVec[i], addWeights);
         }
     } else {
-        VecI16* weightsVec = (VecI16*)&networkData->inputPsqWeights[featureIndex * L1_SIZE];
+        VecI16s* weightsVec = (VecI16s*)&networkData->inputPsqWeights[featureIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS; ++i) {
-            outputVec[i] = addEpi16(inputVec[i], weightsVec[i]);
+            VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
+            outputVec[i] = addEpi16(inputVec[i], addWeights);
         }
     }
 }
@@ -316,10 +317,11 @@ void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)
             outputVec[i] = subEpi16(inputVec[i], addWeights);
         }
     } else {
-        VecI16* weightsVec = (VecI16*)&networkData->inputPsqWeights[featureIndex * L1_SIZE];
+        VecI16s* weightsVec = (VecI16s*)&networkData->inputPsqWeights[featureIndex * L1_SIZE];
         
         for (int i = 0; i < L1_ITERATIONS; ++i) {
-            outputVec[i] = subEpi16(inputVec[i], weightsVec[i]);
+            VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
+            outputVec[i] = subEpi16(inputVec[i], addWeights);
         }
     }
 }
@@ -339,11 +341,13 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeights), subWeights);
         }
     } else {
-        VecI16* addWeightsVec = (VecI16*)&networkData->inputPsqWeights[addIndex * L1_SIZE];
-        VecI16* subWeightsVec = (VecI16*)&networkData->inputPsqWeights[subIndex * L1_SIZE];
+        VecI16s* addWeightsVec = (VecI16s*)&networkData->inputPsqWeights[addIndex * L1_SIZE];
+        VecI16s* subWeightsVec = (VecI16s*)&networkData->inputPsqWeights[subIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS; ++i) {
-            outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeightsVec[i]), subWeightsVec[i]);
+            VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
+            VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
+            outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeights), subWeights);
         }
     }
 }
