@@ -810,6 +810,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // Null move pruning
+    bool failedNMP = false;
     if (!pvNode
         && !board->checkers
         && eval >= beta
@@ -849,11 +850,13 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
             if (verificationValue >= beta)
                 return nullValue;
+        } else {
+            failedNMP = true;
         }
     }
 
     // ProbCut
-    probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
+    probCutBeta = std::min(beta + probCutBetaOffset + 50 * failedNMP, EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
         && !board->checkers
         && !excluded
