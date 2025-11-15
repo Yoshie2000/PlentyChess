@@ -788,7 +788,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
+    if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY && (ttMove == MOVE_NONE || board->isCapture(ttMove))) {
         int rfpMargin, rfpDepth;
         if (board->checkers) {
             rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
