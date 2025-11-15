@@ -79,13 +79,13 @@ TUNE_INT(staticHistoryMax, 278, 1, 1000);
 TUNE_INT(staticHistoryTempo, 30, 1, 200);
 
 TUNE_INT(rfpDepth, 1097, 200, 2000);
-TUNE_INT(rfpBase, 11, -100, 100);
-TUNE_INT(rfpFactorLinear, 31, 1, 250);
-TUNE_INT(rfpFactorQuadratic, 655, 1, 1800);
+TUNE_INT(rfpBase, -5, -100, 100);
+TUNE_INT(rfpFactorLinear, 30, 1, 250);
+TUNE_INT(rfpFactorQuadratic, 600, 1, 1800);
 TUNE_INT(rfpImprovingOffset, 100, 1, 200);
 TUNE_INT(rfpBaseCheck, -5, -100, 100);
-TUNE_INT(rfpFactorLinearCheck, 40, 1, 250);
-TUNE_INT(rfpFactorQuadraticCheck, 546, 1, 1800);
+TUNE_INT(rfpFactorLinearCheck, 39, 1, 250);
+TUNE_INT(rfpFactorQuadraticCheck, 540, 1, 1800);
 TUNE_INT(rfpImprovingOffsetCheck, 100, 1, 200);
 
 TUNE_INT(razoringDepth, 493, 200, 2000);
@@ -793,9 +793,11 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         if (board->checkers) {
             rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
+            rfpMargin += std::abs(correctionValue) / 200000;
         } else {
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
+            rfpMargin += std::abs(correctionValue) / 200000;
         }
         if (eval - rfpMargin >= beta) {
             return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
