@@ -75,6 +75,7 @@ struct SearchData {
     int64_t startTime;
     int64_t optTime;
     int64_t maxTime;
+    bool doSoftTM;
 
     SearchData() {
         nmpPlies = 0;
@@ -84,6 +85,7 @@ struct SearchData {
         startTime = 0;
         optTime = 0;
         maxTime = 0;
+        doSoftTM = true;
     }
 };
 
