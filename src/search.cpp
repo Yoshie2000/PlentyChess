@@ -1357,6 +1357,7 @@ void Worker::iterativeDeepening() {
 
     int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : std::min<int16_t>(MAX_PLY - 1, searchParameters.depth);
 
+    Eval baseValue = EVAL_NONE;
     Eval previousValue = EVAL_NONE;
     Move previousMove = MOVE_NONE;
 
@@ -1475,6 +1476,12 @@ void Worker::iterativeDeepening() {
             // Based on fraction of nodes that went into the best move
             tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched);
 
+            // Based on search score complexity
+            if (baseValue != EVAL_NONE) {
+                double complexity = 0.6 * std::abs(baseValue - rootMoves[0].value) * std::log(depth);
+                tmAdjustment *= std::max(0.77 + std::clamp(complexity, 0.0, 200.0) / 386.0, 1.0);
+            }
+
             if (searchData.doSoftTM && timeOverDepthCleared(searchParameters, searchData, tmAdjustment)) {
                 threadPool->stopSearching();
                 return;
@@ -1483,6 +1490,7 @@ void Worker::iterativeDeepening() {
 
         previousMove = rootMoves[0].move;
         previousValue = rootMoves[0].value;
+        baseValue = depth == 1 ? previousValue : baseValue;
     }
 }
 
