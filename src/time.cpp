@@ -31,6 +31,7 @@ bool timeOverDepthCleared(SearchParameters& parameters, SearchData& data, double
 void initTimeManagement(Board& rootBoard, SearchParameters& parameters, SearchData& data) {
     data.startTime = getTime();
     data.maxTime = 0;
+    data.doSoftTM = true;
 
     if (UCI::Options.datagen.value)
         return;
@@ -57,6 +58,7 @@ void initTimeManagement(Board& rootBoard, SearchParameters& parameters, SearchDa
     if (parameters.movetime) {
         data.optTime = data.startTime + time;
         data.maxTime = data.startTime + time;
+        data.doSoftTM = false;
     }
     else if (parameters.movestogo) {
         int64_t totalTime = time / parameters.movestogo;

@@ -1475,7 +1475,7 @@ void Worker::iterativeDeepening() {
             // Based on fraction of nodes that went into the best move
             tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched);
 
-            if (timeOverDepthCleared(searchParameters, searchData, tmAdjustment)) {
+            if (searchData.doSoftTM && timeOverDepthCleared(searchParameters, searchData, tmAdjustment)) {
                 threadPool->stopSearching();
                 return;
             }
