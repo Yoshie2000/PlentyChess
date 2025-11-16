@@ -1025,7 +1025,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                     history.updateCorrectionHistory(board, stack, bonus);
                 }
 
-                return value;
+                return (value * singularDepth + beta) / (singularDepth + 1);
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
