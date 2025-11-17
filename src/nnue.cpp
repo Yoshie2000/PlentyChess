@@ -241,7 +241,7 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
     ThreatInputs::FeatureList addFeatures, subFeatures;
 
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
-        DirtyThreat dirtyThreat = outputAcc->dirtyThreats[dp];
+        DirtyThreat& dirtyThreat = outputAcc->dirtyThreats[dp];
 
         Piece piece = dirtyThreat.piece;
         Piece attackedPiece = dirtyThreat.attackedPiece;
