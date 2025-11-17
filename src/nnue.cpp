@@ -80,7 +80,7 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     memset(acc->pieceState[side], 0, sizeof(acc->pieceState[side]));
 
     ThreatInputs::FeatureList threatFeatures;
-    ThreatInputs::addThreatFeatures(board, side, threatFeatures);
+    ThreatInputs::addThreatFeatures<side>(board, threatFeatures);
     for (int featureIndex : threatFeatures)
         addToAccumulator<true, side>(acc->threatState, acc->threatState, featureIndex);
 
@@ -207,7 +207,7 @@ void NNUE::refreshThreatFeatures(Accumulator* acc) {
     memcpy(acc->threatState[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
     ThreatInputs::FeatureList threatFeatures;
-    ThreatInputs::addThreatFeatures(acc->board, side, threatFeatures);
+    ThreatInputs::addThreatFeatures<side>(acc->board, threatFeatures);
     for (int featureIndex : threatFeatures)
         addToAccumulator<true, side>(acc->threatState, acc->threatState, featureIndex);
 }
@@ -241,14 +241,11 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
     ThreatInputs::FeatureList addFeatures, subFeatures;
 
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
-        DirtyThreat& dirtyThreat = outputAcc->dirtyThreats[dp];
+        DirtyThreat& dt = outputAcc->dirtyThreats[dp];
 
-        size_t featureIndex = ThreatInputs::lookupThreatFeature<side>(dirtyThreat.piece, dirtyThreat.pieceColor, dirtyThreat.square, dirtyThreat.attackedSquare, dirtyThreat.attackedPiece, dirtyThreat.attackedColor, kingBucket->mirrored);
-        if (featureIndex != ThreatInputs::PieceOffsets::TOTAL) {
-            if (dirtyThreat.add)
-                addFeatures.add(featureIndex);
-            else
-                subFeatures.add(featureIndex);
+        int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.pieceColor, dt.square, dt.attackedSquare, dt.attackedPiece, dt.attackedColor, kingBucket->mirrored);
+        if (featureIndex < ThreatInputs::FEATURE_COUNT) {
+            (dt.add ? addFeatures : subFeatures).add(featureIndex);
         }
     }
 
