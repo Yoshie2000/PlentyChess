@@ -241,21 +241,10 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
     ThreatInputs::FeatureList addFeatures, subFeatures;
 
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
-        DirtyThreat dirtyThreat = outputAcc->dirtyThreats[dp];
+        DirtyThreat& dirtyThreat = outputAcc->dirtyThreats[dp];
 
-        Piece piece = dirtyThreat.piece;
-        Piece attackedPiece = dirtyThreat.attackedPiece;
-        Square square = dirtyThreat.square ^ (56 * side) ^ (7 * kingBucket->mirrored);
-        Square attackedSquare = dirtyThreat.attackedSquare ^ (56 * side) ^ (7 * kingBucket->mirrored);
-
-        Color relativeSide = static_cast<Color>(side != dirtyThreat.attackedColor);
-        bool enemy = dirtyThreat.pieceColor != dirtyThreat.attackedColor;
-        bool hasSideOffset = dirtyThreat.pieceColor != side;
-
-        int featureIndex = ThreatInputs::lookupThreatFeature(piece, square, attackedSquare, attackedPiece, relativeSide, enemy);
-
-        if (featureIndex != -1) {
-            featureIndex += hasSideOffset * ThreatInputs::PieceOffsets::END;
+        size_t featureIndex = ThreatInputs::lookupThreatFeature<side>(dirtyThreat.piece, dirtyThreat.pieceColor, dirtyThreat.square, dirtyThreat.attackedSquare, dirtyThreat.attackedPiece, dirtyThreat.attackedColor, kingBucket->mirrored);
+        if (featureIndex != ThreatInputs::PieceOffsets::TOTAL) {
             if (dirtyThreat.add)
                 addFeatures.add(featureIndex);
             else

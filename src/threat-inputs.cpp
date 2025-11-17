@@ -98,13 +98,71 @@ namespace ThreatInputs {
         return 768 * kingBucket + 384 * relativeColor + 64 * piece + relativeSquare;
     }
 
+    struct PiecePairData {
+        // Layout: bits 8..31 are the index contribution of this piece pair, bits 0 and 1 are exclusion info
+        uint32_t data;
+        PiecePairData() {}
+        PiecePairData(bool excluded_pair, bool semi_excluded_pair, size_t feature_index_base) {
+            data = excluded_pair << 1 | (semi_excluded_pair && !excluded_pair) | feature_index_base << 8;
+        }
+        // lsb: excluded if from < to; 2nd lsb: always excluded
+        uint8_t   excluded_pair_info() const { return (uint8_t)data; }
+        size_t feature_index_base() const { return data >> 8; }
+    };
+
+    PiecePairData PIECE_PAIR_LOOKUP[6][2][6][2];
+    size_t OFFSETS[6][2][64 + 2];
+    uint8_t REMAINDER_LOOKUP[6][2][64][64];
+
     void initialise() {
         memset(INDEX_LOOKUP, 0xFFFF, sizeof(INDEX_LOOKUP));
+
+        static constexpr int MAP[6][6] = {
+            {0,  1, -1,  2, -1, -1},
+            {0,  1,  2,  3,  4,  5},
+            {0,  1,  2,  3, -1,  4},
+            {0,  1,  2,  3, -1,  4},
+            {0,  1,  2,  3,  4,  5},
+            {0,  1,  2,  3, -1, -1}
+        };
+
+        static constexpr int NUM_VALID_TARGETS[6] = {6, 12, 10, 10, 12, 8};
+
+        int cumulativeOffset = 0;
+        for (Color color = Color::WHITE; color <= Color::BLACK; ++color) {
+            for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
+                int cumulativePieceOffset = 0;
+
+                for (Square origin = 0; origin < 64; origin++) {
+                    OFFSETS[piece][color][origin] = cumulativePieceOffset;
+
+                    if (piece != Piece::PAWN || (origin >= 8 && origin < 56)) {
+                        Bitboard attacks = BB::attackedSquares(piece, origin, 0, color);
+                        cumulativePieceOffset += BB::popcount(attacks);
+                    }
+                }
+
+                OFFSETS[piece][color][64] = cumulativePieceOffset;
+                OFFSETS[piece][color][65] = cumulativeOffset;
+
+                cumulativeOffset += NUM_VALID_TARGETS[piece] * cumulativePieceOffset;
+            }
+        }
 
         for (Piece attackingPiece = Piece::PAWN; attackingPiece < Piece::TOTAL; ++attackingPiece) {
             for (Piece attackedPiece = Piece::PAWN; attackedPiece < Piece::TOTAL; ++attackedPiece) {
                 for (Color attackingColor = Color::WHITE; attackingColor <= Color::BLACK; ++attackingColor) {
                     for (Color attackedColor = Color::WHITE; attackedColor <= Color::BLACK; ++attackedColor) {
+
+                        int map = MAP[attackingPiece][attackedPiece];
+                        size_t feature = OFFSETS[attackingPiece][attackingColor][65] + (attackedColor * (NUM_VALID_TARGETS[attackingPiece] / 2) + map) * OFFSETS[attackingPiece][attackingColor][64];
+
+                        bool enemy = attackingColor != attackedColor;
+                        bool semiExcluded = attackingPiece == attackedPiece && (enemy || attackingPiece != Piece::PAWN);
+                        bool excluded = map < 0;
+
+                        PIECE_PAIR_LOOKUP[attackingPiece][attackingColor][attackedPiece][attackedColor] = PiecePairData(excluded, semiExcluded, feature);
+
                         for (Color pov = Color::WHITE; pov <= Color::BLACK; ++pov) {
                             for (Square attackingSquare = 0; attackingSquare < 64; attackingSquare++) {
 
@@ -128,7 +186,43 @@ namespace ThreatInputs {
                 }
             }
         }
+
+        for (Piece piece = Piece::PAWN; piece < Piece::TOTAL; ++piece) {
+            for (Color color = Color::WHITE; color <= Color::BLACK; ++color) {
+                for (Square origin = 0; origin < 64; origin++) {
+                    for (Square target = 0; target < 64; target++) {
+                        Bitboard attacks = BB::attackedSquares(piece, origin, 0, color);
+                        REMAINDER_LOOKUP[piece][color][origin][target] = BB::popcount((bitboard(target) - 1) & attacks);
+                    }
+                }
+            }
+        }
+
     }
+
+    template<Color side>
+    int lookupThreatFeature(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored) {
+        uint8_t squareFlip = (7 * mirrored) ^ (56 * side);
+        attackingSquare ^= squareFlip;
+        attackedSquare ^= squareFlip;
+
+        attackingColor ^= side;
+        attackedColor ^= side;
+
+        auto piecePairData = PIECE_PAIR_LOOKUP[attackingPiece][attackingColor][attackedPiece][attackedColor];
+        bool lessThan = attackingSquare < attackedSquare;
+        if ((piecePairData.excluded_pair_info() + lessThan) & 2)
+            return PieceOffsets::TOTAL;
+        
+        size_t index = piecePairData.feature_index_base() + OFFSETS[attackingPiece][attackingColor][attackingSquare] + REMAINDER_LOOKUP[attackingPiece][attackingColor][attackingSquare][attackedSquare];
+        assert(piecePairData.feature_index_base() < PieceOffsets::TOTAL);
+        assert(OFFSETS[attackingPiece][attackingColor][attackingSquare] < PieceOffsets::TOTAL);
+        assert(REMAINDER_LOOKUP[attackingPiece][attackingColor][attackingSquare][attackedSquare] < PieceOffsets::TOTAL);
+        assert(index < PieceOffsets::TOTAL);
+        return index;
+    }
+    template int lookupThreatFeature<Color::WHITE>(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored);
+    template int lookupThreatFeature<Color::BLACK>(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored);
 
     int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy) {
         assert(piece != Piece::NONE);

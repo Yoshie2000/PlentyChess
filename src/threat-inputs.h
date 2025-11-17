@@ -111,6 +111,7 @@ namespace ThreatInputs {
         constexpr int QUEEN = ROOK + 10 * SquareThreatCounts::ROOK[64];        // queens excluded
         constexpr int KING = QUEEN + 12 * SquareThreatCounts::QUEEN[64];       // all 12 pieces possible
         constexpr int END = KING + 8 * SquareThreatCounts::KING[64];           // queen and king skipped
+        constexpr int TOTAL = 2 * END;
 
     }
 
@@ -125,14 +126,10 @@ namespace ThreatInputs {
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket);
     int getThreatFeature(Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy);
 
-    // Piece piece, Square from, Square to, Piece target, Color relativeSide, bool enemy
-    extern int INDEX_LOOKUP[6][64][64][6][2][2];
-
     void initialise();
 
-    inline int lookupThreatFeature(Piece attackingPiece, Square attackingSquare, Square attackedSquare, Piece attackedPiece, Color relativeSide, bool enemy) {
-        return INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare][attackedPiece][relativeSide][enemy];
-    }
+    template<Color side>
+    int lookupThreatFeature(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored);
 
     int getPawnThreatFeature(Square from, Square to, Piece target, Color relativeSide, bool enemy);
     int getKnightThreatFeature(Square from, Square to, Piece target, Color relativeSide);
