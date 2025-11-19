@@ -793,7 +793,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         if (board->checkers) {
             rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
-        } else {
+        }
+        else {
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
@@ -1117,6 +1118,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
             newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
 
+            int passedDepth = value > alpha ? reducedDepth : 0;
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
@@ -1125,10 +1127,12 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                 else if (!capture && quietMoveCount < 32)
                     quietSearchCount[quietMoveCount]++;
 
-                if (!capture) {
-                    int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth / 100 : reducedDepth / 100), lmrPassBonusMax);
-                    history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
-                }
+                passedDepth = value > alpha ? depth : passedDepth;
+            }
+
+            if (!capture && passedDepth) {
+                int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * passedDepth, lmrPassBonusMax);
+                history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
             }
         }
         else if (!pvNode || moveCount > 1) {
