@@ -93,8 +93,8 @@ namespace ThreatInputs {
     }
 
     template<Color side>
-    int getThreatFeature(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored) {
-        uint8_t squareFlip = (7 * mirrored) ^ (56 * side);
+    int getThreatFeature(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, uint8_t mirroring) {
+        uint8_t squareFlip = mirroring ^ (56 * side);
         attackingSquare ^= squareFlip;
         attackedSquare ^= squareFlip;
 
@@ -112,8 +112,8 @@ namespace ThreatInputs {
         assert(index < FEATURE_COUNT);
         return index;
     }
-    template int getThreatFeature<Color::WHITE>(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored);
-    template int getThreatFeature<Color::BLACK>(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored);
+    template int getThreatFeature<Color::WHITE>(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, uint8_t mirroring);
+    template int getThreatFeature<Color::BLACK>(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, uint8_t mirroring);
 
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket) {
         return 768 * kingBucket + 384 * relativeColor + 64 * piece + relativeSquare;
@@ -144,7 +144,7 @@ namespace ThreatInputs {
 
                         assert(attackingPiece != Piece::NONE);
 
-                        int threatFeature = getThreatFeature<pov>(attackingPiece, attackingSide, attackingSquare, indexSquare, piece, side, hm);
+                        int threatFeature = getThreatFeature<pov>(attackingPiece, attackingSide, attackingSquare, indexSquare, piece, side, 7 * hm);
                         if (threatFeature < FEATURE_COUNT)
                             features.add(threatFeature);
                     }

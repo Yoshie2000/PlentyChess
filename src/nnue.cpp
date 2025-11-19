@@ -238,12 +238,18 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
 
 template<Color side>
 void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+    if (!outputAcc->numDirtyThreats) {
+        memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->inputBiases));
+        return;
+    }
+
     ThreatInputs::FeatureList addFeatures, subFeatures;
 
+    uint8_t mirroring = 7 * kingBucket->mirrored;
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
         DirtyThreat& dt = outputAcc->dirtyThreats[dp];
 
-        int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.pieceColor, dt.square, dt.attackedSquare, dt.attackedPiece, dt.attackedColor, kingBucket->mirrored);
+        int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.pieceColor, dt.square, dt.attackedSquare, dt.attackedPiece, dt.attackedColor, mirroring);
         if (featureIndex < ThreatInputs::FEATURE_COUNT) {
             (dt.add ? addFeatures : subFeatures).add(featureIndex);
         }
@@ -263,9 +269,6 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
         subFromAccumulator<true, side>(inputAcc->threatState, outputAcc->threatState, subFeatures.remove(0));
         inputAcc = outputAcc;
     }
-
-    if (!outputAcc->numDirtyThreats)
-        memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->inputBiases));
 }
 
 template<bool I8, Color side>
