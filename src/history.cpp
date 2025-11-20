@@ -168,6 +168,7 @@ void History::updateContinuationHistory(SearchStack* stack, Board* board, Piece 
     Square target = moveTarget(move);
 
     int baseScore = getContinuationHistory(stack, board->stm, piece, move) + getQuietHistory(move, board->stm, board);
+    baseScore = 45 * baseScore / 55;
     int16_t scaledBonus = bonus - baseScore * std::abs(bonus) / 32000;
     int pieceTo = 2 * 64 * piece + 2 * target + board->stm;
 
