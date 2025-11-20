@@ -1127,7 +1127,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth / 100 : reducedDepth / 100), lmrPassBonusMax);
-                    history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
+                    history.updateContinuationHistory(stack, board, stack->movedPiece, move, bonus);
                 }
             }
         }

@@ -163,12 +163,13 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
     return score;
 }
 
-void History::updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus) {
+void History::updateContinuationHistory(SearchStack* stack, Board* board, Piece piece, Move move, int16_t bonus) {
     assert(piece != Piece::NONE);
     Square target = moveTarget(move);
 
-    int16_t scaledBonus = bonus - getContinuationHistory(stack, side, piece, move) * std::abs(bonus) / 32000;
-    int pieceTo = 2 * 64 * piece + 2 * target + side;
+    int baseScore = getContinuationHistory(stack, board->stm, piece, move) + getQuietHistory(move, board->stm, board);
+    int16_t scaledBonus = bonus - baseScore * std::abs(bonus) / 32000;
+    int pieceTo = 2 * 64 * piece + 2 * target + board->stm;
 
     if ((stack - 1)->movedPiece != Piece::NONE)
         (stack - 1)->contHist[pieceTo] += scaledBonus;
@@ -231,7 +232,7 @@ void History::updateQuietHistories(int16_t depth, Board* board, SearchStack* sta
     
     // Increase stats for this move
     updateQuietHistory(move, board->stm, board, quietHistBonus * moveSearchCount);
-    updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(move)], move, contHistBonus * moveSearchCount);
+    updateContinuationHistory(stack, board, board->pieces[moveOrigin(move)], move, contHistBonus * moveSearchCount);
     updatePawnHistory(board, move, pawnHistBonus * moveSearchCount);
 
     // Decrease stats for all other quiets
@@ -239,7 +240,7 @@ void History::updateQuietHistories(int16_t depth, Board* board, SearchStack* sta
         Move qMove = quietMoves[i];
         if (move == qMove) continue;
         updateQuietHistory(qMove, board->stm, board, -quietHistMalus * quietSearchCount[i]);
-        updateContinuationHistory(stack, board->stm, board->pieces[moveOrigin(qMove)], qMove, -contHistMalus * quietSearchCount[i]);
+        updateContinuationHistory(stack, board, board->pieces[moveOrigin(qMove)], qMove, -contHistMalus * quietSearchCount[i]);
         updatePawnHistory(board, qMove, -pawnHistMalus * quietSearchCount[i]);
     }
 }
