@@ -119,6 +119,7 @@ void bench(Board& board, std::vector<uint64_t>& boardHistory) {
     int totalPositions = benchPositions.size();
 
     threads.waitForSearchFinished();
+    threads.resize(std::thread::hardware_concurrency());
 
     int i = 0;
     for (const std::string& fen : benchPositions) {
@@ -130,7 +131,7 @@ void bench(Board& board, std::vector<uint64_t>& boardHistory) {
         TT.newSearch();
         parameters.depth = 20;
 #else
-        parameters.depth = 13;
+        parameters.depth = 25;
 #endif
 
         std::cerr << "\nPosition: " << position++ << '/' << totalPositions << " (" << fen << ")" << std::endl;

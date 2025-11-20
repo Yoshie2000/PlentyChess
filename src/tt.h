@@ -94,7 +94,7 @@ public:
 #ifdef PROFILE_GENERATE
         resize(64);
 #else
-        resize(16);
+        resize(1024);
 #endif
     }
 
