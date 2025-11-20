@@ -159,12 +159,13 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
     return score;
 }
 
-void History::updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus) {
+void History::updateContinuationHistory(SearchStack* stack, Board* board, Piece piece, Move move, int16_t bonus) {
     assert(piece != Piece::NONE);
     Square target = move.target();
 
-    int16_t scaledBonus = bonus - getContinuationHistory(stack, side, piece, move) * std::abs(bonus) / 32000;
-    int pieceTo = 2 * 64 * piece + 2 * target + side;
+    int baseScore = getContinuationHistory(stack, board->stm, piece, move) + getQuietHistory(move, board->stm, board);
+    int16_t scaledBonus = bonus - baseScore * std::abs(bonus) / 32000;
+    int pieceTo = 2 * 64 * piece + 2 * target + board->stm;
 
     if ((stack - 1)->movedPiece != Piece::NONE)
         (stack - 1)->contHist[pieceTo] += scaledBonus;
@@ -226,14 +227,14 @@ void History::updateQuietHistories(Depth depth, Board* board, SearchStack* stack
     
     // Increase stats for this move
     updateQuietHistory(bestMove, board->stm, board, quietHistBonus * bestMoveSearchCount);
-    updateContinuationHistory(stack, board->stm, board->pieces[bestMove.origin()], bestMove, contHistBonus * bestMoveSearchCount);
+    updateContinuationHistory(stack, board, board->pieces[bestMove.origin()], bestMove, contHistBonus * bestMoveSearchCount);
     updatePawnHistory(board, bestMove, pawnHistBonus * bestMoveSearchCount);
 
     // Decrease stats for all other quiets
     for (auto& [move, moveSearchCount] : searchedQuiets) {
         if (move == bestMove) continue;
         updateQuietHistory(move, board->stm, board, -quietHistMalus * moveSearchCount);
-        updateContinuationHistory(stack, board->stm, board->pieces[move.origin()], move, -contHistMalus * moveSearchCount);
+        updateContinuationHistory(stack, board, board->pieces[move.origin()], move, -contHistMalus * moveSearchCount);
         updatePawnHistory(board, move, -pawnHistMalus * moveSearchCount);
     }
 }

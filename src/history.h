@@ -47,7 +47,7 @@ public:
     void updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus);
 
     int getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move);
-    void updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus);
+    void updateContinuationHistory(SearchStack* stack, Board* board, Piece piece, Move move, int16_t bonus);
 
     int16_t* getCaptureHistory(Board* board, Move move);
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
