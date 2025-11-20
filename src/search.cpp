@@ -774,7 +774,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // IIR
-    if (!board->checkers && (!ttHit || ttDepth + iirLowTtDepthOffset < depth) && depth >= iirMinDepth)
+    if ((!board->checkers || (!ttHit && cutNode)) && (!ttHit || ttDepth + iirLowTtDepthOffset < depth) && depth >= iirMinDepth)
         depth -= iirReduction;
 
     // Post-LMR depth adjustments
