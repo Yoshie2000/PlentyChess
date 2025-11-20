@@ -950,7 +950,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             if (!movegen.skipQuiets) {
 
                 // Movecount pruning (LMP)
-                if (!pvNode && moveCount >= LMP_MARGIN[depth / 100][improving]) {
+                if (!pvNode && moveCount >= LMP_MARGIN[depth / 100][improving] + importantCapture) {
                     movegen.skipQuietMoves();
                 }
 
