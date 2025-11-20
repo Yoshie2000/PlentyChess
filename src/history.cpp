@@ -167,8 +167,22 @@ void History::updateContinuationHistory(SearchStack* stack, Color side, Piece pi
     assert(piece != Piece::NONE);
     Square target = moveTarget(move);
 
-    int16_t scaledBonus = bonus - getContinuationHistory(stack, side, piece, move) * std::abs(bonus) / 32000;
+    int score = 0;
     int pieceTo = 2 * 64 * piece + 2 * target + side;
+
+    if ((stack - 1)->movedPiece != Piece::NONE)
+        score += (stack - 1)->contHist[pieceTo];
+
+    if ((stack - 2)->movedPiece != Piece::NONE)
+        score += (stack - 2)->contHist[pieceTo];
+
+    if ((stack - 4)->movedPiece != Piece::NONE)
+        score += (stack - 4)->contHist[pieceTo];
+    
+    if ((stack - 6)->movedPiece != Piece::NONE)
+        score += (stack - 6)->contHist[pieceTo];
+
+    int16_t scaledBonus = bonus - score * std::abs(bonus) / 32000;
 
     if ((stack - 1)->movedPiece != Piece::NONE)
         (stack - 1)->contHist[pieceTo] += scaledBonus;
