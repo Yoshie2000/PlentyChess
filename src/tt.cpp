@@ -23,7 +23,7 @@ void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval 
 
 TTEntry* TranspositionTable::probe(Hash hash, bool* found) {
     TTCluster* cluster = &table[index(hash)];
-    int16_t hash16 = (uint16_t)hash;
+    uint16_t hash16 = (uint16_t)hash;
 
     TTEntry* replace = &cluster->entries[0];
 

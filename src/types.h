@@ -128,7 +128,7 @@ struct Move {
         return data == other.data;
     }
 
-    std::string toString(bool chess960) {
+    std::string toString(bool chess960) const {
         if (!*this) return "0000";
         std::ostringstream os;
 

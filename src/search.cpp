@@ -218,7 +218,7 @@ uint64_t perftInternal(Board& board, Depth depth) {
     generateMoves(&board, moves);
 
     uint64_t nodes = 0;
-    for (Move move : moves) {
+    for (auto& move : moves) {
         if (!board.isLegal(move))
             continue;
 
@@ -240,7 +240,7 @@ uint64_t perft(Board& board, Depth depth) {
     generateMoves(&board, moves);
 
     uint64_t nodes = 0;
-    for (Move move : moves) {
+    for (auto& move : moves) {
         if (!board.isLegal(move))
             continue;
 
@@ -413,7 +413,7 @@ bool Worker::isDraw(Board* board, int ply) {
         MoveList moves;
         generateMoves(board, moves);
         int legalMoveCount = 0;
-        for (Move move : moves) {
+        for (auto& move : moves) {
             if (!board->isLegal(move))
                 continue;
             legalMoveCount++;
@@ -1321,7 +1321,7 @@ void Worker::iterativeDeepening() {
     {
         MoveList moves;
         generateMoves(&rootBoard, moves);
-        for (Move move : moves) {
+        for (auto& move : moves) {
             if (rootBoard.isLegal(move)) {
                 multiPvCount++;
 
@@ -1560,7 +1560,7 @@ void Worker::tdatagen() {
     {
         MoveList moves;
         generateMoves(&rootBoard, moves);
-        for (Move move : moves) {
+        for (auto& move : moves) {
             if (rootBoard.isLegal(move)) {
                 RootMove rootMove = {};
                 rootMove.move = move;

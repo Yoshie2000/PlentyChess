@@ -4,7 +4,7 @@ std::vector<Move> generateLegalMoves(Board& board) {
     MoveList moves;
     generateMoves(&board, moves);
     std::vector<Move> legalMoves;
-    for (Move move : moves) {
+    for (auto& move : moves) {
         if (board.isLegal(move)) {
             legalMoves.push_back(move);
         }
