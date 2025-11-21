@@ -13,7 +13,7 @@ using Bitboard = uint64_t;
 using Depth = int16_t;
 using Hash = uint64_t;
 
-constexpr int MAX_PLY = 246;
+constexpr int MAX_PLY = 250;
 constexpr Depth MAX_DEPTH = (MAX_PLY - 1) * 100;
 constexpr int MAX_MOVES = 218;
 constexpr int MAX_CAPTURES = 74;

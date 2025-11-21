@@ -399,29 +399,24 @@ void MoveGen::scoreQuiets() {
 
         int threatScore = 0;
         Piece piece = board->pieces[move.origin()];
-        Bitboard originAttackers = threats.toSquare[move.origin()];
-        Bitboard targetAttackers = threats.toSquare[move.target()];
-
-        Bitboard enemies = board->byColor[flip(board->stm)];
+        Bitboard fromBB = bitboard(move.origin());
+        Bitboard toBB = bitboard(move.target());
         if (piece == Piece::QUEEN) {
-            Bitboard enemyMajors = (board->byPiece[Piece::PAWN] | board->byPiece[Piece::KNIGHT] | board->byPiece[Piece::BISHOP] | board->byPiece[Piece::ROOK]) & enemies;
-            if (originAttackers & enemyMajors)
+            if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
                 threatScore += 20000;
-            if (targetAttackers & enemyMajors)
+            if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
                 threatScore -= 20000;
         }
         else if (piece == Piece::ROOK) {
-            Bitboard enemyMinors = (board->byPiece[Piece::PAWN] | board->byPiece[Piece::KNIGHT] | board->byPiece[Piece::BISHOP]) & enemies;
-            if (originAttackers & enemyMinors)
+            if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
                 threatScore += 12500;
-            if (targetAttackers & enemyMinors)
+            if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
                 threatScore -= 12500;
         }
         else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
-            Bitboard enemyPawns = board->byPiece[Piece::PAWN] & enemies;
-            if (originAttackers & enemyPawns)
+            if (fromBB & threats.pawnThreats)
                 threatScore += 7500;
-            if (targetAttackers & enemyPawns)
+            if (toBB & threats.pawnThreats)
                 threatScore -= 7500;
         }
 

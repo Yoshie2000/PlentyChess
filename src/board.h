@@ -42,7 +42,12 @@ namespace Castling {
 }
 
 struct Threats {
-    Bitboard toSquare[64];
+    Bitboard pawnThreats;
+    Bitboard knightThreats;
+    Bitboard bishopThreats;
+    Bitboard rookThreats;
+    Bitboard queenThreats;
+    Bitboard kingThreats;
 };
 
 struct Hashes {
@@ -86,13 +91,8 @@ struct Board {
     std::string fen();
 
     template<bool add>
-    void updatePieceThreats(Square square, Bitboard attacked, NNUE* nnue);
-    template<bool add>
-    void updateThreatFeaturesFromPiece(Piece piece, Color pieceColor, Square square, Bitboard attacked, NNUE* nnue);
-    template<bool add>
-    void updateThreatFeaturesToPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
-
-    void updatePieceHash(Piece piece, Color pieceColor, Hash hashDelta);
+    void updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue);
+    void updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta);
     void updatePieceCastling(Piece piece, Color pieceColor, Square origin);
 
     void addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
@@ -102,7 +102,7 @@ struct Board {
     void doMove(Move move, Hash newHash, NNUE* nnue);
     void doNullMove();
 
-    Threats calculateAllThreats();
+    void calculateThreats();
     bool isSquareThreatened(Square square);
     bool opponentHasGoodCapture();
 
