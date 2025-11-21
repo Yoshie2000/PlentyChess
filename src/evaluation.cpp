@@ -73,7 +73,7 @@ bool SEE(Board* board, Move move, Eval threshold) {
     assert(board->isPseudoLegal(move));
 
     // "Special" moves pass SEE
-    if (move.type() != MoveType::NORMAL)
+    if (move.isSpecial())
         return true;
 
     Square origin = move.origin();

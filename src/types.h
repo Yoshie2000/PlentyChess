@@ -106,8 +106,25 @@ struct Move {
     }
     constexpr Piece promotionPiece() const {
         assert(*this);
-        assert(type() == MoveType::PROMOTION);
+        assert(isPromotion());
         return Piece((data >> 14) + 1);
+    }
+
+    constexpr bool isSpecial() const {
+        assert(*this);
+        return type() != MoveType::NORMAL;
+    }
+    constexpr bool isPromotion() const {
+        assert(*this);
+        return type() == MoveType::PROMOTION;
+    }
+    constexpr bool isCastling() const {
+        assert(*this);
+        return type() == MoveType::CASTLING;
+    }
+    constexpr bool isEnpassant() const {
+        assert(*this);
+        return type() == MoveType::ENPASSANT;
     }
 
     constexpr operator bool() const {
@@ -133,14 +150,14 @@ struct Move {
         std::ostringstream os;
 
         Square from = origin(), to = target();
-        if (type() == MoveType::CASTLING && !chess960) {
+        if (isCastling() && !chess960) {
             int rank = rankOf(from);
             int file = from > to ? 2 : 6;
             to = rank * 8 + file;
         }
 
         os << from << to;
-        if (type() == MoveType::PROMOTION)
+        if (isPromotion())
             os << promotionPiece();
 
         return os.str();

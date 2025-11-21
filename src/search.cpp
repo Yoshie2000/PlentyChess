@@ -527,7 +527,7 @@ movesLoopQsearch:
             if (!SEE(board, move, qsSeeMargin))
                 break;
 
-            if (move.type() != MoveType::PROMOTION && moveCount > 2)
+            if (!move.isPromotion() && moveCount > 2)
                 continue;
         }
 
@@ -949,8 +949,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
 
             // Futility pruning for captures
-            if (!pvNode && capture && move.type() != MoveType::PROMOTION) {
-                Piece capturedPiece = move.type() == MoveType::ENPASSANT ? Piece::PAWN : board->pieces[move.target()];
+            if (!pvNode && capture && !move.isPromotion()) {
+                Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
                 if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
                     continue;
             }

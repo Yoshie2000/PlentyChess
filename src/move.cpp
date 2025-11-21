@@ -374,12 +374,17 @@ void MoveGen::scoreCaptures() {
         }
 
         int score = *history->getCaptureHistory(board, move);
-        if (move.type() == MoveType::ENPASSANT)
-            score += 0;
-        else if (move.type() == MoveType::PROMOTION)
-            score += PIECE_VALUES[move.promotionPiece()] * mpPromotionScoreFactor / 100;
-        else
-            score += (PIECE_VALUES[board->pieces[move.target()]] - PIECE_VALUES[board->pieces[move.origin()]]) * mpMvvLvaScoreFactor / 100;
+        switch (move.type()) {
+            case MoveType::ENPASSANT:
+                score += 0;    
+                break;
+            case MoveType::PROMOTION:
+                score += PIECE_VALUES[move.promotionPiece()] * mpPromotionScoreFactor / 100;
+                break;
+            default:
+                score += (PIECE_VALUES[board->pieces[move.target()]] - PIECE_VALUES[board->pieces[move.origin()]]) * mpMvvLvaScoreFactor / 100;
+                break;
+        }
 
         moveListScores.add(score);
     }

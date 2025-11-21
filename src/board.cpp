@@ -359,7 +359,6 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
     // Calculate general information about the move
     Square origin = move.origin();
     Square target = move.target();
-    MoveType type = move.type();
 
     assert(origin < 64 && target < 64);
 
@@ -370,7 +369,7 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
     Piece piece = pieces[origin];
     Piece promotionPiece = Piece::NONE;
 
-    switch (type) {
+    switch (move.type()) {
     case MoveType::PROMOTION:
 
         if (capturedPiece != Piece::NONE) {
@@ -547,17 +546,16 @@ bool Board::isPseudoLegal(Move move) {
     Bitboard originBB = bitboard(origin);
     Bitboard targetBB = bitboard(target);
     Piece piece = pieces[origin];
-    MoveType type = move.type();
 
     // A valid piece needs to be on the origin square
     if (pieces[origin] == Piece::NONE) return false;
     // We can't capture our own piece, except in castling
-    if (type != MoveType::CASTLING && (byColor[stm] & targetBB)) return false;
+    if (!move.isCastling() && (byColor[stm] & targetBB)) return false;
     // We can't move the enemies piece
     if (byColor[flip(stm)] & originBB) return false;
 
     // Non-standard movetypes
-    switch (type) {
+    switch (move.type()) {
     case MoveType::CASTLING: {
         if (piece != Piece::KING || checkers) return false;
 
@@ -657,8 +655,7 @@ bool Board::isLegal(Move move) {
 
     Square king = lsb(byPiece[Piece::KING] & byColor[stm]);
 
-    MoveType type = move.type();
-    if (type == MoveType::ENPASSANT) {
+    if (move.isEnpassant()) {
         // Check if king would be in check after this move
         Square epSquare = target - Direction::UP[stm];
 
@@ -672,7 +669,7 @@ bool Board::isLegal(Move move) {
         return !rookAttacks && !bishopAttacks;
     }
 
-    if (type == MoveType::CASTLING) {
+    if (move.isCastling()) {
         auto direction = Castling::getDirection(origin, target);
         Square kingTarget = Castling::getKingSquare(stm, direction);
 
@@ -716,11 +713,10 @@ bool Board::givesCheck(Move move) {
         return true;
 
     // Discovered check: Are we blocking a check to the enemy king?
-    MoveType type = move.type();
     if (blockers[flip(stm)] & bitboard(origin))
-        return !(BB::LINE[origin][target] & enemyKing) || type == MoveType::CASTLING;
+        return !(BB::LINE[origin][target] & enemyKing) || move.isCastling();
 
-    switch (type) {
+    switch (move.type()) {
     case MoveType::PROMOTION: {
         Piece promotionPiece = move.promotionPiece();
         return BB::attackedSquares(promotionPiece, target, occ ^ bitboard(origin), stm) & enemyKing;
@@ -750,13 +746,11 @@ Hash Board::hashAfter(Move move) {
     Piece piece = pieces[origin];
     Piece capturedPiece = pieces[target];
 
-    MoveType type = move.type();
-
     if (enpassantTarget != 0)
         hash ^= Zobrist::ENPASSENT[fileOf(lsb(enpassantTarget))];
 
     if (piece == Piece::PAWN) {
-        if (type == MoveType::ENPASSANT) {
+        if (move.isEnpassant()) {
             capturedPiece = Piece::PAWN;
             captureTarget = target - Direction::UP[stm];
         }
@@ -773,7 +767,7 @@ Hash Board::hashAfter(Move move) {
         }
     }
 
-    if (type == MoveType::CASTLING) {
+    if (move.isCastling()) {
         capturedPiece = Piece::NONE;
 
         auto direction = Castling::getDirection(origin, target);
@@ -819,7 +813,7 @@ Hash Board::hashAfter(Move move) {
         }
     }
 
-    if (type == MoveType::PROMOTION) {
+    if (move.isPromotion()) {
         Piece promotionPiece = move.promotionPiece();
         hash ^= Zobrist::PIECE_SQUARES[stm][piece][target] ^ Zobrist::PIECE_SQUARES[stm][promotionPiece][target];
     }
