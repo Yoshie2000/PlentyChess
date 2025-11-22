@@ -1038,18 +1038,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
         uint64_t newHash = board->hashAfter(move);
         TT.prefetch(newHash);
 
-        if (!capture) {
-            if (quietMoveCount < 32) {
-                quietMoves[quietMoveCount] = move;
-                quietSearchCount[quietMoveCount] = 0;
-            }
-        }
-        else {
-            if (captureMoveCount < 32) {
-                captureMoves[captureMoveCount] = move;
-                captureSearchCount[captureMoveCount] = 0;
-            }
-        }
+        int moveSearchCount = 0;
 
         // Some setup stuff
         Square origin = moveOrigin(move);
@@ -1108,10 +1097,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
             stack->reduction = 0;
 
-            if (capture && captureMoveCount < 32)
-                captureSearchCount[captureMoveCount]++;
-            else if (!capture && quietMoveCount < 32)
-                quietSearchCount[quietMoveCount]++;
+            moveSearchCount++;
 
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100;
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
@@ -1120,10 +1106,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
-                if (capture && captureMoveCount < 32)
-                    captureSearchCount[captureMoveCount]++;
-                else if (!capture && quietMoveCount < 32)
-                    quietSearchCount[quietMoveCount]++;
+                moveSearchCount++;
 
                 if (!capture) {
                     int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth / 100 : reducedDepth / 100), lmrPassBonusMax);
@@ -1137,10 +1120,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
 
-            if (capture && captureMoveCount < 32)
-                captureSearchCount[captureMoveCount]++;
-            else if (!capture && quietMoveCount < 32)
-                quietSearchCount[quietMoveCount]++;
+            moveSearchCount++;
         }
 
         // PV moves will be researched at full depth if good enough
@@ -1150,19 +1130,22 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
             value = -search<PV_NODE>(boardCopy, stack + 1, newDepth, -beta, -alpha, false);
 
-            if (capture && captureMoveCount < 32)
-                captureSearchCount[captureMoveCount]++;
-            else if (!capture && quietMoveCount < 32)
-                quietSearchCount[quietMoveCount]++;
+            moveSearchCount++;
         }
 
         undoMove();
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
-        if (capture && captureMoveCount < 32)
+        if (capture && captureMoveCount < 32) {
+            captureMoves[captureMoveCount] = move;
+            captureSearchCount[captureMoveCount] = moveSearchCount;
             captureMoveCount++;
-        else if (!capture && quietMoveCount < 32)
+        }
+        else if (!capture && quietMoveCount < 32) {
+            quietMoves[quietMoveCount] = move;
+            quietSearchCount[quietMoveCount] = moveSearchCount;
             quietMoveCount++;
+        }
 
         if (stopped || exiting)
             return 0;
@@ -1220,10 +1203,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                         if (stack->ply > 0)
                             history.setCounterMove((stack - 1)->move, move);
 
-                        history.updateQuietHistories(historyUpdateDepth, board, stack, move, quietSearchCount[quietMoveCount - 1], quietMoves, quietSearchCount, quietMoveCount);
+                        history.updateQuietHistories(historyUpdateDepth, board, stack, move, moveSearchCount, quietMoves, quietSearchCount, quietMoveCount);
                     }
                     if (captureMoveCount > 0)
-                        history.updateCaptureHistory(historyUpdateDepth, board, move, captureSearchCount[captureMoveCount - 1], captureMoves, captureSearchCount, captureMoveCount);
+                        history.updateCaptureHistory(historyUpdateDepth, board, move, moveSearchCount, captureMoves, captureSearchCount, captureMoveCount);
                     break;
                 }
 
