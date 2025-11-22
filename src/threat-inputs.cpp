@@ -74,6 +74,11 @@ namespace ThreatInputs {
                         bool semiExcluded = attackingPiece == attackedPiece && (enemy || attackingPiece != Piece::PAWN);
                         bool excluded = map < 0;
 
+                        assert(featureBase >= 0 || excluded);
+
+                        if (excluded)
+                            featureBase = 0;
+
                         PIECE_PAIR_LOOKUP[attackingPiece][attackingColor][attackedPiece][attackedColor] = PiecePairData(excluded, semiExcluded, featureBase);
                     }
                 }
