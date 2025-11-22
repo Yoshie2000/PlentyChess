@@ -41,7 +41,7 @@ void generatePawn_quiet(Board* board, MoveList& moves, Bitboard targetMask) {
 
         if (bitboard(target) & enemyBackrank) {
             // Promotion: Queen promotions are considered captures
-            for (Piece promotionPiece : { Piece::KNIGHT, Piece::BISHOP, Piece::ROOK }) {
+            for (Piece promotionPiece : { Piece::ROOK, Piece::BISHOP, Piece::KNIGHT }) {
                 moves.add(Move::makePromotion(origin, target, promotionPiece));
             }
             continue;
@@ -87,7 +87,7 @@ void generatePawn_capture(Board* board, MoveList& moves, Bitboard targetMask) {
 
         if (bitboard(target) & enemyBackrank) {
             // Promotion
-            for (Piece promotionPiece : { Piece::KNIGHT, Piece::BISHOP, Piece::ROOK, Piece::QUEEN }) {
+            for (Piece promotionPiece : { Piece::QUEEN, Piece::ROOK, Piece::BISHOP, Piece::KNIGHT }) {
                 moves.add(Move::makePromotion(origin, target, promotionPiece));
             }
             continue;
@@ -102,7 +102,7 @@ void generatePawn_capture(Board* board, MoveList& moves, Bitboard targetMask) {
 
         if (bitboard(target) & enemyBackrank) {
             // Promotion
-            for (Piece promotionPiece : { Piece::KNIGHT, Piece::BISHOP, Piece::ROOK, Piece::QUEEN }) {
+            for (Piece promotionPiece : { Piece::QUEEN, Piece::ROOK, Piece::BISHOP, Piece::KNIGHT }) {
                 moves.add(Move::makePromotion(origin, target, promotionPiece));
             }
             continue;

@@ -144,6 +144,12 @@ struct Move {
     constexpr bool operator==(Move& other) {
         return data == other.data;
     }
+    constexpr bool operator!=(const Move& other) const {
+        return data != other.data;
+    }
+    constexpr bool operator!=(Move& other) {
+        return data != other.data;
+    }
 
     std::string toString(bool chess960) const {
         if (!*this) return "0000";
