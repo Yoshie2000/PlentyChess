@@ -148,6 +148,25 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
     int score = 0;
     int pieceTo = 2 * 64 * piece + 2 * target + side;
 
+    if ((stack - 1)->movedPiece != Piece::NONE)
+        score += 2 * (stack - 1)->contHist[pieceTo];
+    if ((stack - 2)->movedPiece != Piece::NONE)
+        score += (stack - 2)->contHist[pieceTo];
+    if ((stack - 4)->movedPiece != Piece::NONE)
+        score += (stack - 4)->contHist[pieceTo];
+    if ((stack - 6)->movedPiece != Piece::NONE)
+        score += (stack - 6)->contHist[pieceTo] / 2;
+
+    return score;
+}
+
+void History::updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus) {
+    assert(piece != Piece::NONE);
+    Square target = moveTarget(move);
+
+    int score = 0;
+    int pieceTo = 2 * 64 * piece + 2 * target + side;
+
     int targetWeight = 4 + 2 + 2 + 1 + 1;
     int weight = 1;
     if ((stack - 1)->movedPiece != Piece::NONE) {
@@ -166,24 +185,7 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
         score += (stack - 6)->contHist[pieceTo] / 2;
         weight += 1;
     }
-
-    return targetWeight * score / weight;
-}
-
-void History::updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus) {
-    assert(piece != Piece::NONE);
-    Square target = moveTarget(move);
-
-    int score = 0;
-    int pieceTo = 2 * 64 * piece + 2 * target + side;
-    if ((stack - 1)->movedPiece != Piece::NONE)
-        score += 2 * (stack - 1)->contHist[pieceTo];
-    if ((stack - 2)->movedPiece != Piece::NONE)
-        score += (stack - 2)->contHist[pieceTo];
-    if ((stack - 4)->movedPiece != Piece::NONE)
-        score += (stack - 4)->contHist[pieceTo];
-    if ((stack - 6)->movedPiece != Piece::NONE)
-        score += (stack - 6)->contHist[pieceTo] / 2;
+    score = targetWeight * score / weight;
 
     int16_t scaledBonus = bonus - score * std::abs(bonus) / 32000;
     if ((stack - 1)->movedPiece != Piece::NONE)
