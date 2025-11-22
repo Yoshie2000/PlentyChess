@@ -1363,7 +1363,7 @@ void Worker::iterativeDeepening() {
 
     int bestMoveStability = 0;
 
-    constexpr int STACK_OVERHEAD = 6;
+    constexpr int STACK_OVERHEAD = 8;
     std::vector<SearchStack> stackList;
     stackList.reserve(MAX_PLY + STACK_OVERHEAD + 2);
     SearchStack* stack = &stackList[STACK_OVERHEAD];
@@ -1594,7 +1594,7 @@ void Worker::tdatagen() {
 
     Eval previousValue = EVAL_NONE;
 
-    constexpr int STACK_OVERHEAD = 6;
+    constexpr int STACK_OVERHEAD = 8;
     SearchStack stackList[MAX_PLY + STACK_OVERHEAD + 2];
     SearchStack* stack = &stackList[STACK_OVERHEAD];
 
