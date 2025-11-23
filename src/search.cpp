@@ -976,7 +976,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                 continue;
 
             // SEE Pruning
-            int historyAdjustment = capture ? moveHistory / 64 : 0;
+            int historyAdjustment = capture ? moveHistory / 128 : 0;
             if (!SEE(board, move, (2 + pvNode) * SEE_MARGIN[!capture ? lmrDepth / 100 : depth / 100][!capture] / 2 - historyAdjustment))
                 continue;
 
