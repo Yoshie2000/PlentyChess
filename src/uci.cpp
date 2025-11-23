@@ -264,6 +264,8 @@ void position(std::string line, Board& board, std::vector<Hash>& boardHistory) {
 
     while (iss >> token) {
         Move m = stringToMove(token.c_str(), &board);
+        
+        assert(board.isLegal(m));
 
         Board boardCopy = board;
         boardCopy.doMove(m, board.hashAfter(m), &UCI::nnue);

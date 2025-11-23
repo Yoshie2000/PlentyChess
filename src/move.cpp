@@ -451,8 +451,8 @@ void MoveGen::sortMoves() {
 }
 
 Square stringToSquare(const char* string) {
-    int file = string[0] - '1';
-    int rank = string[1] - 'a';
+    int file = string[0] - 'a';
+    int rank = string[1] - '1';
     return (Square)(8 * rank + file);
 }
 
