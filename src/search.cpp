@@ -1234,7 +1234,7 @@ Move tbProbeMoveRoot(unsigned result) {
     int promotion = TB_GET_PROMOTES(result);
 
     if (promotion) {
-        Piece promotionPiece;
+        Piece promotionPiece = Piece::QUEEN;
         switch (promotion) {
             case TB_PROMOTES_KNIGHT:
                 promotionPiece = Piece::KNIGHT;
@@ -1245,11 +1245,6 @@ Move tbProbeMoveRoot(unsigned result) {
             case TB_PROMOTES_ROOK:
                 promotionPiece = Piece::ROOK;
                 break;
-            case TB_PROMOTES_QUEEN:
-                promotionPiece = Piece::QUEEN;
-                break;
-            default:
-                assert(false);
         }
         return Move::makePromotion(origin, target, promotionPiece);
     }
