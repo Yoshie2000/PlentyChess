@@ -545,7 +545,7 @@ movesLoopQsearch:
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];
 
         playedQuiet |= move != ttMove && !capture;
 
@@ -818,7 +818,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         stack->move = Move::none();
         stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[board->stm][0][0];
-        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0];
+        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0][0][0];
         int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
         Board* boardCopy = doNullMove(board);
@@ -872,7 +872,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
             stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-            stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+            stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];;
 
             Board* boardCopy = doMove(board, newHash, move);
 
@@ -1034,7 +1034,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
-        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
+        stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];;
 
         moveCount++;
         searchData.nodesSearched++;
