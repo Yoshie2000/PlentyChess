@@ -24,12 +24,14 @@ ifneq (, $(filter profile-build _pgo,$(MAKECMDGOALS)))
 			    ifeq (,$(shell which llvm-profdata))
 $(warning llvm-profdata not found, disabling profile-build)
 				    PGO_SKIP := true
+$(error PGO not supported)
 				endif
 			endif
 		else
 			ifeq (,$(shell where llvm-profdata))
 $(warning llvm-profdata not found, disabling profile-build)
 				PGO_SKIP := true
+$(error PGO not supported)
 			endif
 		endif
 	else
@@ -198,8 +200,8 @@ CXXFLAGS := $(CXXFLAGS) -DEVALFILE=\"processed.bin\"
 
 # Targets
 
-.PHONY:	all
-.DEFAULT_GOAL := all
+.PHONY:	profile-build
+.DEFAULT_GOAL := profile-build
 
 process-net:
 ifndef SKIP_PROCESS_NET
@@ -221,12 +223,12 @@ all:
 		$(MAKE) _nopgo SKIP_PROCESS_NET=true
 
 profile-build:
-ifneq ($(PGO_SKIP), true)
+# ifneq ($(PGO_SKIP), true)
 		$(MAKE) process-net
 		$(MAKE) _pgo SKIP_PROCESS_NET=true
-else
-		$(MAKE) all
-endif
+# else
+# 		$(MAKE) all
+# endif
 
 %.o:	%.cpp
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) -c $< -o $@
