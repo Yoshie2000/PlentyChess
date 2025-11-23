@@ -904,7 +904,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     }
 
     // IIR 2: Electric boolagoo
-    if (!board->checkers && !ttHit && depth >= iirMinDepth && pvNode)
+    if (!board->checkers && (!ttHit || ttDepth + iirLowTtDepthOffset < depth) && depth >= iirMinDepth && pvNode)
         depth -= iir2Reduction;
 
     if (stopped || exiting)
