@@ -395,6 +395,11 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
         }
 
         int score = *history->getCaptureHistory(board, move);
+        
+        int pieceTo = 2 * 64 * board->pieces[moveOrigin(move)] + 2 * moveTarget(move) + board->stm;
+        if ((searchStack - 1)->movedPiece != Piece::NONE)
+            score += (searchStack - 1)->contHist[pieceTo] / 4;
+
         if (moveType(move) == MOVE_ENPASSANT)
             score += 0;
         else if (moveType(move) == MOVE_PROMOTION)
