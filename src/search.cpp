@@ -646,6 +646,7 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, excluded = excludedMove != MOVE_NONE;
+    int16_t initialDepth = depth;
 
     (stack + 1)->killer = MOVE_NONE;
     (stack + 1)->excludedMove = MOVE_NONE;
@@ -1193,7 +1194,8 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
                 if (bestValue >= beta) {
 
-                    int historyUpdateDepth = depth / 100 + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
+                    int historyBonusDepth = depth / 100 + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
+                    int historyMalusDepth = initialDepth / 100 + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
 
                     if (!capture) {
                         // Update quiet killer
@@ -1203,10 +1205,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
                         if (stack->ply > 0)
                             history.setCounterMove((stack - 1)->move, move);
 
-                        history.updateQuietHistories(historyUpdateDepth, board, stack, move, moveSearchCount, quietMoves, quietSearchCount, quietMoveCount);
+                        history.updateQuietHistories(historyBonusDepth, historyMalusDepth, board, stack, move, moveSearchCount, quietMoves, quietSearchCount, quietMoveCount);
                     }
                     if (captureMoveCount > 0)
-                        history.updateCaptureHistory(historyUpdateDepth, board, move, moveSearchCount, captureMoves, captureSearchCount, captureMoveCount);
+                        history.updateCaptureHistory(historyBonusDepth, historyMalusDepth, board, move, moveSearchCount, captureMoves, captureSearchCount, captureMoveCount);
                     break;
                 }
 
