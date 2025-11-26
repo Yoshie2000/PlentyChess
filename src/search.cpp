@@ -1007,10 +1007,10 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
                 extension = 1;
-                if (!pvNode && singularValue + doubleExtensionMargin + 250 * pvNode < singularBeta) {
+                if (singularValue + doubleExtensionMargin + 300 * pvNode < singularBeta) {
                     extension = 2;
                     depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
-                    if (!board->isCapture(move) && singularValue + tripleExtensionMargin + 300 * pvNode - std::abs(correctionValue) / 200000 < singularBeta)
+                    if (!board->isCapture(move) && singularValue + tripleExtensionMargin + 350 * pvNode < singularBeta)
                         extension = 3;
                 }
             }
