@@ -240,7 +240,7 @@ public:
         return elements[i];
     }
 
-    __always_inline T const& operator[](size_t i) const {
+    __always_inline T const operator[](size_t i) const {
         assert(i < _size);
         return elements[i];
     }
