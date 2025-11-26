@@ -956,7 +956,6 @@ Eval Worker::search(Board* board, SearchStack* stack, int16_t depth, Eval alpha,
 
                 // Futility pruning
                 int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * (bestMove == MOVE_NONE));
-                fpValue += history.getQuietHistory(move, board->stm, board) / 500;
                 if (!capture && lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
                 }
