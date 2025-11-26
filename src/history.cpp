@@ -187,7 +187,7 @@ int16_t* History::getCaptureHistory(Board* board, Move move) {
     Piece capturedPiece = board->pieces[move.target()];
     Square target = move.target();
 
-    if (capturedPiece == Piece::NONE && move.type() != MoveType::NORMAL) // for ep and promotions, just take pawns
+    if (capturedPiece == Piece::NONE && move.isSpecial()) // for ep and promotions, just take pawns
         capturedPiece = Piece::PAWN;
 
     assert(movedPiece != Piece::NONE && capturedPiece != Piece::NONE);

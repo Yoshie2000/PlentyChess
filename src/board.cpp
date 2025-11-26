@@ -546,16 +546,17 @@ bool Board::isPseudoLegal(Move move) {
     Bitboard originBB = bitboard(origin);
     Bitboard targetBB = bitboard(target);
     Piece piece = pieces[origin];
+    MoveType type = move.type();
 
     // A valid piece needs to be on the origin square
     if (pieces[origin] == Piece::NONE) return false;
     // We can't capture our own piece, except in castling
-    if (!move.isCastling() && (byColor[stm] & targetBB)) return false;
+    if (type != MoveType::CASTLING && (byColor[stm] & targetBB)) return false;
     // We can't move the enemies piece
     if (byColor[flip(stm)] & originBB) return false;
 
     // Non-standard movetypes
-    switch (move.type()) {
+    switch (type) {
     case MoveType::CASTLING: {
         if (piece != Piece::KING || checkers) return false;
 
@@ -651,11 +652,12 @@ bool Board::isLegal(Move move) {
 
     Square origin = move.origin();
     Square target = move.target();
+    MoveType type = move.type();
     Bitboard originBB = bitboard(origin);
 
     Square king = lsb(byPiece[Piece::KING] & byColor[stm]);
 
-    if (move.isEnpassant()) {
+    if (type == MoveType::ENPASSANT) {
         // Check if king would be in check after this move
         Square epSquare = target - Direction::UP[stm];
 
@@ -669,7 +671,7 @@ bool Board::isLegal(Move move) {
         return !rookAttacks && !bishopAttacks;
     }
 
-    if (move.isCastling()) {
+    if (type == MoveType::CASTLING) {
         auto direction = Castling::getDirection(origin, target);
         Square kingTarget = Castling::getKingSquare(stm, direction);
 
@@ -704,6 +706,7 @@ bool Board::isLegal(Move move) {
 bool Board::givesCheck(Move move) {
     Square origin = move.origin();
     Square target = move.target();
+    MoveType type = move.type();
     Bitboard occ = byColor[Color::WHITE] | byColor[Color::BLACK];
     Bitboard enemyKing = byColor[flip(stm)] & byPiece[Piece::KING];
 
@@ -714,9 +717,9 @@ bool Board::givesCheck(Move move) {
 
     // Discovered check: Are we blocking a check to the enemy king?
     if (blockers[flip(stm)] & bitboard(origin))
-        return !(BB::LINE[origin][target] & enemyKing) || move.isCastling();
+        return !(BB::LINE[origin][target] & enemyKing) || type == MoveType::CASTLING;
 
-    switch (move.type()) {
+    switch (type) {
     case MoveType::PROMOTION: {
         Piece promotionPiece = move.promotionPiece();
         return BB::attackedSquares(promotionPiece, target, occ ^ bitboard(origin), stm) & enemyKing;
@@ -741,6 +744,7 @@ Hash Board::hashAfter(Move move) {
 
     Square origin = move.origin();
     Square target = move.target();
+    MoveType type = move.type();
     Square captureTarget = target;
 
     Piece piece = pieces[origin];
@@ -750,7 +754,7 @@ Hash Board::hashAfter(Move move) {
         hash ^= Zobrist::ENPASSENT[fileOf(lsb(enpassantTarget))];
 
     if (piece == Piece::PAWN) {
-        if (move.isEnpassant()) {
+        if (type == MoveType::ENPASSANT) {
             capturedPiece = Piece::PAWN;
             captureTarget = target - Direction::UP[stm];
         }
@@ -767,7 +771,7 @@ Hash Board::hashAfter(Move move) {
         }
     }
 
-    if (move.isCastling()) {
+    if (type == MoveType::CASTLING) {
         capturedPiece = Piece::NONE;
 
         auto direction = Castling::getDirection(origin, target);
@@ -813,7 +817,7 @@ Hash Board::hashAfter(Move move) {
         }
     }
 
-    if (move.isPromotion()) {
+    if (type == MoveType::PROMOTION) {
         Piece promotionPiece = move.promotionPiece();
         hash ^= Zobrist::PIECE_SQUARES[stm][piece][target] ^ Zobrist::PIECE_SQUARES[stm][promotionPiece][target];
     }

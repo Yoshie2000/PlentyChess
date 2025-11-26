@@ -68,11 +68,11 @@ inline std::ostream& operator<<(std::ostream& os, const Piece piece) {
 }
 
 // Move
-enum MoveType : uint8_t {
-    NORMAL = 0,
-    PROMOTION = 1,
-    ENPASSANT = 2,
-    CASTLING = 3
+enum MoveType : uint16_t {
+    NORMAL = 0x0000,
+    PROMOTION = 0x1000,
+    ENPASSANT = 0x2000,
+    CASTLING = 0x3000
 };
 
 struct Move {
@@ -85,13 +85,13 @@ struct Move {
     static constexpr Move makePromotion(Square origin, Square target, Piece promotionPiece) {
         assert(promotionPiece >= Piece::KNIGHT);
         assert(promotionPiece <= Piece::QUEEN);
-        return Move(origin | (target << 6) | (MoveType::PROMOTION << 12) | ((promotionPiece - 1) << 14));
+        return Move(origin | (target << 6) | MoveType::PROMOTION | ((promotionPiece - 1) << 14));
     }
     static constexpr Move makeEnpassant(Square origin, Square target) {
-        return Move(origin | (target << 6) | (MoveType::ENPASSANT << 12));
+        return Move(origin | (target << 6) | MoveType::ENPASSANT);
     }
     static constexpr Move makeCastling(Square origin, Square target) {
-        return Move(origin | (target << 6) | (MoveType::CASTLING << 12));
+        return Move(origin | (target << 6) | MoveType::CASTLING);
     }
 
     constexpr Square origin() const {
@@ -102,7 +102,7 @@ struct Move {
     }
     constexpr MoveType type() const {
         assert(*this);
-        return MoveType((data >> 12) & 0x3);
+        return MoveType(data & 0x3000);
     }
     constexpr Piece promotionPiece() const {
         assert(*this);
