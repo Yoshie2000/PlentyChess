@@ -302,7 +302,7 @@ Move MoveGen::nextMove() {
             int score = moveListScores[returnedMoves++];
 
             bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : SEE(board, move, -score / mpSeeDivisor);
-            if (!goodCapture) {
+            if (!goodCapture || (moveType(move) == MOVE_PROMOTION && PROMOTION_PIECE[promotionType(move)] != Piece::QUEEN)) {
                 badCaptureList[generatedBadCaptures++] = move;
                 continue;
             }
