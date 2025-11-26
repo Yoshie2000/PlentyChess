@@ -218,7 +218,7 @@ constexpr Color flip(Color color) {
 }
 
 // ArrayVec
-template<class T, size_t MAX>
+template<class T, int MAX>
 class ArrayVec {
 public:
 
@@ -229,18 +229,18 @@ public:
         elements[_size++] = element;
     }
 
-    __always_inline T remove(size_t i) {
+    __always_inline T remove(int i) {
         T removed = elements[i];
         elements[i] = elements[--_size];
         return removed;
     }
 
-    __always_inline T& operator[](size_t i) {
+    __always_inline T& operator[](int i) {
         assert(i < _size);
         return elements[i];
     }
 
-    __always_inline T const operator[](size_t i) const {
+    __always_inline T const operator[](int i) const {
         assert(i < _size);
         return elements[i];
     }
@@ -258,7 +258,7 @@ public:
 
 private:
     T elements[MAX];
-    size_t _size{};
+    int _size{};
 };
 
 // Search Stack

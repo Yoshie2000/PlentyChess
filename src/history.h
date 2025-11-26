@@ -3,12 +3,8 @@
 #include "types.h"
 #include "board.h"
 
-struct SearchedMove {
-    Move move;
-    int8_t searchCount;
-};
-
-using SearchedMoveList = ArrayVec<SearchedMove, 32>;
+using SearchMoveList = ArrayVec<Move, 32>;
+using SearchScoreList = ArrayVec<int8_t, 32>;
 
 constexpr int PAWN_HISTORY_SIZE = 8192;
 constexpr int CORRECTION_HISTORY_SIZE = 16384;
@@ -51,9 +47,9 @@ public:
 
     int16_t* getCaptureHistory(Board* board, Move move);
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
-    void updateCaptureHistory(Depth depth, Board* board, Move move, int moveSearchCount, SearchedMoveList& searchedCaptures);
+    void updateCaptureHistory(Depth depth, Board* board, Move move, int moveSearchCount, SearchMoveList& searchedCaptures, SearchScoreList& searchedScores);
 
-    void updateQuietHistories(Depth depth, Board* board, SearchStack* stack, Move move, int moveSearchCount, SearchedMoveList& searchedQuiets);
+    void updateQuietHistories(Depth depth, Board* board, SearchStack* stack, Move move, int moveSearchCount, SearchMoveList& searchedQuiets, SearchScoreList& searchedScores);
 
     Move getCounterMove(Move move);
     void setCounterMove(Move move, Move counter);

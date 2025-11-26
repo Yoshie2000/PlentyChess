@@ -902,7 +902,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (stopped || exiting)
         return 0;
 
-    SearchedMoveList quietMoves, captureMoves;
+    SearchMoveList quietMoves, captureMoves;
+    SearchScoreList quietMoveCounts, captureMoveCounts;
 
     // Moves loop
     MoveGen& movegen = movepickers[stack->ply][excluded] = MoveGen(board, &history, stack, ttMove, depth / 100);
@@ -1120,9 +1121,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         undoMove();
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
 
-        SearchedMoveList& list = capture ? captureMoves : quietMoves;
-        if (list.size() < list.capacity())
-            list.add({move, moveSearchCount});
+        SearchMoveList& list = capture ? captureMoves : quietMoves;
+        if (list.size() < list.capacity()) {
+            list.add(move);
+            (capture ? captureMoveCounts : quietMoveCounts).add(moveSearchCount);
+        }
 
         if (stopped || exiting)
             return 0;
@@ -1180,10 +1183,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                         if (stack->ply > 0)
                             history.setCounterMove((stack - 1)->move, move);
 
-                        history.updateQuietHistories(historyUpdateDepth, board, stack, move, moveSearchCount, quietMoves);
+                        history.updateQuietHistories(historyUpdateDepth, board, stack, move, moveSearchCount, quietMoves, quietMoveCounts);
                     }
                     if (captureMoves.size())
-                        history.updateCaptureHistory(historyUpdateDepth, board, move, moveSearchCount, captureMoves);
+                        history.updateCaptureHistory(historyUpdateDepth, board, move, moveSearchCount, captureMoves, captureMoveCounts);
                     break;
                 }
 
