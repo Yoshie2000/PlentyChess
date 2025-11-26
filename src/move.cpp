@@ -13,7 +13,6 @@
 #include "spsa.h"
 #include "history.h"
 
-TUNE_INT_DISABLED(mpPromotionScoreFactor, 101, 10, 10000);
 TUNE_INT_DISABLED(mpMvvLvaScoreFactor, 147, 10, 10000);
 TUNE_INT_DISABLED(mpSeeDivisor, 83, 10, 150);
 
@@ -395,12 +394,20 @@ int MoveGen::scoreCaptures(int beginIndex, int endIndex) {
         }
 
         int score = *history->getCaptureHistory(board, move);
-        if (moveType(move) == MOVE_ENPASSANT)
-            score += 0;
-        else if (moveType(move) == MOVE_PROMOTION)
-            score += PIECE_VALUES[PROMOTION_PIECE[promotionType(move)]] * mpPromotionScoreFactor / 100;
-        else
+        if (moveType(move) == MOVE_PROMOTION) {
+            switch (promotionType(move)) {
+                case PROMOTION_KNIGHT:
+                case PROMOTION_QUEEN:
+                    score += 100000;
+                    break;
+                default:
+                    score -= 100000;
+                    break;
+            }
+        }
+        else if (moveType(move) != MOVE_ENPASSANT) {
             score += (PIECE_VALUES[board->pieces[moveTarget(move)]] - PIECE_VALUES[board->pieces[moveOrigin(move)]]) * mpMvvLvaScoreFactor / 100;
+        }
 
         moveListScores[i] = score;
     }
