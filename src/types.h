@@ -77,8 +77,9 @@ enum MoveType : uint8_t {
 
 struct Move {
 
-    constexpr Move() = default;
-    static constexpr Move none() { return Move{}; };
+    Move() = default;
+    
+    static constexpr Move none() { return Move{0}; };
     static constexpr Move makeNormal(Square origin, Square target) {
         return Move((origin & 0x3F) | ((target & 0x3F) << 6));
     }
@@ -176,7 +177,7 @@ private:
         assert(target() < 64);
     };
 
-    uint16_t data = 0;
+    uint16_t data;
 };
 
 // Helper functions
