@@ -210,7 +210,7 @@ void History::updateCaptureHistory(Depth depth, Board* board, Move bestMove, int
         updateSingleCaptureHistory(board, bestMove, captHistBonus * bestMoveSearchCount);
     }
 
-    for (auto& [move, moveSearchCount] : searchedCaptures) {
+    for (auto [move, moveSearchCount] : searchedCaptures) {
         if (move == bestMove) continue;
         updateSingleCaptureHistory(board, move, -captHistMalus * moveSearchCount);
     }
@@ -230,7 +230,7 @@ void History::updateQuietHistories(Depth depth, Board* board, SearchStack* stack
     updatePawnHistory(board, bestMove, pawnHistBonus * bestMoveSearchCount);
 
     // Decrease stats for all other quiets
-    for (auto& [move, moveSearchCount] : searchedQuiets) {
+    for (auto [move, moveSearchCount] : searchedQuiets) {
         if (move == bestMove) continue;
         updateQuietHistory(move, board->stm, board, -quietHistMalus * moveSearchCount);
         updateContinuationHistory(stack, board->stm, board->pieces[move.origin()], move, -contHistMalus * moveSearchCount);

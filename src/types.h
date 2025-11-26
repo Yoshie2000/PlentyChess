@@ -224,23 +224,23 @@ public:
 
     ArrayVec() : _size(0) {}
 
-    void add(const T& element) {
+    __always_inline void add(T element) {
         assert(_size < MAX);
         elements[_size++] = element;
     }
 
-    T remove(size_t i) {
+    __always_inline T remove(size_t i) {
         T removed = elements[i];
         elements[i] = elements[--_size];
         return removed;
     }
 
-    T& operator[](size_t i) {
+    __always_inline T& operator[](size_t i) {
         assert(i < _size);
         return elements[i];
     }
 
-    T const& operator[](size_t i) const {
+    __always_inline T const& operator[](size_t i) const {
         assert(i < _size);
         return elements[i];
     }
