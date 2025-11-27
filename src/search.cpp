@@ -949,9 +949,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
 
             // Futility pruning for captures
-            if (!pvNode && capture && !move.isPromotion()) {
+            if (capture && !move.isPromotion()) {
                 Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
-                if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
+                if (lmrDepth < fpCaptDepth && eval + (1 + pvNode) * fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
                     continue;
             }
 
