@@ -9,24 +9,6 @@
 #include "move.h"
 #include "bitboard.h"
 
-#if defined(USE_BMI2)
-
-MagicEntry ROOK_MAGICS[64] = {};
-MagicEntry BISHOP_MAGICS[64] = {};
-
-Bitboard ROOK_MOVES[102400] = { bitboard(0) };
-Bitboard BISHOP_MOVES[5248] = { bitboard(0) };
-
-#else
-
-MagicEntry ROOK_MAGICS[64] = {};
-MagicEntry BISHOP_MAGICS[64] = {};
-
-Bitboard ROOK_MOVES[64][4096] = { {bitboard(0)} };
-Bitboard BISHOP_MOVES[64][4096] = { {bitboard(0)} };
-
-#endif
-
 Bitboard sliderMoves(Piece pieceType, Square origin, Bitboard blockers) {
     Bitboard attacksBB = bitboard(0);
 
@@ -71,6 +53,12 @@ Bitboard relevantBlockers(Piece pieceType, Square origin) {
 
 #if defined(USE_BMI2)
 
+MagicEntry ROOK_MAGICS[64] = {};
+MagicEntry BISHOP_MAGICS[64] = {};
+
+Bitboard ROOK_MOVES[102400] = { bitboard(0) };
+Bitboard BISHOP_MOVES[5248] = { bitboard(0) };
+
 // Finds magics for a given piece/square combination
 void findMagics(Piece slider, MagicEntry* magicTable, Bitboard* table) {
     for (Square square = 0; square < 64; square++) {
@@ -94,7 +82,18 @@ void findMagics(Piece slider, MagicEntry* magicTable, Bitboard* table) {
     }
 }
 
+void generateMagics() {
+    findMagics(Piece::ROOK, ROOK_MAGICS, ROOK_MOVES);
+    findMagics(Piece::BISHOP, BISHOP_MAGICS, BISHOP_MOVES);
+}
+
 #else
+
+MagicEntry ROOK_MAGICS[64] = {};
+MagicEntry BISHOP_MAGICS[64] = {};
+
+Bitboard ROOK_MOVES[64][4096] = { {bitboard(0)} };
+Bitboard BISHOP_MOVES[64][4096] = { {bitboard(0)} };
 
 // Attempt to fill in a hash table using a magic number.
 // Fails if there are any non-constructive collisions.
@@ -142,22 +141,13 @@ void findMagic(uint32_t seed, Piece slider, Square square, uint8_t indexBits, Ma
     exit(-1);
 }
 
-#endif
-
 void generateMagics() {
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
-#if defined(USE_BMI2)
-    findMagics(Piece::ROOK, ROOK_MAGICS, ROOK_MOVES);
-    findMagics(Piece::BISHOP, BISHOP_MAGICS, BISHOP_MOVES);
-#else
     uint32_t seed = 2816384844;
 
     for (Square square = 0; square < 64; square++) {
         findMagic(seed, Piece::ROOK, square, 12, &ROOK_MAGICS[square], ROOK_MOVES[square]);
         findMagic(seed, Piece::BISHOP, square, 9, &BISHOP_MAGICS[square], BISHOP_MOVES[square]);
     }
-#endif
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Generated magics in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms" << std::endl;
 }
+
+#endif
