@@ -78,7 +78,7 @@ TUNE_INT(staticHistoryMin, -149, -1000, -1);
 TUNE_INT(staticHistoryMax, 278, 1, 1000);
 TUNE_INT(staticHistoryTempo, 30, 1, 200);
 
-TUNE_INT(rfpDepth, 1097, 200, 2000);
+TUNE_INT(rfpDepth, 1400, 200, 2000);
 TUNE_INT(rfpBase, 11, -100, 100);
 TUNE_INT(rfpFactorLinear, 31, 1, 250);
 TUNE_INT(rfpFactorQuadratic, 655, 1, 1800);
