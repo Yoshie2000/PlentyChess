@@ -151,18 +151,17 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
     int score = 0;
     int pieceTo = getPieceTo(piece, move.target(), side);
 
-    constexpr std::pair<int, int> indices[] = {
-        {1, 1},
-        {2, 2},
-        {4, 2},
-        {6, 4}
-    };
+    if ((stack - 1)->movedPiece != Piece::NONE)
+        score += 2 * (stack - 1)->contHist[pieceTo];
 
-    for (auto [idx, div] : indices) {
-        if ((stack - idx)->movedPiece != Piece::NONE) {
-            score += 2 * (stack - idx)->contHist[pieceTo] / div;
-        }
-    }
+    if ((stack - 2)->movedPiece != Piece::NONE)
+        score += (stack - 2)->contHist[pieceTo];
+
+    if ((stack - 4)->movedPiece != Piece::NONE)
+        score += (stack - 4)->contHist[pieceTo];
+
+    if ((stack - 6)->movedPiece != Piece::NONE)
+        score += (stack - 6)->contHist[pieceTo] / 2;
 
     return score;
 }
@@ -173,19 +172,20 @@ void History::updateContinuationHistory(SearchStack* stack, Color side, Piece pi
     int scaledBonus = bonus - getContinuationHistory(stack, side, piece, move) * std::abs(bonus) / 32000;
     int pieceTo = getPieceTo(piece, move.target(), side);
 
-    constexpr std::pair<int, int> indices[] = {
-        {1, 1},
-        {2, 1},
-        {3, 4},
-        {4, 1},
-        {6, 2}
-    };
+    if ((stack - 1)->movedPiece != Piece::NONE)
+        (stack - 1)->contHist[pieceTo] += scaledBonus;
 
-    for (auto [idx, div] : indices) {
-        if ((stack - idx)->movedPiece != Piece::NONE) {
-            (stack - idx)->contHist[pieceTo] += scaledBonus / div;
-        }
-    }
+    if ((stack - 2)->movedPiece != Piece::NONE)
+        (stack - 2)->contHist[pieceTo] += scaledBonus;
+
+    if ((stack - 3)->movedPiece != Piece::NONE)
+        (stack - 3)->contHist[pieceTo] += scaledBonus / 4;
+
+    if ((stack - 4)->movedPiece != Piece::NONE)
+        (stack - 4)->contHist[pieceTo] += scaledBonus;
+
+    if ((stack - 6)->movedPiece != Piece::NONE)
+        (stack - 6)->contHist[pieceTo] += scaledBonus / 2;
 }
 
 int16_t& History::getCaptureHistory(Board* board, Move move) {
