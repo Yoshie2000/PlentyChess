@@ -70,6 +70,7 @@ public:
     void resize(size_t mb);
 
     size_t index(Hash hash) {
+        using u128 = unsigned __int128;
         return (u128(hash) * u128(clusterCount)) >> 64;
     }
 
