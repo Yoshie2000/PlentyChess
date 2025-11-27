@@ -9,37 +9,10 @@
 #include <vector>
 #include <string.h>
 
-#if defined(__linux__)
-#include <sys/mman.h>
-#endif
-
 #include "types.h"
 #include "movepicker.h"
 #include "evaluation.h"
 #include "uci.h"
-
-inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
-    void* ptr;
-#if defined(_WIN32)
-    ptr = _aligned_malloc(requiredBytes, alignment);
-#else
-    ptr = std::aligned_alloc(alignment, requiredBytes);
-#endif
-
-#if defined(__linux__)
-    madvise(ptr, requiredBytes, MADV_HUGEPAGE);
-#endif 
-
-    return ptr;
-}
-
-inline void alignedFree(void* ptr) {
-#if defined(_WIN32)
-    _aligned_free(ptr);
-#else
-    std::free(ptr);
-#endif
-}
 
 constexpr uint8_t TT_NOBOUND = 0;
 constexpr uint8_t TT_UPPERBOUND = 1;
@@ -90,40 +63,14 @@ class TranspositionTable {
 
 public:
 
-    TranspositionTable() {
-#ifdef PROFILE_GENERATE
-        resize(64);
-#else
-        resize(16);
-#endif
-    }
+    TranspositionTable();
+    ~TranspositionTable();
 
-    ~TranspositionTable() {
-        alignedFree(table);
-    }
-
-    void newSearch() {
-        TT_GENERATION_COUNTER += GENERATION_DELTA;
-    }
-
-    void resize(size_t mb) {
-        size_t newClusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
-        if (newClusterCount == clusterCount)
-            return;
-        
-        if (table)
-            alignedFree(table);
-        
-        clusterCount = newClusterCount;
-        table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
-
-        clear();
-    }
+    void newSearch();
+    void resize(size_t mb);
 
     size_t index(Hash hash) {
-        // Find entry
-        __extension__ using uint128 = unsigned __int128;
-        return ((uint128)hash * (uint128)clusterCount) >> 64;
+        return (u128(hash) * u128(clusterCount)) >> 64;
     }
 
     void prefetch(Hash hash) {
@@ -131,34 +78,8 @@ public:
     }
 
     TTEntry* probe(Hash hash, bool* found);
-
-    int hashfull() {
-        int count = 0;
-        for (int i = 0; i < 1000; i++) {
-            for (int j = 0; j < CLUSTER_SIZE; j++) {
-                if ((table[i].entries[j].flags & GENERATION_MASK) == TT_GENERATION_COUNTER && table[i].entries[j].isInitialised())
-                    count++;
-            }
-        }
-        return count / CLUSTER_SIZE;
-    }
-
-    void clear() {
-        size_t threadCount = UCI::Options.threads.value;
-        std::vector<std::thread> ts;
-
-        for (size_t thread = 0; thread < threadCount; thread++) {
-            size_t startCluster = thread * (clusterCount / threadCount);
-            size_t endCluster = thread == threadCount - 1 ? clusterCount : (thread + 1) * (clusterCount / threadCount);
-            ts.push_back(std::thread([this, startCluster, endCluster]() {
-                std::memset(static_cast<void*>(&table[startCluster]), 0, sizeof(TTCluster) * (endCluster - startCluster));
-            }));
-        }
-
-        for (auto& t : ts) {
-            t.join();
-        }
-    }
+    int hashfull();
+    void clear();
 
 };
 

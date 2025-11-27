@@ -6,6 +6,25 @@
 #include <sstream>
 #include <iostream>
 
+#include "utils.h"
+
+using i8 = int8_t;
+using i16 = int16_t;
+using i32 = int32_t;
+using i64 = int64_t;
+using i128 = __int128_t;
+
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+using u64 = uint64_t;
+using u128 = unsigned __int128;
+
+using f32 = float;
+using f64 = double;
+
+using usize = size_t;
+
 // General constants and types
 using Value = int32_t;
 using Square = uint8_t;
@@ -223,50 +242,6 @@ inline Square stringToSquare(const char* string) {
     int rank = string[1] - '1';
     return Square(8 * rank + file);
 }
-
-// ArrayVec
-template<class T, size_t MAX>
-class ArrayVec {
-public:
-
-    ArrayVec() : _size(0) {}
-
-    void add(const T& element) {
-        assert(_size < MAX);
-        elements[_size++] = element;
-    }
-
-    T remove(size_t i) {
-        T removed = elements[i];
-        elements[i] = elements[--_size];
-        return removed;
-    }
-
-    T& operator[](size_t i) {
-        assert(i < _size);
-        return elements[i];
-    }
-
-    T const& operator[](size_t i) const {
-        assert(i < _size);
-        return elements[i];
-    }
-
-    int size() const {
-        return _size;
-    }
-
-    int capacity() const {
-        return MAX;
-    }
-
-    const T* begin() const { return elements; }
-    const T* end() const { return elements + _size; }
-
-private:
-    T elements[MAX];
-    size_t _size{};
-};
 
 // Search Stack
 struct SearchStack {

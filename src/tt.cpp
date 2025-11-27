@@ -5,6 +5,9 @@
 TUNE_INT(ttReplaceTtpvBonus, 214, 0, 400);
 TUNE_INT(ttReplaceOffset, 451, 0, 800);
 
+uint8_t TT_GENERATION_COUNTER = 0;
+TranspositionTable TT;
+
 void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Value _eval, Value _value, uint8_t _rule50, bool wasPv, int _flags) {
     // Update bestMove if it exists
     // Or clear it for a different position
@@ -19,6 +22,36 @@ void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Value _eval, Valu
         rule50 = _rule50;
         flags = (uint8_t)(_flags + (wasPv << 2)) | TT_GENERATION_COUNTER;
     }
+}
+
+TranspositionTable::TranspositionTable() {
+#ifdef PROFILE_GENERATE
+    resize(64);
+#else
+    resize(16);
+#endif
+}
+
+TranspositionTable::~TranspositionTable() {
+    alignedFree(table);
+}
+
+void TranspositionTable::newSearch() {
+    TT_GENERATION_COUNTER += GENERATION_DELTA;
+}
+
+void TranspositionTable::resize(size_t mb) {
+    size_t newClusterCount = mb * 1024 * 1024 / sizeof(TTCluster);
+    if (newClusterCount == clusterCount)
+        return;
+
+    if (table)
+        alignedFree(table);
+
+    clusterCount = newClusterCount;
+    table = static_cast<TTCluster*>(alignedAlloc(sizeof(TTCluster), clusterCount * sizeof(TTCluster)));
+
+    clear();
 }
 
 TTEntry* TranspositionTable::probe(Hash hash, bool* found) {
@@ -48,5 +81,30 @@ TTEntry* TranspositionTable::probe(Hash hash, bool* found) {
     return replace;
 }
 
-uint8_t TT_GENERATION_COUNTER = 0;
-TranspositionTable TT;
+int TranspositionTable::hashfull() {
+    int count = 0;
+    for (int i = 0; i < 1000; i++) {
+        for (int j = 0; j < CLUSTER_SIZE; j++) {
+            if ((table[i].entries[j].flags & GENERATION_MASK) == TT_GENERATION_COUNTER && table[i].entries[j].isInitialised())
+                count++;
+        }
+    }
+    return count / CLUSTER_SIZE;
+}
+
+void TranspositionTable::clear() {
+    size_t threadCount = UCI::Options.threads.value;
+    std::vector<std::thread> ts;
+
+    for (size_t thread = 0; thread < threadCount; thread++) {
+        size_t startCluster = thread * (clusterCount / threadCount);
+        size_t endCluster = thread == threadCount - 1 ? clusterCount : (thread + 1) * (clusterCount / threadCount);
+        ts.push_back(std::thread([this, startCluster, endCluster]() {
+            std::memset(static_cast<void*>(&table[startCluster]), 0, sizeof(TTCluster) * (endCluster - startCluster));
+        }));
+    }
+
+    for (auto& t : ts) {
+        t.join();
+    }
+}

@@ -437,7 +437,7 @@ Value Worker::qsearch(Board* board, SearchStack* stack, Value alpha, Value beta)
 
     assert(alpha >= -Eval::INF && alpha < beta && beta <= Eval::INF);
 
-    if (mainThread && timeOver(searchParameters, searchData))
+    if (mainThread && TimeManagement::isHardLimitReached(searchParameters, searchData))
         threadPool->stopSearching();
 
     // Check for stop
@@ -619,7 +619,7 @@ Value Worker::search(Board* board, SearchStack* stack, Depth depth, Value alpha,
     if (!rootNode) {
 
         // Check for time / node limits on main thread
-        if (mainThread && timeOver(searchParameters, searchData))
+        if (mainThread && TimeManagement::isHardLimitReached(searchParameters, searchData))
             threadPool->stopSearching();
 
         // Check for stop or max depth
@@ -1287,7 +1287,7 @@ void Worker::tsearch() {
     searchData.nodesSearched = 0;
     searchData.tbHits = 0;
     if (mainThread)
-        initTimeManagement(rootBoard, searchParameters, searchData);
+        TimeManagement::init(rootBoard, searchParameters, searchData);
 
     iterativeDeepening();
     sortRootMoves();
@@ -1456,7 +1456,7 @@ void Worker::iterativeDeepening() {
                 tmAdjustment *= std::max(0.77 + std::clamp(complexity, 0.0, 200.0) / 386.0, 1.0);
             }
 
-            if (searchData.doSoftTM && timeOverDepthCleared(searchParameters, searchData, tmAdjustment)) {
+            if (searchData.doSoftTM && TimeManagement::isSoftLimitReached(searchParameters, searchData, tmAdjustment)) {
                 threadPool->stopSearching();
                 return;
             }
@@ -1469,7 +1469,7 @@ void Worker::iterativeDeepening() {
 }
 
 void Worker::printUCI(Worker* thread, int multiPvCount) {
-    int64_t ms = getTime() - searchData.startTime;
+    int64_t ms = TimeManagement::getTime() - searchData.startTime;
     int64_t nodes = threadPool->nodesSearched();
     int64_t nps = ms == 0 ? 0 : nodes / ((double)ms / 1000);
 
@@ -1552,7 +1552,7 @@ void Worker::tdatagen() {
 
     searchData.nodesSearched = 0;
     searchData.tbHits = 0;
-    initTimeManagement(rootBoard, searchParameters, searchData);
+    TimeManagement::init(rootBoard, searchParameters, searchData);
     {
         MoveList moves;
         MoveGen::generateMoves(&rootBoard, moves);

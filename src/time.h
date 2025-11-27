@@ -4,7 +4,11 @@
 
 #include "search.h"
 
-int64_t getTime();
-bool timeOver(SearchParameters& parameters, SearchData& data);
-bool timeOverDepthCleared(SearchParameters& parameters, SearchData& data, double factor);
-void initTimeManagement(Board& rootBoard, SearchParameters& parameters, SearchData& data);
+namespace TimeManagement {
+
+    int64_t getTime();
+    bool isHardLimitReached(SearchParameters& parameters, SearchData& data);
+    bool isSoftLimitReached(SearchParameters& parameters, SearchData& data, double factor);
+    void init(Board& rootBoard, SearchParameters& parameters, SearchData& data);
+
+}
