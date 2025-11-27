@@ -1,3 +1,4 @@
+CC = clang
 CXX = clang++
 CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
 CXXFLAGS_EXTRA = 
@@ -176,4 +177,4 @@ _nopgo:	$(OBJS)
 		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 
 clean:	
-		$(RM) src/*.o *~ engine processed.bin
+		$(RM) src/*.o src/fathom/src/*.o *~ engine processed.bin
