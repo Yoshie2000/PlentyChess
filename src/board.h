@@ -5,7 +5,7 @@
 #include <string>
 #include <sstream>
 
-#include "move.h"
+#include "movepicker.h"
 #include "bitboard.h"
 #include "types.h"
 

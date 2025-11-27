@@ -14,7 +14,7 @@
 #endif
 
 #include "types.h"
-#include "move.h"
+#include "movepicker.h"
 #include "evaluation.h"
 #include "uci.h"
 

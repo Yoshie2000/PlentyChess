@@ -4,7 +4,7 @@
 
 #include "zobrist.h"
 #include "board.h"
-#include "move.h"
+#include "movepicker.h"
 
 namespace Zobrist {
 

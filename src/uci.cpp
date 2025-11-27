@@ -10,7 +10,7 @@
 
 #include "board.h"
 #include "uci.h"
-#include "move.h"
+#include "movepicker.h"
 #include "thread.h"
 #include "search.h"
 #include "tt.h"

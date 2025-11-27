@@ -6,7 +6,7 @@
 
 #include "types.h"
 #include "magic.h"
-#include "move.h"
+#include "movepicker.h"
 #include "bitboard.h"
 
 Bitboard sliderMoves(Piece pieceType, Square origin, Bitboard blockers) {

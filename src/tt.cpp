@@ -1,5 +1,5 @@
 #include "tt.h"
-#include "move.h"
+#include "movepicker.h"
 #include "spsa.h"
 
 TUNE_INT(ttReplaceTtpvBonus, 214, 0, 400);

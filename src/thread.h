@@ -53,7 +53,7 @@ public:
     std::vector<RootMove> rootMoves;
     std::map<Move, uint64_t> rootMoveNodes;
     std::vector<Move> excludedRootMoves;
-    std::vector<std::array<MoveGen, 2>> movepickers;
+    std::vector<std::array<MovePicker, 2>> movepickers;
 
     Worker(ThreadPool* threadPool, int threadId);
 

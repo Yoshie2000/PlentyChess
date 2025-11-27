@@ -4,7 +4,7 @@
 #include "board.h"
 #include "types.h"
 #include "magic.h"
-#include "move.h"
+#include "movepicker.h"
 
 namespace BB {
 

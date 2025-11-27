@@ -1,8 +1,9 @@
 #include "thread.h"
+#include "movegen.h"
 
 std::vector<Move> generateLegalMoves(Board& board) {
     MoveList moves;
-    generateMoves(&board, moves);
+    MoveGen::generateMoves(&board, moves);
     std::vector<Move> legalMoves;
     for (auto& move : moves) {
         if (board.isLegal(move)) {

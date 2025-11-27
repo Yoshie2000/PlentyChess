@@ -12,7 +12,7 @@
 
 #include "search.h"
 #include "board.h"
-#include "move.h"
+#include "movepicker.h"
 #include "evaluation.h"
 #include "thread.h"
 #include "tt.h"
@@ -23,6 +23,7 @@
 #include "fathom/src/tbprobe.h"
 #include "zobrist.h"
 #include "debug.h"
+#include "movegen.h"
 
 // Time management
 TUNE_FLOAT_DISABLED(tmInitialAdjustment, 1.1159139860557399f, 0.5f, 1.5f);
@@ -215,7 +216,7 @@ uint64_t perftInternal(Board& board, Depth depth) {
     if (depth == 0) return 1;
 
     MoveList moves;
-    generateMoves(&board, moves);
+    MoveGen::generateMoves(&board, moves);
 
     uint64_t nodes = 0;
     for (auto& move : moves) {
@@ -237,7 +238,7 @@ uint64_t perft(Board& board, Depth depth) {
     UCI::nnue.reset(&board);
 
     MoveList moves;
-    generateMoves(&board, moves);
+    MoveGen::generateMoves(&board, moves);
 
     uint64_t nodes = 0;
     for (auto& move : moves) {
@@ -411,7 +412,7 @@ bool Worker::isDraw(Board* board, int ply) {
 
         // If in check, it might be checkmate
         MoveList moves;
-        generateMoves(board, moves);
+        MoveGen::generateMoves(board, moves);
         int legalMoveCount = 0;
         for (auto& move : moves) {
             if (!board->isLegal(move))
@@ -508,7 +509,7 @@ movesLoopQsearch:
         return alpha;
 
     // Moves loop
-    MoveGen& movegen = movepickers[stack->ply][false] = MoveGen(board, &history, stack, ttMove, !board->checkers, 1);
+    MovePicker& movegen = movepickers[stack->ply][false] = MovePicker(board, &history, stack, ttMove, !board->checkers, 1);
     Move move;
     int moveCount = 0;
     bool playedQuiet = false;
@@ -857,7 +858,7 @@ Value Worker::search(Board* board, SearchStack* stack, Depth depth, Value alpha,
         assert(probCutBeta < Eval::TBWIN_IN_MAX_PLY);
 
         Move probcutTtMove = ttMove && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : Move::none();
-        MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth / 100);
+        MovePicker movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth / 100);
         Move move;
         while ((move = movegen.nextMove())) {
             if (move == excludedMove || !board->isLegal(move))
@@ -905,7 +906,7 @@ Value Worker::search(Board* board, SearchStack* stack, Depth depth, Value alpha,
     SearchedMoveList quietMoves, captureMoves;
 
     // Moves loop
-    MoveGen& movegen = movepickers[stack->ply][excluded] = MoveGen(board, &history, stack, ttMove, depth / 100);
+    MovePicker& movegen = movepickers[stack->ply][excluded] = MovePicker(board, &history, stack, ttMove, depth / 100);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove())) {
@@ -1315,7 +1316,7 @@ void Worker::iterativeDeepening() {
     int multiPvCount = 0;
     {
         MoveList moves;
-        generateMoves(&rootBoard, moves);
+        MoveGen::generateMoves(&rootBoard, moves);
         for (auto& move : moves) {
             if (rootBoard.isLegal(move)) {
                 multiPvCount++;
@@ -1554,7 +1555,7 @@ void Worker::tdatagen() {
     initTimeManagement(rootBoard, searchParameters, searchData);
     {
         MoveList moves;
-        generateMoves(&rootBoard, moves);
+        MoveGen::generateMoves(&rootBoard, moves);
         for (auto& move : moves) {
             if (rootBoard.isLegal(move)) {
                 RootMove rootMove = {};

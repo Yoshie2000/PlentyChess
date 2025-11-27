@@ -7,7 +7,7 @@
 #include <cassert>
 #include <algorithm>
 
-#include "move.h"
+#include "movepicker.h"
 #include "types.h"
 #include "board.h"
 #include "bitboard.h"

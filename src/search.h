@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "board.h"
-#include "move.h"
+#include "movepicker.h"
 #include "evaluation.h"
 
 extern int REDUCTIONS[3][MAX_PLY][MAX_MOVES];

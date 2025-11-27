@@ -218,6 +218,12 @@ constexpr Color flip(Color color) {
     return static_cast<Color>(1 - color);
 }
 
+inline Square stringToSquare(const char* string) {
+    int file = string[0] - 'a';
+    int rank = string[1] - '1';
+    return Square(8 * rank + file);
+}
+
 // ArrayVec
 template<class T, size_t MAX>
 class ArrayVec {
