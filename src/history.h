@@ -34,22 +34,22 @@ public:
 
     void initHistory();
 
-    Eval getCorrectionValue(Board* board, SearchStack* searchStack);
-    Eval correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue);
+    Value getCorrectionValue(Board* board, SearchStack* searchStack);
+    Value correctStaticEval(uint8_t rule50, Value eval, Value correctionValue);
     void updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus);
 
     int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
 
-    int16_t getPawnHistory(Board* board, Move move);
+    int16_t& getPawnHistory(Board* board, Move move);
     void updatePawnHistory(Board* board, Move move, int16_t bonus);
 
-    int16_t getQuietHistory(Move move, Color stm, Board* board);
+    int16_t& getQuietHistory(Move move, Color stm, Board* board);
     void updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus);
 
     int getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move);
     void updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus);
 
-    int16_t* getCaptureHistory(Board* board, Move move);
+    int16_t& getCaptureHistory(Board* board, Move move);
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
     void updateCaptureHistory(Depth depth, Board* board, Move move, int moveSearchCount, SearchedMoveList& searchedCaptures);
 

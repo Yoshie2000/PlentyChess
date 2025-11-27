@@ -373,7 +373,7 @@ void MoveGen::scoreCaptures() {
             continue;
         }
 
-        int score = *history->getCaptureHistory(board, move);
+        int score = history->getCaptureHistory(board, move);
         switch (move.type()) {
             case MoveType::ENPASSANT:
                 score += 0;    

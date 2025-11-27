@@ -5,27 +5,34 @@
 #include "search.h"
 #include "nnue.h"
 
-const Eval EVAL_MATE = 30000;
-const Eval EVAL_MATE_IN_MAX_PLY = EVAL_MATE - MAX_PLY;
+namespace Eval {
 
-const Eval EVAL_TBWIN = EVAL_MATE_IN_MAX_PLY - 1000;
-const Eval EVAL_TBWIN_IN_MAX_PLY = EVAL_TBWIN - MAX_PLY;
+    constexpr Value MATE = 30000;
+    constexpr Value MATE_IN_MAX_PLY = MATE - MAX_PLY;
 
-const Eval EVAL_INFINITE = 31000;
-const Eval EVAL_NONE = 31010;
+    constexpr Value TBWIN = MATE - 1000;
+    constexpr Value TBWIN_IN_MAX_PLY = TBWIN - MAX_PLY;
 
-extern Eval PIECE_VALUES[Piece::TOTAL + 1];
+    constexpr Value INF = 31000;
 
-Eval evaluate(Board* board, NNUE* nnue);
-
-std::string formatEval(Eval value);
-
-bool SEE(Board* board, Move move, Eval threshold);
-
-constexpr Eval mateIn(int ply) {
-    return EVAL_MATE - ply;
 }
 
-constexpr Eval matedIn(int ply) {
-    return -EVAL_MATE + ply;
+extern Value PIECE_VALUES[Piece::TOTAL + 1];
+
+Value evaluate(Board* board, NNUE* nnue);
+
+std::string formatEval(Value value);
+
+bool SEE(Board* board, Move move, Value threshold);
+
+constexpr Value mateIn(int ply) {
+    return Eval::MATE - ply;
+}
+
+constexpr Value matedIn(int ply) {
+    return -Eval::MATE + ply;
+}
+
+constexpr bool isDecisive(Value value) {
+    return std::abs(value) >= Eval::TBWIN_IN_MAX_PLY;
 }

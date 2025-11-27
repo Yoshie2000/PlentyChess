@@ -334,7 +334,7 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData
     }
 }
 
-Eval NNUE::evaluate(Board* board) {
+Value NNUE::evaluate(Board* board) {
     // Make sure the current accumulators are up to date
     calculateAccumulators<Color::WHITE>();
     calculateAccumulators<Color::BLACK>();

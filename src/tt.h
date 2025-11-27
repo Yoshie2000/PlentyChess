@@ -68,11 +68,11 @@ struct TTEntry {
     constexpr Depth getDepth() { return depth; };
     constexpr uint8_t getFlag() { return flags & 0x3; };
     constexpr uint8_t getRule50() { return rule50; };
-    constexpr Eval getEval() { return eval; };
-    constexpr Eval getValue() { return value; };
+    constexpr Value getEval() { return eval; };
+    constexpr Value getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
 
-    void update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, uint8_t rule50, bool wasPv, int _flags);
+    void update(Hash _hash, Move _bestMove, Depth _depth, Value _eval, Value _value, uint8_t rule50, bool wasPv, int _flags);
     bool isInitialised() { return hash != 0; };
 };
 

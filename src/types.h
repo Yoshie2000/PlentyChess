@@ -7,7 +7,7 @@
 #include <iostream>
 
 // General constants and types
-using Eval = int32_t;
+using Value = int32_t;
 using Square = uint8_t;
 using Bitboard = uint64_t;
 using Depth = int16_t;
@@ -269,7 +269,7 @@ struct SearchStack {
 
     int ply;
 
-    Eval staticEval;
+    Value staticEval;
 
     Move move;
     Piece movedPiece;

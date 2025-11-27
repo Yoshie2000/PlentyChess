@@ -67,39 +67,42 @@ void History::initHistory() {
     }
 }
 
-Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
-    int64_t pawnEntry = correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t nonPawnEntry = nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t minorEntry = minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t majorEntry = majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
+auto& getEntry(int16_t* table, Hash hash) {
+    return table[hash & (CORRECTION_HISTORY_SIZE - 1)];
+};
+
+Value History::getCorrectionValue(Board* board, SearchStack* searchStack) {
+    auto pawnEntry = getEntry(correctionHistory[board->stm], board->hashes.pawnHash);
+    auto nonPawnEntry = getEntry(nonPawnCorrectionHistory[board->stm][Color::WHITE], board->hashes.nonPawnHash[Color::WHITE]) + getEntry(nonPawnCorrectionHistory[board->stm][Color::BLACK], board->hashes.nonPawnHash[Color::BLACK]);
+    auto minorEntry = getEntry(minorCorrectionHistory[board->stm], board->hashes.minorHash);
+    auto majorEntry = getEntry(majorCorrectionHistory[board->stm], board->hashes.majorHash);
+    auto contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
 
     return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
 }
 
-Eval History::correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue) {
+Value History::correctStaticEval(uint8_t rule50, Value eval, Value correctionValue) {
     eval = eval * (300 - rule50) / 300;
-    Eval adjustedEval = eval + correctionValue / 65536;
-    adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
-    return adjustedEval;
+    eval += correctionValue / 65536;
+    return std::clamp<Value>(eval, -Eval::TBWIN_IN_MAX_PLY + 1, Eval::TBWIN_IN_MAX_PLY - 1);
 }
 
 void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus) {
     // Pawn
-    Eval scaledBonus = bonus - correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    Value scaledBonus = bonus - getEntry(correctionHistory[board->stm], board->hashes.pawnHash) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    getEntry(correctionHistory[board->stm], board->hashes.pawnHash) += scaledBonus;
 
     // Non-Pawn
-    scaledBonus = bonus - nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
-    scaledBonus = bonus - nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    scaledBonus = bonus - getEntry(nonPawnCorrectionHistory[board->stm][Color::WHITE], board->hashes.nonPawnHash[Color::WHITE]) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    getEntry(nonPawnCorrectionHistory[board->stm][Color::WHITE], board->hashes.nonPawnHash[Color::WHITE]) += scaledBonus;
+    scaledBonus = bonus - getEntry(nonPawnCorrectionHistory[board->stm][Color::BLACK], board->hashes.nonPawnHash[Color::BLACK]) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    getEntry(nonPawnCorrectionHistory[board->stm][Color::BLACK], board->hashes.nonPawnHash[Color::BLACK]) += scaledBonus;
 
     // Minor / Major
-    scaledBonus = bonus - minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
-    scaledBonus = bonus - majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    scaledBonus = bonus - getEntry(minorCorrectionHistory[board->stm], board->hashes.minorHash) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    getEntry(minorCorrectionHistory[board->stm], board->hashes.minorHash) += scaledBonus;
+    scaledBonus = bonus - getEntry(majorCorrectionHistory[board->stm], board->hashes.majorHash) * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    getEntry(majorCorrectionHistory[board->stm], board->hashes.majorHash) += scaledBonus;
 
     // Continuation
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
@@ -110,79 +113,82 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
 
 int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
     if (isCapture) {
-        return *getCaptureHistory(board, move);
+        return getCaptureHistory(board, move);
     }
     else {
         return getQuietHistory(move, board->stm, board) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[move.origin()], move) + getPawnHistory(board, move);
     }
 }
 
-int16_t History::getQuietHistory(Move move, Color stm, Board* board) {
-    Square origin = move.origin(), target = move.target();
+int16_t& History::getQuietHistory(Move move, Color stm, Board* board) {
+    Square origin = move.origin();
+    Square target = move.target();
     return quietHistory[stm][origin][board->isSquareThreatened(origin)][target][board->isSquareThreatened(target)];
 }
 
 void History::updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus) {
-    int16_t scaledBonus = bonus - getQuietHistory(move, stm, board) * std::abs(bonus) / 32000;
-    Square origin = move.origin(), target = move.target();
-    quietHistory[stm][origin][board->isSquareThreatened(origin)][target][board->isSquareThreatened(target)] += scaledBonus;
+    auto& quietHistory = getQuietHistory(move, stm, board);
+    quietHistory += bonus - quietHistory * std::abs(bonus) / 32000;
 }
 
-int16_t History::getPawnHistory(Board* board, Move move) {
-    return pawnHistory[board->hashes.pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[move.origin()]][move.target()];
+int16_t& History::getPawnHistory(Board* board, Move move) {
+    Hash pawnHash = board->hashes.pawnHash & (PAWN_HISTORY_SIZE - 1);
+    return pawnHistory[pawnHash][board->stm][board->pieces[move.origin()]][move.target()];
 }
 
 void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
-    int16_t scaledBonus = bonus - getPawnHistory(board, move) * std::abs(bonus) / 32000;
-    pawnHistory[board->hashes.pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[move.origin()]][move.target()] += scaledBonus;
+    auto& pawnHistory = getPawnHistory(board, move);
+    pawnHistory += bonus - pawnHistory * std::abs(bonus) / 32000;
+}
+
+auto getPieceTo(Piece piece, Square target, Color color) {
+    return 2 * 64 * piece + 2 * target + color;
 }
 
 int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move) {
     assert(piece != Piece::NONE);
-    Square target = move.target();
 
     int score = 0;
-    int pieceTo = 2 * 64 * piece + 2 * target + side;
+    int pieceTo = getPieceTo(piece, move.target(), side);
 
-    if ((stack - 1)->movedPiece != Piece::NONE)
-        score += 2 * (stack - 1)->contHist[pieceTo];
+    constexpr std::pair<int, int> indices[] = {
+        {1, 1},
+        {2, 2},
+        {4, 2},
+        {6, 4}
+    };
 
-    if ((stack - 2)->movedPiece != Piece::NONE)
-        score += (stack - 2)->contHist[pieceTo];
-
-    if ((stack - 4)->movedPiece != Piece::NONE)
-        score += (stack - 4)->contHist[pieceTo];
-    
-    if ((stack - 6)->movedPiece != Piece::NONE)
-        score += (stack - 6)->contHist[pieceTo] / 2;
+    for (auto [idx, div] : indices) {
+        if ((stack - idx)->movedPiece != Piece::NONE) {
+            score += 2 * (stack - idx)->contHist[pieceTo] / div;
+        }
+    }
 
     return score;
 }
 
 void History::updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus) {
     assert(piece != Piece::NONE);
-    Square target = move.target();
 
-    int16_t scaledBonus = bonus - getContinuationHistory(stack, side, piece, move) * std::abs(bonus) / 32000;
-    int pieceTo = 2 * 64 * piece + 2 * target + side;
+    int scaledBonus = bonus - getContinuationHistory(stack, side, piece, move) * std::abs(bonus) / 32000;
+    int pieceTo = getPieceTo(piece, move.target(), side);
 
-    if ((stack - 1)->movedPiece != Piece::NONE)
-        (stack - 1)->contHist[pieceTo] += scaledBonus;
+    constexpr std::pair<int, int> indices[] = {
+        {1, 1},
+        {2, 1},
+        {3, 4},
+        {4, 1},
+        {6, 2}
+    };
 
-    if ((stack - 2)->movedPiece != Piece::NONE)
-        (stack - 2)->contHist[pieceTo] += scaledBonus;
-
-    if ((stack - 3)->movedPiece != Piece::NONE)
-        (stack - 3)->contHist[pieceTo] += scaledBonus / 4;
-
-    if ((stack - 4)->movedPiece != Piece::NONE)
-        (stack - 4)->contHist[pieceTo] += scaledBonus;
-    
-    if ((stack - 6)->movedPiece != Piece::NONE)
-        (stack - 6)->contHist[pieceTo] += scaledBonus / 2;
+    for (auto [idx, div] : indices) {
+        if ((stack - idx)->movedPiece != Piece::NONE) {
+            (stack - idx)->contHist[pieceTo] += scaledBonus / div;
+        }
+    }
 }
 
-int16_t* History::getCaptureHistory(Board* board, Move move) {
+int16_t& History::getCaptureHistory(Board* board, Move move) {
     Piece movedPiece = board->pieces[move.origin()];
     Piece capturedPiece = board->pieces[move.target()];
     Square target = move.target();
@@ -192,14 +198,12 @@ int16_t* History::getCaptureHistory(Board* board, Move move) {
 
     assert(movedPiece != Piece::NONE && capturedPiece != Piece::NONE);
 
-    return &captureHistory[board->stm][movedPiece][target][capturedPiece];
+    return captureHistory[board->stm][movedPiece][target][capturedPiece];
 }
 
 void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus) {
-    int16_t* captHistScore = getCaptureHistory(board, move);
-
-    int16_t scaledBonus = bonus - *captHistScore * std::abs(bonus) / 32000;
-    *captHistScore += scaledBonus;
+    auto& captHistScore = getCaptureHistory(board, move);
+    captHistScore += bonus - captHistScore * std::abs(bonus) / 32000;
 }
 
 void History::updateCaptureHistory(Depth depth, Board* board, Move bestMove, int bestMoveSearchCount, SearchedMoveList& searchedCaptures) {
@@ -223,7 +227,7 @@ void History::updateQuietHistories(Depth depth, Board* board, SearchStack* stack
     int contHistMalus = std::min(historyMalusContinuationBase + historyMalusContinuationFactor * depth, historyMalusContinuationMax);
     int pawnHistBonus = std::min(historyBonusPawnBase + historyBonusPawnFactor * depth, historyBonusPawnMax);
     int pawnHistMalus = std::min(historyMalusPawnBase + historyMalusPawnFactor * depth, historyMalusPawnMax);
-    
+
     // Increase stats for this move
     updateQuietHistory(bestMove, board->stm, board, quietHistBonus * bestMoveSearchCount);
     updateContinuationHistory(stack, board->stm, board->pieces[bestMove.origin()], bestMove, contHistBonus * bestMoveSearchCount);

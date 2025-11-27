@@ -15,8 +15,8 @@
 #include "tt.h"
 
 struct RootMove {
-    Eval value = -EVAL_INFINITE;
-    Eval meanScore = EVAL_NONE;
+    Value value = -Eval::INF;
+    Value meanScore = Eval::INF;
     Depth depth = 0;
     int selDepth = 0;
     Move move = Move::none();
@@ -84,10 +84,10 @@ private:
     bool isDraw(Board* board, int ply);
 
     template <NodeType nt>
-    Eval search(Board* board, SearchStack* stack, Depth depth, Eval alpha, Eval beta, bool cutNode);
+    Value search(Board* board, SearchStack* stack, Depth depth, Value alpha, Value beta, bool cutNode);
 
     template <NodeType nodeType>
-    Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta);
+    Value qsearch(Board* board, SearchStack* stack, Value alpha, Value beta);
 
 };
 
