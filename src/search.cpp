@@ -1111,7 +1111,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         // PV moves will be researched at full depth if good enough
         if (pvNode && (moveCount == 1 || value > alpha)) {
             if (move == ttMove && searchData.rootDepth > 8 && ttDepth > 1)
-                newDepth = std::max(100, newDepth);
+                newDepth = std::max(200, newDepth);
 
             value = -search<PV_NODE>(boardCopy, stack + 1, newDepth, -beta, -alpha, false);
             moveSearchCount++;
