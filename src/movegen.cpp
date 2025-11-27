@@ -121,8 +121,8 @@ void generatePawn_capture(Board* board, MoveList& moves, Bitboard targetMask = ~
 }
 
 // For all pieces other than pawns
-template <Piece pieceType, bool captures>
-void generatePiece(Board* board, MoveList& moves, Bitboard targetMask = ~bitboard(0)) {
+template <Piece pieceType>
+void generatePiece(Board* board, MoveList& moves, bool captures, Bitboard targetMask = ~bitboard(0)) {
     Bitboard blockedUs = board->byColor[board->stm];
     Bitboard blockedEnemy = board->byColor[1 - board->stm];
     Bitboard occupied = blockedUs | blockedEnemy;
@@ -177,9 +177,9 @@ void MoveGen::generateMoves(Board* board, MoveList& moves) {
     // If in double check, only generate king moves
     if (board->checkerCount > 1) {
         if (MODE & MoveGenMode::CAPTURES)
-            generatePiece<Piece::KING, true>(board, moves);
+            generatePiece<Piece::KING>(board, moves, true);
         if (MODE & MoveGenMode::QUIETS)
-            generatePiece<Piece::KING, false>(board, moves);
+            generatePiece<Piece::KING>(board, moves, false);
         return;
     }
 
@@ -188,20 +188,20 @@ void MoveGen::generateMoves(Board* board, MoveList& moves) {
 
     if (MODE & MoveGenMode::CAPTURES) {
         generatePawn_capture(board, moves, checkMask);
-        generatePiece<Piece::KNIGHT, true>(board, moves, checkMask);
-        generatePiece<Piece::BISHOP, true>(board, moves, checkMask);
-        generatePiece<Piece::ROOK, true>(board, moves, checkMask);
-        generatePiece<Piece::QUEEN, true>(board, moves, checkMask);
-        generatePiece<Piece::KING, true>(board, moves);
+        generatePiece<Piece::KNIGHT>(board, moves, true, checkMask);
+        generatePiece<Piece::BISHOP>(board, moves, true, checkMask);
+        generatePiece<Piece::ROOK>(board, moves, true, checkMask);
+        generatePiece<Piece::QUEEN>(board, moves, true, checkMask);
+        generatePiece<Piece::KING>(board, moves, true);
     }
 
     if (MODE & MoveGenMode::QUIETS) {
         generatePawn_quiet(board, moves, checkMask);
-        generatePiece<Piece::KNIGHT, false>(board, moves, checkMask);
-        generatePiece<Piece::BISHOP, false>(board, moves, checkMask);
-        generatePiece<Piece::ROOK, false>(board, moves, checkMask);
-        generatePiece<Piece::QUEEN, false>(board, moves, checkMask);
-        generatePiece<Piece::KING, false>(board, moves);
+        generatePiece<Piece::KNIGHT>(board, moves, false, checkMask);
+        generatePiece<Piece::BISHOP>(board, moves, false, checkMask);
+        generatePiece<Piece::ROOK>(board, moves, false, checkMask);
+        generatePiece<Piece::QUEEN>(board, moves, false, checkMask);
+        generatePiece<Piece::KING>(board, moves, false);
 
         if (!board->checkers) {
             generateCastling(board, moves);
