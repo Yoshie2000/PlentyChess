@@ -2,12 +2,38 @@
 
 #include <stdint.h>
 #include <cassert>
+#include <string>
+#include <sstream>
+#include <iostream>
+
+// General constants and types
+using Eval = int32_t;
+using Square = uint8_t;
+using Bitboard = uint64_t;
+using Depth = int16_t;
+using Hash = uint64_t;
 
 constexpr int MAX_PLY = 250;
-constexpr int16_t MAX_DEPTH = (MAX_PLY - 1) * 100;
+constexpr Depth MAX_DEPTH = (MAX_PLY - 1) * 100;
 constexpr int MAX_MOVES = 218;
 constexpr int MAX_CAPTURES = 74;
+constexpr Square NO_SQUARE = 64;
 
+constexpr int fileOf(const Square square) {
+    return square % 8;
+}
+constexpr int rankOf(const Square square) {
+    return square / 8;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const Square square) {
+    static std::string rankChars = "12345678";
+    static std::string fileChars = "abcdefgh";
+    os << fileChars[fileOf(square)] << rankChars[rankOf(square)];
+    return os;
+};
+
+// Color
 enum Color : uint8_t {
     WHITE = 0,
     BLACK = 1
@@ -18,7 +44,8 @@ constexpr Color& operator++(Color& color) {
     return color;
 }
 
-enum Piece: uint8_t {
+// Piece
+enum Piece : uint8_t {
     PAWN = 0,
     KNIGHT = 1,
     BISHOP = 2,
@@ -34,25 +61,126 @@ constexpr Piece& operator++(Piece& piece) {
     return piece;
 }
 
-// 00 promotion piece 00 special move type 000000 target 000000 origin
-// Special move type: 01 == promotion, 10 == en passant, 11 == castling
-// Promotion piece type: 00 == knight, 01 == bishop, 10 == rook, 11 == queen
-typedef uint16_t Move;
-typedef uint16_t MoveType;
-typedef uint16_t PromotionType;
-typedef int32_t Eval;
-typedef uint8_t Square;
-typedef uint64_t Bitboard;
-
-constexpr Square NO_SQUARE = 64;
-
-constexpr MoveType moveType(Move move) {
-    return move & 0x3000;
-}
-constexpr PromotionType promotionType(Move move) {
-    return move >> 14;
+inline std::ostream& operator<<(std::ostream& os, const Piece piece) {
+    static std::string pieceChars = "pnbrqk ";
+    os << pieceChars[piece];
+    return os;
 }
 
+// Move
+enum MoveType : uint8_t {
+    NORMAL = 0,
+    PROMOTION = 1,
+    ENPASSANT = 2,
+    CASTLING = 3
+};
+
+struct Move {
+
+    Move() = default;
+    
+    static constexpr Move none() { return Move{0}; };
+    static constexpr Move makeNormal(Square origin, Square target) {
+        return Move((origin & 0x3F) | ((target & 0x3F) << 6));
+    }
+    static constexpr Move makePromotion(Square origin, Square target, Piece promotionPiece) {
+        assert(promotionPiece >= Piece::KNIGHT);
+        assert(promotionPiece <= Piece::QUEEN);
+        return Move(origin | (target << 6) | (MoveType::PROMOTION << 12) | ((promotionPiece - 1) << 14));
+    }
+    static constexpr Move makeEnpassant(Square origin, Square target) {
+        return Move(origin | (target << 6) | (MoveType::ENPASSANT << 12));
+    }
+    static constexpr Move makeCastling(Square origin, Square target) {
+        return Move(origin | (target << 6) | (MoveType::CASTLING << 12));
+    }
+
+    constexpr Square origin() const {
+        return Square(data & 0x3F);
+    }
+    constexpr Square target() const {
+        return Square((data >> 6) & 0x3F);
+    }
+    constexpr MoveType type() const {
+        assert(*this);
+        return MoveType((data >> 12) & 0x3);
+    }
+    constexpr Piece promotionPiece() const {
+        assert(*this);
+        assert(isPromotion());
+        return Piece((data >> 14) + 1);
+    }
+
+    constexpr bool isSpecial() const {
+        assert(*this);
+        return type() != MoveType::NORMAL;
+    }
+    constexpr bool isPromotion() const {
+        assert(*this);
+        return type() == MoveType::PROMOTION;
+    }
+    constexpr bool isCastling() const {
+        assert(*this);
+        return type() == MoveType::CASTLING;
+    }
+    constexpr bool isEnpassant() const {
+        assert(*this);
+        return type() == MoveType::ENPASSANT;
+    }
+
+    constexpr operator bool() const {
+        return static_cast<bool>(data);
+    }
+
+    constexpr bool operator<(const Move& other) const {
+        return data < other.data;
+    }
+    constexpr bool operator<(Move& other) {
+        return data < other.data;
+    }
+
+    constexpr bool operator==(const Move& other) const {
+        return data == other.data;
+    }
+    constexpr bool operator==(Move& other) {
+        return data == other.data;
+    }
+    constexpr bool operator!=(const Move& other) const {
+        return data != other.data;
+    }
+    constexpr bool operator!=(Move& other) {
+        return data != other.data;
+    }
+
+    std::string toString(bool chess960) const {
+        if (!*this) return "0000";
+        std::ostringstream os;
+
+        Square from = origin(), to = target();
+        if (isCastling() && !chess960) {
+            int rank = rankOf(from);
+            int file = from > to ? 2 : 6;
+            to = rank * 8 + file;
+        }
+
+        os << from << to;
+        if (isPromotion())
+            os << promotionPiece();
+
+        return os.str();
+    }
+
+private:
+
+    constexpr Move(uint16_t _data) : data(_data) {
+        assert(origin() < 64);
+        assert(target() < 64);
+    };
+
+    uint16_t data;
+};
+
+// Helper functions
 inline Square lsb(Bitboard bb) {
     assert(bb > 0);
     return __builtin_ctzll(bb);
@@ -86,17 +214,55 @@ constexpr Bitboard bitboard(Square square) {
     return static_cast<Bitboard>(1) << square;
 }
 
-constexpr int fileOf(Square square) {
-    return square % 8;
-}
-constexpr int rankOf(Square square) {
-    return square / 8;
-}
-
 constexpr Color flip(Color color) {
     return static_cast<Color>(1 - color);
 }
 
+// ArrayVec
+template<class T, size_t MAX>
+class ArrayVec {
+public:
+
+    ArrayVec() : _size(0) {}
+
+    void add(const T& element) {
+        assert(_size < MAX);
+        elements[_size++] = element;
+    }
+
+    T remove(size_t i) {
+        T removed = elements[i];
+        elements[i] = elements[--_size];
+        return removed;
+    }
+
+    T& operator[](size_t i) {
+        assert(i < _size);
+        return elements[i];
+    }
+
+    T const& operator[](size_t i) const {
+        assert(i < _size);
+        return elements[i];
+    }
+
+    int size() const {
+        return _size;
+    }
+
+    int capacity() const {
+        return MAX;
+    }
+
+    const T* begin() const { return elements; }
+    const T* end() const { return elements + _size; }
+
+private:
+    T elements[MAX];
+    size_t _size{};
+};
+
+// Search Stack
 struct SearchStack {
     int pvLength;
     Move pv[MAX_PLY + 1];
@@ -109,7 +275,7 @@ struct SearchStack {
     Piece movedPiece;
     bool inCheck, capture;
     int correctionValue;
-    int16_t reduction;
+    Depth reduction;
     bool inLMR, ttPv;
 
     Move excludedMove;

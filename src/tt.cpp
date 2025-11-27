@@ -5,10 +5,10 @@
 TUNE_INT(ttReplaceTtpvBonus, 214, 0, 400);
 TUNE_INT(ttReplaceOffset, 451, 0, 800);
 
-void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval, Eval _value, uint8_t _rule50, bool wasPv, int _flags) {
-    // Update bestMove if not MOVE_NONE
-    // Or even clear move for a different position
-    if (_bestMove != MOVE_NONE || (uint16_t)_hash != hash)
+void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, uint8_t _rule50, bool wasPv, int _flags) {
+    // Update bestMove if it exists
+    // Or clear it for a different position
+    if (_bestMove || (uint16_t)_hash != hash)
         bestMove = _bestMove;
 
     if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + ttReplaceTtpvBonus * wasPv + ttReplaceOffset > depth) {
@@ -21,9 +21,9 @@ void TTEntry::update(uint64_t _hash, Move _bestMove, int16_t _depth, Eval _eval,
     }
 }
 
-TTEntry* TranspositionTable::probe(uint64_t hash, bool* found) {
+TTEntry* TranspositionTable::probe(Hash hash, bool* found) {
     TTCluster* cluster = &table[index(hash)];
-    uint64_t hash16 = (uint16_t)hash;
+    uint16_t hash16 = (uint16_t)hash;
 
     TTEntry* replace = &cluster->entries[0];
 

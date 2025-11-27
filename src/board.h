@@ -51,11 +51,11 @@ struct Threats {
 };
 
 struct Hashes {
-    uint64_t hash;
-    uint64_t pawnHash;
-    uint64_t nonPawnHash[2];
-    uint64_t minorHash;
-    uint64_t majorHash;
+    Hash hash;
+    Hash pawnHash;
+    Hash nonPawnHash[2];
+    Hash minorHash;
+    Hash majorHash;
 };
 
 struct Board {
@@ -99,7 +99,7 @@ struct Board {
     void removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
     void movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue);
 
-    void doMove(Move move, uint64_t newHash, NNUE* nnue);
+    void doMove(Move move, Hash newHash, NNUE* nnue);
     void doNullMove();
 
     void calculateThreats();
@@ -107,10 +107,9 @@ struct Board {
     bool opponentHasGoodCapture();
 
     constexpr bool isCapture(Move move) {
-        MoveType type = moveType(move);
-        if (type == MOVE_CASTLING) return false;
-        if (type == MOVE_ENPASSANT || (type == MOVE_PROMOTION && promotionType(move) == PROMOTION_QUEEN)) return true;
-        return pieces[moveTarget(move)] != Piece::NONE;
+        if (move.isCastling()) return false;
+        if (move.isEnpassant() || (move.isPromotion() && move.promotionPiece() == Piece::QUEEN)) return true;
+        return pieces[move.target()] != Piece::NONE;
     }
     bool isPseudoLegal(Move move);
     bool isLegal(Move move);
@@ -120,7 +119,7 @@ struct Board {
         return castlingSquares[2 * side + direction];
     }
 
-    uint64_t hashAfter(Move move);
+    Hash hashAfter(Move move);
 
     void updateSliderPins(Color side);
 
