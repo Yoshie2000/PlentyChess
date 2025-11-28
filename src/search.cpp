@@ -547,7 +547,7 @@ movesLoopQsearch:
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target];
 
-        playedQuiet |= move != ttMove && !capture;
+        playedQuiet |= !capture;
 
         Board* boardCopy = doMove(board, newHash, move);
         Eval value = -qsearch<nodeType>(boardCopy, stack + 1, -beta, -alpha);
