@@ -1004,9 +1004,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
-            else if (singularBeta >= beta) {
-                Eval value = std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(board->hashes.hash, ttMove, singularDepth, unadjustedEval, value, board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
+            else if (singularValue >= beta) {
+                ttEntry->update(board->hashes.hash, ttMove, singularDepth, unadjustedEval, std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1), board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
 
                 // Adjust correction history
                 if (!board->checkers && singularValue > stack->staticEval) {
@@ -1014,7 +1013,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     history.updateCorrectionHistory(board, stack, bonus);
                 }
 
-                return value;
+                return std::min(singularValue, EVAL_TBWIN_IN_MAX_PLY - 1);
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
