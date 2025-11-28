@@ -155,10 +155,10 @@ void NNUE::calculateAccumulators() {
         KingBucketInfo* inputKingBucket = &inputAcc->kingBucketInfo[side];
         KingBucketInfo* outputKingBucket = &outputAcc->kingBucketInfo[side];
 
-        if (inputKingBucket->mirrored != outputKingBucket->mirrored)
+        // if (inputKingBucket->mirrored != outputKingBucket->mirrored)
             refreshThreatFeatures<side>(outputAcc);
-        else
-            incrementallyUpdateThreatFeatures<side>(inputAcc, outputAcc, outputKingBucket);
+        // else
+        //     incrementallyUpdateThreatFeatures<side>(inputAcc, outputAcc, outputKingBucket);
 
         if (inputKingBucket->bucket != outputKingBucket->bucket || inputKingBucket->mirrored != outputKingBucket->mirrored)
             refreshPieceFeatures<side>(outputAcc, outputKingBucket);
@@ -205,6 +205,20 @@ template<Color side>
 void NNUE::refreshThreatFeatures(Accumulator* acc) {
     // Overwrite with biases
     memcpy(acc->threatState[side], networkData->inputBiases, sizeof(networkData->inputBiases));
+
+    // Calculate material eval
+    Bitboard occ = acc->board->byColor[Color::WHITE] | acc->board->byColor[Color::BLACK];
+    int materialCount[2] = {0, 0};
+    constexpr int PIECE_VALUES[] = {1, 3, 3, 5, 9, 0, 0};
+    while (occ) {
+        Square sq = popLSB(&occ);
+        Piece piece = acc->board->pieces[sq];
+        Color color = (acc->board->byColor[Color::WHITE] & bitboard(occ)) ? Color::WHITE : Color::BLACK;
+        materialCount[color] += PIECE_VALUES[piece];
+    }
+    int materialDiff = std::abs(materialCount[0] - materialCount[1]);
+    if (materialDiff >= 3)
+        return;
 
     ThreatInputs::FeatureList threatFeatures;
     ThreatInputs::addThreatFeatures<side>(acc->board, threatFeatures);
