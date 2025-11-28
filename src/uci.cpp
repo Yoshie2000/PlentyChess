@@ -514,7 +514,17 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "debug")) board.debugBoard();
         else if (matchesToken(line, "eval")) {
             UCI::nnue.reset(&board);
-            std::cout << UCI::nnue.evaluate(&board) << std::endl;
+            Bitboard occ = board.byColor[Color::WHITE] | board.byColor[Color::BLACK];
+            int materialCount[2] = {0, 0};
+            constexpr int PIECE_VALUES[] = {1, 3, 3, 5, 9, 0, 0};
+            while (occ) {
+                Square sq = popLSB(&occ);
+                Piece piece = board.pieces[sq];
+                Color color = (board.byColor[Color::WHITE] & bitboard(occ)) ? Color::WHITE : Color::BLACK;
+                materialCount[color] += PIECE_VALUES[piece];
+            }
+            int materialDiff = std::abs(materialCount[0] - materialCount[1]);
+            std::cout << UCI::nnue.evaluate(&board) << " " << materialDiff << std::endl;
         }
         else std::cout << "Unknown command" << std::endl;
     }

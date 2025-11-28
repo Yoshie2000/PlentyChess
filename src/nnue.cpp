@@ -201,23 +201,27 @@ void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
     memcpy(acc->pieceState[side], finnyEntry->pieceState[side], sizeof(acc->pieceState[side]));
 }
 
+bool useThreatFeatures(Board* board) {
+    // Calculate material eval
+    Bitboard occ = board->byColor[Color::WHITE] | board->byColor[Color::BLACK];
+    int materialCount[2] = {0, 0};
+    constexpr int PIECE_VALUES[] = {1, 3, 3, 5, 9, 0, 0};
+    while (occ) {
+        Square sq = popLSB(&occ);
+        Piece piece = board->pieces[sq];
+        Color color = (board->byColor[Color::WHITE] & bitboard(occ)) ? Color::WHITE : Color::BLACK;
+        materialCount[color] += PIECE_VALUES[piece];
+    }
+    int materialDiff = std::abs(materialCount[0] - materialCount[1]);
+    return materialDiff < 3;
+}
+
 template<Color side>
 void NNUE::refreshThreatFeatures(Accumulator* acc) {
     // Overwrite with biases
     memcpy(acc->threatState[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
-    // Calculate material eval
-    Bitboard occ = acc->board->byColor[Color::WHITE] | acc->board->byColor[Color::BLACK];
-    int materialCount[2] = {0, 0};
-    constexpr int PIECE_VALUES[] = {1, 3, 3, 5, 9, 0, 0};
-    while (occ) {
-        Square sq = popLSB(&occ);
-        Piece piece = acc->board->pieces[sq];
-        Color color = (acc->board->byColor[Color::WHITE] & bitboard(occ)) ? Color::WHITE : Color::BLACK;
-        materialCount[color] += PIECE_VALUES[piece];
-    }
-    int materialDiff = std::abs(materialCount[0] - materialCount[1]);
-    if (materialDiff >= 3)
+    if (!useThreatFeatures(acc->board))
         return;
 
     ThreatInputs::FeatureList threatFeatures;
@@ -602,6 +606,9 @@ Eval NNUE::evaluate(Board* board) {
 
     float result = networkData->l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
 #endif
-
-    return result * NETWORK_SCALE;
+    
+    if (useThreatFeatures(board))
+        return result * 374;
+    else
+        return result * 271;
 }
