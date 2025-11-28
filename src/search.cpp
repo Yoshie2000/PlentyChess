@@ -100,7 +100,7 @@ TUNE_INT(nmpEvalDepth, 7, 1, 100);
 TUNE_INT(nmpEvalBase, 158, 50, 300);
 
 TUNE_INT(probcutReduction, 437, 0, 600);
-TUNE_INT(probCutBetaOffset, 201, 1, 500);
+TUNE_INT(probCutBetaOffset, 220, 1, 500);
 TUNE_INT(probCutDepth, 581, 100, 1000);
 
 TUNE_INT(iir2Reduction, 102, 0, 200);
@@ -637,7 +637,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
-    bool improving = false, excluded = static_cast<bool>(excludedMove);
+    bool improving = false, improvingProbcut = false, excluded = static_cast<bool>(excludedMove);
 
     (stack + 1)->killer = Move::none();
     (stack + 1)->excludedMove = Move::none();
@@ -753,9 +753,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (!board->checkers) {
         if ((stack - 2)->staticEval != EVAL_NONE) {
             improving = stack->staticEval > (stack - 2)->staticEval;
+            improvingProbcut = stack->staticEval > (stack - 2)->staticEval + 75;
         }
         else if ((stack - 4)->staticEval != EVAL_NONE) {
             improving = stack->staticEval > (stack - 4)->staticEval;
+            improvingProbcut = stack->staticEval > (stack - 4)->staticEval + 75;
         }
     }
 
@@ -845,7 +847,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // ProbCut
-    probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
+    probCutBeta = std::min(beta + probCutBetaOffset - 50 * improvingProbcut, EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
         && !board->checkers
         && !excluded
