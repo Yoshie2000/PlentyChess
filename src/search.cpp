@@ -789,7 +789,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
 
-            if ((stack - 2)->movedPiece != Piece::NONE) // 1-ply conthist for the last played move
+            if ((stack - 2)->movedPiece != Piece::NONE && !(stack - 1)->capture) // 1-ply conthist for the last played move
                 rfpMargin += (stack - 2)->contHist[History::getPieceTo((stack - 1)->movedPiece, (stack - 1)->move.target(), (board - 1)->stm)] / 500;
         }
         if (eval - rfpMargin >= beta) {
