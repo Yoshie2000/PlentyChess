@@ -139,10 +139,9 @@ void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
 
 int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move) {
     assert(piece != Piece::NONE);
-    Square target = move.target();
 
     int score = 0;
-    int pieceTo = 2 * 64 * piece + 2 * target + side;
+    int pieceTo = getPieceTo(piece, move.target(), side);
 
     if ((stack - 1)->movedPiece != Piece::NONE)
         score += 2 * (stack - 1)->contHist[pieceTo];
@@ -161,10 +160,9 @@ int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece,
 
 void History::updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus) {
     assert(piece != Piece::NONE);
-    Square target = move.target();
 
     int16_t scaledBonus = bonus - getContinuationHistory(stack, side, piece, move) * std::abs(bonus) / 32000;
-    int pieceTo = 2 * 64 * piece + 2 * target + side;
+    int pieceTo = getPieceTo(piece, move.target(), side);
 
     if ((stack - 1)->movedPiece != Piece::NONE)
         (stack - 1)->contHist[pieceTo] += scaledBonus;

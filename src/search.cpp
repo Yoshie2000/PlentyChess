@@ -788,6 +788,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         } else {
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
+
+            if ((stack - 2)->movedPiece != Piece::NONE) // 1-ply conthist for the last played move
+                rfpMargin += (stack - 2)->contHist[History::getPieceTo((stack - 1)->movedPiece, (stack - 1)->move.target(), (board - 1)->stm)] / 500;
         }
         if (eval - rfpMargin >= beta) {
             return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
@@ -944,7 +947,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 // Futility pruning
                 int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * !bestMove);
                 if ((stack - 1)->movedPiece != Piece::NONE)
-                    fpValue += (stack - 1)->contHist[2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm] / 500;
+                    fpValue += (stack - 1)->contHist[History::getPieceTo(board->pieces[move.origin()], move.target(), board->stm)] / 500;
                 if (!capture && lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
                 }
