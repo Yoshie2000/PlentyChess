@@ -121,7 +121,7 @@ TUNE_INT(fpCaptDepth, 763, 100, 2000);
 TUNE_INT(fpCaptBase, 415, 150, 750);
 TUNE_INT(fpCaptFactor, 419, 100, 600);
 
-TUNE_INT(historyPruningDepth, 480, 100, 1000);
+TUNE_INT(historyPruningDepth, 450, 100, 1000);
 TUNE_INT(historyPruningFactorCapture, -2169, -8192, -128);
 TUNE_INT(historyPruningFactorQuiet, -6430, -8192, -128);
 
@@ -961,7 +961,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100)
+            if (!pvNode && lmrDepth < (historyPruningDepth + 100 * !capture) && moveHistory < hpFactor * depth / 100)
                 continue;
 
             // SEE Pruning
