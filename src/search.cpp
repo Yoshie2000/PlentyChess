@@ -636,7 +636,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     Move bestMove = Move::none();
     Move excludedMove = stack->excludedMove;
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
-    Eval oldAlpha = alpha;
+    Eval oldAlpha = alpha, improvingRate = 0;
     bool improving = false, excluded = static_cast<bool>(excludedMove);
 
     (stack + 1)->killer = Move::none();
@@ -752,11 +752,13 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     // Improving
     if (!board->checkers) {
         if ((stack - 2)->staticEval != EVAL_NONE) {
-            improving = stack->staticEval > (stack - 2)->staticEval;
+            improvingRate = stack->staticEval - (stack - 2)->staticEval;
         }
         else if ((stack - 4)->staticEval != EVAL_NONE) {
-            improving = stack->staticEval > (stack - 4)->staticEval;
+            improvingRate = stack->staticEval - (stack - 4)->staticEval;
         }
+        improvingRate = std::clamp(improvingRate, -100, 100);
+        improving = improvingRate > 0;
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
@@ -1074,7 +1076,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             else {
                 reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
                 reduction -= lmrQuietPvNodeOffset * pvNode;
-                reduction -= lmrQuietImproving * improving;
+                if (improving)
+                    reduction -= lmrQuietImproving + improvingRate * lmrQuietImproving / 100;
             }
 
             Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
