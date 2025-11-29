@@ -92,10 +92,9 @@ TUNE_INT(razoringDepth, 493, 200, 2000);
 TUNE_INT(razoringFactor, 276, 1, 1000);
 
 TUNE_INT(nmpMinDepth, 334, 0, 600);
-TUNE_INT(nmpRedBase, 353, 100, 800);
+TUNE_INT(nmpRedBase, 725, 100, 800);
 TUNE_INT(nmpDepthDiv, 263, 100, 600);
 TUNE_INT(nmpMin, 372, 100, 800);
-TUNE_INT(nmpDivisor, 223, 10, 600);
 TUNE_INT(nmpEvalDepth, 7, 1, 100);
 TUNE_INT(nmpEvalBase, 158, 50, 300);
 
@@ -819,7 +818,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[board->stm][0][0];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0];
-        int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
+        int R = nmpRedBase + 100 * depth / nmpDepthDiv;
 
         Board* boardCopy = doNullMove(board);
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
