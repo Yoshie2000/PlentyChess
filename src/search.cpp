@@ -965,7 +965,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 continue;
 
             // SEE Pruning
-            if (!SEE(board, move, (200 + 50 * pvNode) * SEE_MARGIN[!capture ? lmrDepth / 100 : depth / 100][!capture] / 200))
+            if (!SEE(board, move, (200 + 150 * pvNode) * SEE_MARGIN[!capture ? lmrDepth / 100 : depth / 100][!capture] / 200))
                 continue;
 
         }
