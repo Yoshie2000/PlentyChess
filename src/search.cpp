@@ -1021,7 +1021,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 extension = -3;
             // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
             else if (cutNode)
-                extension = -2;
+                extension = -3;
         }
 
         Hash newHash = board->hashAfter(move);
