@@ -1183,7 +1183,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                             history.setCounterMove((stack - 1)->move, move);
 
                         history.updateQuietHistories(historyUpdateDepth, board, stack, move, moveSearchCount, quietMoves);
+                    } else {
+                        stack->killer = Move::none();
                     }
+
                     if (captureMoves.size())
                         history.updateCaptureHistory(historyUpdateDepth, board, move, moveSearchCount, captureMoves);
                     break;
