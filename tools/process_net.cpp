@@ -15,7 +15,7 @@ constexpr int KING_BUCKETS = 12;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int THREAT_INPUT_SIZE = 79856;
-constexpr int INPUT_SIZE = THREAT_INPUT_SIZE + KING_BUCKETS * 768;
+constexpr int INPUT_SIZE = THREAT_INPUT_SIZE + 2 * KING_BUCKETS * 768;
 constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
@@ -38,7 +38,7 @@ struct RawNetworkData {
 };
 
 struct NetworkData {
-    alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputPsqWeights[768 * 2 * KING_BUCKETS * L1_SIZE];
     alignas(ALIGNMENT) int8_t inputThreatWeights[THREAT_INPUT_SIZE * L1_SIZE];
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
     alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
@@ -102,7 +102,7 @@ void quantizeNetwork() {
     for (int w = 0; w < THREAT_INPUT_SIZE * L1_SIZE; w++) {
         tmp.inputThreatWeights[w] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights[w + 768 * L1_SIZE /* factoriser bucket at the beginning */]), -128, 127);
     }
-    for (int kb = 0; kb < KING_BUCKETS; kb++) {
+    for (int kb = 0; kb < 2 * KING_BUCKETS; kb++) {
         for (int w = 0; w < 768 * L1_SIZE; w++) {
             int psqIdx = kb * 768 * L1_SIZE + w;
             int idx = THREAT_INPUT_SIZE * L1_SIZE + psqIdx;
@@ -150,7 +150,7 @@ void transposePermuteNetwork() {
 #endif
     __m128i regs[packusBlocks];
 
-    for (int limit : { 1, 768 * KING_BUCKETS }) {
+    for (int limit : { 1, 768 * 2 * KING_BUCKETS }) {
         __m128i* vec = reinterpret_cast<__m128i*>(limit == 1 ? (int16_t*)tmp.inputBiases : (int16_t*)tmp.inputPsqWeights);
 
         for (int i = 0; i < limit * L1_SIZE / weightsPerBlock; i += packusBlocks) {

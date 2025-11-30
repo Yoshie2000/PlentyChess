@@ -120,8 +120,9 @@ namespace ThreatInputs {
     template int getThreatFeature<Color::WHITE>(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored);
     template int getThreatFeature<Color::BLACK>(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored);
 
-    int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket) {
-        return 768 * kingBucket + 384 * relativeColor + 64 * piece + relativeSquare;
+    int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, bool pinned, uint8_t kingBucket) {
+        int bucketedFeature = 768 * 2 * kingBucket + 384 * relativeColor + 64 * piece + relativeSquare;
+        return bucketedFeature + 768 * pinned;
     }
 
     template<Color pov>
@@ -161,6 +162,23 @@ namespace ThreatInputs {
     template void addThreatFeatures<Color::BLACK>(Board* board, FeatureList& features);
 
     void addPieceFeatures(Board* board, Color pov, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT) {
+        // Compute pinned pieces of each side
+        Bitboard pinned[2] = {0, 0};
+        for (Color c : {Color::WHITE, Color::BLACK}) {
+            Square king = lsb(board->byColor[c] & board->byPiece[Piece::KING]);
+            Bitboard rooks_queens = (board->byPiece[Piece::ROOK] | board->byPiece[Piece::QUEEN]) & getRookMoves(king, bitboard(0));
+            Bitboard bishops_queens = (board->byPiece[Piece::BISHOP] | board->byPiece[Piece::QUEEN]) & getBishopMoves(king, bitboard(0));
+            Bitboard possiblePinners = (rooks_queens | bishops_queens) & board->byColor[flip(c)];
+
+            while (possiblePinners) {
+                Square sq = popLSB(&possiblePinners);
+                Bitboard blocker = board->byColor[c] & BB::BETWEEN[king][sq];
+                if (BB::popcount(blocker) == 1) {
+                    pinned[c] |= blocker;
+                }
+            }
+        }
+
         // Check HM and get occupancies
         Square king = lsb(board->byColor[pov] & board->byPiece[Piece::KING]);
         uint8_t kingBucket = KING_BUCKET_LAYOUT[king ^ (56 * pov)];
@@ -178,7 +196,8 @@ namespace ThreatInputs {
 
                     // Add the "standard" 768 piece feature
                     Square relativeSquare = square ^ (56 * pov);
-                    features.add(getPieceFeature(piece, relativeSquare, static_cast<Color>(side != pov), kingBucket));
+                    bool isPinned = pinned[side] & bitboard(indexSquare);
+                    features.add(getPieceFeature(piece, relativeSquare, static_cast<Color>(side != pov), isPinned, kingBucket));
                 }
             }
         }

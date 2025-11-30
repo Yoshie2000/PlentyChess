@@ -19,7 +19,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
 };
 constexpr int KING_BUCKETS = 12;
 
-constexpr int INPUT_SIZE = ThreatInputs::FEATURE_COUNT + 768 * KING_BUCKETS;
+constexpr int INPUT_SIZE = ThreatInputs::FEATURE_COUNT + 768 * 2 * KING_BUCKETS;
 constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
@@ -93,7 +93,7 @@ struct FinnyEntry {
 };
 
 struct NetworkData {
-  alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+  alignas(ALIGNMENT) int16_t inputPsqWeights[768 * 2 * KING_BUCKETS * L1_SIZE];
   alignas(ALIGNMENT) int8_t inputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
@@ -200,7 +200,7 @@ public:
     }
   }
 
-  int16_t oldInputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+  int16_t oldInputPsqWeights[768 * 2 * KING_BUCKETS * L1_SIZE];
   int8_t oldInputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
   int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
@@ -230,7 +230,7 @@ public:
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
 
       // Input weights
-      for (int ip = 0; ip < 768 * KING_BUCKETS; ip++) {
+      for (int ip = 0; ip < 768 * 2 * KING_BUCKETS; ip++) {
         nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1] = oldInputPsqWeights[ip * L1_SIZE + order[l1]];
         nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputPsqWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
       }
