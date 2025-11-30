@@ -12,7 +12,7 @@ using SearchedMoveList = ArrayVec<SearchedMove, 32>;
 
 constexpr int PAWN_HISTORY_SIZE = 8192;
 constexpr int CORRECTION_HISTORY_SIZE = 16384;
-constexpr int CORRECTION_HISTORY_LIMIT = 1024;
+constexpr int CORRECTION_HISTORY_LIMIT = 1536;
 
 class History {
 
