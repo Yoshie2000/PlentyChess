@@ -932,7 +932,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
             reduction += earlyLmrImproving * !improving;
             reduction -= 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet);
-            Depth lmrDepth = std::max(0, depth - reduction);
+            Depth lmrDepth = depth - reduction;
 
             if (!movegen.skipQuiets) {
 
@@ -949,6 +949,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     movegen.skipQuietMoves();
                 }
             }
+
+            lmrDepth = std::max<Depth>(0, lmrDepth);
 
             // Futility pruning for captures
             if (!pvNode && capture && !move.isPromotion()) {
