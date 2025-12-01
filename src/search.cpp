@@ -950,8 +950,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 }
             }
 
-            lmrDepth = std::max<Depth>(0, lmrDepth);
-
             // Futility pruning for captures
             if (!pvNode && capture && !move.isPromotion()) {
                 Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
@@ -959,6 +957,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     continue;
             }
 
+            lmrDepth = std::max<Depth>(0, lmrDepth);
             lmrDepth = std::min(std::min<Depth>(depth + 100, MAX_DEPTH), lmrDepth);
 
             // History pruning
