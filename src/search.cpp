@@ -1099,7 +1099,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
 
                     if (captureMoves.size())
-                        history.updateCaptureHistory(updateDepth, board, move, moveSearchCount, captureMoves);
+                        history.updateCaptureHistory(updateDepth / 2, board, move, moveSearchCount, captureMoves);
                 }
             }
         }
