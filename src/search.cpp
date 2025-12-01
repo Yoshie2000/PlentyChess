@@ -944,6 +944,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 }
             }
 
+            Depth seeDepth = lmrDepth;
             lmrDepth = std::max<Depth>(0, lmrDepth);
 
             // Futility pruning for captures
@@ -961,7 +962,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 continue;
 
             // SEE Pruning
-            int seeMargin = capture ? -22 * depth * depth / 10000 : -73 * lmrDepth / 100;
+            int seeMargin = capture ? -22 * depth * depth / 10000 : -73 * seeDepth / 100;
             if (!SEE(board, move, (2 + pvNode) * seeMargin / 2))
                 continue;
 
