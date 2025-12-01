@@ -119,6 +119,7 @@ void bench(Board& board, std::vector<Hash>& boardHistory) {
     int totalPositions = benchPositions.size();
 
     threads.waitForSearchFinished();
+    threads.ucinewgame();
 
     int i = 0;
     for (const std::string& fen : benchPositions) {
