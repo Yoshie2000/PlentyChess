@@ -1094,8 +1094,12 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 moveSearchCount++;
 
                 if (!capture) {
-                    int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * (value > alpha ? depth / 100 : reducedDepth / 100), lmrPassBonusMax);
+                    int updateDepth = value > alpha ? depth / 100 : reducedDepth / 100;
+                    int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * updateDepth, lmrPassBonusMax);
                     history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
+
+                    if (captureMoves.size())
+                        history.updateCaptureHistory(updateDepth, board, move, moveSearchCount, captureMoves);
                 }
             }
         }
