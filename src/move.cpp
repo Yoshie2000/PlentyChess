@@ -284,7 +284,7 @@ Move MoveGen::nextMove() {
             int score = moveListScores[returnedMoves++];
 
             bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : SEE(board, move, -score / mpSeeDivisor);
-            if (!goodCapture) {
+            if (!goodCapture || (onlyCaptures && move.isPromotion() && move.promotionPiece() != Piece::QUEEN)) {
                 badCaptureList.add(move);
                 continue;
             }
