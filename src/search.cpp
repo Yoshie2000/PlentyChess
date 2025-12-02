@@ -1196,18 +1196,19 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (stopped || exiting)
         return 0;
 
+    Eval returnValue = bestValue;
     if (!pvNode && bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && std::abs(alpha) < EVAL_TBWIN_IN_MAX_PLY)
-        bestValue = (bestValue * depth + 100 * beta) / (depth + 100);
+        returnValue = (bestValue * depth + 100 * beta) / (depth + 100);
 
     if (moveCount == 0) {
         if (board->checkers && excluded)
             return -EVAL_INFINITE;
         // Mate / Stalemate
-        bestValue = board->checkers ? matedIn(stack->ply) : 0;
+        bestValue = returnValue = board->checkers ? matedIn(stack->ply) : 0;
     }
 
     if (pvNode)
-        bestValue = std::min(bestValue, maxValue);
+        bestValue = returnValue = std::min(bestValue, maxValue);
 
     // Insert into TT
     bool failLow = alpha == oldAlpha;
@@ -1222,9 +1223,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         history.updateCorrectionHistory(board, stack, bonus);
     }
 
-    assert(bestValue > -EVAL_INFINITE && bestValue < EVAL_INFINITE);
+    assert(returnValue > -EVAL_INFINITE && returnValue < EVAL_INFINITE);
 
-    return bestValue;
+    return returnValue;
 }
 
 Move tbProbeMoveRoot(unsigned result) {
