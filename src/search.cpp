@@ -1215,11 +1215,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(board->hashes.hash, bestMove, depth, unadjustedEval, valueToTT(returnValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
+        ttEntry->update(board->hashes.hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
 
     // Adjust correction history
-    if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
-        int bonus = std::clamp((int(bestValue - stack->staticEval) * depth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+    if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || returnValue > stack->staticEval) && (!failLow || returnValue <= stack->staticEval)) {
+        int bonus = std::clamp((int(returnValue - stack->staticEval) * depth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         history.updateCorrectionHistory(board, stack, bonus);
     }
 
