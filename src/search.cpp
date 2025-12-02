@@ -781,6 +781,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
         } else {
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
+            if (!ttHit) rfpDepth = 90 * rfpDepth / 100;
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
         if (eval - rfpMargin >= beta) {
