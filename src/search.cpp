@@ -513,7 +513,7 @@ movesLoopQsearch:
             continue;
 
         if (futilityValue > -EVAL_INFINITE && bestValue > -EVAL_TBWIN_IN_MAX_PLY) { // Only prune when not in check
-            if (futilityValue <= alpha && !SEE(board, move, 1)) {
+            if (futilityValue <= alpha && !SEE(board, move, alpha - futilityValue)) {
                 bestValue = std::max(bestValue, futilityValue);
                 continue;
             }
