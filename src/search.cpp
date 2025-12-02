@@ -918,6 +918,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         bool importantCapture = stack->ttPv && capture && !cutNode;
         int moveHistory = history.getHistory(board, stack, move, capture);
 
+        bool pvHp = false;
+
         if (!rootNode
             && bestValue > -EVAL_TBWIN_IN_MAX_PLY
             && board->hasNonPawns()
@@ -957,8 +959,12 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100)
-                continue;
+            if (lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100) {
+                if (pvNode)
+                    pvHp = true;
+                else
+                    continue;
+            }
 
             // SEE Pruning
             int seeMargin = capture ? -22 * depth * depth / 10000 : -73 * lmrDepth / 100;
@@ -1059,6 +1065,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= lmrTtPv(importantCapture);
                 reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
             }
+
+            reduction += 50 * pvHp;
 
             if (capture) {
                 reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
