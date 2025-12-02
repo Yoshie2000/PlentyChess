@@ -1215,7 +1215,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(board->hashes.hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
+        ttEntry->update(board->hashes.hash, bestMove, depth, unadjustedEval, valueToTT(returnValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
 
     // Adjust correction history
     if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
@@ -1223,9 +1223,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         history.updateCorrectionHistory(board, stack, bonus);
     }
 
-    assert(returnValue > -EVAL_INFINITE && returnValue < EVAL_INFINITE);
+    assert(bestValue > -EVAL_INFINITE && bestValue < EVAL_INFINITE);
 
-    return returnValue;
+    return bestValue;
 }
 
 Move tbProbeMoveRoot(unsigned result) {
