@@ -766,7 +766,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     // Post-LMR depth adjustments
     if (!board->checkers && (stack - 1)->inLMR) {
         int additionalReduction = 0;
-        if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
+        if ((stack - 1)->reduction >= postlmrOppWorseningThreshold - 100 * (stack - 1)->importantCapture && stack->staticEval <= -(stack - 1)->staticEval)
             additionalReduction -= postlmrOppWorseningReduction;
 
         depth -= additionalReduction;
@@ -1077,11 +1077,13 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
             stack->inLMR = true;
+            stack->importantCapture = importantCapture;
 
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, reducedDepth, -(alpha + 1), -alpha, true);
             moveSearchCount++;
 
             stack->inLMR = false;
+            stack->importantCapture = false;
             reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
             stack->reduction = 0;
 
@@ -1367,6 +1369,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
                 stackList[i].ttPv = false;
+                stackList[i].importantCapture = false;
             }
 
             searchData.rootDepth = depth;
@@ -1592,6 +1595,7 @@ void Worker::tdatagen() {
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
             stackList[i].ttPv = false;
+            stackList[i].importantCapture = false;
         }
 
         searchData.rootDepth = depth;

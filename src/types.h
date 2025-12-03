@@ -276,7 +276,7 @@ struct SearchStack {
     bool inCheck, capture;
     int correctionValue;
     Depth reduction;
-    bool inLMR, ttPv;
+    bool inLMR, ttPv, importantCapture;
 
     Move excludedMove;
     Move killer;
