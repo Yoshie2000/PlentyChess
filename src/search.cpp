@@ -898,6 +898,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     SearchedMoveList quietMoves, captureMoves;
 
+    bool pvLmp = false;
+
     // Moves loop
     MoveGen& movegen = movepickers[stack->ply][excluded] = MoveGen(board, &history, stack, ttMove, depth / 100);
     Move move;
@@ -933,8 +935,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (!movegen.skipQuiets) {
 
                 // Movecount pruning (LMP)
-                if (!pvNode && moveCount >= LMP_MARGIN[depth / 100][improving]) {
-                    movegen.skipQuietMoves();
+                if (moveCount >= LMP_MARGIN[depth / 100][improving]) {
+                    if (pvNode)
+                        pvLmp = true;
+                    else
+                        movegen.skipQuietMoves();
                 }
 
                 // Futility pruning
@@ -1080,6 +1085,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
                 reduction -= lmrQuietPvNodeOffset * pvNode;
                 reduction -= lmrQuietImproving * improving;
+                reduction += 100 * pvLmp;
             }
 
             Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
