@@ -1039,7 +1039,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         Board* boardCopy = doMove(board, newHash, move);
 
         Eval value = 0;
-        int newDepth = depth - 100 + 100 * extension;
+        int newDepth = depth - (capture ? 95 : 105) + 100 * extension;
         int8_t moveSearchCount = 0;
 
         // Very basic LMR: Late moves are being searched with less depth
