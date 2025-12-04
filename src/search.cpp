@@ -940,10 +940,12 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 }
 
                 // Futility pruning
-                int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * !bestMove);
-                fpValue += history.getWeightedQuietHistory(board, stack, move, std::make_tuple(0, 0, 100, 0, 0, 0, 0)) / 500; // TODO tune
-                if (!capture && lmrDepth < fpDepth && fpValue <= alpha) {
-                    movegen.skipQuietMoves();
+                if (!capture) {
+                    int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * !bestMove);
+                    fpValue += history.getWeightedQuietHistory(board, stack, move, std::make_tuple(0, 0, 100, 0, 0, 0, 0)) / 500; // TODO tune
+                    if (lmrDepth < fpDepth && fpValue <= alpha) {
+                        movegen.skipQuietMoves();
+                    }
                 }
             }
 
@@ -959,10 +961,15 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             lmrDepth = std::min(std::min<Depth>(depth + 100, MAX_DEPTH), lmrDepth);
 
             // History pruning
-            int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            int hpHistory = history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)); // TODO tune
-            if (!pvNode && lmrDepth < historyPruningDepth && hpHistory < hpFactor * depth / 100)
-                continue;
+            if (!pvNode && lmrDepth < historyPruningDepth) {
+                if (capture) {
+                    if (*history.getCaptureHistory(board, move) < historyPruningFactorCapture / 100)
+                        continue;
+                } else {
+                    if (history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)) < historyPruningFactorQuiet / 100)
+                        continue;
+                }
+            }
 
             // SEE Pruning
             int seeMargin = capture ? -22 * depth * depth / 10000 : -73 * lmrDepth / 100; // TODO tune
@@ -1074,7 +1081,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 }
             }
             else {
-                int quietHistory = history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)); // TODO tune
+                int quietHistory = history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)); // TODO tunen
                 reduction -= 100 * quietHistory / lmrQuietHistoryDivisor;
                 reduction -= lmrQuietPvNodeOffset * pvNode;
                 reduction -= lmrQuietImproving * improving;
