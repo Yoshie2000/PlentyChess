@@ -918,7 +918,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         bool capture = board->isCapture(move);
         bool importantCapture = stack->ttPv && capture && !cutNode;
-        int moveHistory = history.getHistory(board, stack, move, capture);
 
         if (!rootNode
             && bestValue > -EVAL_TBWIN_IN_MAX_PLY
@@ -927,7 +926,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
             reduction += earlyLmrImproving * !improving;
-            reduction -= 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet);
+            if (capture)
+                reduction -= 100 * *history.getCaptureHistory(board, move) / earlyLmrHistoryFactorCapture;
+            else
+                reduction -= 100 * history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)) / earlyLmrHistoryFactorQuiet; // TODO tune
             Depth lmrDepth = depth - reduction;
 
             if (!movegen.skipQuiets) {
@@ -939,8 +941,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 // Futility pruning
                 int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * !bestMove);
-                if ((stack - 1)->movedPiece != Piece::NONE)
-                    fpValue += (stack - 1)->contHist[2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm] / 500;
+                fpValue += history.getWeightedQuietHistory(board, stack, move, std::make_tuple(0, 0, 100, 0, 0, 0, 0)) / 500; // TODO tune
                 if (!capture && lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
                 }
@@ -959,11 +960,12 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100)
+            int hpHistory = history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)); // TODO tune
+            if (!pvNode && lmrDepth < historyPruningDepth && hpHistory < hpFactor * depth / 100)
                 continue;
 
             // SEE Pruning
-            int seeMargin = capture ? -22 * depth * depth / 10000 : -73 * lmrDepth / 100;
+            int seeMargin = capture ? -22 * depth * depth / 10000 : -73 * lmrDepth / 100; // TODO tune
             if (!SEE(board, move, (2 + pvNode) * seeMargin / 2))
                 continue;
 
@@ -994,12 +996,12 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
-                extension = 1;
+                extension = 1; // TODO tune
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
-                    extension = 2;
+                    extension = 2; // TODO tune
                     depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
                     if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
-                        extension = 3;
+                        extension = 3; // TODO tune
                 }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
@@ -1017,10 +1019,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
-                extension = -3;
+                extension = -3; // TODO tune
             // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
             else if (cutNode)
-                extension = -2;
+                extension = -2; // TODO tune
         }
 
         Hash newHash = board->hashAfter(move);
@@ -1063,7 +1065,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
 
             if (capture) {
-                reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
+                int captureHistory = *history.getCaptureHistory(board, move);
+                reduction -= captureHistory * std::abs(captureHistory) / lmrCaptureHistoryDivisor(importantCapture);
 
                 if (importantCapture) {
                     reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
@@ -1071,7 +1074,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 }
             }
             else {
-                reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
+                int quietHistory = history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)); // TODO tune
+                reduction -= 100 * quietHistory / lmrQuietHistoryDivisor;
                 reduction -= lmrQuietPvNodeOffset * pvNode;
                 reduction -= lmrQuietImproving * improving;
             }

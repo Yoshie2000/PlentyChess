@@ -425,7 +425,7 @@ void MoveGen::scoreQuiets() {
                 threatScore -= 7500;
         }
 
-        moveListScores.add(history->getHistory(board, searchStack, move, false) + threatScore);
+        moveListScores.add(history->getWeightedQuietHistory(board, searchStack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)) + threatScore);
     }
 }
 

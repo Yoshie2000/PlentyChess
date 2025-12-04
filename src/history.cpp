@@ -108,13 +108,25 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
     }
 }
 
-int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
-    if (isCapture) {
-        return *getCaptureHistory(board, move);
-    }
-    else {
-        return getQuietHistory(move, board->stm, board) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[move.origin()], move) + getPawnHistory(board, move);
-    }
+int History::getWeightedQuietHistory(Board* board, SearchStack* stack, Move move, QuietHistoryWeights weights) {
+    int pieceTo = 2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm;
+    auto [quietWeight, pawnWeight, ch1Weight, ch2Weight, ch3Weight, ch4Weight, ch6Weight] = weights;
+
+    int result = 0;
+    result += quietWeight * getQuietHistory(move, board->stm, board) / 100;
+    result += pawnWeight * getPawnHistory(board, move) / 100;
+    if ((stack - 1)->movedPiece != Piece::NONE)
+        result += ch1Weight * (stack - 1)->contHist[pieceTo] / 100;
+    if ((stack - 2)->movedPiece != Piece::NONE)
+        result += ch2Weight * (stack - 2)->contHist[pieceTo] / 100;
+    if ((stack - 3)->movedPiece != Piece::NONE)
+        result += ch3Weight * (stack - 3)->contHist[pieceTo] / 100;
+    if ((stack - 4)->movedPiece != Piece::NONE)
+        result += ch4Weight * (stack - 4)->contHist[pieceTo] / 100;
+    if ((stack - 6)->movedPiece != Piece::NONE)
+        result += ch6Weight * (stack - 6)->contHist[pieceTo] / 100;
+
+    return result;
 }
 
 int16_t History::getQuietHistory(Move move, Color stm, Board* board) {

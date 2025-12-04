@@ -3,12 +3,15 @@
 #include "types.h"
 #include "board.h"
 
+#include <tuple>
+
 struct SearchedMove {
     Move move;
     int8_t searchCount;
 };
 
 using SearchedMoveList = ArrayVec<SearchedMove, 32>;
+using QuietHistoryWeights = std::tuple<int, int, int, int, int, int, int>;
 
 constexpr int PAWN_HISTORY_SIZE = 8192;
 constexpr int CORRECTION_HISTORY_SIZE = 16384;
@@ -33,12 +36,11 @@ public:
     int16_t continuationCorrectionHistory[2][Piece::TOTAL][64][2][2];
 
     void initHistory();
+    int getWeightedQuietHistory(Board* board, SearchStack* searchStack, Move move, QuietHistoryWeights weights);
 
     Eval getCorrectionValue(Board* board, SearchStack* searchStack);
     Eval correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue);
     void updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus);
-
-    int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
 
     int16_t getPawnHistory(Board* board, Move move);
     void updatePawnHistory(Board* board, Move move, int16_t bonus);
