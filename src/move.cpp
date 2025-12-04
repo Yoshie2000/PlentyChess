@@ -15,7 +15,19 @@
 
 TUNE_INT_DISABLED(mpPromotionScoreFactor, 101, 10, 10000);
 TUNE_INT_DISABLED(mpMvvLvaScoreFactor, 147, 10, 10000);
-TUNE_INT_DISABLED(mpSeeDivisor, 83, 10, 150);
+TUNE_INT(movepickSeeDivisor, 83, 10, 150);
+
+TUNE_INT(movepickQueenThreat, 20000, 0, 40000);
+TUNE_INT(movepickRookThreat, 12500, 0, 25000);
+TUNE_INT(movepickMinorThreat, 7500, 0, 15000);
+
+TUNE_INT(movepickQhWeight, 100, 0, 200);
+TUNE_INT(movepickPhWeight, 100, 0, 200);
+TUNE_INT(movepickCh1Weight, 400, 0, 800);
+TUNE_INT(movepickCh2Weight, 200, 0, 400);
+TUNE_INT(movepickCh3Weight, 0, 0, 50);
+TUNE_INT(movepickCh4Weight, 200, 0, 400);
+TUNE_INT(movepickCh6Weight, 100, 0, 200);
 
 void generatePawn_quiet(Board* board, MoveList& moves, Bitboard targetMask) {
     Bitboard pawns = board->byPiece[Piece::PAWN] & board->byColor[board->stm];
@@ -283,7 +295,7 @@ Move MoveGen::nextMove() {
             Move move = moveList[returnedMoves];
             int score = moveListScores[returnedMoves++];
 
-            bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : SEE(board, move, -score / mpSeeDivisor);
+            bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : SEE(board, move, -score / movepickSeeDivisor);
             if (!goodCapture) {
                 badCaptureList.add(move);
                 continue;
@@ -408,24 +420,24 @@ void MoveGen::scoreQuiets() {
         Bitboard toBB = bitboard(move.target());
         if (piece == Piece::QUEEN) {
             if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
-                threatScore += 20000;
+                threatScore += movepickQueenThreat;
             if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
-                threatScore -= 20000;
+                threatScore -= movepickQueenThreat;
         }
         else if (piece == Piece::ROOK) {
             if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
-                threatScore += 12500;
+                threatScore += movepickRookThreat;
             if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
-                threatScore -= 12500;
+                threatScore -= movepickRookThreat;
         }
         else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
             if (fromBB & threats.pawnThreats)
-                threatScore += 7500;
+                threatScore += movepickMinorThreat;
             if (toBB & threats.pawnThreats)
-                threatScore -= 7500;
+                threatScore -= movepickMinorThreat;
         }
 
-        moveListScores.add(history->getWeightedQuietHistory(board, searchStack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)) + threatScore);
+        moveListScores.add(history->getWeightedQuietHistory(board, searchStack, move, std::make_tuple(movepickQhWeight, movepickPhWeight, movepickCh1Weight, movepickCh2Weight, movepickCh3Weight, movepickCh4Weight, movepickCh6Weight)) + threatScore);
     }
 }
 

@@ -111,11 +111,28 @@ TUNE_INT(earlyLmrImproving, 130, 1, 500);
 TUNE_INT(earlyLmrHistoryFactorQuiet, 15941, 10000, 20000);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14387, 10000, 20000);
 
+TUNE_INT(earlyLmrQhWeight, 100, 0, 200);
+TUNE_INT(earlyLmrPhWeight, 100, 0, 200);
+TUNE_INT(earlyLmrCh1Weight, 400, 0, 800);
+TUNE_INT(earlyLmrCh2Weight, 200, 0, 400);
+TUNE_INT(earlyLmrCh3Weight, 0, 0, 50);
+TUNE_INT(earlyLmrCh4Weight, 200, 0, 400);
+TUNE_INT(earlyLmrCh6Weight, 100, 0, 200);
+
 TUNE_INT(fpDepth, 1078, 100, 2000);
 TUNE_INT(fpBase, 306, 1, 1000);
 TUNE_INT(fpFactor, 70, 1, 500);
 TUNE_INT(fpPvNode, 39, 1, 250);
-TUNE_INT(fpPvNodeBadCapture, 118, 1, 500);
+TUNE_INT(fpPvNodeNoBestMove, 118, 1, 500);
+
+TUNE_INT(fpHistoryWeight, 500, 0, 1000);
+TUNE_INT(fpQhWeight, 0, 0, 50);
+TUNE_INT(fpPhWeight, 0, 0, 50);
+TUNE_INT(fpCh1Weight, 100, 0, 200);
+TUNE_INT(fpCh2Weight, 0, 0, 50);
+TUNE_INT(fpCh3Weight, 0, 0, 50);
+TUNE_INT(fpCh4Weight, 0, 0, 50);
+TUNE_INT(fpCh6Weight, 0, 0, 50);
 
 TUNE_INT(fpCaptDepth, 763, 100, 2000);
 TUNE_INT(fpCaptBase, 415, 150, 750);
@@ -125,12 +142,29 @@ TUNE_INT(historyPruningDepth, 480, 100, 1000);
 TUNE_INT(historyPruningFactorCapture, -2169, -8192, -128);
 TUNE_INT(historyPruningFactorQuiet, -6430, -8192, -128);
 
+TUNE_INT(hpQhWeight, 100, 0, 200);
+TUNE_INT(hpPhWeight, 100, 0, 200);
+TUNE_INT(hpCh1Weight, 400, 0, 800);
+TUNE_INT(hpCh2Weight, 200, 0, 400);
+TUNE_INT(hpCh3Weight, 0, 0, 50);
+TUNE_INT(hpCh4Weight, 200, 0, 400);
+TUNE_INT(hpCh6Weight, 100, 0, 200);
+
+TUNE_INT(seeFactorCapture, 22, 0, 50);
+TUNE_INT(seeFactorQuiet, 73, 0, 150);
+
 TUNE_INT(extensionMinDepth, 660, 0, 1200);
 TUNE_INT(extensionTtDepthOffset, 455, 0, 600);
 TUNE_INT(doubleExtensionDepthIncreaseFactor, 93, 0, 200);
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
 TUNE_INT(doubleExtensionDepthIncrease, 1063, 200, 2000);
 TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
+
+TUNE_INT(singleExtension, 100, 0, 200);
+TUNE_INT(doubleExtension, 200, 100, 300);
+TUNE_INT(tripleExtension, 300, 200, 400);
+TUNE_INT(ttValueNegExt, -300, -400, -200);
+TUNE_INT(cutNodeNegExt, -200, -300, -100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
@@ -161,6 +195,14 @@ inline int lmrTtPv(bool importantCapture) { return importantCapture ? lmrTtPvImp
 inline int lmrTtpvFaillow(bool importantCapture) { return importantCapture ? lmrTtpvFaillowQuietOrNormalCapture : lmrTtpvFaillowImportantCapture; };
 inline int lmrCaptureHistoryDivisor(bool importantCapture) { return importantCapture ? lmrHistoryFactorImportantCapture : lmrHistoryFactorCapture; };
 inline int lmrCorrectionDivisor(bool importantCapture) { return importantCapture ? lmrCorrectionDivisorImportantCapture : lmrCorrectionDivisorQuietOrNormalCapture; };
+
+TUNE_INT(lmrQhWeight, 100, 0, 200);
+TUNE_INT(lmrPhWeight, 100, 0, 200);
+TUNE_INT(lmrCh1Weight, 400, 0, 800);
+TUNE_INT(lmrCh2Weight, 200, 0, 400);
+TUNE_INT(lmrCh3Weight, 0, 0, 50);
+TUNE_INT(lmrCh4Weight, 200, 0, 400);
+TUNE_INT(lmrCh6Weight, 100, 0, 200);
 
 TUNE_INT(postlmrOppWorseningThreshold, 257, 150, 450);
 TUNE_INT(postlmrOppWorseningReduction, 142, 0, 200);
@@ -929,7 +971,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (capture)
                 reduction -= 100 * *history.getCaptureHistory(board, move) / earlyLmrHistoryFactorCapture;
             else
-                reduction -= 100 * history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)) / earlyLmrHistoryFactorQuiet; // TODO tune
+                reduction -= 100 * history.getWeightedQuietHistory(board, stack, move, std::make_tuple(earlyLmrQhWeight, earlyLmrPhWeight, earlyLmrCh1Weight, earlyLmrCh2Weight, earlyLmrCh3Weight, earlyLmrCh4Weight, earlyLmrCh6Weight)) / earlyLmrHistoryFactorQuiet;
             Depth lmrDepth = depth - reduction;
 
             if (!movegen.skipQuiets) {
@@ -941,8 +983,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 // Futility pruning
                 if (!capture) {
-                    int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * !bestMove);
-                    fpValue += history.getWeightedQuietHistory(board, stack, move, std::make_tuple(0, 0, 100, 0, 0, 0, 0)) / 500; // TODO tune
+                    int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeNoBestMove * !bestMove);
+                    fpValue += history.getWeightedQuietHistory(board, stack, move, std::make_tuple(fpQhWeight, fpPhWeight, fpCh1Weight, fpCh2Weight, fpCh3Weight, fpCh4Weight, fpCh6Weight)) / fpHistoryWeight;
                     if (lmrDepth < fpDepth && fpValue <= alpha) {
                         movegen.skipQuietMoves();
                     }
@@ -966,13 +1008,13 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     if (*history.getCaptureHistory(board, move) < historyPruningFactorCapture * depth / 100)
                         continue;
                 } else {
-                    if (history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)) < historyPruningFactorQuiet * depth / 100) // TODO tune
+                    if (history.getWeightedQuietHistory(board, stack, move, std::make_tuple(hpQhWeight, hpPhWeight, hpCh1Weight, hpCh2Weight, hpCh3Weight, hpCh4Weight, hpCh6Weight)) < historyPruningFactorQuiet * depth / 100)
                         continue;
                 }
             }
 
             // SEE Pruning
-            int seeMargin = capture ? -22 * depth * depth / 10000 : -73 * lmrDepth / 100; // TODO tune
+            int seeMargin = capture ? -seeFactorCapture * depth * depth / 10000 : -seeFactorQuiet * lmrDepth / 100;
             if (!SEE(board, move, (2 + pvNode) * seeMargin / 2))
                 continue;
 
@@ -1003,12 +1045,12 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
-                extension = 1; // TODO tune
+                extension = singleExtension;
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
-                    extension = 2; // TODO tune
+                    extension = doubleExtension;
                     depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
                     if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
-                        extension = 3; // TODO tune
+                        extension = tripleExtension;
                 }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
@@ -1026,10 +1068,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
-                extension = -3; // TODO tune
+                extension = ttValueNegExt;
             // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
             else if (cutNode)
-                extension = -2; // TODO tune
+                extension = cutNodeNegExt;
         }
 
         Hash newHash = board->hashAfter(move);
@@ -1050,7 +1092,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         Board* boardCopy = doMove(board, newHash, move);
 
         Eval value = 0;
-        int newDepth = depth - 100 + 100 * extension;
+        int newDepth = depth - 100 + extension;
         int8_t moveSearchCount = 0;
 
         // Very basic LMR: Late moves are being searched with less depth
@@ -1081,7 +1123,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 }
             }
             else {
-                int quietHistory = history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)); // TODO tunen
+                int quietHistory = history.getWeightedQuietHistory(board, stack, move, std::make_tuple(lmrQhWeight, lmrPhWeight, lmrCh1Weight, lmrCh2Weight, lmrCh3Weight, lmrCh4Weight, lmrCh6Weight));
                 reduction -= 100 * quietHistory / lmrQuietHistoryDivisor;
                 reduction -= lmrQuietPvNodeOffset * pvNode;
                 reduction -= lmrQuietImproving * improving;
