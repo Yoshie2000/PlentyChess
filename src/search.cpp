@@ -963,10 +963,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             // History pruning
             if (!pvNode && lmrDepth < historyPruningDepth) {
                 if (capture) {
-                    if (*history.getCaptureHistory(board, move) < historyPruningFactorCapture / 100)
+                    if (*history.getCaptureHistory(board, move) < historyPruningFactorCapture * depth / 100)
                         continue;
                 } else {
-                    if (history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)) < historyPruningFactorQuiet / 100)
+                    if (history.getWeightedQuietHistory(board, stack, move, std::make_tuple(100, 100, 400, 200, 0, 200, 100)) < historyPruningFactorQuiet * depth / 100) // TODO tune
                         continue;
                 }
             }
