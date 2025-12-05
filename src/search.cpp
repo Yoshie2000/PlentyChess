@@ -68,6 +68,7 @@ TUNE_INT(ttCutOffset, 41, -100, 200);
 TUNE_INT(ttCutFailHighMargin, 121, 0, 200);
 
 TUNE_INT(iirMinDepth, 257, 100, 1000);
+TUNE_INT(iirCheckDepth, 500, 0, 1000);
 TUNE_INT(iirLowTtDepthOffset, 424, 0, 800);
 TUNE_INT(iirReduction, 90, 0, 200);
 
@@ -102,6 +103,7 @@ TUNE_INT(probCutBetaOffset, 201, 1, 500);
 TUNE_INT(probCutDepth, 581, 100, 1000);
 
 TUNE_INT(iir2Reduction, 102, 0, 200);
+TUNE_INT(iir2MinDepth, 257, 100, 1000);
 
 // In-search pruning
 TUNE_INT(earlyLmrImproving, 130, 1, 500);
@@ -760,7 +762,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // IIR
-    if (!board->checkers && (!ttHit || ttDepth + iirLowTtDepthOffset < depth) && depth >= iirMinDepth)
+    if (depth >= iirMinDepth + iirCheckDepth * !!board->checkers && (!ttHit || ttDepth + iirLowTtDepthOffset < depth))
         depth -= iirReduction;
 
     // Post-LMR depth adjustments
@@ -890,7 +892,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // IIR 2: Electric boolagoo
-    if (!board->checkers && !ttHit && depth >= iirMinDepth && pvNode)
+    if (!board->checkers && !ttHit && depth >= iir2MinDepth && pvNode)
         depth -= iir2Reduction;
 
     if (stopped || exiting)
