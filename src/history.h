@@ -48,7 +48,6 @@ public:
     int16_t getQuietHistory(Move move, Color stm, Board* board);
     void updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus);
 
-    int getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move);
     void updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus);
 
     int16_t* getCaptureHistory(Board* board, Move move);

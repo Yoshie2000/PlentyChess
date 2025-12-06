@@ -149,47 +149,30 @@ void History::updatePawnHistory(Board* board, Move move, int16_t bonus) {
     pawnHistory[board->hashes.pawnHash & (PAWN_HISTORY_SIZE - 1)][board->stm][board->pieces[move.origin()]][move.target()] += scaledBonus;
 }
 
-int History::getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move) {
-    assert(piece != Piece::NONE);
-    Square target = move.target();
-
-    int score = 0;
-    int pieceTo = 2 * 64 * piece + 2 * target + side;
-
-    if ((stack - 1)->movedPiece != Piece::NONE)
-        score += 2 * (stack - 1)->contHist[pieceTo];
-
-    if ((stack - 2)->movedPiece != Piece::NONE)
-        score += (stack - 2)->contHist[pieceTo];
-
-    if ((stack - 4)->movedPiece != Piece::NONE)
-        score += (stack - 4)->contHist[pieceTo];
-    
-    if ((stack - 6)->movedPiece != Piece::NONE)
-        score += (stack - 6)->contHist[pieceTo] / 2;
-
-    return score;
-}
-
 void History::updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus) {
     assert(piece != Piece::NONE);
-    Square target = move.target();
+    int pieceTo = 2 * 64 * piece + 2 * move.target() + side;
 
-    int16_t scaledBonus = bonus - getContinuationHistory(stack, side, piece, move) * std::abs(bonus) / 32000;
-    int pieceTo = 2 * 64 * piece + 2 * target + side;
+    int conthistScore = 0;
+    if ((stack - 1)->movedPiece != Piece::NONE)
+        conthistScore += 2 * (stack - 1)->contHist[pieceTo];
+    if ((stack - 2)->movedPiece != Piece::NONE)
+        conthistScore += (stack - 2)->contHist[pieceTo];
+    if ((stack - 4)->movedPiece != Piece::NONE)
+        conthistScore += (stack - 4)->contHist[pieceTo];
+    if ((stack - 6)->movedPiece != Piece::NONE)
+        conthistScore += (stack - 6)->contHist[pieceTo] / 2;
+
+    int16_t scaledBonus = bonus - conthistScore * std::abs(bonus) / 32000;
 
     if ((stack - 1)->movedPiece != Piece::NONE)
         (stack - 1)->contHist[pieceTo] += scaledBonus;
-
     if ((stack - 2)->movedPiece != Piece::NONE)
         (stack - 2)->contHist[pieceTo] += scaledBonus;
-
     if ((stack - 3)->movedPiece != Piece::NONE)
         (stack - 3)->contHist[pieceTo] += scaledBonus / 4;
-
     if ((stack - 4)->movedPiece != Piece::NONE)
         (stack - 4)->contHist[pieceTo] += scaledBonus;
-    
     if ((stack - 6)->movedPiece != Piece::NONE)
         (stack - 6)->contHist[pieceTo] += scaledBonus / 2;
 }
