@@ -15,19 +15,19 @@
 
 TUNE_INT_DISABLED(mpPromotionScoreFactor, 101, 10, 10000);
 TUNE_INT_DISABLED(mpMvvLvaScoreFactor, 147, 10, 10000);
-TUNE_INT(movepickSeeDivisor, 83, 10, 150);
+TUNE_INT(movepickSeeDivisor, 84, 10, 150);
 
-TUNE_INT(movepickQueenThreat, 20916, 0, 40000);
-TUNE_INT(movepickRookThreat, 12532, 0, 25000);
-TUNE_INT(movepickMinorThreat, 8153, 0, 15000);
+TUNE_INT(movepickQueenThreat, 20962, 0, 40000);
+TUNE_INT(movepickRookThreat, 12636, 0, 25000);
+TUNE_INT(movepickMinorThreat, 8113, 0, 15000);
 
-TUNE_INT(movepickQhWeight, 112, 0, 200);
-TUNE_INT(movepickPhWeight, 94, 0, 200);
-TUNE_INT(movepickCh1Weight, 416, 0, 800);
-TUNE_INT(movepickCh2Weight, 199, 0, 400);
+TUNE_INT(movepickQhWeight, 110, 0, 200);
+TUNE_INT(movepickPhWeight, 92, 0, 200);
+TUNE_INT(movepickCh1Weight, 425, 0, 800);
+TUNE_INT(movepickCh2Weight, 200, 0, 400);
 TUNE_INT(movepickCh3Weight, 0, 0, 50);
 TUNE_INT(movepickCh4Weight, 213, 0, 400);
-TUNE_INT(movepickCh6Weight, 104, 0, 200);
+TUNE_INT(movepickCh6Weight, 107, 0, 200);
 
 void generatePawn_quiet(Board* board, MoveList& moves, Bitboard targetMask) {
     Bitboard pawns = board->byPiece[Piece::PAWN] & board->byColor[board->stm];

@@ -2,8 +2,8 @@
 #include "move.h"
 #include "spsa.h"
 
-TUNE_INT(ttReplaceTtpvBonus, 205, 0, 400);
-TUNE_INT(ttReplaceOffset, 486, 0, 800);
+TUNE_INT(ttReplaceTtpvBonus, 212, 0, 400);
+TUNE_INT(ttReplaceOffset, 485, 0, 800);
 
 void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, uint8_t _rule50, bool wasPv, int _flags) {
     // Update bestMove if it exists
