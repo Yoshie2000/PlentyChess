@@ -20,7 +20,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
 constexpr int KING_BUCKETS = 12;
 
 constexpr int INPUT_SIZE = ThreatInputs::FEATURE_COUNT + 768 * KING_BUCKETS;
-constexpr int L1_SIZE = 640;
+constexpr int L1_SIZE = 1024;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
