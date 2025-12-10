@@ -81,6 +81,7 @@ ifeq ($(arch),)
 		HAS_AVX512 := $(shell .\detect_flags.bat $(CXX) __AVX512)
 		IS_ZEN1  := $(shell .\detect_flags.bat $(CXX) __znver1)
 		IS_ZEN2  := $(shell .\detect_flags.bat $(CXX) __znver2)
+		IS_ZEN4  := $(shell .\detect_flags.bat $(CXX) __znver4)
 		IS_ZEN5  := $(shell .\detect_flags.bat $(CXX) __znver5)
 	else
 		HAS_SSSE3 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__SSSE3")
@@ -90,11 +91,14 @@ ifeq ($(arch),)
 		HAS_AVX512 := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__AVX512")
 		IS_ZEN1  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver1")
 		IS_ZEN2  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver2")
+		IS_ZEN4  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver4")
 		IS_ZEN5  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver5")
 	endif
 
 # Select best build
 	ifneq ($(IS_ZEN5),0)
+		arch := avx512vnni
+	else ifneq ($(IS_ZEN4),0)
 		arch := avx512vnni
 	else ifneq ($(HAS_AVX512),0)
 		arch := avx512
@@ -121,33 +125,9 @@ $(info Autodetected architecture: $(arch))
 endif
 
 # CPU Flags
-ifeq ($(arch), android)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a+simd -static
-	LDFLAGS := $(LDFLAGS) -lstdc++
-	CXX := aarch64-linux-android29-clang++
-	CC := aarch64-linux-android29-clang
-else ifeq ($(arch), arm64)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a+simd
-else ifeq ($(arch), avx512vnni)
+ifeq ($(arch), avx512vnni)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=cascadelake -mbmi2
 	CFLAGS := $(CFLAGS) -march=cascadelake -mbmi2
-else ifeq ($(arch), avx512)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=skylake-avx512 -mbmi2
-	CFLAGS := $(CFLAGS) -march=skylake-avx512 -mbmi2
-else ifeq ($(arch), bmi2)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=haswell -mbmi2
-	CFLAGS := $(CFLAGS) -march=haswell -mbmi2
-else ifeq ($(arch), avx2)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=haswell
-	CFLAGS := $(CFLAGS) -march=haswell
-else ifeq ($(arch), fma)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -mfma
-	CFLAGS := $(CFLAGS) -mssse3 -mfma
-else ifeq ($(arch), ssse3)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3
-	CFLAGS := $(CFLAGS) -mssse3
-else ifeq ($(arch), generic)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
 else
 $(error Architecture not supported: $(arch))
 endif
