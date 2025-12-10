@@ -82,7 +82,7 @@ struct Accumulator {
   int numDirtyThreats;
 
   KingBucketInfo kingBucketInfo[2];
-  Board* board;
+  Board board;
 };
 
 struct FinnyEntry {

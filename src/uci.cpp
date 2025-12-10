@@ -392,21 +392,9 @@ void relabelViriformat(std::string line, Board& board, std::vector<Hash>& boardH
 
             if (std::abs(scoredMove.eval) <= 32000) {
                 Eval eval = UCI::nnue.evaluate(&board);
-                UCI::nnue2.reset(&board);
-                Eval eval2 = UCI::nnue2.evaluate(&board);
-                if (eval != eval2) {
-                    std::cout << int(eval) << " " << int(eval2) << std::endl;
-                    std::cout << int(board.lastMove.origin()) << " " << int(board.lastMove.target()) << std::endl;
-                    for (int i = 0; i < UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].numDirtyPieces; i++) {
-                        auto dt = UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].dirtyPieces[i];
-                        std::cout << int(dt.origin) << " " << int(dt.target) << " " << int(dt.piece) << " " << int(dt.pieceColor) << std::endl;
-                    }
-                    for (int i = 0; i < UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].numDirtyThreats; i++) {
-                        auto dt = UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].dirtyThreats[i];
-                        std::cout << int(dt.square) << " " << int(dt.piece) << " " << int(dt.pieceColor) << " " << int(dt.attackedSquare) << " " << int(dt.attackedPiece) << " " << int(dt.attackedColor) << " " << int(dt.add) << std::endl;
-                    }
-                }
-                assert(eval == eval2);
+                // UCI::nnue2.reset(&board);
+                // Eval eval2 = UCI::nnue2.evaluate(&board);
+                // assert(eval == eval2);
 
                 scoredMove.eval = board.stm == Color::BLACK ? -eval : eval;
             }
