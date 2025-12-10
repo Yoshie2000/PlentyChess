@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <iostream>
 
 #include "board.h"
 #include "types.h"
@@ -11,6 +12,7 @@ namespace BB {
     Bitboard LINE[64][64];
     Bitboard KING_ATTACKS[64];
     Bitboard KNIGHT_ATTACKS[64];
+    Bitboard RAY_PASS[64][64];
 
     Bitboard kingAttacks(Square origin) {
         Bitboard attacksBB = bitboard(0);
@@ -73,6 +75,15 @@ namespace BB {
                 BETWEEN[a][b] |= getRookMoves(a, bitboard(b)) & getRookMoves(b, bitboard(a));
                 BETWEEN[a][b] |= bitboard(b);
                 BETWEEN[a][b] &= LINE[a][b];
+
+                for (Piece piece : {Piece::BISHOP, Piece::ROOK}) {
+                    Bitboard pseudoAttacks = piece == Piece::ROOK ? getRookMoves(a, 0) : getBishopMoves(a, 0);
+                    if (pseudoAttacks & bitboard(b)) {
+                        RAY_PASS[a][b] = pseudoAttacks;
+                        RAY_PASS[a][b] &= (piece == Piece::ROOK ? getRookMoves(b, bitboard(a)) : getBishopMoves(b, bitboard(a))) | bitboard(b);
+                        RAY_PASS[a][b] &= ~BETWEEN[a][b];
+                    }
+                }
             }
 
             KING_ATTACKS[a] = kingAttacks(a);

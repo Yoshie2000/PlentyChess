@@ -17,9 +17,9 @@
 struct RootMove {
     Eval value = -EVAL_INFINITE;
     Eval meanScore = EVAL_NONE;
-    int depth = 0;
+    Depth depth = 0;
     int selDepth = 0;
-    Move move = MOVE_NULL;
+    Move move = Move::none();
     std::vector<Move> pv;
 };
 
@@ -27,12 +27,11 @@ class ThreadPool;
 
 class Worker {
 
-    std::deque<BoardStack>* rootStackQueue;
+    std::vector<Hash> boardHistory;
 
 public:
 
     Board rootBoard;
-    BoardStack* rootStack;
     
     std::mutex mutex;
     std::condition_variable cv;
@@ -42,7 +41,7 @@ public:
     bool exiting = false;
 
     SearchData searchData;
-    SearchParameters* searchParameters;
+    SearchParameters searchParameters;
     History history;
     NNUE nnue;
 
@@ -54,6 +53,7 @@ public:
     std::vector<RootMove> rootMoves;
     std::map<Move, uint64_t> rootMoveNodes;
     std::vector<Move> excludedRootMoves;
+    std::vector<std::array<MoveGen, 2>> movepickers;
 
     Worker(ThreadPool* threadPool, int threadId);
 
@@ -76,8 +76,15 @@ private:
     void printUCI(Worker* thread, int multiPvCount = 1);
     Worker* chooseBestThread();
 
+    Board* doMove(Board* board, Hash newHash, Move move);
+    void undoMove();
+    Board* doNullMove(Board* board);
+    void undoNullMove();
+    bool hasUpcomingRepetition(Board* board, int ply);
+    bool isDraw(Board* board, int ply);
+
     template <NodeType nt>
-    Eval search(Board* board, SearchStack* stack, int depth, Eval alpha, Eval beta, bool cutNode);
+    Eval search(Board* board, SearchStack* stack, Depth depth, Eval alpha, Eval beta, bool cutNode);
 
     template <NodeType nodeType>
     Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta);
@@ -91,13 +98,13 @@ public:
     std::vector<std::unique_ptr<Worker>> workers;
     std::vector<std::unique_ptr<std::thread>> threads;
 
-    std::deque<BoardStack> rootStackQueue;
     SearchParameters searchParameters;
     Board rootBoard;
+    std::vector<Hash> rootBoardHistory;
 
     std::atomic<size_t> startedThreads;
 
-    ThreadPool() : workers(0), threads(0), rootStackQueue(), searchParameters{} {
+    ThreadPool() : workers(0), threads(0), searchParameters{}, rootBoardHistory() {
         resize(1);
     }
 
@@ -126,12 +133,12 @@ public:
         while (startedThreads < numThreads) {}
     }
 
-    void startSearching(Board board, std::deque<BoardStack> stackQueue, SearchParameters parameters) {
+    void startSearching(Board board, std::vector<Hash> boardHistory, SearchParameters parameters) {
         stopSearching();
         waitForSearchFinished();
 
         rootBoard = std::move(board);
-        rootStackQueue = std::move(stackQueue);
+        rootBoardHistory = std::move(boardHistory);
         searchParameters = std::move(parameters);
 
         for (auto& worker : workers) {

@@ -7,6 +7,8 @@
 #include <sstream>
 #include <algorithm>
 #include <tuple>
+#include <fstream>
+#include <iomanip>
 
 #include "board.h"
 #include "uci.h"
@@ -19,11 +21,7 @@
 #include "spsa.h"
 #include "history.h"
 #include "fathom/src/tbprobe.h"
-#include <iomanip>
-#include <istream>
-#include <ostream>
-#include <iostream>
-#include <fstream>
+#include "debug.h"
 
 namespace UCI {
     UCIOptions Options;
@@ -94,80 +92,6 @@ const std::vector<std::string> benchPositions = {
       "nqbnrkrb/pppppppp/8/8/8/8/PPPPPPPP/NQBNRKRB w EGeg - 0 1",
 };
 
-const std::vector<std::string> seeTest = {
-    "6k1/1pp4p/p1pb4/6q1/3P1pRr/2P4P/PP1Br1P1/5RKN w - - | f1f4 | -100 | P - R + B",
-    "5rk1/1pp2q1p/p1pb4/8/3P1NP1/2P5/1P1BQ1P1/5RK1 b - - | d6f4 | 0 | -N + B",
-    "4R3/2r3p1/5bk1/1p1r3p/p2PR1P1/P1BK1P2/1P6/8 b - - | h5g4 | 0",
-    "4R3/2r3p1/5bk1/1p1r1p1p/p2PR1P1/P1BK1P2/1P6/8 b - - | h5g4 | 0",
-    "4r1k1/5pp1/nbp4p/1p2p2q/1P2P1b1/1BP2N1P/1B2QPPK/3R4 b - - | g4f3 | 0",
-    "2r1r1k1/pp1bppbp/3p1np1/q3P3/2P2P2/1P2B3/P1N1B1PP/2RQ1RK1 b - - | d6e5 | 100 | P",
-    "7r/5qpk/p1Qp1b1p/3r3n/BB3p2/5p2/P1P2P2/4RK1R w - - | e1e8 | 0",
-    "6rr/6pk/p1Qp1b1p/2n5/1B3p2/5p2/P1P2P2/4RK1R w - - | e1e8 | -500 | -R",
-    "7r/5qpk/2Qp1b1p/1N1r3n/BB3p2/5p2/P1P2P2/4RK1R w - - | e1e8 | -500 | -R",
-    "6RR/4bP2/8/8/5r2/3K4/5p2/4k3 w - - | f7f8q | 200 | B - P",
-    "6RR/4bP2/8/8/5r2/3K4/5p2/4k3 w - - | f7f8n | 200 | N - P",
-    "7R/5P2/8/8/6r1/3K4/5p2/4k3 w - - | f7f8q | 800 | Q - P",
-    "7R/5P2/8/8/6r1/3K4/5p2/4k3 w - - | f7f8b | 200 | B - P",
-    "7R/4bP2/8/8/1q6/3K4/5p2/4k3 w - - | f7f8r | -100 | -P",
-    "8/4kp2/2npp3/1Nn5/1p2PQP1/7q/1PP1B3/4KR1r b - - | h1f1 | 0",
-    "8/4kp2/2npp3/1Nn5/1p2P1P1/7q/1PP1B3/4KR1r b - - | h1f1 | 0",
-    "2r2r1k/6bp/p7/2q2p1Q/3PpP2/1B6/P5PP/2RR3K b - - | c5c1 | 100 | R - Q + R",
-    "r2qk1nr/pp2ppbp/2b3p1/2p1p3/8/2N2N2/PPPP1PPP/R1BQR1K1 w kq - | f3e5 | 100 | P",
-    "6r1/4kq2/b2p1p2/p1pPb3/p1P2B1Q/2P4P/2B1R1P1/6K1 w - - | f4e5 | 0",
-    "3q2nk/pb1r1p2/np6/3P2Pp/2p1P3/2R4B/PQ3P1P/3R2K1 w - h6 | g5h6 | 0",
-    "3q2nk/pb1r1p2/np6/3P2Pp/2p1P3/2R1B2B/PQ3P1P/3R2K1 w - h6 | g5h6 | 100 | P",
-    "2r4r/1P4pk/p2p1b1p/7n/BB3p2/2R2p2/P1P2P2/4RK2 w - - | c3c8 | 500 | R",
-    "2r5/1P4pk/p2p1b1p/5b1n/BB3p2/2R2p2/P1P2P2/4RK2 w - - | c3c8 | 500 | R",
-    "2r4k/2r4p/p7/2b2p1b/4pP2/1BR5/P1R3PP/2Q4K w - - | c3c5 | 300 | B",
-    "8/pp6/2pkp3/4bp2/2R3b1/2P5/PP4B1/1K6 w - - | g2c6 | -200 | P - B",
-    "4q3/1p1pr1k1/1B2rp2/6p1/p3PP2/P3R1P1/1P2R1K1/4Q3 b - - | e6e4 | -400 | P - R",
-    "4q3/1p1pr1kb/1B2rp2/6p1/p3PP2/P3R1P1/1P2R1K1/4Q3 b - - | h7e4 | 100 | P",
-    "3r3k/3r4/2n1n3/8/3p4/2PR4/1B1Q4/3R3K w - - | d3d4 | -100 | P - R + N - P + N - B + R - Q + R",
-    "1k1r4/1ppn3p/p4b2/4n3/8/P2N2P1/1PP1R1BP/2K1Q3 w - - | d3e5 | 100 | N - N + B - R + N",
-    "1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - - | d3e5 | -200 | P - N",
-    "rnb2b1r/ppp2kpp/5n2/4P3/q2P3B/5R2/PPP2PPP/RN1QKB2 w Q - | h4f6 | 100 | N - B + P",
-    "r2q1rk1/2p1bppp/p2p1n2/1p2P3/4P1b1/1nP1BN2/PP3PPP/RN1QR1K1 b - - | g4f3 | 0 | N - B",
-    "r1bqkb1r/2pp1ppp/p1n5/1p2p3/3Pn3/1B3N2/PPP2PPP/RNBQ1RK1 b kq - | c6d4 | 0 | P - N + N - P",
-    "r1bq1r2/pp1ppkbp/4N1p1/n3P1B1/8/2N5/PPP2PPP/R2QK2R w KQ - | e6g7 | 0 | B - N",
-    "r1bq1r2/pp1ppkbp/4N1pB/n3P3/8/2N5/PPP2PPP/R2QK2R w KQ - | e6g7 | 300 | B",
-    "rnq1k2r/1b3ppp/p2bpn2/1p1p4/3N4/1BN1P3/PPP2PPP/R1BQR1K1 b kq - | d6h2 | -200 | P - B",
-    "rn2k2r/1bq2ppp/p2bpn2/1p1p4/3N4/1BN1P3/PPP2PPP/R1BQR1K1 b kq - | d6h2 | 100 | P",
-    "r2qkbn1/ppp1pp1p/3p1rp1/3Pn3/4P1b1/2N2N2/PPP2PPP/R1BQKB1R b KQq - | g4f3 | 100 | N - B + P",
-    "rnbq1rk1/pppp1ppp/4pn2/8/1bPP4/P1N5/1PQ1PPPP/R1B1KBNR b KQ - | b4c3 | 0 | N - B",
-    "r4rk1/3nppbp/bq1p1np1/2pP4/8/2N2NPP/PP2PPB1/R1BQR1K1 b - - | b6b2 | -800 | P - Q",
-    "r4rk1/1q1nppbp/b2p1np1/2pP4/8/2N2NPP/PP2PPB1/R1BQR1K1 b - - | f6d5 | -200 | P - N",
-    "1r3r2/5p2/4p2p/2k1n1P1/2PN1nP1/1P3P2/8/2KR1B1R b - - | b8b3 | -400 | P - R",
-    "1r3r2/5p2/4p2p/4n1P1/kPPN1nP1/5P2/8/2KR1B1R b - - | b8b4 | 100 | P",
-    "2r2rk1/5pp1/pp5p/q2p4/P3n3/1Q3NP1/1P2PP1P/2RR2K1 b - - | c8c1 | 0 | R - R",
-    "5rk1/5pp1/2r4p/5b2/2R5/6Q1/R1P1qPP1/5NK1 b - - | f5c2 | -100 | P - B + R - Q + R",
-    "1r3r1k/p4pp1/2p1p2p/qpQP3P/2P5/3R4/PP3PP1/1K1R4 b - - | a5a2 | -800 | P - Q",
-    "1r5k/p4pp1/2p1p2p/qpQP3P/2P2P2/1P1R4/P4rP1/1K1R4 b - - | a5a2 | 100 | P",
-    "r2q1rk1/1b2bppp/p2p1n2/1ppNp3/3nP3/P2P1N1P/BPP2PP1/R1BQR1K1 w - - | d5e7 | 0 | B - N",
-    "rnbqrbn1/pp3ppp/3p4/2p2k2/4p3/3B1K2/PPP2PPP/RNB1Q1NR w - - | d3e4 | 100 | P",
-    "rnb1k2r/p3p1pp/1p3p1b/7n/1N2N3/3P1PB1/PPP1P1PP/R2QKB1R w KQkq - | e4d6 | -200 | -N + P",
-    "r1b1k2r/p4npp/1pp2p1b/7n/1N2N3/3P1PB1/PPP1P1PP/R2QKB1R w KQkq - | e4d6 | 0 | -N + N",
-    "2r1k2r/pb4pp/5p1b/2KB3n/4N3/2NP1PB1/PPP1P1PP/R2Q3R w k - | d5c6 | -300 | -B",
-    "2r1k2r/pb4pp/5p1b/2KB3n/1N2N3/3P1PB1/PPP1P1PP/R2Q3R w k - | d5c6 | 0 | -B + B",
-    "2r1k3/pbr3pp/5p1b/2KB3n/1N2N3/3P1PB1/PPP1P1PP/R2Q3R w - - | d5c6 | -300 | -B + B - N",
-    "5k2/p2P2pp/8/1pb5/1Nn1P1n1/6Q1/PPP4P/R3K1NR w KQ - | d7d8q | 800 | (Q - P)",
-    "r4k2/p2P2pp/8/1pb5/1Nn1P1n1/6Q1/PPP4P/R3K1NR w KQ - | d7d8q | -100 | (Q - P) - Q",
-    "5k2/p2P2pp/1b6/1p6/1Nn1P1n1/8/PPP4P/R2QK1NR w KQ - | d7d8q | 200 | (Q - P) - Q + B",
-    "4kbnr/p1P1pppp/b7/4q3/7n/8/PP1PPPPP/RNBQKBNR w KQk - | c7c8q | -100 | (Q - P) - Q",
-    "4kbnr/p1P1pppp/b7/4q3/7n/8/PPQPPPPP/RNB1KBNR w KQk - | c7c8q | 200 | (Q - P) - Q + B",
-    "4kbnr/p1P1pppp/b7/4q3/7n/8/PPQPPPPP/RNB1KBNR w KQk - | c7c8q | 200 | (Q - P)",
-    "4kbnr/p1P4p/b1q5/5pP1/4n3/5Q2/PP1PPP1P/RNB1KBNR w KQk f6 | g5f6 | 0 | P - P",
-    "4kbnr/p1P4p/b1q5/5pP1/4n3/5Q2/PP1PPP1P/RNB1KBNR w KQk f6 | g5f6 | 0 | P - P",
-    "4kbnr/p1P4p/b1q5/5pP1/4n2Q/8/PP1PPP1P/RNB1KBNR w KQk f6 | g5f6 | 0 | P - P",
-    "1n2kb1r/p1P4p/2qb4/5pP1/4n2Q/8/PP1PPP1P/RNB1KBNR w KQk - | c7b8q | 200 | N + (Q - P) - Q",
-    "rnbqk2r/pp3ppp/2p1pn2/3p4/3P4/N1P1BN2/PPB1PPPb/R2Q1RK1 w kq - | g1h2 | 300 | B",
-    "3N4/2K5/2n5/1k6/8/8/8/8 b - - | c6d8 | 0 | N - N",
-    "3n3r/2P5/8/1k6/8/8/3Q4/4K3 w - - | c7d8q | 700 | (N + Q - P) - Q + R",
-    "r2n3r/2P1P3/4N3/1k6/8/8/8/4K3 w - - | e6d8 | 300 | N",
-    "8/8/8/1k6/6b1/4N3/2p3K1/3n4 w - - | e3d1 | 0 | N - N",
-    "8/8/1k6/8/8/2N1N3/4p1K1/3n4 w - - | c3d1 | 100 | N - (N + Q - P) + Q",
-    "r1bqk1nr/pppp1ppp/2n5/1B2p3/1b2P3/5N2/PPPP1PPP/RNBQK2R w KQkq - | e1g1 | 0"
-};
-
 bool matchesToken(std::string line, std::string token) {
     return line.rfind(token, 0) == 0;
 }
@@ -185,7 +109,10 @@ bool nextToken(std::string* line, std::string* token) {
     return true;
 }
 
-void bench(std::deque<BoardStack>* stackQueue, Board* board) {
+void bench(Board& board, std::vector<Hash>& boardHistory) {
+    boardHistory.clear();
+    boardHistory.push_back(0);
+
     bool minimal = UCI::Options.minimal.value;
     UCI::Options.minimal.value = true;
 
@@ -195,15 +122,17 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
     int totalPositions = benchPositions.size();
 
     threads.waitForSearchFinished();
+    threads.ucinewgame();
 
     int i = 0;
     for (const std::string& fen : benchPositions) {
-        board->parseFen(fen, i++ >= 44);
+        board.parseFen(fen, i++ >= 44);
+        boardHistory[0] = board.hashes.hash;
         SearchParameters parameters;
 
 #ifdef PROFILE_GENERATE
         TT.newSearch();
-        parameters.depth = 25;
+        parameters.depth = 20;
 #else
         parameters.depth = 13;
 #endif
@@ -212,7 +141,7 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
 
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
-        threads.startSearching(*board, *stackQueue, parameters);
+        threads.startSearching(board, boardHistory, parameters);
         threads.waitForSearchFinished();
         nodes += threads.nodesSearched();
 
@@ -228,57 +157,68 @@ void bench(std::deque<BoardStack>* stackQueue, Board* board) {
     UCI::Options.minimal.value = minimal;
 }
 
-void perfttest(std::deque<BoardStack>* stackQueue, Board* board) {
+void perfttest(Board& board, std::vector<Hash>& boardHistory) {
+    boardHistory.clear();
+    boardHistory.push_back(0);
 
     threads.waitForSearchFinished();
     SearchParameters parameters;
     parameters.depth = 5;
     parameters.perft = true;
 
-    board->startpos();
-    threads.startSearching(*board, *stackQueue, parameters);
+    board.startpos();
+    boardHistory[0] = board.hashes.hash;
+    threads.startSearching(board, boardHistory, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 4865609) std::cout << "Failed perft for startpos" << std::endl;
 
-    board->parseFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", false);
-    threads.startSearching(*board, *stackQueue, parameters);
+    board.parseFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", false);
+    boardHistory[0] = board.hashes.hash;
+    threads.startSearching(board, boardHistory, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 193690690) std::cout << "Failed perft for r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1" << std::endl;
 
-    board->parseFen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", false);
+    board.parseFen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", false);
+    boardHistory[0] = board.hashes.hash;
     parameters.depth = 6;
-    threads.startSearching(*board, *stackQueue, parameters);
+    threads.startSearching(board, boardHistory, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 11030083) std::cout << "Failed perft for 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1" << std::endl;
 
-    board->parseFen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1", false);
+    board.parseFen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1", false);
+    boardHistory[0] = board.hashes.hash;
     parameters.depth = 5;
-    threads.startSearching(*board, *stackQueue, parameters);
+    threads.startSearching(board, boardHistory, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 15833292) std::cout << "Failed perft for r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1" << std::endl;
 
-    board->parseFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", false);
-    threads.startSearching(*board, *stackQueue, parameters);
+    board.parseFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8", false);
+    boardHistory[0] = board.hashes.hash;
+    threads.startSearching(board, boardHistory, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 89941194) std::cout << "Failed perft for rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8" << std::endl;
 
-    board->parseFen("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10", false);
-    threads.startSearching(*board, *stackQueue, parameters);
+    board.parseFen("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10", false);
+    boardHistory[0] = board.hashes.hash;
+    threads.startSearching(board, boardHistory, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 164075551) std::cout << "Failed perft for r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10" << std::endl;
 
-    board->parseFen("1rqbkrbn/1ppppp1p/1n6/p1N3p1/8/2P4P/PP1PPPP1/1RQBKRBN w FBfb - 0 9", true);
-    threads.startSearching(*board, *stackQueue, parameters);
+    board.parseFen("1rqbkrbn/1ppppp1p/1n6/p1N3p1/8/2P4P/PP1PPPP1/1RQBKRBN w FBfb - 0 9", true);
+    boardHistory[0] = board.hashes.hash;
+    threads.startSearching(board, boardHistory, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 8652810) std::cout << "Failed perft for 1rqbkrbn/1ppppp1p/1n6/p1N3p1/8/2P4P/PP1PPPP1/1RQBKRBN w FBfb - 0 9" << std::endl;
 
-    board->parseFen("rbbqn1kr/pp2p1pp/6n1/2pp1p2/2P4P/P7/BP1PPPP1/R1BQNNKR w HAha - 0 9", true);
-    threads.startSearching(*board, *stackQueue, parameters);
+    board.parseFen("rbbqn1kr/pp2p1pp/6n1/2pp1p2/2P4P/P7/BP1PPPP1/R1BQNNKR w HAha - 0 9", true);
+    boardHistory[0] = board.hashes.hash;
+    threads.startSearching(board, boardHistory, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 26302461) std::cout << "Failed perft for rbbqn1kr/pp2p1pp/6n1/2pp1p2/2P4P/P7/BP1PPPP1/R1BQNNKR w HAha - 0 9" << std::endl;
 
-    board->parseFen("rqbbknr1/1ppp2pp/p5n1/4pp2/P7/1PP5/1Q1PPPPP/R1BBKNRN w GAga - 0 9", true);
-    threads.startSearching(*board, *stackQueue, parameters);
+    board.parseFen("rqbbknr1/1ppp2pp/p5n1/4pp2/P7/1PP5/1Q1PPPPP/R1BBKNRN w GAga - 0 9", true);
+    boardHistory[0] = board.hashes.hash;
+    threads.startSearching(board, boardHistory, parameters);
     threads.waitForSearchFinished();
     if (threads.nodesSearched() != 11029596) std::cout << "Failed perft for rqbbknr1/1ppp2pp/p5n1/4pp2/P7/1PP5/1Q1PPPPP/R1BBKNRN w GAga - 0 9" << std::endl;
 
@@ -295,37 +235,6 @@ std::vector<std::string> splitString(const std::string& input, char delimiter) {
     }
 
     return tokens;
-}
-
-void seetest(Board* board) {
-    int passed = 0, failed = 0;
-
-    for (const std::string& line : seeTest) {
-        std::stringstream iss(line);
-        std::vector<std::string> tokens = splitString(line, '|');
-
-        std::string fen = tokens[0];
-        std::string uciMove = tokens[1];
-        int gain = stoi(tokens[2]);
-        bool expected = gain >= 0;
-
-        board->parseFen(fen, false);
-        char charMove[6] = { '\0' };
-        uciMove.copy(charMove, uciMove.length() - 2, 1);
-        Move move = stringToMove(charMove, board);
-        bool result = SEE(board, move, 0);
-
-        if (result == expected)
-            passed++;
-        else {
-            std::cout << "FAILED " << fen << "|" << uciMove << "(" << moveToString(move, UCI::Options.chess960.value) << ")" << " | Expected: " << expected << std::endl;
-            failed++;
-        }
-
-    }
-
-    std::cout << "Passed: " << passed << std::endl;
-    std::cout << "Failed: " << failed << std::endl;
 }
 
 struct __attribute__((packed)) BulletEntry {
@@ -354,12 +263,12 @@ struct __attribute__((packed)) ScoredMove {
     std::int16_t eval;
 };
 
-void relabelViriformat(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
-    *stackQueue = std::deque<BoardStack>(1);
-    board->stack = &stackQueue->back();
+void relabelViriformat(std::string line, Board& board, std::vector<Hash>& boardHistory) {
+    boardHistory.clear();
+    boardHistory.push_back(0);
 
-    board->startpos();
-    UCI::nnue.reset(board);
+    board.startpos();
+    UCI::nnue.reset(&board);
     UCI::nnue.incrementAccumulator();
 
     std::ifstream is(line, std::ios::binary);
@@ -383,9 +292,7 @@ void relabelViriformat(std::string line, Board* board, std::deque<BoardStack>* s
 
     int64_t gameCounter = 0;
     while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry))) {
-        stackQueue->resize(1);
-        board->stack = &stackQueue->front();
-        board->parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
+        board.parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
         Bitboard occ = currEntry.occ;
         size_t count = 0;
         bool seenKing[2] = { false, false };
@@ -398,34 +305,34 @@ void relabelViriformat(std::string line, Board* board, std::deque<BoardStack>* s
             count++;
             if (piece == Piece::NONE) { // Piece::NONE == 6 == UNMOVED_ROOK => do some castling stuff
                 if (seenKing[pieceColor]) {
-                    board->castlingSquares[2 * pieceColor + 0] = sq; // kingside
-                    board->stack->castling |= 1 << (2 * pieceColor + 0);
+                    board.castlingSquares[2 * pieceColor + 0] = sq; // kingside
+                    board.castling |= 1 << (2 * pieceColor + 0);
                 }
                 else {
-                    board->castlingSquares[2 * pieceColor + 1] = sq; // queenside
-                    board->stack->castling |= 1 << (2 * pieceColor + 1);
+                    board.castlingSquares[2 * pieceColor + 1] = sq; // queenside
+                    board.castling |= 1 << (2 * pieceColor + 1);
                 }
                 piece = Piece::ROOK;
             }
             if (piece == Piece::KING)
                 seenKing[pieceColor] = true;
 
-            board->pieces[sq] = piece;
-            board->byColor[pieceColor] ^= bitboard(sq);
-            board->byPiece[piece] ^= bitboard(sq);
+            board.pieces[sq] = piece;
+            board.byColor[pieceColor] ^= bitboard(sq);
+            board.byPiece[piece] ^= bitboard(sq);
         }
-        board->stack->enpassantTarget = (currEntry.stm_ep_square & 0b01111111) < 64 ? bitboard(Square(currEntry.stm_ep_square & 0b01111111)) : 0;
-        board->stm = (currEntry.stm_ep_square >> 7) != 0 ? Color::BLACK : Color::WHITE;
-        board->stack->rule50_ply = currEntry.halfmove_clock;
-        board->ply = currEntry.fullmove_number;
-        Square enemyKing = lsb(board->byColor[board->stm] & board->byPiece[Piece::KING]);
-        board->stack->checkers = board->attackersTo(enemyKing, board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) & board->byColor[flip(board->stm)];
-        board->stack->checkerCount = BB::popcount(board->stack->checkers);
-        board->updateSliderPins(Color::WHITE);
-        board->updateSliderPins(Color::BLACK);
-        board->calculateThreats();
+        board.enpassantTarget = (currEntry.stm_ep_square & 0b01111111) < 64 ? bitboard(Square(currEntry.stm_ep_square & 0b01111111)) : 0;
+        board.stm = (currEntry.stm_ep_square >> 7) != 0 ? Color::BLACK : Color::WHITE;
+        board.rule50_ply = currEntry.halfmove_clock;
+        board.ply = currEntry.fullmove_number;
+        Square enemyKing = lsb(board.byColor[board.stm] & board.byPiece[Piece::KING]);
+        board.checkers = board.attackersTo(enemyKing, board.byColor[Color::WHITE] | board.byColor[Color::BLACK]) & board.byColor[flip(board.stm)];
+        board.checkerCount = BB::popcount(board.checkers);
+        board.updateSliderPins(Color::WHITE);
+        board.updateSliderPins(Color::BLACK);
+        board.calculateThreats();
 
-        UCI::nnue.reset(board);
+        UCI::nnue.reset(&board);
         currMoves.clear();
 
         bool gameLegal = true;
@@ -438,22 +345,23 @@ void relabelViriformat(std::string line, Board* board, std::deque<BoardStack>* s
                 break;
             }
 
-            Move move = scoredMove.move & 0b0000111111111111; // lower 12 bits are from-to squares
+            uint16_t movedata = scoredMove.move & 0b0000111111111111; // lower 12 bits are from-to squares
             if ((scoredMove.move & 0b1100000000000000) == 0b1100000000000000) { // promotion
-                move |= MOVE_PROMOTION;
+                movedata |= MoveType::PROMOTION << 12;
                 int promotionPieceData = ((scoredMove.move >> 12) & 0b11);
                 assert(promotionPieceData >= 0);
                 assert(promotionPieceData <= 3);
-                move |= (3 - promotionPieceData) << 14;
+                movedata |= (3 - promotionPieceData) << 14;
             }
             else if ((scoredMove.move & 0b0100000000000000) == 0b0100000000000000) // enpassant
-                move |= MOVE_ENPASSANT;
+                movedata |= MoveType::ENPASSANT << 12;
             else if ((scoredMove.move & 0b1000000000000000) == 0b1000000000000000) // castling
-                move |= MOVE_CASTLING;
+                movedata |= MoveType::CASTLING << 12;
+            Move move = Move::fromRaw(movedata);
 
-            // if (!board->isPseudoLegal(move)) {
-            //     board->debugBoard();
-            //     BoardStack* stack = board->stack;
+            // if (!board.isPseudoLegal(move)) {
+            //     board.debugBoard();
+            //     BoardStack* stack = board.stack;
             //     while (stack) {
             //         std::cout << moveToString(stack->move, false) << std::endl;
             //         stack = stack->previous;
@@ -466,10 +374,10 @@ void relabelViriformat(std::string line, Board* board, std::deque<BoardStack>* s
             //     os.close();
             // }
 
-            if (!board->isPseudoLegal(move) || !board->isLegal(move)) {
+            if (!board.isPseudoLegal(move) || !board.isLegal(move)) {
                 gameLegal = false;
-                std::cout << "Encountered an illegal move: " << moveToString(move, false) << std::endl;
-                std::cout << board->fen() << std::endl;
+                std::cout << "Encountered an illegal move: " << move.toString(false) << std::endl;
+                std::cout << board.fen() << std::endl;
                 while (true) {
                     is.read(reinterpret_cast<char*>(&scoredMove), sizeof(scoredMove));
                     if (scoredMove.move == 0 && scoredMove.eval == 0) {
@@ -479,22 +387,23 @@ void relabelViriformat(std::string line, Board* board, std::deque<BoardStack>* s
                 break;
             }
 
-            // assert(board->isPseudoLegal(move));
-            // assert(board->isLegal(move));
+            // assert(board.isPseudoLegal(move));
+            // assert(board.isLegal(move));
 
-            if (std::abs(scoredMove.eval) <= 32000 && !board->stack->checkers && !board->isCapture(move)) {
-                Eval eval = UCI::nnue.evaluate(board);
+            if (std::abs(scoredMove.eval) <= 32000) {
+                Eval eval = UCI::nnue.evaluate(&board);
                 // UCI::nnue2.reset(board);
                 // assert(eval == UCI::nnue2.evaluate(board));
 
-                scoredMove.eval = board->stm == Color::BLACK ? -eval : eval;
+                scoredMove.eval = board.stm == Color::BLACK ? -eval : eval;
             }
             currMoves.push_back(scoredMove);
 
-            stackQueue->emplace_back();
-            board->doMove(&stackQueue->back(), move, board->hashAfter(move), &UCI::nnue);
+            Hash hash = board.hashAfter(move);
+            boardHistory.push_back(hash);
+            board.doMove(move, hash, &UCI::nnue);
             if (resetCounter++ > 950) {
-                UCI::nnue.reset(board);
+                UCI::nnue.reset(&board);
                 resetCounter = 0;
             }
         }
@@ -567,12 +476,12 @@ using map_t =
 phmap::parallel_flat_hash_map<Key, int, std::hash<Key>, std::equal_to<Key>,
     std::allocator<std::pair<const Key, int>>, 8, std::mutex>;
 
-void viriformatWDLModel(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
-    *stackQueue = std::deque<BoardStack>(1);
-    board->stack = &stackQueue->back();
+void viriformatWDLModel(std::string line, Board& board, std::vector<Hash>& boardHistory) {
+    boardHistory.clear();
+    boardHistory.push_back(0);
 
-    board->startpos();
-    UCI::nnue.reset(board);
+    board.startpos();
+    UCI::nnue.reset(&board);
     UCI::nnue.incrementAccumulator();
 
     std::ifstream is(line, std::ios::binary);
@@ -589,9 +498,7 @@ void viriformatWDLModel(std::string line, Board* board, std::deque<BoardStack>* 
 
     int64_t gameCounter = 0;
     while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry))) {
-        stackQueue->resize(1);
-        board->stack = &stackQueue->front();
-        board->parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
+        board.parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
         Bitboard occ = currEntry.occ;
         size_t count = 0;
         bool seenKing[2] = { false, false };
@@ -604,32 +511,32 @@ void viriformatWDLModel(std::string line, Board* board, std::deque<BoardStack>* 
             count++;
             if (piece == Piece::NONE) { // Piece::NONE == 6 == UNMOVED_ROOK => do some castling stuff
                 if (seenKing[pieceColor]) {
-                    board->castlingSquares[2 * pieceColor + 0] = sq; // kingside
-                    board->stack->castling |= 1 << (2 * pieceColor + 0);
+                    board.castlingSquares[2 * pieceColor + 0] = sq; // kingside
+                    board.castling |= 1 << (2 * pieceColor + 0);
                 }
                 else {
-                    board->castlingSquares[2 * pieceColor + 1] = sq; // queenside
-                    board->stack->castling |= 1 << (2 * pieceColor + 1);
+                    board.castlingSquares[2 * pieceColor + 1] = sq; // queenside
+                    board.castling |= 1 << (2 * pieceColor + 1);
                 }
                 piece = Piece::ROOK;
             }
             if (piece == Piece::KING)
                 seenKing[pieceColor] = true;
 
-            board->pieces[sq] = piece;
-            board->byColor[pieceColor] ^= bitboard(sq);
-            board->byPiece[piece] ^= bitboard(sq);
+            board.pieces[sq] = piece;
+            board.byColor[pieceColor] ^= bitboard(sq);
+            board.byPiece[piece] ^= bitboard(sq);
         }
-        board->stack->enpassantTarget = (currEntry.stm_ep_square & 0b01111111) < 64 ? bitboard(Square(currEntry.stm_ep_square & 0b01111111)) : 0;
-        board->stm = (currEntry.stm_ep_square >> 7) != 0 ? Color::BLACK : Color::WHITE;
-        board->stack->rule50_ply = currEntry.halfmove_clock;
-        board->ply = currEntry.fullmove_number;
-        Square enemyKing = lsb(board->byColor[board->stm] & board->byPiece[Piece::KING]);
-        board->stack->checkers = board->attackersTo(enemyKing, board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) & board->byColor[flip(board->stm)];
-        board->stack->checkerCount = BB::popcount(board->stack->checkers);
-        board->updateSliderPins(Color::WHITE);
-        board->updateSliderPins(Color::BLACK);
-        board->calculateThreats();
+        board.enpassantTarget = (currEntry.stm_ep_square & 0b01111111) < 64 ? bitboard(Square(currEntry.stm_ep_square & 0b01111111)) : 0;
+        board.stm = (currEntry.stm_ep_square >> 7) != 0 ? Color::BLACK : Color::WHITE;
+        board.rule50_ply = currEntry.halfmove_clock;
+        board.ply = currEntry.fullmove_number;
+        Square enemyKing = lsb(board.byColor[board.stm] & board.byPiece[Piece::KING]);
+        board.checkers = board.attackersTo(enemyKing, board.byColor[Color::WHITE] | board.byColor[Color::BLACK]) & board.byColor[flip(board.stm)];
+        board.checkerCount = BB::popcount(board.checkers);
+        board.updateSliderPins(Color::WHITE);
+        board.updateSliderPins(Color::BLACK);
+        board.calculateThreats();
 
         UCI::nnue.currentAccumulator = 0;
         UCI::nnue.lastCalculatedAccumulator[Color::WHITE] = 0;
@@ -643,38 +550,40 @@ void viriformatWDLModel(std::string line, Board* board, std::deque<BoardStack>* 
                 break;
             }
 
-            Move move = scoredMove.move & 0b0000111111111111; // lower 12 bits are from-to squares
+            uint16_t movedata = scoredMove.move & 0b0000111111111111; // lower 12 bits are from-to squares
             if ((scoredMove.move & 0b1100000000000000) == 0b1100000000000000) { // promotion
-                move |= MOVE_PROMOTION;
+                movedata |= MoveType::PROMOTION << 12;
                 int promotionPieceData = ((scoredMove.move >> 12) & 0b11);
                 assert(promotionPieceData >= 0);
                 assert(promotionPieceData <= 3);
-                move |= (3 - promotionPieceData) << 14;
+                movedata |= (3 - promotionPieceData) << 14;
             }
             else if ((scoredMove.move & 0b0100000000000000) == 0b0100000000000000) // enpassant
-                move |= MOVE_ENPASSANT;
+                movedata |= MoveType::ENPASSANT << 12;
             else if ((scoredMove.move & 0b1000000000000000) == 0b1000000000000000) // castling
-                move |= MOVE_CASTLING;
+                movedata |= MoveType::CASTLING << 12;
+            Move move = Move::fromRaw(movedata);
 
             Key key;
             constexpr int BIN_WIDTH = 5;
-            int stmEval = board->stm == Color::WHITE ? scoredMove.eval : -scoredMove.eval;
+            int stmEval = board.stm == Color::WHITE ? scoredMove.eval : -scoredMove.eval;
             key.eval = int(std::round(stmEval / float(BIN_WIDTH))) * BIN_WIDTH;
-            if (board->stm == Color::WHITE)
+            if (board.stm == Color::WHITE)
                 key.result = currEntry.result == 2 ? Result::WIN : currEntry.result == 1 ? Result::DRAW : Result::LOSS;
             else
                 key.result = currEntry.result == 2 ? Result::LOSS : currEntry.result == 1 ? Result::DRAW : Result::WIN;
-            key.move = board->ply;
-            key.material = 9 * BB::popcount(board->byPiece[Piece::QUEEN]) + 5 * BB::popcount(board->byPiece[Piece::ROOK]) + 3 * BB::popcount(board->byPiece[Piece::BISHOP]) + 3 * BB::popcount(board->byPiece[Piece::KNIGHT]) + 1 * BB::popcount(board->byPiece[Piece::PAWN]);
+            key.move = board.ply;
+            key.material = 9 * BB::popcount(board.byPiece[Piece::QUEEN]) + 5 * BB::popcount(board.byPiece[Piece::ROOK]) + 3 * BB::popcount(board.byPiece[Piece::BISHOP]) + 3 * BB::popcount(board.byPiece[Piece::KNIGHT]) + 1 * BB::popcount(board.byPiece[Piece::PAWN]);
 
             pos_map.lazy_emplace_l(
                 std::move(key), [&](map_t::value_type& v) { v.second += 1; },
                 [&](const map_t::constructor& ctor) { ctor(std::move(key), 1); });
 
-            stackQueue->emplace_back();
-            board->doMove(&stackQueue->back(), move, board->hashAfter(move), &UCI::nnue);
+            Hash hash = board.hashAfter(move);
+            boardHistory.push_back(hash);
+            board.doMove(move, hash, &UCI::nnue);
             if (resetCounter++ > 950) {
-                UCI::nnue.reset(board);
+                UCI::nnue.reset(&board);
                 resetCounter = 0;
             }
         }
@@ -702,110 +611,49 @@ void viriformatWDLModel(std::string line, Board* board, std::deque<BoardStack>* 
         << json_filename << " for analysis." << std::endl;
 }
 
-void relabel(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
-    *stackQueue = std::deque<BoardStack>(1);
-    board->stack = &stackQueue->back();
-
-    board->startpos();
-    UCI::nnue.reset(board);
-    UCI::nnue.incrementAccumulator();
-
-    std::ifstream is(line, std::ios::binary);
-    std::ofstream os(line + ".out2", std::ios::binary);
-
-    if (!is.is_open()) {
-        std::cout << "Failed to open input file." << std::endl;
-        return;
-    }
-
-    if (!os.is_open()) {
-        std::cout << "Failed to open output file." << std::endl;
-        return;
-    }
-
-    std::cout << "Relabling from bulletformat file " << std::quoted(line) << " to "
-        << std::quoted(line + ".out2") << "..." << std::endl;
-
-    BulletEntry currEntry;
-
-    while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry))) {
-        board->parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
-        Bitboard occ = currEntry.occ;
-        size_t count = 0;
-        while (occ) {
-            Square sq = popLSB(&occ);
-            uint8_t packedPieces = currEntry.pcs[count / 2];
-            int pieceWithColor = ((count % 2 == 0) ? packedPieces & 0b1111 : packedPieces >> 4);
-            Piece piece = static_cast<Piece>(pieceWithColor & 0b111);
-            Color pieceColor = static_cast<Color>(pieceWithColor >> 3);
-            count++;
-
-            board->pieces[sq] = piece;
-            board->byColor[pieceColor] ^= bitboard(sq);
-            board->byPiece[piece] ^= bitboard(sq);
-        }
-        for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-            UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
-            memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byColor[side], board->byColor, sizeof(board->byColor));
-            memcpy(UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].byPiece[side], board->byPiece, sizeof(board->byPiece));
-        }
-        Eval score = UCI::nnue.evaluate(board);
-        currEntry.score = score;
-
-        os.write(reinterpret_cast<const char*>(&currEntry), sizeof(currEntry));
-    }
-}
-
-void position(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
-    *stackQueue = std::deque<BoardStack>(1);
-    board->stack = &stackQueue->back();
+void position(std::string line, Board& board, std::vector<Hash>& boardHistory) {
+    std::istringstream iss(line);
+    std::string token;
+    iss >> token;
 
     // Set up startpos or moves
-    if (matchesToken(line, "startpos")) {
-        board->startpos();
-        line = line.substr(std::min(9, (int)line.length()));
+    if (token == "startpos") {
+        board.startpos();
     }
-    else if (matchesToken(line, "fen")) {
-        line = line.substr(4);
-        size_t fenLength = board->parseFen(line, UCI::Options.chess960.value) + 1;
-        if (line.length() > fenLength)
-            line = line.substr(fenLength);
+    else if (token == "fen") {
+        board.parseFen(iss, UCI::Options.chess960.value);
     }
     else {
         std::cout << "Not a valid position, exiting" << std::endl;
         exit(-1);
     }
 
+    boardHistory.clear();
+    boardHistory.reserve(MAX_PLY);
+    boardHistory.push_back(board.hashes.hash);
+
     // Make further moves
-    UCI::nnue.reset(board);
-    if (matchesToken(line, "moves")) {
-        line = line.substr(6);
+    iss >> token;
+    if (token != "moves")
+        return;
 
-        char move[5];
-        size_t lastStrlen = line.length();
-        int moveCount = 0;
-        while (line.length() >= 4) {
-            lastStrlen = line.length();
+    UCI::nnue.reset(&board);
+    int moveCount = 0;
 
-            size_t i = 0;
-            move[4] = ' ';
-            while (line[i] != ' ' && i < 5 && i < line.length()) {
-                move[i] = line[i];
-                i++;
-            }
-            Move m = stringToMove(move, board);
+    while (iss >> token) {
+        Move m = stringToMove(token.c_str(), &board);
+        
+        assert(board.isLegal(m));
 
-            stackQueue->emplace_back();
-            board->doMove(&stackQueue->back(), m, board->hashAfter(m), &UCI::nnue);
+        Board boardCopy = board;
+        boardCopy.doMove(m, board.hashAfter(m), &UCI::nnue);
+        boardHistory.push_back(boardCopy.hashes.hash);
 
-            if (moveCount++ > 200) {
-                UCI::nnue.reset(board);
-            }
-
-            if (line.length() > i)
-                line = line.substr(i + 1);
-            if (line.length() >= lastStrlen) break;
+        if (moveCount++ > 200) {
+            UCI::nnue.reset(&boardCopy);
         }
+
+        board = boardCopy;
     }
 }
 
@@ -863,7 +711,7 @@ void setoption(std::string line) {
     }
 }
 
-void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
+void go(std::string line, Board& board, std::vector<Hash>& boardHistory) {
     SearchParameters parameters;
     if (line.size() == 2) {
         line = "";
@@ -929,10 +777,10 @@ void go(std::string line, Board* board, std::deque<BoardStack>* stackQueue) {
     }
 
     TT.newSearch();
-    threads.startSearching(*board, *stackQueue, parameters);
+    threads.startSearching(board, boardHistory, parameters);
 }
 
-void genfens(std::string params, Board* board, std::deque<BoardStack>* stackQueue) {
+void genfens(std::string params, Board& board, std::vector<Hash>& boardHistory) {
     std::string token;
     SearchParameters parameters;
     parameters.genfens = true;
@@ -949,7 +797,7 @@ void genfens(std::string params, Board* board, std::deque<BoardStack>* stackQueu
     }
 
     TT.newSearch();
-    threads.startSearching(*board, *stackQueue, parameters);
+    threads.startSearching(board, boardHistory, parameters);
     threads.waitForSearchFinished();
 }
 
@@ -970,41 +818,41 @@ struct printOptions
 };
 
 void uciLoop(int argc, char* argv[]) {
+    std::vector<Hash> boardHistory;
     Board board;
-    std::deque<BoardStack> stackQueue = std::deque<BoardStack>(1);
-    board.stack = &stackQueue.back();
     board.startpos();
 
     std::cout << "UCI thread running" << std::endl;
 
 #if defined(PROCESS_NET)
-    bench(&stackQueue, &board);
+    bench(board, boardHistory);
     nnz.permuteNetwork();
     return;
 #endif
 
     if (argc > 1 && matchesToken(argv[1], "relabel")) {
         std::string param(argv[2]);
-        relabelViriformat(param, &board, &stackQueue);
+        relabelViriformat(param, board, boardHistory);
         return;
     }
 
     if (argc > 1 && matchesToken(argv[1], "wdlmodel")) {
         std::string param(argv[2]);
-        viriformatWDLModel(param, &board, &stackQueue);
+        viriformatWDLModel(param, board, boardHistory);
         return;
     }
 
     if (argc > 1 && matchesToken(argv[1], "genfens")) {
         std::cout << "starting fen generation" << std::endl;
         std::string params(argv[1]);
-        genfens(params, &board, &stackQueue);
+        genfens(params, board, boardHistory);
 
         if (argc > 2 && matchesToken(argv[2], "quit"))
             return;
     }
     if (argc > 1 && matchesToken(argv[1], "bench")) {
-        bench(&stackQueue, &board);
+        bench(board, boardHistory);
+        Debug::show();
         return;
     }
     for (std::string line = {};std::getline(std::cin, line);) {
@@ -1021,6 +869,9 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "ponderhit")) {
             threads.searchParameters.ponderhit = true;
             threads.stopSearching();
+        }
+        else if (matchesToken(line, "wait")) {
+            threads.waitForSearchFinished();
         }
 
         else if (matchesToken(line, "isready")) std::cout << "readyok" << std::endl;
@@ -1042,21 +893,20 @@ void uciLoop(int argc, char* argv[]) {
                 TT.resize(UCI::Options.hash.value);
                 UCI::optionsDirty = false;
             }
-            go(line, &board, &stackQueue);
+            go(line, board, boardHistory);
         }
-        else if (matchesToken(line, "position")) position(line.substr(9), &board, &stackQueue);
+        else if (matchesToken(line, "position")) position(line.substr(9), board, boardHistory);
         else if (matchesToken(line, "setoption")) setoption(line.substr(10));
-        else if (matchesToken(line, "relabel")) relabelViriformat(line.substr(8), &board, &stackQueue);
+        else if (matchesToken(line, "relabel")) relabelViriformat(line.substr(8), board, boardHistory);
 
         /* NON UCI COMMANDS */
-        else if (matchesToken(line, "bench")) bench(&stackQueue, &board);
-        else if (matchesToken(line, "perfttest")) perfttest(&stackQueue, &board);
+        else if (matchesToken(line, "bench")) bench(board, boardHistory);
+        else if (matchesToken(line, "perfttest")) perfttest(board, boardHistory);
         else if (matchesToken(line, "debug")) board.debugBoard();
         else if (matchesToken(line, "eval")) {
             UCI::nnue.reset(&board);
             std::cout << UCI::nnue.evaluate(&board) << std::endl;
         }
-        else if (matchesToken(line, "seetest")) seetest(&board);
         else std::cout << "Unknown command" << std::endl;
     }
 

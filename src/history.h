@@ -3,6 +3,13 @@
 #include "types.h"
 #include "board.h"
 
+struct SearchedMove {
+    Move move;
+    int8_t searchCount;
+};
+
+using SearchedMoveList = ArrayVec<SearchedMove, 32>;
+
 constexpr int PAWN_HISTORY_SIZE = 8192;
 constexpr int CORRECTION_HISTORY_SIZE = 16384;
 constexpr int CORRECTION_HISTORY_LIMIT = 1024;
@@ -23,30 +30,30 @@ class History {
 public:
 
     int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2];
-    int16_t continuationCorrectionHistory[2][Piece::TOTAL][64];
+    int16_t continuationCorrectionHistory[2][Piece::TOTAL][64][2][2];
 
     void initHistory();
 
     Eval getCorrectionValue(Board* board, SearchStack* searchStack);
-    Eval correctStaticEval(Eval eval, Eval correctionValue);
+    Eval correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue);
     void updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus);
 
-    int getHistory(Board* board, BoardStack* boardStack, SearchStack* searchStack, Move move, bool isCapture);
+    int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
 
     int16_t getPawnHistory(Board* board, Move move);
     void updatePawnHistory(Board* board, Move move, int16_t bonus);
 
-    int16_t getQuietHistory(Move move, Color stm, Board* board, BoardStack* stack);
-    void updateQuietHistory(Move move, Color stm, Board* board, BoardStack* stack, int16_t bonus);
+    int16_t getQuietHistory(Move move, Color stm, Board* board);
+    void updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus);
 
     int getContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move);
     void updateContinuationHistory(SearchStack* stack, Color side, Piece piece, Move move, int16_t bonus);
 
     int16_t* getCaptureHistory(Board* board, Move move);
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
-    void updateCaptureHistory(int depth, Board* board, Move move, int moveSearchCount, Move* captureMoves, int* captureSearchCount, int captureMoveCount);
+    void updateCaptureHistory(Depth depth, Board* board, Move move, int moveSearchCount, SearchedMoveList& searchedCaptures);
 
-    void updateQuietHistories(int depth, Board* board, BoardStack* boardStack, SearchStack* stack, Move move, int moveSearchCount, Move* quietMoves, int* quietSearchCount, int quietMoveCount);
+    void updateQuietHistories(Depth depth, Board* board, SearchStack* stack, Move move, int moveSearchCount, SearchedMoveList& searchedQuiets);
 
     Move getCounterMove(Move move);
     void setCounterMove(Move move, Move counter);

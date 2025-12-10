@@ -11,7 +11,7 @@ int main(int argc, char* argv[]) {
 
     BB::init();
     initReductions();
-    initZobrist();
+    Zobrist::init();
 
     initNetworkData();
 

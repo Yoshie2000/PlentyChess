@@ -29,22 +29,21 @@ constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
 
 
 int getMaterialScale(Board* board) {
-    int pawnCount = board->stack->pieceCount[Color::WHITE][Piece::PAWN] + board->stack->pieceCount[Color::BLACK][Piece::PAWN];
-    int knightCount = board->stack->pieceCount[Color::WHITE][Piece::KNIGHT] + board->stack->pieceCount[Color::BLACK][Piece::KNIGHT];
-    int bishopCount = board->stack->pieceCount[Color::WHITE][Piece::BISHOP] + board->stack->pieceCount[Color::BLACK][Piece::BISHOP];
-    int rookCount = board->stack->pieceCount[Color::WHITE][Piece::ROOK] + board->stack->pieceCount[Color::BLACK][Piece::ROOK];
-    int queenCount = board->stack->pieceCount[Color::WHITE][Piece::QUEEN] + board->stack->pieceCount[Color::BLACK][Piece::QUEEN];
+    int pawnCount = BB::popcount(board->byPiece[Piece::PAWN]);
+    int knightCount = BB::popcount(board->byPiece[Piece::KNIGHT]);
+    int bishopCount = BB::popcount(board->byPiece[Piece::BISHOP]);
+    int rookCount = BB::popcount(board->byPiece[Piece::ROOK]);
+    int queenCount = BB::popcount(board->byPiece[Piece::QUEEN]);
 
     int materialValue = PIECE_VALUES[Piece::PAWN] * pawnCount + PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
 Eval evaluate(Board* board, NNUE* nnue) {
-    assert(!board->stack->checkers);
+    assert(!board->checkers);
 
-    Eval eval = nnue->evaluate(board);
+    Eval eval = nnue->evaluate(board);    
     eval = (eval * getMaterialScale(board)) / 1024;
-    eval = eval * (300 - board->stack->rule50_ply) / 300;
 
     eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return (eval / 16) * 16;
@@ -59,13 +58,13 @@ std::string formatEval(Eval value) {
         evalString = "mate " + std::to_string(-(EVAL_MATE + value) / 2);
     }
     else if (value >= EVAL_TBWIN_IN_MAX_PLY) {
-        evalString = "cp " + std::to_string(1000 * 100 - (EVAL_TBWIN - value) * 100);
+        evalString = "cp " + std::to_string(1000 * 100 - ((EVAL_TBWIN - value) / 2 + 1) * 100);
     }
     else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
-        evalString = "cp " + std::to_string(-1000 * 100 + (EVAL_TBWIN + value) * 100);
+        evalString = "cp " + std::to_string(-1000 * 100 + ((EVAL_TBWIN + value) / 2) * 100);
     }
     else {
-        evalString = "cp " + std::to_string(100 * value / 280);
+        evalString = "cp " + std::to_string(100 * value / 253);
     }
     return evalString;
 }
@@ -74,11 +73,11 @@ bool SEE(Board* board, Move move, Eval threshold) {
     assert(board->isPseudoLegal(move));
 
     // "Special" moves pass SEE
-    if (move >> 12)
+    if (move.isSpecial())
         return true;
 
-    Square origin = moveOrigin(move);
-    Square target = moveTarget(move);
+    Square origin = move.origin();
+    Square target = move.target();
 
     // If winning the piece on the target square (if there is one) for free doesn't pass the threshold, fail
     int value = SEE_VALUES[board->pieces[target]] - threshold;
@@ -98,8 +97,8 @@ bool SEE(Board* board, Move move, Eval threshold) {
 
     Square whiteKing = lsb(board->byColor[Color::WHITE] & board->byPiece[Piece::KING]);
     Square blackKing = lsb(board->byColor[Color::BLACK] & board->byPiece[Piece::KING]);
-    Bitboard blockers = board->stack->blockers[Color::WHITE] | board->stack->blockers[Color::BLACK];
-    Bitboard alignedBlockers = (board->stack->blockers[Color::WHITE] & BB::LINE[target][whiteKing]) | (board->stack->blockers[Color::BLACK] & BB::LINE[target][blackKing]);
+    Bitboard blockers = board->blockers[Color::WHITE] | board->blockers[Color::BLACK];
+    Bitboard alignedBlockers = (board->blockers[Color::WHITE] & BB::LINE[target][whiteKing]) | (board->blockers[Color::BLACK] & BB::LINE[target][blackKing]);
 
     // Make captures until one side has none left / fails to beat the threshold
     while (true) {
