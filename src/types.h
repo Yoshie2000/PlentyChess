@@ -170,6 +170,8 @@ struct Move {
         return os.str();
     }
 
+    static constexpr Move fromRaw(uint16_t data) { return Move{data}; };
+
 private:
 
     constexpr Move(uint16_t _data) : data(_data) {

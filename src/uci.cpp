@@ -7,6 +7,8 @@
 #include <sstream>
 #include <algorithm>
 #include <tuple>
+#include <fstream>
+#include <iomanip>
 
 #include "board.h"
 #include "uci.h"
@@ -24,6 +26,7 @@
 namespace UCI {
     UCIOptions Options;
     NNUE nnue;
+    NNUE nnue2;
     bool optionsDirty = false;
 }
 
@@ -232,6 +235,395 @@ std::vector<std::string> splitString(const std::string& input, char delimiter) {
     }
 
     return tokens;
+}
+
+struct __attribute__((packed)) BulletEntry {
+    std::uint64_t occ;
+    std::uint8_t  pcs[16];
+    std::int16_t  score;
+    std::uint8_t  result;
+    std::uint8_t  king_square;
+    std::uint8_t  opp_king_square;
+    std::uint8_t  extra[3];
+};
+
+struct __attribute__((packed)) PackedBoard {
+    std::uint64_t occ;
+    std::uint8_t  pcs[16];
+    std::uint8_t  stm_ep_square;
+    std::uint8_t  halfmove_clock;
+    std::uint16_t fullmove_number;
+    std::int16_t  score;
+    std::uint8_t  result;
+    std::uint8_t  extra;
+};
+
+struct __attribute__((packed)) ScoredMove {
+    std::uint16_t move;
+    std::int16_t eval;
+};
+
+void relabelViriformat(std::string line, Board& board, std::vector<Hash>& boardHistory) {
+    boardHistory.clear();
+    boardHistory.push_back(0);
+
+    board.startpos();
+    UCI::nnue.reset(&board);
+    UCI::nnue.incrementAccumulator();
+
+    std::ifstream is(line, std::ios::binary);
+    std::ofstream os(line + ".rlbd.2", std::ios::binary);
+
+    if (!is.is_open()) {
+        std::cout << "Failed to open input file." << std::endl;
+        return;
+    }
+
+    if (!os.is_open()) {
+        std::cout << "Failed to open output file." << std::endl;
+        return;
+    }
+
+    std::cout << "Relabling from viriformat file " << std::quoted(line) << " to "
+        << std::quoted(line + ".rlbd") << "..." << std::endl;
+
+    PackedBoard currEntry;
+    std::vector<ScoredMove> currMoves;
+
+    int64_t gameCounter = 0;
+    while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry))) {
+        board.parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
+        Bitboard occ = currEntry.occ;
+        size_t count = 0;
+        bool seenKing[2] = { false, false };
+        while (occ) {
+            Square sq = popLSB(&occ);
+            uint8_t packedPieces = currEntry.pcs[count / 2];
+            int pieceWithColor = ((count % 2 == 0) ? packedPieces & 0b1111 : packedPieces >> 4);
+            Piece piece = static_cast<Piece>(pieceWithColor & 0b111);
+            Color pieceColor = static_cast<Color>(pieceWithColor >> 3);
+            count++;
+            if (piece == Piece::NONE) { // Piece::NONE == 6 == UNMOVED_ROOK => do some castling stuff
+                if (seenKing[pieceColor]) {
+                    board.castlingSquares[2 * pieceColor + 0] = sq; // kingside
+                    board.castling |= 1 << (2 * pieceColor + 0);
+                }
+                else {
+                    board.castlingSquares[2 * pieceColor + 1] = sq; // queenside
+                    board.castling |= 1 << (2 * pieceColor + 1);
+                }
+                piece = Piece::ROOK;
+            }
+            if (piece == Piece::KING)
+                seenKing[pieceColor] = true;
+
+            board.pieces[sq] = piece;
+            board.byColor[pieceColor] ^= bitboard(sq);
+            board.byPiece[piece] ^= bitboard(sq);
+        }
+        board.enpassantTarget = (currEntry.stm_ep_square & 0b01111111) < 64 ? bitboard(Square(currEntry.stm_ep_square & 0b01111111)) : 0;
+        board.stm = (currEntry.stm_ep_square >> 7) != 0 ? Color::BLACK : Color::WHITE;
+        board.rule50_ply = currEntry.halfmove_clock;
+        board.ply = currEntry.fullmove_number;
+        Square enemyKing = lsb(board.byColor[board.stm] & board.byPiece[Piece::KING]);
+        board.checkers = board.attackersTo(enemyKing, board.byColor[Color::WHITE] | board.byColor[Color::BLACK]) & board.byColor[flip(board.stm)];
+        board.checkerCount = BB::popcount(board.checkers);
+        board.updateSliderPins(Color::WHITE);
+        board.updateSliderPins(Color::BLACK);
+        board.calculateThreats();
+
+        UCI::nnue.reset(&board);
+        currMoves.clear();
+
+        bool gameLegal = true;
+
+        int resetCounter = 0;
+        while (true) {
+            ScoredMove scoredMove;
+            is.read(reinterpret_cast<char*>(&scoredMove), sizeof(scoredMove));
+            if (scoredMove.move == 0 && scoredMove.eval == 0) {
+                break;
+            }
+
+            uint16_t movedata = scoredMove.move & 0b0000111111111111; // lower 12 bits are from-to squares
+            if ((scoredMove.move & 0b1100000000000000) == 0b1100000000000000) { // promotion
+                movedata |= MoveType::PROMOTION << 12;
+                int promotionPieceData = ((scoredMove.move >> 12) & 0b11);
+                assert(promotionPieceData >= 0);
+                assert(promotionPieceData <= 3);
+                movedata |= promotionPieceData << 14;
+            }
+            else if ((scoredMove.move & 0b0100000000000000) == 0b0100000000000000) // enpassant
+                movedata |= MoveType::ENPASSANT << 12;
+            else if ((scoredMove.move & 0b1000000000000000) == 0b1000000000000000) // castling
+                movedata |= MoveType::CASTLING << 12;
+            Move move = Move::fromRaw(movedata);
+
+            // if (!board.isPseudoLegal(move)) {
+            //     board.debugBoard();
+            //     BoardStack* stack = board.stack;
+            //     while (stack) {
+            //         std::cout << moveToString(stack->move, false) << std::endl;
+            //         stack = stack->previous;
+            //     }
+            //     std::cout << g << std::endl;
+            //     os.write(reinterpret_cast<const char*>(&scoredMove), sizeof(scoredMove));
+            //     scoredMove.eval = 0;
+            //     scoredMove.move = 0;
+            //     os.write(reinterpret_cast<const char*>(&scoredMove), sizeof(scoredMove));
+            //     os.close();
+            // }
+
+            if (!board.isPseudoLegal(move) || !board.isLegal(move)) {
+                gameLegal = false;
+                std::cout << "Encountered an illegal move: " << move.toString(false) << std::endl;
+                std::cout << board.fen() << std::endl;
+                while (true) {
+                    is.read(reinterpret_cast<char*>(&scoredMove), sizeof(scoredMove));
+                    if (scoredMove.move == 0 && scoredMove.eval == 0) {
+                        break;
+                    }
+                }
+                break;
+            }
+
+            // assert(board.isPseudoLegal(move));
+            // assert(board.isLegal(move));
+
+            if (std::abs(scoredMove.eval) <= 32000) {
+                Eval eval = UCI::nnue.evaluate(&board);
+                UCI::nnue2.reset(&board);
+                Eval eval2 = UCI::nnue2.evaluate(&board);
+                if (eval != eval2) {
+                    std::cout << int(eval) << " " << int(eval2) << std::endl;
+                    std::cout << int(board.lastMove.origin()) << " " << int(board.lastMove.target()) << std::endl;
+                    for (int i = 0; i < UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].numDirtyPieces; i++) {
+                        auto dt = UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].dirtyPieces[i];
+                        std::cout << int(dt.origin) << " " << int(dt.target) << " " << int(dt.piece) << " " << int(dt.pieceColor) << std::endl;
+                    }
+                    for (int i = 0; i < UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].numDirtyThreats; i++) {
+                        auto dt = UCI::nnue.accumulatorStack[UCI::nnue.currentAccumulator].dirtyThreats[i];
+                        std::cout << int(dt.square) << " " << int(dt.piece) << " " << int(dt.pieceColor) << " " << int(dt.attackedSquare) << " " << int(dt.attackedPiece) << " " << int(dt.attackedColor) << " " << int(dt.add) << std::endl;
+                    }
+                }
+                assert(eval == eval2);
+
+                scoredMove.eval = board.stm == Color::BLACK ? -eval : eval;
+            }
+            currMoves.push_back(scoredMove);
+
+            // std::cout << board.fen() << " -> " << move.toString(board.chess960) << std::endl;
+
+            Hash hash = board.hashAfter(move);
+            boardHistory.push_back(hash);
+            board.doMove(move, hash, &UCI::nnue);
+            if (resetCounter++ > 950) {
+                UCI::nnue.reset(&board);
+                resetCounter = 0;
+            }
+        }
+
+        if (gameLegal) {
+            os.write(reinterpret_cast<const char*>(&currEntry), sizeof(currEntry));
+            for (auto scoredMove : currMoves) {
+                os.write(reinterpret_cast<const char*>(&scoredMove), sizeof(scoredMove));
+            }
+            ScoredMove scoredMove;
+            scoredMove.eval = 0;
+            scoredMove.move = 0;
+            os.write(reinterpret_cast<const char*>(&scoredMove), sizeof(scoredMove));
+        }
+
+        gameCounter++;
+        if (gameCounter % 10000 == 0)
+            std::cout << "Parsed " << gameCounter << " games" << std::endl;
+    }
+}
+
+// Taken from SFs WDL model repo lol
+
+#include "external/chess.hpp"
+#include "external/gzip/gzstream.h"
+#include "external/parallel_hashmap/phmap.h"
+#include "external/threadpool.hpp"
+#include "external/json.hpp"
+
+enum class Result { WIN = 'W', DRAW = 'D', LOSS = 'L' };
+
+struct ResultKey {
+    Result white;
+    Result black;
+};
+
+struct Key {
+    Result result;             // game result from PoV of side to move
+    int move, material, eval;  // move number, material count, engine's eval
+    bool operator==(const Key& k) const {
+        return result == k.result && move == k.move && material == k.material && eval == k.eval;
+    }
+    operator std::size_t() const {
+        // golden ratio hashing, thus 0x9e3779b9
+        std::uint32_t hash = static_cast<int>(result);
+        hash ^= move + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        hash ^= material + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        hash ^= eval + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        return hash;
+    }
+    operator std::string() const {
+        return "('" + std::string(1, static_cast<char>(result)) + "', " + std::to_string(move) +
+            ", " + std::to_string(material) + ", " + std::to_string(eval) + ")";
+    }
+};
+
+// overload the std::hash function for Key
+template <>
+struct std::hash<Key> {
+    std::size_t operator()(const Key& k) const { return static_cast<std::size_t>(k); }
+};
+
+// overload the std::equal_to function for Key
+template <>
+struct std::equal_to<Key> {
+    bool operator()(const Key& lhs, const Key& rhs) const { return lhs == rhs; }
+};
+
+using map_t =
+phmap::parallel_flat_hash_map<Key, int, std::hash<Key>, std::equal_to<Key>,
+    std::allocator<std::pair<const Key, int>>, 8, std::mutex>;
+
+void viriformatWDLModel(std::string line, Board& board, std::vector<Hash>& boardHistory) {
+    boardHistory.clear();
+    boardHistory.push_back(0);
+
+    board.startpos();
+    UCI::nnue.reset(&board);
+    UCI::nnue.incrementAccumulator();
+
+    std::ifstream is(line, std::ios::binary);
+
+    if (!is.is_open()) {
+        std::cout << "Failed to open input file." << std::endl;
+        return;
+    }
+
+    std::cout << "Generating WDL model from viriformat file " << std::quoted(line) << std::endl;
+    map_t pos_map = {};
+
+    PackedBoard currEntry;
+
+    int64_t gameCounter = 0;
+    while (is.read(reinterpret_cast<char*>(&currEntry), sizeof(currEntry))) {
+        board.parseFen("8/8/8/8/8/8/8/8 w - - 0 1", false);
+        Bitboard occ = currEntry.occ;
+        size_t count = 0;
+        bool seenKing[2] = { false, false };
+        while (occ) {
+            Square sq = popLSB(&occ);
+            uint8_t packedPieces = currEntry.pcs[count / 2];
+            int pieceWithColor = ((count % 2 == 0) ? packedPieces & 0b1111 : packedPieces >> 4);
+            Piece piece = static_cast<Piece>(pieceWithColor & 0b111);
+            Color pieceColor = static_cast<Color>(pieceWithColor >> 3);
+            count++;
+            if (piece == Piece::NONE) { // Piece::NONE == 6 == UNMOVED_ROOK => do some castling stuff
+                if (seenKing[pieceColor]) {
+                    board.castlingSquares[2 * pieceColor + 0] = sq; // kingside
+                    board.castling |= 1 << (2 * pieceColor + 0);
+                }
+                else {
+                    board.castlingSquares[2 * pieceColor + 1] = sq; // queenside
+                    board.castling |= 1 << (2 * pieceColor + 1);
+                }
+                piece = Piece::ROOK;
+            }
+            if (piece == Piece::KING)
+                seenKing[pieceColor] = true;
+
+            board.pieces[sq] = piece;
+            board.byColor[pieceColor] ^= bitboard(sq);
+            board.byPiece[piece] ^= bitboard(sq);
+        }
+        board.enpassantTarget = (currEntry.stm_ep_square & 0b01111111) < 64 ? bitboard(Square(currEntry.stm_ep_square & 0b01111111)) : 0;
+        board.stm = (currEntry.stm_ep_square >> 7) != 0 ? Color::BLACK : Color::WHITE;
+        board.rule50_ply = currEntry.halfmove_clock;
+        board.ply = currEntry.fullmove_number;
+        Square enemyKing = lsb(board.byColor[board.stm] & board.byPiece[Piece::KING]);
+        board.checkers = board.attackersTo(enemyKing, board.byColor[Color::WHITE] | board.byColor[Color::BLACK]) & board.byColor[flip(board.stm)];
+        board.checkerCount = BB::popcount(board.checkers);
+        board.updateSliderPins(Color::WHITE);
+        board.updateSliderPins(Color::BLACK);
+        board.calculateThreats();
+
+        UCI::nnue.currentAccumulator = 0;
+        UCI::nnue.lastCalculatedAccumulator[Color::WHITE] = 0;
+        UCI::nnue.lastCalculatedAccumulator[Color::BLACK] = 0;
+
+        int resetCounter = 0;
+        while (true) {
+            ScoredMove scoredMove;
+            is.read(reinterpret_cast<char*>(&scoredMove), sizeof(scoredMove));
+            if (scoredMove.move == 0 && scoredMove.eval == 0) {
+                break;
+            }
+
+            uint16_t movedata = scoredMove.move & 0b0000111111111111; // lower 12 bits are from-to squares
+            if ((scoredMove.move & 0b1100000000000000) == 0b1100000000000000) { // promotion
+                movedata |= MoveType::PROMOTION << 12;
+                int promotionPieceData = ((scoredMove.move >> 12) & 0b11);
+                assert(promotionPieceData >= 0);
+                assert(promotionPieceData <= 3);
+                movedata |= (3 - promotionPieceData) << 14;
+            }
+            else if ((scoredMove.move & 0b0100000000000000) == 0b0100000000000000) // enpassant
+                movedata |= MoveType::ENPASSANT << 12;
+            else if ((scoredMove.move & 0b1000000000000000) == 0b1000000000000000) // castling
+                movedata |= MoveType::CASTLING << 12;
+            Move move = Move::fromRaw(movedata);
+
+            Key key;
+            constexpr int BIN_WIDTH = 5;
+            int stmEval = board.stm == Color::WHITE ? scoredMove.eval : -scoredMove.eval;
+            key.eval = int(std::round(stmEval / float(BIN_WIDTH))) * BIN_WIDTH;
+            if (board.stm == Color::WHITE)
+                key.result = currEntry.result == 2 ? Result::WIN : currEntry.result == 1 ? Result::DRAW : Result::LOSS;
+            else
+                key.result = currEntry.result == 2 ? Result::LOSS : currEntry.result == 1 ? Result::DRAW : Result::WIN;
+            key.move = board.ply;
+            key.material = 9 * BB::popcount(board.byPiece[Piece::QUEEN]) + 5 * BB::popcount(board.byPiece[Piece::ROOK]) + 3 * BB::popcount(board.byPiece[Piece::BISHOP]) + 3 * BB::popcount(board.byPiece[Piece::KNIGHT]) + 1 * BB::popcount(board.byPiece[Piece::PAWN]);
+
+            pos_map.lazy_emplace_l(
+                std::move(key), [&](map_t::value_type& v) { v.second += 1; },
+                [&](const map_t::constructor& ctor) { ctor(std::move(key), 1); });
+
+            Hash hash = board.hashAfter(move);
+            boardHistory.push_back(hash);
+            board.doMove(move, hash, &UCI::nnue);
+            if (resetCounter++ > 950) {
+                UCI::nnue.reset(&board);
+                resetCounter = 0;
+            }
+        }
+
+        gameCounter++;
+        if (gameCounter % 10000 == 0)
+            std::cout << "Parsed " << gameCounter << " games" << std::endl;
+        if (gameCounter >= 10000000)
+            break;
+    }
+
+    std::uint64_t total_pos = 0;
+    nlohmann::json j;
+    for (const auto& pair : pos_map) {
+        const auto map_key_t = static_cast<std::string>(pair.first);
+        j[map_key_t] = pair.second;
+        total_pos += pair.second;
+    }
+    // save json to file
+    std::string json_filename = "scoreWDLstat.json";
+    std::ofstream out_file(json_filename);
+    out_file << j.dump(2);
+    out_file.close();
+    std::cout << "Wrote " << total_pos << " scored positions from " << gameCounter << " games to "
+        << json_filename << " for analysis." << std::endl;
 }
 
 void position(std::string line, Board& board, std::vector<Hash>& boardHistory) {
@@ -453,6 +845,18 @@ void uciLoop(int argc, char* argv[]) {
     return;
 #endif
 
+    if (argc > 1 && matchesToken(argv[1], "relabel")) {
+        std::string param(argv[2]);
+        relabelViriformat(param, board, boardHistory);
+        return;
+    }
+
+    if (argc > 1 && matchesToken(argv[1], "wdlmodel")) {
+        std::string param(argv[2]);
+        viriformatWDLModel(param, board, boardHistory);
+        return;
+    }
+
     if (argc > 1 && matchesToken(argv[1], "genfens")) {
         std::cout << "starting fen generation" << std::endl;
         std::string params(argv[1]);
@@ -508,6 +912,7 @@ void uciLoop(int argc, char* argv[]) {
         }
         else if (matchesToken(line, "position")) position(line.substr(9), board, boardHistory);
         else if (matchesToken(line, "setoption")) setoption(line.substr(10));
+        else if (matchesToken(line, "relabel")) relabelViriformat(line.substr(8), board, boardHistory);
 
         /* NON UCI COMMANDS */
         else if (matchesToken(line, "bench")) bench(board, boardHistory);

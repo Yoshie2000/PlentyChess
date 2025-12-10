@@ -141,16 +141,16 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
     }
 
     // Update king checking stuff
-    Square enemyKing = lsb(byColor[stm] & byPiece[Piece::KING]);
-    checkers = attackersTo(enemyKing) & byColor[flip(stm)];
-    checkerCount = BB::popcount(checkers);
+    // Square enemyKing = lsb(byColor[stm] & byPiece[Piece::KING]);
+    // checkers = attackersTo(enemyKing) & byColor[flip(stm)];
+    // checkerCount = BB::popcount(checkers);
 
-    updateSliderPins(Color::WHITE);
-    updateSliderPins(Color::BLACK);
+    // updateSliderPins(Color::WHITE);
+    // updateSliderPins(Color::BLACK);
 
     chess960 = isChess960;
 
-    calculateThreats();
+    // calculateThreats();
 }
 
 std::string Board::fen() {
@@ -170,7 +170,7 @@ std::string Board::fen() {
                     os << std::to_string(freeSquares);
                     freeSquares = 0;
                 }
-                os << ((byColor[Color::WHITE] & bitboard(s)) ? toupper(pieceChars[p]) : pieceChars[p]);
+                os << char((byColor[Color::WHITE] & bitboard(s)) ? toupper(pieceChars[p]) : pieceChars[p]);
             }
         }
         if (freeSquares != 0)
