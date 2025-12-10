@@ -396,7 +396,7 @@ Eval NNUE::evaluate(Board* board) {
     nnz.addActivations(pairwiseOutputs);
 #endif
 
-    alignas(ALIGNMENT) int l1MatmulOutputs[L2_SIZE] = {};
+    alignas(ALIGNMENT) int l1MatmulOutputs[2 * L2_SIZE] = {};
 
     // ---------------------- NNZ COMPUTATION ----------------------
 
@@ -451,36 +451,38 @@ Eval NNUE::evaluate(Board* board) {
     VecI32* l1MatmulOutputsVec = reinterpret_cast<VecI32*>(l1MatmulOutputs);
 
     int i = 0;
-    for (; i < nnzCount - 1; i += 2) {
+    for (; i < nnzCount - 3; i += 4) {
         int pw_1 = nnzIndices[i] * INT8_PER_INT32;
         int pw_2 = nnzIndices[i + 1] * INT8_PER_INT32;
-#if defined(ARCH_X86)
+        int pw_3 = nnzIndices[i + 2] * INT8_PER_INT32;
+        int pw_4 = nnzIndices[i + 3] * INT8_PER_INT32;
         VecIu8 u8_1 = set1Epi32(pairwiseOutputsPacks[pw_1 / INT8_PER_INT32]);
         VecIu8 u8_2 = set1Epi32(pairwiseOutputsPacks[pw_2 / INT8_PER_INT32]);
-#else
-        VecIu8 u8_1 = vreinterpretq_u8_s32(set1Epi32(pairwiseOutputsPacks[pw_1 / INT8_PER_INT32]));
-        VecIu8 u8_2 = vreinterpretq_u8_s32(set1Epi32(pairwiseOutputsPacks[pw_2 / INT8_PER_INT32]));
-#endif
+        VecIu8 u8_3 = set1Epi32(pairwiseOutputsPacks[pw_3 / INT8_PER_INT32]);
+        VecIu8 u8_4 = set1Epi32(pairwiseOutputsPacks[pw_4 / INT8_PER_INT32]);
         VecI8* weights_1 = reinterpret_cast<VecI8*>(&networkData->l1Weights[bucket][pw_1 * L2_SIZE]);
         VecI8* weights_2 = reinterpret_cast<VecI8*>(&networkData->l1Weights[bucket][pw_2 * L2_SIZE]);
+        VecI8* weights_3 = reinterpret_cast<VecI8*>(&networkData->l1Weights[bucket][pw_3 * L2_SIZE]);
+        VecI8* weights_4 = reinterpret_cast<VecI8*>(&networkData->l1Weights[bucket][pw_4 * L2_SIZE]);
 
         for (int l1 = 0; l1 < L2_SIZE / I32_VEC_SIZE; l1++) {
             l1MatmulOutputsVec[l1] = dpbusdEpi32x2(l1MatmulOutputsVec[l1], u8_1, weights_1[l1], u8_2, weights_2[l1]);
+            l1MatmulOutputsVec[l1 + L2_SIZE / I32_VEC_SIZE] = dpbusdEpi32x2(l1MatmulOutputsVec[l1 + L2_SIZE / I32_VEC_SIZE], u8_3, weights_3[l1], u8_4, weights_4[l1]);
         }
     }
 
     for (; i < nnzCount; i++) {
         int pw = nnzIndices[i] * INT8_PER_INT32;
-#if defined(ARCH_X86)
         VecIu8 u8 = set1Epi32(pairwiseOutputsPacks[pw / INT8_PER_INT32]);
-#else
-        VecIu8 u8 = vreinterpretq_u8_s32(set1Epi32(pairwiseOutputsPacks[pw / INT8_PER_INT32]));
-#endif
         VecI8* weights = reinterpret_cast<VecI8*>(&networkData->l1Weights[bucket][pw * L2_SIZE]);
 
         for (int l1 = 0; l1 < L2_SIZE / I32_VEC_SIZE; l1++) {
             l1MatmulOutputsVec[l1] = dpbusdEpi32(l1MatmulOutputsVec[l1], u8, weights[l1]);
         }
+    }
+
+    for (int l1 = 0; l1 < L2_SIZE; l1++) {
+        l1MatmulOutputs[l1] += l1MatmulOutputs[l1 + L2_SIZE];
     }
 #else
     for (int ft = 0; ft < L1_SIZE; ft++) {
