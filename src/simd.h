@@ -41,7 +41,7 @@ inline VecI16 set1Epi16(int i) {
   return _mm512_set1_epi16(i);
 }
 
-inline VecI16 set1Epi32(int i) {
+inline VecIu8 set1Epi32(int i) {
   return _mm512_set1_epi32(i);
 }
 
@@ -155,7 +155,7 @@ inline VecI16 set1Epi16(int i) {
   return _mm256_set1_epi16(i);
 }
 
-inline VecI16 set1Epi32(int i) {
+inline VecIu8 set1Epi32(int i) {
   return _mm256_set1_epi32(i);
 }
 
@@ -278,7 +278,7 @@ inline VecI16 set1Epi16(int i) {
   return _mm_set1_epi16(i);
 }
 
-inline VecI16 set1Epi32(int i) {
+inline VecIu8 set1Epi32(int i) {
   return _mm_set1_epi32(i);
 }
 
@@ -396,8 +396,8 @@ inline VecI16 set1Epi16(int i) {
   return vdupq_n_s16(i);
 }
 
-inline VecI32 set1Epi32(int i) {
-  return vdupq_n_s32(i);
+inline VecIu8 set1Epi32(int i) {
+  return vreinterpretq_u8_s32(vdupq_n_s32(i));
 }
 
 inline VecI16 srliEpi16(VecI16 x, int shift) {
