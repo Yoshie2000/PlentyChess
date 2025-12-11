@@ -791,7 +791,26 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // Razoring
-    if (!rootNode && !board->checkers && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
+    if (!rootNode && !board->checkers && depth <= razoringDepth && alpha < EVAL_TBWIN_IN_MAX_PLY) {
+        Eval margin = razoringFactor * depth / 100;
+
+        if (eval + margin < alpha) {
+            bool allowFullRazor = depth < 200 || (depth < 300 && eval + margin + 200 < alpha);
+
+            if (allowFullRazor)
+                return qsearch<NON_PV_NODE>(board, stack, alpha, beta);
+            
+            Eval razorAlpha = std::max(alpha - margin, -EVAL_TBWIN_IN_MAX_PLY + 1);
+            Eval razorValue = qsearch<NON_PV_NODE>(board, stack, razorAlpha, razorAlpha + 1);
+
+            if (razorValue <= razorAlpha) {
+                return std::max(razorValue, -EVAL_TBWIN_IN_MAX_PLY + 1);
+            }
+
+            if (razorValue > razorAlpha + 150 && depth < 400)
+                depth -= 100;
+        }
+
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
         if (razorValue <= alpha && std::abs(razorValue) < EVAL_TBWIN_IN_MAX_PLY)
             return razorValue;
