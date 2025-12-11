@@ -245,7 +245,7 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
 
             assert(BB::popcount(threatened) < 2);
 
-            if (threatened && (BB::RAY_PASS[slidingPieceSquare][square] & allowedRayUpdates) != allowedRayUpdates) {
+            if (threatened && (ray & allowedRayUpdates) != allowedRayUpdates) {
                 Square attackedSquare = lsb(threatened);
                 Piece attackedPiece = pieces[attackedSquare];
                 Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
