@@ -403,7 +403,6 @@ void relabelViriformat(std::string line, Board& board, std::vector<Hash>& boardH
             // std::cout << board.fen() << " -> " << move.toString(board.chess960) << std::endl;
 
             Hash hash = board.hashAfter(move);
-            boardHistory.push_back(hash);
             board.doMove(move, hash, &UCI::nnue);
             if (resetCounter++ > 950) {
                 UCI::nnue.reset(&board);
@@ -583,7 +582,6 @@ void viriformatWDLModel(std::string line, Board& board, std::vector<Hash>& board
                 [&](const map_t::constructor& ctor) { ctor(std::move(key), 1); });
 
             Hash hash = board.hashAfter(move);
-            boardHistory.push_back(hash);
             board.doMove(move, hash, &UCI::nnue);
             if (resetCounter++ > 950) {
                 UCI::nnue.reset(&board);
