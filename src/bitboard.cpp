@@ -12,6 +12,7 @@ namespace BB {
     Bitboard LINE[64][64];
     Bitboard KING_ATTACKS[64];
     Bitboard KNIGHT_ATTACKS[64];
+    Bitboard PAWN_ATTACKS[2][64];
     Bitboard RAY_PASS[64][64];
 
     Bitboard kingAttacks(Square origin) {
@@ -46,7 +47,7 @@ namespace BB {
     Bitboard attackedSquares(Piece pieceType, Square square, Bitboard occupied, Color stm) {
         switch (pieceType) {
         case Piece::PAWN:
-            return pawnAttacks(bitboard(square), stm);
+            return PAWN_ATTACKS[stm][square];
         case Piece::KNIGHT:
             return KNIGHT_ATTACKS[square];
         case Piece::KING:
@@ -88,6 +89,8 @@ namespace BB {
 
             KING_ATTACKS[a] = kingAttacks(a);
             KNIGHT_ATTACKS[a] = knightAttacks(bitboard(a));
+            PAWN_ATTACKS[Color::WHITE][a] = pawnAttacks(bitboard(a), Color::WHITE);
+            PAWN_ATTACKS[Color::BLACK][a] = pawnAttacks(bitboard(a), Color::BLACK);
         }
     }
 

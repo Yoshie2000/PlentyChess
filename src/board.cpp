@@ -252,7 +252,7 @@ void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNU
     }
 
     // Process attacks of non-slider pieces that were already attacking this square
-    Bitboard attackingPawns = byPiece[Piece::PAWN] & ((byColor[Color::BLACK] & BB::pawnAttacks(bitboard(square), Color::WHITE)) | (byColor[Color::WHITE] & BB::pawnAttacks(bitboard(square), Color::BLACK)));
+    Bitboard attackingPawns = byPiece[Piece::PAWN] & ((byColor[Color::BLACK] & BB::PAWN_ATTACKS[Color::WHITE][square]) | (byColor[Color::WHITE] & BB::PAWN_ATTACKS[Color::BLACK][square]));
     Bitboard attackingKnights = byPiece[Piece::KNIGHT] & BB::KNIGHT_ATTACKS[square];
     Bitboard attackingKings = byPiece[Piece::KING] & BB::KING_ATTACKS[square];
     Bitboard attackingSquares = attackingPawns | attackingKnights | attackingKings;
@@ -590,7 +590,7 @@ bool Board::isPseudoLegal(Move move) {
                 return false;
         }
         if (
-            !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[flip(stm)]) && // Capture promotion?
+            !(BB::PAWN_ATTACKS[stm][origin] & targetBB & byColor[flip(stm)]) && // Capture promotion?
             !(origin + Direction::UP[stm] == target && pieces[target] == Piece::NONE)) // Push promotion?
             return false;
         return true;
@@ -604,7 +604,7 @@ bool Board::isPseudoLegal(Move move) {
         if (targetBB & (BB::RANK_8 | BB::RANK_1)) return false;
 
         if (
-            !(BB::pawnAttacks(originBB, stm) & targetBB & byColor[flip(stm)]) && // Capture?
+            !(BB::PAWN_ATTACKS[stm][origin] & targetBB & byColor[flip(stm)]) && // Capture?
             !(origin + Direction::UP[stm] == target && pieces[target] == Piece::NONE) && // Single push?
             !(origin + 2 * Direction::UP[stm] == target && pieces[target] == Piece::NONE && pieces[target - Direction::UP[stm]] == Piece::NONE && (originBB & (BB::RANK_2 | BB::RANK_7))) // Double push?
             )
@@ -850,9 +850,7 @@ Bitboard Board::attackersTo(Square s) {
 }
 
 Bitboard Board::attackersTo(Square s, Bitboard occupied) {
-    Bitboard sBB = bitboard(s);
-
-    Bitboard pawnAtks = byPiece[Piece::PAWN] & ((byColor[Color::BLACK] & BB::pawnAttacks(sBB, Color::WHITE)) | (byColor[Color::WHITE] & BB::pawnAttacks(sBB, Color::BLACK)));
+    Bitboard pawnAtks = byPiece[Piece::PAWN] & ((byColor[Color::BLACK] & BB::PAWN_ATTACKS[Color::WHITE][s]) | (byColor[Color::WHITE] & BB::PAWN_ATTACKS[Color::BLACK][s]));
     Bitboard knightAtks = byPiece[Piece::KNIGHT] & BB::KNIGHT_ATTACKS[s];
     Bitboard bishopAtks = (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]) & getBishopMoves(s, occupied);
     Bitboard rookAtks = (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]) & getRookMoves(s, occupied);

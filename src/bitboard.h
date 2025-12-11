@@ -124,6 +124,7 @@ namespace BB {
     extern Bitboard LINE[64][64];
     extern Bitboard KING_ATTACKS[64];
     extern Bitboard KNIGHT_ATTACKS[64];
+    extern Bitboard PAWN_ATTACKS[2][64];
     extern Bitboard RAY_PASS[64][64];
 
     constexpr int popcount(Bitboard bb) {
