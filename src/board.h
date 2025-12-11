@@ -90,14 +90,15 @@ struct Board {
     void parseFen(std::istringstream& iss, bool chess960);
     std::string fen();
 
-    template<bool add>
-    void updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue);
+    template<bool add, bool computeRays = true>
+    void updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue, Bitboard allowedRayUpdates = ~bitboard(0));
     void updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta);
     void updatePieceCastling(Piece piece, Color pieceColor, Square origin);
 
     void addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
     void removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
     void movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue);
+    void swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
 
     void doMove(Move move, Hash newHash, NNUE* nnue);
     void doNullMove();
