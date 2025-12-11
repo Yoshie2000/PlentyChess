@@ -806,9 +806,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (razorValue <= razorAlpha) {
                 return std::max(razorValue, -EVAL_TBWIN_IN_MAX_PLY + 1);
             }
-
-            if (razorValue > razorAlpha + 150 && depth < 400)
-                depth -= 100;
         }
 
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
