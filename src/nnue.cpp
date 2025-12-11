@@ -396,7 +396,7 @@ Eval NNUE::evaluate(Board* board) {
     nnz.addActivations(pairwiseOutputs);
 #endif
 
-    alignas(ALIGNMENT) int l1MatmulOutputs[2 * L2_SIZE] = {};
+    alignas(ALIGNMENT) int l1MatmulOutputs[L2_SIZE] = {};
 
     // ---------------------- NNZ COMPUTATION ----------------------
 
