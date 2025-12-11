@@ -249,6 +249,51 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
         }
     }
 
+    if (!outputAcc->numDirtyThreats || (!addFeatures.size() && !subFeatures.size())) {
+        memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->inputBiases));
+        return;
+    }
+
+#if defined(__AVX512F__) && defined(__AVX512BW__)
+
+    VecI16* inputVec = (VecI16*)inputAcc->threatState[side];
+    VecI16* outputVec = (VecI16*)outputAcc->threatState[side];
+    VecI16 registers[L1_ITERATIONS];
+
+    for (int i = 0; i < L1_ITERATIONS; i++)
+        registers[i] = inputVec[i];
+
+    while (addFeatures.size() && subFeatures.size()) {
+        VecI16s* addWeightsVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
+        VecI16s* subWeightsVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
+            VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
+            VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
+            registers[i] = subEpi16(addEpi16(registers[i], addWeights), subWeights);
+        }
+    }
+
+    while (addFeatures.size()) {
+        VecI16s* addWeightVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
+        for (int i = 0; i < L1_ITERATIONS; i++) {
+            VecI16 addWeights = convertEpi8Epi16(addWeightVec[i]);
+            registers[i] = addEpi16(registers[i], addWeights);
+        }
+    }
+
+    while (subFeatures.size()) {
+        VecI16s* subWeightVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
+        for (int i = 0; i < L1_ITERATIONS; i++) {
+            VecI16 subWeights = convertEpi8Epi16(subWeightVec[i]);
+            registers[i] = subEpi16(registers[i], subWeights);
+        }
+    }
+
+    for (int i = 0; i < L1_ITERATIONS; i++)
+        outputVec[i] = registers[i];
+
+#else
+
     while (addFeatures.size() && subFeatures.size()) {
         addSubToAccumulator<true, side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0), subFeatures.remove(0));
         inputAcc = outputAcc;
@@ -264,8 +309,7 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
         inputAcc = outputAcc;
     }
 
-    if (!outputAcc->numDirtyThreats)
-        memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->inputBiases));
+#endif
 }
 
 template<bool I8, Color side>
