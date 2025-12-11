@@ -205,8 +205,7 @@ std::string Board::fen() {
     return os.str();
 }
 
-template<bool add, bool computeRays>
-void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue, Bitboard allowedRayUpdates) {
+void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue, bool add, bool computeRays, Bitboard allowedRayUpdates) {
     // Process attacks of the current piece to other pieces
     Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
     Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor) & occupancy;
@@ -310,7 +309,7 @@ void Board::addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
 
     nnue->addPiece(square, piece, pieceColor);
 
-    updatePieceThreats<true>(piece, pieceColor, square, nnue);
+    updatePieceThreats(piece, pieceColor, square, nnue, true);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 };
@@ -326,7 +325,7 @@ void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue
 
     nnue->removePiece(square, piece, pieceColor);
 
-    updatePieceThreats<false>(piece, pieceColor, square, nnue);
+    updatePieceThreats(piece, pieceColor, square, nnue, false);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 };
@@ -338,7 +337,7 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     nnue->movePiece(origin, target, piece, pieceColor);
     
     Bitboard fromTo = bitboard(origin) ^ bitboard(target);
-    updatePieceThreats<false>(piece, pieceColor, origin, nnue, fromTo);
+    updatePieceThreats(piece, pieceColor, origin, nnue, false, true, fromTo);
 
     byColor[pieceColor] ^= fromTo;
     byPiece[piece] ^= fromTo;
@@ -346,7 +345,7 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     pieces[origin] = Piece::NONE;
     pieces[target] = piece;
 
-    updatePieceThreats<true>(piece, pieceColor, target, nnue, fromTo);
+    updatePieceThreats(piece, pieceColor, target, nnue, true, true, fromTo);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][origin] ^ Zobrist::PIECE_SQUARES[pieceColor][piece][target]);
     updatePieceCastling(piece, pieceColor, origin);
 };
@@ -364,7 +363,7 @@ void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) 
     pieces[square] = Piece::NONE;
 
     nnue->removePiece(square, oldPiece, oldPieceColor);
-    updatePieceThreats<false, false>(oldPiece, oldPieceColor, square, nnue);
+    updatePieceThreats(oldPiece, oldPieceColor, square, nnue, false, false);
     updatePieceHash(oldPiece, oldPieceColor, Zobrist::PIECE_SQUARES[oldPieceColor][oldPiece][square]);
     updatePieceCastling(oldPiece, oldPieceColor, square);
 
@@ -374,7 +373,7 @@ void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) 
     pieces[square] = piece;
 
     nnue->addPiece(square, piece, pieceColor);
-    updatePieceThreats<true, false>(piece, pieceColor, square, nnue);
+    updatePieceThreats(piece, pieceColor, square, nnue, true, false);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 };
