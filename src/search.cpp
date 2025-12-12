@@ -942,8 +942,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (lmrDepth < fpDepth && fpValue <= alpha) {
                 if (!capture)
                     movegen.skipQuietMoves();
-                if (movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES)
-                    break;
+                else if (!move.isPromotion()) {
+                    Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
+                    if (fpValue + PIECE_VALUES[capturedPiece] <= alpha && movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES)
+                        break;
+                }
             }
 
             lmrDepth = std::max<Depth>(0, lmrDepth);
