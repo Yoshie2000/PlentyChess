@@ -937,7 +937,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             // Futility pruning
             int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * !bestMove);
-            if ((stack - 1)->movedPiece != Piece::NONE)
+            if (!capture && (stack - 1)->movedPiece != Piece::NONE)
                 fpValue += (stack - 1)->contHist[2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm] / 500;
             if (lmrDepth < fpDepth && fpValue <= alpha) {
                 if (!capture)
