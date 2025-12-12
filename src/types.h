@@ -6,6 +6,10 @@
 #include <sstream>
 #include <iostream>
 
+#if !defined(__always_inline)
+#define __always_inline
+#endif
+
 // General constants and types
 using Eval = int32_t;
 using Square = uint8_t;

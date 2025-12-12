@@ -206,7 +206,7 @@ std::string Board::fen() {
 }
 
 template<bool add>
-void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
+__always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
     // Process attacks of the current piece to other pieces
     Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
     Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor) & occupancy;
@@ -244,7 +244,6 @@ void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNU
             Piece attackedPiece = pieces[attackedSquare];
             Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
 
-            ray &= BB::BETWEEN[square][attackedSquare];
             nnue->updateThreat(slidingPiece, attackedPiece, slidingPieceSquare, attackedSquare, slidingPieceColor, attackedColor, !add);
         }
 
@@ -397,7 +396,7 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
 
         capturedPiece = Piece::NONE;
     }
-                      break;
+                           break;
 
     case MoveType::ENPASSANT:
         movePiece(piece, stm, origin, target, nnue);
