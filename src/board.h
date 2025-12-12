@@ -56,6 +56,7 @@ struct Hashes {
     Hash nonPawnHash[2];
     Hash minorHash;
     Hash majorHash;
+    Hash rngHash;
 };
 
 struct Board {
@@ -92,7 +93,7 @@ struct Board {
 
     template<bool add>
     void updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue);
-    void updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta);
+    void updatePieceHash(Piece piece, Color pieceColor, Hash hashDelta, Hash rngDelta);
     void updatePieceCastling(Piece piece, Color pieceColor, Square origin);
 
     void addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);

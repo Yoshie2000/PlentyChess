@@ -52,6 +52,7 @@ void History::initHistory() {
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
     memset(correctionHistory, 0, sizeof(correctionHistory));
+    memset(rngCorrectionHistory, 0, sizeof(rngCorrectionHistory));
     memset(nonPawnCorrectionHistory, 0, sizeof(nonPawnCorrectionHistory));
     memset(minorCorrectionHistory, 0, sizeof(minorCorrectionHistory));
     memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
@@ -73,8 +74,14 @@ Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
     int64_t minorEntry = minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t majorEntry = majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
+    
+    int16_t rngEntry = 0;
+    for (int shift = 0; shift < 4; shift++) {
+        Hash rngHash = (board->hashes.rngHash >> (shift * 16)) & (CORRECTION_HISTORY_SIZE - 1);
+        rngEntry += rngCorrectionHistory[board->stm][shift][rngHash];
+    }
 
-    return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
+    return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor + rngEntry * 5000;
 }
 
 Eval History::correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue) {
@@ -105,6 +112,13 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
         scaledBonus = bonus - *(searchStack - 1)->contCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
         *(searchStack - 1)->contCorrHist += scaledBonus;
+    }
+
+    // RNG
+    for (int shift = 0; shift < 4; shift++) {
+        Hash rngHash = (board->hashes.rngHash >> (shift * 16)) & (CORRECTION_HISTORY_SIZE - 1);
+        scaledBonus = bonus - rngCorrectionHistory[board->stm][shift][rngHash] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+        rngCorrectionHistory[board->stm][shift][rngHash] += scaledBonus;
     }
 }
 
