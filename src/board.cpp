@@ -58,7 +58,8 @@ void Board::parseFen(std::istringstream& iss, bool isChess960) {
             byColor[color] |= sqBB;
             byPiece[piece] |= sqBB;
             pieces[sq] = piece;
-
+            
+            hashes.rngHash ^= Zobrist::PIECE_SQUARES_RNG[color][piece][sq];
             Hash hash = Zobrist::PIECE_SQUARES[color][piece][sq];
             hashes.hash ^= hash;
             if (piece == Piece::PAWN)
@@ -266,7 +267,8 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
     }
 }
 
-void Board::updatePieceHash(Piece piece, Color pieceColor, Hash hashDelta) {
+void Board::updatePieceHash(Piece piece, Color pieceColor, Hash hashDelta, Hash rngDelta) {
+    hashes.rngHash ^= rngDelta;
     if (piece == Piece::PAWN) {
         hashes.pawnHash ^= hashDelta;
     }
@@ -305,7 +307,7 @@ void Board::addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
     nnue->addPiece(square, piece, pieceColor);
 
     updatePieceThreats<true>(piece, pieceColor, square, nnue);
-    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
+    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square], Zobrist::PIECE_SQUARES_RNG[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 };
 
@@ -321,7 +323,7 @@ void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue
     nnue->removePiece(square, piece, pieceColor);
 
     updatePieceThreats<false>(piece, pieceColor, square, nnue);
-    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
+    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square], Zobrist::PIECE_SQUARES_RNG[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 };
 
@@ -341,7 +343,7 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     pieces[target] = piece;
 
     updatePieceThreats<true>(piece, pieceColor, target, nnue);
-    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][origin] ^ Zobrist::PIECE_SQUARES[pieceColor][piece][target]);
+    updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][origin] ^ Zobrist::PIECE_SQUARES[pieceColor][piece][target], Zobrist::PIECE_SQUARES_RNG[pieceColor][piece][origin] ^ Zobrist::PIECE_SQUARES_RNG[pieceColor][piece][target]);
     updatePieceCastling(piece, pieceColor, origin);
 };
 

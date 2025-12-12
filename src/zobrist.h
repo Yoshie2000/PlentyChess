@@ -5,6 +5,7 @@
 namespace Zobrist {
 
     extern Hash PIECE_SQUARES[2][Piece::TOTAL][64];
+    extern Hash PIECE_SQUARES_RNG[2][Piece::TOTAL][64];
     extern Hash STM_BLACK;
     extern Hash NO_PAWNS;
     extern Hash CASTLING[16]; // 2^4

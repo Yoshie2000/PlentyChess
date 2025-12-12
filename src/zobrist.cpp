@@ -9,6 +9,7 @@
 namespace Zobrist {
 
     Hash PIECE_SQUARES[2][Piece::TOTAL][64];
+    Hash PIECE_SQUARES_RNG[2][Piece::TOTAL][64];
     Hash STM_BLACK;
     Hash NO_PAWNS;
     Hash CASTLING[16];
@@ -26,6 +27,10 @@ namespace Zobrist {
             for (Piece i = Piece::PAWN; i < Piece::TOTAL; ++i) {
                 for (Square j = 0; j < 64; j++) {
                     PIECE_SQUARES[side][i][j] = dist(rng);
+
+                    Hash hash = dist(rng) & 0xFFFF;
+                    int shift = dist(rng) & 0x3;
+                    PIECE_SQUARES_RNG[side][i][j] = hash << (shift * 16);
                 }
             }
         }
