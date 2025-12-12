@@ -448,29 +448,9 @@ Eval NNUE::evaluate(Board* board) {
     int nnzCount = 0;
     alignas(ALIGNMENT) uint16_t nnzIndices[L1_SIZE / INT8_PER_INT32];
 
-#if defined(ARCH_X86)
-    __m128i nnzZero = _mm_setzero_si128();
-    __m128i nnzIncrement = _mm_set1_epi16(8);
-    for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
-        uint32_t nnz = 0;
-
-        for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
-            nnz |= vecNNZ(pairwiseOutputsVec[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
-        }
-
-        for (int j = 0; j < 16 / 8; j++) {
-            uint16_t lookup = (nnz >> (j * 8)) & 0xFF;
-            __m128i offsets = _mm_loadu_si128(reinterpret_cast<__m128i*>(&nnzLookup[lookup]));
-            _mm_storeu_si128(reinterpret_cast<__m128i*>(nnzIndices + nnzCount), _mm_add_epi16(nnzZero, offsets));
-            nnzCount += BB::popcount(lookup);
-            nnzZero = _mm_add_epi16(nnzZero, nnzIncrement);
-        }
-    }
-#else
     VecI32* pairwiseOutputsVecI32 = reinterpret_cast<VecI32*>(pairwiseOutputs);
-    uint16x8_t nnzZero = vdupq_n_u16(0);
-    uint16x8_t nnzIncrement = vdupq_n_u16(8);
-
+    VecI16_v128 nnzZero = setZero_v128();
+    VecI16_v128 nnzIncrement = set1Epi16_v128(8);
     for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
         uint32_t nnz = 0;
 
@@ -480,14 +460,12 @@ Eval NNUE::evaluate(Board* board) {
 
         for (int j = 0; j < 16 / 8; j++) {
             uint16_t lookup = (nnz >> (j * 8)) & 0xFF;
-            uint16x8_t offsets = vld1q_u16(nnzLookup[lookup]);
-            vst1q_u16(nnzIndices + nnzCount, vaddq_u16(nnzZero, offsets));
+            VecI16_v128 offsets = loadu_v128(nnzLookup[lookup]);
+            storeu_v128(nnzIndices + nnzCount, addEpi16_v128(nnzZero, offsets));
             nnzCount += BB::popcount(lookup);
-            nnzZero = vaddq_u16(nnzZero, nnzIncrement);
+            nnzZero = addEpi16_v128(nnzZero, nnzIncrement);
         }
     }
-
-#endif
 
     // ---------------------- SPARSE L1 PROPAGATION ----------------------
 
