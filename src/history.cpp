@@ -81,7 +81,7 @@ Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
         rngEntry += rngCorrectionHistory[board->stm][shift][rngHash];
     }
 
-    return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor + rngEntry * 5000;
+    return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor + rngEntry * 1250;
 }
 
 Eval History::correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue) {
