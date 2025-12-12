@@ -119,7 +119,7 @@ void NNUE::updateThreat(Piece piece, Piece attackedPiece, Square square, Square 
     assert(attackedPiece != Piece::NONE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyThreats[acc->numDirtyThreats++] = { piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add };
+    acc->dirtyThreats[acc->numDirtyThreats++] = DirtyThreat(piece, pieceColor, attackedPiece, attackedColor, square, attackedSquare, add);
 }
 
 void NNUE::incrementAccumulator() {
@@ -242,10 +242,11 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
 
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
         DirtyThreat& dt = outputAcc->dirtyThreats[dp];
+        bool add = dt.attackedSquare >> 7;
 
-        int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.pieceColor, dt.square, dt.attackedSquare, dt.attackedPiece, dt.attackedColor, kingBucket->mirrored);
+        int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare & 0b111111, kingBucket->mirrored);
         if (featureIndex < ThreatInputs::FEATURE_COUNT) {
-            (dt.add ? addFeatures : subFeatures).add(featureIndex);
+            (add ? addFeatures : subFeatures).add(featureIndex);
         }
     }
 

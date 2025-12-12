@@ -22,9 +22,9 @@ namespace ThreatInputs {
         int baseFeature() const { return data >> 8; }
     };
 
-    PiecePairData PIECE_PAIR_LOOKUP[6][2][6][2];
-    int PIECE_OFFSET_LOOKUP[6][2][64];
-    uint8_t ATTACK_INDEX_LOOKUP[6][2][64][64];
+    PiecePairData PIECE_PAIR_LOOKUP[14][14];
+    int PIECE_OFFSET_LOOKUP[14][64];
+    uint8_t ATTACK_INDEX_LOOKUP[14][64][64];
 
     void initialise() {
 
@@ -47,7 +47,7 @@ namespace ThreatInputs {
                 int cumulativePieceOffset = 0;
 
                 for (Square origin = 0; origin < 64; origin++) {
-                    PIECE_OFFSET_LOOKUP[piece][color][origin] = cumulativePieceOffset;
+                    PIECE_OFFSET_LOOKUP[piece | (color << 3)][origin] = cumulativePieceOffset;
 
                     if (piece != Piece::PAWN || (origin >= 8 && origin < 56)) {
                         Bitboard attacks = BB::attackedSquares(piece, origin, 0, color);
@@ -79,7 +79,7 @@ namespace ThreatInputs {
                         if (excluded)
                             featureBase = 0;
 
-                        PIECE_PAIR_LOOKUP[attackingPiece][attackingColor][attackedPiece][attackedColor] = PiecePairData(excluded, semiExcluded, featureBase);
+                        PIECE_PAIR_LOOKUP[attackingPiece | (attackingColor << 3)][attackedPiece | (attackedColor << 3)] = PiecePairData(excluded, semiExcluded, featureBase);
                     }
                 }
             }
@@ -90,7 +90,7 @@ namespace ThreatInputs {
                 for (Square origin = 0; origin < 64; origin++) {
                     for (Square target = 0; target < 64; target++) {
                         Bitboard attacks = BB::attackedSquares(piece, origin, 0, color);
-                        ATTACK_INDEX_LOOKUP[piece][color][origin][target] = BB::popcount((bitboard(target) - 1) & attacks);
+                        ATTACK_INDEX_LOOKUP[piece | (color << 3)][origin][target] = BB::popcount((bitboard(target) - 1) & attacks);
                     }
                 }
             }
@@ -98,27 +98,28 @@ namespace ThreatInputs {
     }
 
     template<Color side>
-    int getThreatFeature(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored) {
+    int getThreatFeature(uint8_t attackingPiece, uint8_t attackedPiece, Square attackingSquare, Square attackedSquare, bool mirrored) {
         uint8_t squareFlip = (7 * mirrored) ^ (56 * side);
         attackingSquare ^= squareFlip;
         attackedSquare ^= squareFlip;
 
-        attackingColor ^= side;
-        attackedColor ^= side;
+        constexpr uint8_t sideFlip = side << 3;
+        attackingPiece ^= sideFlip;
+        attackedPiece ^= sideFlip;
 
-        auto piecePairData = PIECE_PAIR_LOOKUP[attackingPiece][attackingColor][attackedPiece][attackedColor];
+        auto piecePairData = PIECE_PAIR_LOOKUP[attackingPiece][attackedPiece];
         if (piecePairData.isExcluded(attackingSquare, attackedSquare))
             return FEATURE_COUNT;
 
         int index = piecePairData.baseFeature()
-            + PIECE_OFFSET_LOOKUP[attackingPiece][attackingColor][attackingSquare]
-            + ATTACK_INDEX_LOOKUP[attackingPiece][attackingColor][attackingSquare][attackedSquare];
+            + PIECE_OFFSET_LOOKUP[attackingPiece][attackingSquare]
+            + ATTACK_INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare];
 
         assert(index < FEATURE_COUNT);
         return index;
     }
-    template int getThreatFeature<Color::WHITE>(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored);
-    template int getThreatFeature<Color::BLACK>(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored);
+    template int getThreatFeature<Color::WHITE>(uint8_t attackingPiece, uint8_t attackedPiece, Square attackingSquare, Square attackedSquare, bool mirrored);
+    template int getThreatFeature<Color::BLACK>(uint8_t attackingPiece, uint8_t attackedPiece, Square attackingSquare, Square attackedSquare, bool mirrored);
 
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket) {
         return 768 * kingBucket + 384 * relativeColor + 64 * piece + relativeSquare;
@@ -149,7 +150,7 @@ namespace ThreatInputs {
 
                         assert(attackingPiece != Piece::NONE);
 
-                        int threatFeature = getThreatFeature<pov>(attackingPiece, attackingSide, attackingSquare, indexSquare, piece, side, hm);
+                        int threatFeature = getThreatFeature<pov>(attackingPiece | (attackingSide << 3), piece | (side << 3), attackingSquare, indexSquare, hm);
                         if (threatFeature < FEATURE_COUNT)
                             features.add(threatFeature);
                     }
