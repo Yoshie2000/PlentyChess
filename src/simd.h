@@ -1,10 +1,58 @@
 #pragma once
 
 #if defined(ARCH_X86)
+
 #include <immintrin.h>
 #include <xmmintrin.h>
+
+using VecI16_v128 = __m128i;
+
+inline VecI16_v128 setZero_v128() {
+  return _mm_setzero_si128();
+}
+
+inline VecI16_v128 set1Epi16_v128(int i) {
+  return _mm_set1_epi16(i);
+}
+
+inline VecI16_v128 loadu_v128(const uint16_t* addr) {
+  return _mm_loadu_si128(reinterpret_cast<const VecI16_v128*>(addr));
+}
+
+inline void storeu_v128(uint16_t* addr, VecI16_v128 x) {
+  _mm_storeu_si128(reinterpret_cast<VecI16_v128*>(addr), x);
+}
+
+inline VecI16_v128 addEpi16_v128(VecI16_v128 x, VecI16_v128 y) {
+  return _mm_add_epi16(x, y);
+}
+
 #else
+
 #include <arm_neon.h>
+
+using VecI16_v128 = uint16x8_t;
+
+inline VecI16_v128 setZero_v128() {
+  return vdupq_n_u16(0);
+}
+
+inline VecI16_v128 set1Epi16_v128(int i) {
+  return vdupq_n_u16(i);
+}
+
+inline VecI16_v128 loadu_v128(const uint16_t* addr) {
+  return vld1q_u16(addr);
+}
+
+inline void storeu_v128(uint16_t* addr, VecI16_v128 x) {
+  vst1q_u16(addr, x);
+}
+
+inline VecI16_v128 addEpi16_v128(VecI16_v128 x, VecI16_v128 y) {
+  return vaddq_u16(x, y);
+}
+
 #endif
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
