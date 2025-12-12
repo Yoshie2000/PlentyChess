@@ -207,6 +207,7 @@ std::string Board::fen() {
 
 template<bool add>
 __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
+    // Process attacks of the current piece to other pieces
     Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
     Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor) & occupancy;
     while (attacked) {
