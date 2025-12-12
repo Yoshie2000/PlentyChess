@@ -51,14 +51,23 @@ struct DirtyPiece {
 };
 
 struct DirtyThreat {
-  Piece piece;
-  Piece attackedPiece;
+  uint8_t piece;
+  uint8_t attackedPiece;
   Square square;
-  Square attackedSquare;
-  Color pieceColor;
-  Color attackedColor;
-  bool add;
+  uint8_t attackedSquare;
+
+  DirtyThreat() = default;
+
+  DirtyThreat(Piece _piece, Color _pieceColor, Piece _attackedPiece, Color _attackedPieceColor, Square _square, Square _attackedSquare, bool _add) {
+    piece = static_cast<uint8_t>(_piece | (_pieceColor << 3));
+    attackedPiece = static_cast<uint8_t>(_attackedPiece | (_attackedPieceColor << 3));
+    square = _square;
+    attackedSquare = static_cast<uint8_t>(_attackedSquare | (_add << 7));
+  }
+
 };
+
+static_assert(sizeof(DirtyThreat) == 4);
 
 struct KingBucketInfo {
   uint8_t bucket;

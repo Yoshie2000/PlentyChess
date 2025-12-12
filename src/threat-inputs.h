@@ -23,7 +23,7 @@ namespace ThreatInputs {
     void initialise();
 
     template<Color side>
-    int getThreatFeature(Piece attackingPiece, uint8_t attackingColor, Square attackingSquare, Square attackedSquare, Piece attackedPiece, uint8_t attackedColor, bool mirrored);
+    int getThreatFeature(uint8_t attackingPiece, uint8_t attackedPiece, Square attackingSquare, Square attackedSquare, bool mirrored);
     int getPieceFeature(Piece piece, Square relativeSquare, Color relativeColor, uint8_t kingBucket);
 
 }
