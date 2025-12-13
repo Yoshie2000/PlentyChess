@@ -58,8 +58,6 @@ void NNUE::reset(Board* board) {
     accumulatorStack[0].numDirtyThreats = 0;
 
     currentAccumulator = 0;
-    lastCalculatedAccumulator[Color::WHITE] = 0;
-    lastCalculatedAccumulator[Color::BLACK] = 0;
 
     // Also reset finny tables
     for (int i = 0; i < 2; i++) {
@@ -91,6 +89,8 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
 
     acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
     acc->board = board;
+    acc->computedPst[side] = true;
+    acc->computedThreats[side] = true;
 }
 
 void NNUE::addPiece(Square square, Piece piece, Color pieceColor) {
@@ -126,13 +126,15 @@ void NNUE::incrementAccumulator() {
     currentAccumulator++;
     accumulatorStack[currentAccumulator].numDirtyPieces = 0;
     accumulatorStack[currentAccumulator].numDirtyThreats = 0;
+    accumulatorStack[currentAccumulator].computedPst[Color::WHITE] = false;
+    accumulatorStack[currentAccumulator].computedPst[Color::BLACK] = false;
+    accumulatorStack[currentAccumulator].computedThreats[Color::WHITE] = false;
+    accumulatorStack[currentAccumulator].computedThreats[Color::BLACK] = false;
 }
 
 void NNUE::decrementAccumulator() {
     assert(currentAccumulator > 0);
     currentAccumulator--;
-    lastCalculatedAccumulator[Color::WHITE] = std::min(lastCalculatedAccumulator[Color::WHITE], currentAccumulator);
-    lastCalculatedAccumulator[Color::BLACK] = std::min(lastCalculatedAccumulator[Color::BLACK], currentAccumulator);
 }
 
 void NNUE::finalizeMove(Board* board) {
@@ -146,26 +148,47 @@ void NNUE::finalizeMove(Board* board) {
 
 template<Color side>
 void NNUE::calculateAccumulators() {
-    // Incrementally update all accumulators for this side
-    while (lastCalculatedAccumulator[side] < currentAccumulator) {
 
-        Accumulator* inputAcc = &accumulatorStack[lastCalculatedAccumulator[side]];
-        Accumulator* outputAcc = &accumulatorStack[lastCalculatedAccumulator[side] + 1];
+    Accumulator* current = &accumulatorStack[currentAccumulator];
+    KingBucketInfo* kingBucket = &current->kingBucketInfo[side];
 
-        KingBucketInfo* inputKingBucket = &inputAcc->kingBucketInfo[side];
-        KingBucketInfo* outputKingBucket = &outputAcc->kingBucketInfo[side];
+    if (current->computedPst[side] && current->computedThreats[side])
+        return;
 
-        if (inputKingBucket->mirrored != outputKingBucket->mirrored)
-            refreshThreatFeatures<side>(outputAcc);
-        else
-            incrementallyUpdateThreatFeatures<side>(inputAcc, outputAcc, outputKingBucket);
+    Accumulator* acc = current;
+    while (true) {
+        acc--;
+        if (acc->kingBucketInfo[side].mirrored != kingBucket->mirrored) {
+            refreshThreatFeatures<side>(current);
+            current->computedThreats[side] = true;
+            break;
+        }
+        if (acc->computedThreats[side]) {
+            while (acc < current) {
+                incrementallyUpdateThreatFeatures<side>(acc, acc + 1, kingBucket);
+                (acc + 1)->computedThreats[side] = true;
+                acc++;
+            }
+            break;
+        }
+    }
 
-        if (inputKingBucket->bucket != outputKingBucket->bucket || inputKingBucket->mirrored != outputKingBucket->mirrored)
-            refreshPieceFeatures<side>(outputAcc, outputKingBucket);
-        else
-            incrementallyUpdatePieceFeatures<side>(inputAcc, outputAcc, outputKingBucket);
-
-        lastCalculatedAccumulator[side]++;
+    acc = current;
+    while (true) {
+        acc--;
+        if (acc->kingBucketInfo[side].mirrored != kingBucket->mirrored || acc->kingBucketInfo[side].bucket != kingBucket->bucket) {
+            refreshPieceFeatures<side>(current, kingBucket);
+            current->computedPst[side] = true;
+            break;
+        }
+        if (acc->computedPst[side]) {
+            while (acc < current) {
+                incrementallyUpdatePieceFeatures<side>(acc, acc + 1, kingBucket);
+                (acc + 1)->computedPst[side] = true;
+                acc++;
+            }
+            break;
+        }
     }
 }
 
@@ -384,7 +407,8 @@ Eval NNUE::evaluate(Board* board) {
     calculateAccumulators<Color::WHITE>();
     calculateAccumulators<Color::BLACK>();
 
-    assert(lastCalculatedAccumulator[Color::WHITE] == currentAccumulator && lastCalculatedAccumulator[Color::BLACK] == currentAccumulator);
+    assert(accumulatorStack[currentAccumulator].computedPst[Color::WHITE] && accumulatorStack[currentAccumulator].computedPst[Color::BLACK]);
+    assert(accumulatorStack[currentAccumulator].computedThreats[Color::WHITE] && accumulatorStack[currentAccumulator].computedThreats[Color::BLACK]);
 
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);

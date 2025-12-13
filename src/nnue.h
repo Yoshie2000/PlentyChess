@@ -92,6 +92,8 @@ struct Accumulator {
 
   KingBucketInfo kingBucketInfo[2];
   Board* board;
+  bool computedPst[2];
+  bool computedThreats[2];
 };
 
 struct FinnyEntry {
@@ -124,7 +126,6 @@ public:
 
   Accumulator accumulatorStack[MAX_PLY + 8];
   int currentAccumulator;
-  int lastCalculatedAccumulator[2];
 
   FinnyEntry finnyTable[2][KING_BUCKETS];
 
