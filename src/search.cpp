@@ -935,23 +935,27 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 movegen.skipQuietMoves();
             }
 
-            // Futility pruning
-            int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * !bestMove);
-            if (!capture && (stack - 1)->movedPiece != Piece::NONE)
-                fpValue += (stack - 1)->contHist[2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm] / 500;
-            if (lmrDepth < fpDepth && fpValue <= alpha) {
-                if (!capture)
+            // Futility pruning for quiets
+            if (!capture) {
+                int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * !bestMove);
+                if ((stack - 1)->movedPiece != Piece::NONE)
+                    fpValue += (stack - 1)->contHist[2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm] / 500;
+                if (lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
-                else if (!move.isPromotion()) {
-                    Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
-                    if (fpValue + PIECE_VALUES[capturedPiece] <= alpha && movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES)
-                        break;
+                }
+            }
+            // Futility pruning for bad captures
+            else if (!move.isPromotion() && movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES && !pvNode) {
+                int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * !bestMove);
+                Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
+                if (lmrDepth < fpDepth && fpValue + PIECE_VALUES[capturedPiece] <= alpha) {
+                    break;
                 }
             }
 
             lmrDepth = std::max<Depth>(0, lmrDepth);
 
-            // Futility pruning for captures
+            // Futility pruning for all captures
             if (!pvNode && capture && !move.isPromotion()) {
                 Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
                 if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
