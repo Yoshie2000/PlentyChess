@@ -162,6 +162,12 @@ public:
   void subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
   template<bool I8, Color side>
   void addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex);
+  template<bool I8, Color side>
+  void addAddSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex1, int addIndex2, int subIndex);
+  template<bool I8, Color side>
+  void addSubSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex1, int subIndex2);
+  template<bool I8, Color side>
+  void addAddSubSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex1, int addIndex2, int subIndex1, int subIndex2);
 
 };
 

@@ -276,17 +276,18 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
     if (dp.target == NO_SQUARE) {
         int sub1 = ThreatInputs::getPieceFeature(dp.piece, dp.origin ^ squareFlip, color, kingBucket->bucket);
         int add1 = ThreatInputs::getPieceFeature(dp.addPiece, dp.addSquare ^ squareFlip, color, kingBucket->bucket);
-        if (!forward)
-            std::swap(add1, sub1);
-        addSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, add1, sub1);
 
         if (dp.removeSquare != NO_SQUARE) {
             // Promotion capture
             int sub2 = ThreatInputs::getPieceFeature(dp.removePiece, dp.removeSquare ^ squareFlip, flip(color), kingBucket->bucket);
             if (forward)
-                subFromAccumulator<false, side>(outputAcc->pieceState, outputAcc->pieceState, sub2);
+                addSubSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, add1, sub1, sub2);
             else
-                addToAccumulator<false, side>(outputAcc->pieceState, outputAcc->pieceState, sub2);
+                addAddSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, sub1, sub2, add1);
+        } else {
+            if (!forward)
+                std::swap(add1, sub1);
+            addSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, add1, sub1);
         }
     }
     // Castling
@@ -299,24 +300,24 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
             std::swap(add1, sub1);
             std::swap(add2, sub2);
         }
-        addSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, add1, sub1);
-        addSubToAccumulator<false, side>(outputAcc->pieceState, outputAcc->pieceState, add2, sub2);
+        addAddSubSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, add1, add2, sub1, sub2);
     }
     // Other
     else {
         int sub1 = ThreatInputs::getPieceFeature(dp.piece, dp.origin ^ squareFlip, color, kingBucket->bucket);
         int add1 = ThreatInputs::getPieceFeature(dp.piece, dp.target ^ squareFlip, color, kingBucket->bucket);
-        if (!forward)
-            std::swap(add1, sub1);
-        addSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, add1, sub1);
 
         if (dp.removeSquare != NO_SQUARE) {
             // Capture / EP
             int sub2 = ThreatInputs::getPieceFeature(dp.removePiece, dp.removeSquare ^ squareFlip, flip(color), kingBucket->bucket);
             if (forward)
-                subFromAccumulator<false, side>(outputAcc->pieceState, outputAcc->pieceState, sub2);
+                addSubSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, add1, sub1, sub2);
             else
-                addToAccumulator<false, side>(outputAcc->pieceState, outputAcc->pieceState, sub2);
+                addAddSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, sub1, sub2, add1);
+        } else {
+            if (!forward)
+                std::swap(add1, sub1);
+            addSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, add1, sub1);
         }
     }
 }
@@ -470,6 +471,90 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData
 
         for (int i = 0; i < L1_ITERATIONS; ++i) {
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeightsVec[i]), subWeightsVec[i]);
+        }
+    }
+}
+
+template<bool I8, Color side>
+void NNUE::addAddSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex1, int addIndex2, int subIndex) {
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+
+    if (I8) {
+        VecI16s* addWeightsVec1 = (VecI16s*)&networkData->inputThreatWeights[addIndex1 * L1_SIZE];
+        VecI16s* addWeightsVec2 = (VecI16s*)&networkData->inputThreatWeights[addIndex2 * L1_SIZE];
+        VecI16s* subWeightsVec = (VecI16s*)&networkData->inputThreatWeights[subIndex * L1_SIZE];
+
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
+            VecI16 addWeights1 = convertEpi8Epi16(addWeightsVec1[i]);
+            VecI16 addWeights2 = convertEpi8Epi16(addWeightsVec2[i]);
+            VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
+            outputVec[i] = subEpi16(addEpi16(addEpi16(inputVec[i], addWeights1), addWeights2), subWeights);
+        }
+    } else {
+        VecI16* addWeightsVec1 = (VecI16*)&networkData->inputPsqWeights[addIndex1 * L1_SIZE];
+        VecI16* addWeightsVec2 = (VecI16*)&networkData->inputPsqWeights[addIndex2 * L1_SIZE];
+        VecI16* subWeightsVec = (VecI16*)&networkData->inputPsqWeights[subIndex * L1_SIZE];
+
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
+            outputVec[i] = subEpi16(addEpi16(addEpi16(inputVec[i], addWeightsVec1[i]), addWeightsVec2[i]), subWeightsVec[i]);
+        }
+    }
+}
+
+template<bool I8, Color side>
+void NNUE::addSubSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex1, int subIndex2) {
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+
+    if (I8) {
+        VecI16s* addWeightsVec = (VecI16s*)&networkData->inputThreatWeights[addIndex * L1_SIZE];
+        VecI16s* subWeightsVec1 = (VecI16s*)&networkData->inputThreatWeights[subIndex1 * L1_SIZE];
+        VecI16s* subWeightsVec2 = (VecI16s*)&networkData->inputThreatWeights[subIndex2 * L1_SIZE];
+
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
+            VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
+            VecI16 subWeights1 = convertEpi8Epi16(subWeightsVec1[i]);
+            VecI16 subWeights2 = convertEpi8Epi16(subWeightsVec2[i]);
+            outputVec[i] = subEpi16(subEpi16(addEpi16(inputVec[i], addWeights), subWeights1), subWeights2);
+        }
+    } else {
+        VecI16* addWeightsVec = (VecI16*)&networkData->inputPsqWeights[addIndex * L1_SIZE];
+        VecI16* subWeightsVec1 = (VecI16*)&networkData->inputPsqWeights[subIndex1 * L1_SIZE];
+        VecI16* subWeightsVec2 = (VecI16*)&networkData->inputPsqWeights[subIndex2 * L1_SIZE];
+
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
+            outputVec[i] = subEpi16(subEpi16(addEpi16(inputVec[i], addWeightsVec[i]), subWeightsVec1[i]), subWeightsVec2[i]);
+        }
+    }
+}
+
+template<bool I8, Color side>
+void NNUE::addAddSubSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex1, int addIndex2, int subIndex1, int subIndex2) {
+    VecI16* inputVec = (VecI16*)inputData[side];
+    VecI16* outputVec = (VecI16*)outputData[side];
+
+    if (I8) {
+        VecI16s* addWeightsVec1 = (VecI16s*)&networkData->inputThreatWeights[addIndex1 * L1_SIZE];
+        VecI16s* addWeightsVec2 = (VecI16s*)&networkData->inputThreatWeights[addIndex2 * L1_SIZE];
+        VecI16s* subWeightsVec1 = (VecI16s*)&networkData->inputThreatWeights[subIndex1 * L1_SIZE];
+        VecI16s* subWeightsVec2 = (VecI16s*)&networkData->inputThreatWeights[subIndex2 * L1_SIZE];
+
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
+            VecI16 addWeights1 = convertEpi8Epi16(addWeightsVec1[i]);
+            VecI16 addWeights2 = convertEpi8Epi16(addWeightsVec2[i]);
+            VecI16 subWeights1 = convertEpi8Epi16(subWeightsVec1[i]);
+            VecI16 subWeights2 = convertEpi8Epi16(subWeightsVec2[i]);
+            outputVec[i] = subEpi16(subEpi16(addEpi16(addEpi16(inputVec[i], addWeights1), addWeights2), subWeights1), subWeights2);
+        }
+    } else {
+        VecI16* addWeightsVec1 = (VecI16*)&networkData->inputPsqWeights[addIndex1 * L1_SIZE];
+        VecI16* addWeightsVec2 = (VecI16*)&networkData->inputPsqWeights[addIndex2 * L1_SIZE];
+        VecI16* subWeightsVec1 = (VecI16*)&networkData->inputPsqWeights[subIndex1 * L1_SIZE];
+        VecI16* subWeightsVec2 = (VecI16*)&networkData->inputPsqWeights[subIndex2 * L1_SIZE];
+
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
+            outputVec[i] = subEpi16(subEpi16(addEpi16(addEpi16(inputVec[i], addWeightsVec1[i]), addWeightsVec2[i]), subWeightsVec1[i]), subWeightsVec2[i]);
         }
     }
 }
