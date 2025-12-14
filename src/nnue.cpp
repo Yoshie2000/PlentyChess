@@ -58,8 +58,6 @@ void NNUE::reset(Board* board) {
     accumulatorStack[0].numDirtyThreats = 0;
 
     currentAccumulator = 0;
-    lastCalculatedAccumulator[Color::WHITE] = 0;
-    lastCalculatedAccumulator[Color::BLACK] = 0;
 
     // Also reset finny tables
     for (int i = 0; i < 2; i++) {
@@ -91,6 +89,8 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
 
     acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
     acc->board = board;
+    acc->computedPieces[side] = true;
+    acc->computedThreats[side] = true;
 }
 
 void NNUE::addPiece(Square square, Piece piece, Color pieceColor) {
@@ -124,6 +124,10 @@ void NNUE::updateThreat(Piece piece, Piece attackedPiece, Square square, Square 
 
 void NNUE::incrementAccumulator() {
     currentAccumulator++;
+    accumulatorStack[currentAccumulator].computedPieces[Color::WHITE] = false;
+    accumulatorStack[currentAccumulator].computedPieces[Color::BLACK] = false;
+    accumulatorStack[currentAccumulator].computedThreats[Color::WHITE] = false;
+    accumulatorStack[currentAccumulator].computedThreats[Color::BLACK] = false;
     accumulatorStack[currentAccumulator].numDirtyPieces = 0;
     accumulatorStack[currentAccumulator].numDirtyThreats = 0;
 }
@@ -131,8 +135,6 @@ void NNUE::incrementAccumulator() {
 void NNUE::decrementAccumulator() {
     assert(currentAccumulator > 0);
     currentAccumulator--;
-    lastCalculatedAccumulator[Color::WHITE] = std::min(lastCalculatedAccumulator[Color::WHITE], currentAccumulator);
-    lastCalculatedAccumulator[Color::BLACK] = std::min(lastCalculatedAccumulator[Color::BLACK], currentAccumulator);
 }
 
 void NNUE::finalizeMove(Board* board) {
@@ -146,27 +148,44 @@ void NNUE::finalizeMove(Board* board) {
 
 template<Color side>
 void NNUE::calculateAccumulators() {
-    // Incrementally update all accumulators for this side
-    while (lastCalculatedAccumulator[side] < currentAccumulator) {
 
-        Accumulator* inputAcc = &accumulatorStack[lastCalculatedAccumulator[side]];
-        Accumulator* outputAcc = &accumulatorStack[lastCalculatedAccumulator[side] + 1];
+    Accumulator* current = &accumulatorStack[currentAccumulator];
+    KingBucketInfo* kingBucket = &current->kingBucketInfo[side];
 
-        KingBucketInfo* inputKingBucket = &inputAcc->kingBucketInfo[side];
-        KingBucketInfo* outputKingBucket = &outputAcc->kingBucketInfo[side];
-
-        if (inputKingBucket->mirrored != outputKingBucket->mirrored)
-            refreshThreatFeatures<side>(outputAcc);
-        else
-            incrementallyUpdateThreatFeatures<side>(inputAcc, outputAcc, outputKingBucket);
-
-        if (inputKingBucket->bucket != outputKingBucket->bucket || inputKingBucket->mirrored != outputKingBucket->mirrored)
-            refreshPieceFeatures<side>(outputAcc, outputKingBucket);
-        else
-            incrementallyUpdatePieceFeatures<side>(inputAcc, outputAcc, outputKingBucket);
-
-        lastCalculatedAccumulator[side]++;
+    // Find last usable accumulator for threat updates
+    Accumulator* acc = current;
+    while (true) {
+        if (acc->kingBucketInfo[side].mirrored != kingBucket->mirrored) {
+            // Full refresh + backwards update
+            refreshThreatFeatures<side>(current);
+            backwardsUpdateThreatFeatures<side>(acc, current, kingBucket);
+            break;
+        }
+        if (acc->computedThreats[side]) {
+            // Incrementally update from here
+            forwardUpdateThreatIncremental<side>(acc, current, kingBucket);
+            break;
+        }
+        acc--;
     }
+
+    // Find last usable accumulator for threat updates
+    acc = current;
+    while (true) {
+        if (acc->kingBucketInfo[side].mirrored != kingBucket->mirrored || acc->kingBucketInfo[side].bucket != kingBucket->bucket) {
+            // Full refresh + backwards update
+            refreshPieceFeatures<side>(current, kingBucket);
+            backwardsUpdatePieceFeatures<side>(acc, current, kingBucket);
+            break;
+        }
+        if (acc->computedPieces[side]) {
+            // Incrementally update from here
+            forwardUpdatePieceIncremental<side>(acc, current, kingBucket);
+            break;
+        }
+        acc--;
+    }
+
 }
 
 template<Color side>
@@ -199,6 +218,8 @@ void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
 
     // Copy result to the current accumulator
     memcpy(acc->pieceState[side], finnyEntry->pieceState[side], sizeof(acc->pieceState[side]));
+
+    acc->computedPieces[side] = true;
 }
 
 template<Color side>
@@ -210,39 +231,118 @@ void NNUE::refreshThreatFeatures(Accumulator* acc) {
     ThreatInputs::addThreatFeatures<side>(acc->board, threatFeatures);
     for (int featureIndex : threatFeatures)
         addToAccumulator<true, side>(acc->threatState, acc->threatState, featureIndex);
+    
+    acc->computedThreats[side] = true;
 }
 
-template<Color side>
-void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
-    for (int dp = 0; dp < outputAcc->numDirtyPieces; dp++) {
-        DirtyPiece dirtyPiece = outputAcc->dirtyPieces[dp];
+template <Color side>
+void NNUE::forwardUpdatePieceIncremental(Accumulator* begin, Accumulator* end, KingBucketInfo* kingBucket) {
 
-        Color relativeColor = static_cast<Color>(dirtyPiece.pieceColor != side);
+    for (Accumulator* acc = begin + 1; acc <= end; acc++) {
 
-        if (dirtyPiece.origin == NO_SQUARE) {
-            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
-            addToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, featureIndex);
-        }
-        else if (dirtyPiece.target == NO_SQUARE) {
-            int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
-            subFromAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, featureIndex);
-        }
-        else {
-            int subIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
-            int addIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
-            addSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, addIndex, subIndex);
-        }
-        inputAcc = outputAcc;
+        // TODO doubleIncUpdate
+
+        incrementallyUpdatePieceFeatures<side>(acc - 1, acc, kingBucket);
+        acc->computedPieces[side] = true;
+    }
+
+}
+
+template <Color side>
+void NNUE::forwardUpdateThreatIncremental(Accumulator* begin, Accumulator* end, KingBucketInfo* kingBucket) {
+
+    for (Accumulator* acc = begin + 1; acc <= end; acc++) {
+
+        // TODO doubleIncUpdate
+
+        incrementallyUpdateThreatFeatures<side>(acc - 1, acc, kingBucket);
+        acc->computedThreats[side] = true;
+    }
+
+}
+
+template <Color side>
+void NNUE::backwardsUpdatePieceFeatures(Accumulator* begin, Accumulator* end, KingBucketInfo* kingBucket) {
+    for (Accumulator* acc = end - 1; acc > begin; acc--) {
+        incrementallyUpdatePieceFeatures<side, false>(acc, acc + 1, kingBucket);
+        acc->computedPieces[side] = true;
     }
 }
 
-template<Color side>
+template <Color side>
+void NNUE::backwardsUpdateThreatFeatures(Accumulator* begin, Accumulator* end, KingBucketInfo* kingBucket) {
+    for (Accumulator* acc = end - 1; acc > begin; acc--) {
+        incrementallyUpdateThreatFeatures<side, false>(acc, acc + 1, kingBucket);
+        acc->computedThreats[side] = true;
+    }
+}
+
+template<Color side, bool forward>
+void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+    assert(inputAcc->kingBucketInfo[side].mirrored == outputAcc->kingBucketInfo[side].mirrored);
+    assert(inputAcc->kingBucketInfo[side].bucket == outputAcc->kingBucketInfo[side].bucket);
+    assert((forward && inputAcc->computedPieces[side]) || (!forward && outputAcc->computedPieces[side]));
+
+    const Accumulator* dataAcc = outputAcc;
+    if (!forward)
+        std::swap(inputAcc, outputAcc);
+
+    for (int dp = 0; dp < dataAcc->numDirtyPieces; dp++) {
+        DirtyPiece dirtyPiece = dataAcc->dirtyPieces[dp];
+
+        Color relativeColor = static_cast<Color>(dirtyPiece.pieceColor != side);
+
+        if (forward) {
+            if (dirtyPiece.origin == NO_SQUARE) {
+                int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+                addToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, featureIndex);
+            }
+            else if (dirtyPiece.target == NO_SQUARE) {
+                int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+                subFromAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, featureIndex);
+            }
+            else {
+                int subIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+                int addIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+                addSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, addIndex, subIndex);
+            }
+            inputAcc = outputAcc;
+        } else {
+            if (dirtyPiece.origin == NO_SQUARE) {
+                int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+                subFromAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, featureIndex);
+            }
+            else if (dirtyPiece.target == NO_SQUARE) {
+                int featureIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+                addToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, featureIndex);
+            }
+            else {
+                int subIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+                int addIndex = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ (56 * side) ^ (7 * kingBucket->mirrored), relativeColor, kingBucket->bucket);
+                addSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, subIndex, addIndex);
+            }
+            inputAcc = outputAcc;
+        }
+    }
+}
+
+template<Color side, bool forward>
 void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+    assert(inputAcc->kingBucketInfo[side].mirrored == outputAcc->kingBucketInfo[side].mirrored);
+    assert((forward && inputAcc->computedThreats[side]) || (!forward && outputAcc->computedThreats[side]));
+
     ThreatInputs::FeatureList addFeatures, subFeatures;
 
-    for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
-        DirtyThreat& dt = outputAcc->dirtyThreats[dp];
+    const Accumulator* dataAcc = outputAcc;
+    if (!forward)
+        std::swap(inputAcc, outputAcc);
+
+    for (int dp = 0; dp < dataAcc->numDirtyThreats; dp++) {
+        const DirtyThreat& dt = dataAcc->dirtyThreats[dp];
         bool add = dt.attackedSquare >> 7;
+
+        if (!forward)
+            add = !add;
 
         int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare & 0b111111, kingBucket->mirrored);
         if (featureIndex < ThreatInputs::FEATURE_COUNT) {
@@ -250,7 +350,7 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
         }
     }
 
-    if (!outputAcc->numDirtyThreats || (!addFeatures.size() && !subFeatures.size())) {
+    if (!addFeatures.size() && !subFeatures.size()) {
         memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->inputBiases));
         return;
     }
@@ -384,7 +484,8 @@ Eval NNUE::evaluate(Board* board) {
     calculateAccumulators<Color::WHITE>();
     calculateAccumulators<Color::BLACK>();
 
-    assert(lastCalculatedAccumulator[Color::WHITE] == currentAccumulator && lastCalculatedAccumulator[Color::BLACK] == currentAccumulator);
+    assert(accumulatorStack[currentAccumulator].computedPieces[Color::WHITE] && accumulatorStack[currentAccumulator].computedPieces[Color::BLACK]);
+    assert(accumulatorStack[currentAccumulator].computedThreats[Color::WHITE] && accumulatorStack[currentAccumulator].computedThreats[Color::BLACK]);
 
     // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);

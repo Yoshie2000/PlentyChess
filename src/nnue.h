@@ -92,6 +92,8 @@ struct Accumulator {
 
   KingBucketInfo kingBucketInfo[2];
   Board* board;
+  bool computedThreats[2];
+  bool computedPieces[2];
 };
 
 struct FinnyEntry {
@@ -124,7 +126,6 @@ public:
 
   Accumulator accumulatorStack[MAX_PLY + 8];
   int currentAccumulator;
-  int lastCalculatedAccumulator[2];
 
   FinnyEntry finnyTable[2][KING_BUCKETS];
 
@@ -151,8 +152,18 @@ public:
   void refreshThreatFeatures(Accumulator* acc);
 
   template<Color side>
-  void incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  void forwardUpdatePieceIncremental(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
   template<Color side>
+  void forwardUpdateThreatIncremental(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+
+  template<Color side>
+  void backwardsUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  template<Color side>
+  void backwardsUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+
+  template<Color side, bool forward = true>
+  void incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  template<Color side, bool forward = true>
   void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
   template<bool I8, Color side>
