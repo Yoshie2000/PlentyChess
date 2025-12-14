@@ -156,6 +156,11 @@ public:
   template<Color side, bool forward = true>
   void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
+  template<Color side>
+  void doubleIncrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* middleAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  template<Color side>
+  void doubleIncrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* middleAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+
   template<bool I8, Color side>
   void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
   template<bool I8, Color side>

@@ -222,7 +222,20 @@ void NNUE::forwardUpdatePieceIncremental(Accumulator* begin, Accumulator* end, K
 
     for (Accumulator* acc = begin + 1; acc <= end; acc++) {
 
-        // TODO doubleIncUpdate
+        if (acc + 1 <= end) {
+            DirtyPiece& dp1 = acc->dirtyPiece;
+            DirtyPiece& dp2 = (acc + 1)->dirtyPiece;
+
+            if (dp1.target != NO_SQUARE && dp2.target != NO_SQUARE && dp1.target == dp2.removeSquare) {
+                Square captureSquare = dp1.target;
+                dp1.target = dp2.removeSquare = NO_SQUARE;
+                doubleIncrementallyUpdatePieceFeatures<side>(acc - 1, acc, acc + 1, kingBucket);
+                dp1.target = dp2.removeSquare = captureSquare;
+                acc++;
+                acc->computedPieces[side] = true;
+                continue;
+            }
+        }
 
         incrementallyUpdatePieceFeatures<side>(acc - 1, acc, kingBucket);
         acc->computedPieces[side] = true;
@@ -318,6 +331,37 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
             else
                 addToAccumulator<false, side>(outputAcc->pieceState, outputAcc->pieceState, sub2);
         }
+    }
+}
+
+template<Color side>
+void NNUE::doubleIncrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* middle, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+
+    Square squareFlip = (56 * side) ^ (7 * kingBucket->mirrored);
+    DirtyPiece& dp1 = middle->dirtyPiece;
+    DirtyPiece& dp2 = outputAcc->dirtyPiece;
+    Color color1 = static_cast<Color>(dp1.pieceColor != side);
+    Color color2 = static_cast<Color>(dp2.pieceColor != side);
+
+    assert(dp1.target == NO_SQUARE);
+    assert(dp2.removeSquare == NO_SQUARE);
+
+    assert(dp1.addSquare == NO_SQUARE);
+    assert(dp2.addSquare == NO_SQUARE);
+    assert(dp2.target != NO_SQUARE);
+
+    // dp1 moved a piece to the capture square, which got then removed in dp2
+    // hence, we can skip an addsub
+
+    int sub1 = ThreatInputs::getPieceFeature(dp1.piece, dp1.origin ^ squareFlip, color1, kingBucket->bucket);
+    int sub2 = ThreatInputs::getPieceFeature(dp2.piece, dp2.origin ^ squareFlip, color2, kingBucket->bucket);
+    int add = ThreatInputs::getPieceFeature(dp2.piece, dp2.target ^ squareFlip, color2, kingBucket->bucket);
+    addSubToAccumulator<false, side>(inputAcc->pieceState, outputAcc->pieceState, add, sub1);
+    subFromAccumulator<false, side>(outputAcc->pieceState, outputAcc->pieceState, sub2);
+    if (dp1.removeSquare != NO_SQUARE) {
+        // dp1 already captured a piece
+        int sub3 = ThreatInputs::getPieceFeature(dp1.removePiece, dp1.removeSquare ^ squareFlip, flip(color1), kingBucket->bucket);
+        subFromAccumulator<false, side>(outputAcc->pieceState, outputAcc->pieceState, sub3);
     }
 }
 
