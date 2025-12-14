@@ -288,3 +288,14 @@ struct SearchStack {
     int16_t* contHist;
     int16_t* contCorrHist;
 };
+
+struct DirtyPiece {
+  Piece piece;
+  Color pieceColor;
+  Square origin;
+  Square target;
+
+  Square removeSquare, addSquare;
+  Piece removePiece, addPiece;
+  Color removeColor, addColor;
+};
