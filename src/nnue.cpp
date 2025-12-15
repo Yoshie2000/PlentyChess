@@ -55,6 +55,7 @@ void NNUE::reset(Board* board) {
     resetAccumulator<Color::WHITE>(board, &accumulatorStack[0]);
     resetAccumulator<Color::BLACK>(board, &accumulatorStack[0]);
     accumulatorStack[0].numDirtyThreats = 0;
+    accumulatorStack[0].threatenedSquares = accumulatorStack[0].threateningSquares = 0;
 
     currentAccumulator = 0;
 
@@ -102,6 +103,10 @@ void NNUE::updateThreat(Piece piece, Piece attackedPiece, Square square, Square 
     assert(attackedPiece != Piece::NONE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
+    if (add) {
+        acc->threatenedSquares |= bitboard(attackedSquare);
+        acc->threateningSquares |= bitboard(square);
+    }
     acc->dirtyThreats[acc->numDirtyThreats++] = DirtyThreat(piece, pieceColor, attackedPiece, attackedColor, square, attackedSquare, add);
 }
 
@@ -112,6 +117,7 @@ void NNUE::incrementAccumulator() {
     accumulatorStack[currentAccumulator].computedThreats[Color::WHITE] = false;
     accumulatorStack[currentAccumulator].computedThreats[Color::BLACK] = false;
     accumulatorStack[currentAccumulator].numDirtyThreats = 0;
+    accumulatorStack[0].threatenedSquares = accumulatorStack[0].threateningSquares = 0;
 }
 
 void NNUE::decrementAccumulator() {
@@ -236,6 +242,16 @@ void NNUE::forwardUpdateThreatIncremental(Accumulator* begin, Accumulator* end, 
     for (Accumulator* acc = begin + 1; acc <= end; acc++) {
 
         // TODO doubleIncUpdate
+        if (acc + 1 <= end) {
+            DirtyPiece& dp2 = (acc + 1)->dirtyPiece;
+
+            if (dp2.removeSquare != NO_SQUARE && (acc->threateningSquares & bitboard(dp2.removeSquare))) {
+                doubleIncrementallyUpdateThreatFeatures<side>(acc - 1, acc, acc + 1, kingBucket, dp2.removeSquare);
+                acc++;
+                acc->computedThreats[side] = true;
+                continue;
+            }
+        }
 
         incrementallyUpdateThreatFeatures<side>(acc - 1, acc, kingBucket);
         acc->computedThreats[side] = true;
@@ -319,6 +335,121 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
                 addToAccumulator<false, side>(outputAcc->pieceState, outputAcc->pieceState, sub2);
         }
     }
+}
+
+template<Color side>
+void NNUE::doubleIncrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* middle, Accumulator* outputAcc, KingBucketInfo* kingBucket, Square dp2removeSquare) {
+    assert(inputAcc->kingBucketInfo[side].mirrored == outputAcc->kingBucketInfo[side].mirrored);
+
+    ThreatInputs::FeatureList addFeatures, subFeatures;
+
+    // FusedData
+    Bitboard dp2removedOriginBoard = 0;
+    Bitboard dp2removedTargetBoard = 0;
+
+    for (int dp = 0; dp < middle->numDirtyThreats; dp++) {
+        const DirtyThreat& dt = middle->dirtyThreats[dp];
+        bool add = dt.attackedSquare >> 7;
+        Square attackedSquare = dt.attackedSquare & 0b111111;
+
+        if (dt.square == dp2removeSquare) {
+            if (add) {
+                dp2removedOriginBoard |= bitboard(attackedSquare);
+                continue;
+            } else if (dp2removedOriginBoard & bitboard(attackedSquare))
+                continue;
+        }
+
+        if (attackedSquare == dp2removeSquare) {
+            if (add) {
+                dp2removedTargetBoard |= bitboard(dt.square);
+                continue;
+            } else if (dp2removedTargetBoard & bitboard(dt.square))
+                continue;
+        }
+
+        int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, attackedSquare, kingBucket->mirrored);
+        if (featureIndex < ThreatInputs::FEATURE_COUNT) {
+            (add ? addFeatures : subFeatures).add(featureIndex);
+        }
+    }
+    for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
+        const DirtyThreat& dt = outputAcc->dirtyThreats[dp];
+        bool add = dt.attackedSquare >> 7;
+        Square attackedSquare = dt.attackedSquare & 0b111111;
+
+        if (dt.square == dp2removeSquare && !add && dp2removedOriginBoard & bitboard(attackedSquare))
+            continue;
+        if (attackedSquare == dp2removeSquare && !add && dp2removedTargetBoard & bitboard(dt.square))
+            continue;
+
+        int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, attackedSquare, kingBucket->mirrored);
+        if (featureIndex < ThreatInputs::FEATURE_COUNT) {
+            (add ? addFeatures : subFeatures).add(featureIndex);
+        }
+    }
+
+    if (!addFeatures.size() && !subFeatures.size()) {
+        memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->inputBiases));
+        return;
+    }
+
+#if defined(__AVX512F__) && defined(__AVX512BW__)
+
+    VecI16* inputVec = (VecI16*)inputAcc->threatState[side];
+    VecI16* outputVec = (VecI16*)outputAcc->threatState[side];
+    VecI16 registers[L1_ITERATIONS];
+
+    for (int i = 0; i < L1_ITERATIONS; i++)
+        registers[i] = inputVec[i];
+
+    while (addFeatures.size() && subFeatures.size()) {
+        VecI16s* addWeightsVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
+        VecI16s* subWeightsVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
+            VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
+            VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
+            registers[i] = subEpi16(addEpi16(registers[i], addWeights), subWeights);
+        }
+    }
+
+    while (addFeatures.size()) {
+        VecI16s* addWeightVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
+        for (int i = 0; i < L1_ITERATIONS; i++) {
+            VecI16 addWeights = convertEpi8Epi16(addWeightVec[i]);
+            registers[i] = addEpi16(registers[i], addWeights);
+        }
+    }
+
+    while (subFeatures.size()) {
+        VecI16s* subWeightVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
+        for (int i = 0; i < L1_ITERATIONS; i++) {
+            VecI16 subWeights = convertEpi8Epi16(subWeightVec[i]);
+            registers[i] = subEpi16(registers[i], subWeights);
+        }
+    }
+
+    for (int i = 0; i < L1_ITERATIONS; i++)
+        outputVec[i] = registers[i];
+
+#else
+
+    while (addFeatures.size() && subFeatures.size()) {
+        addSubToAccumulator<true, side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0), subFeatures.remove(0));
+        inputAcc = outputAcc;
+    }
+
+    while (addFeatures.size()) {
+        addToAccumulator<true, side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0));
+        inputAcc = outputAcc;
+    }
+
+    while (subFeatures.size()) {
+        subFromAccumulator<true, side>(inputAcc->threatState, outputAcc->threatState, subFeatures.remove(0));
+        inputAcc = outputAcc;
+    }
+
+#endif
 }
 
 template<Color side, bool forward>

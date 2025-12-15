@@ -81,6 +81,7 @@ struct Accumulator {
   DirtyPiece dirtyPiece;
   DirtyThreat dirtyThreats[256];
   int numDirtyThreats;
+  Bitboard threatenedSquares, threateningSquares;
 
   KingBucketInfo kingBucketInfo[2];
   Board* board;
@@ -155,6 +156,8 @@ public:
   void incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
   template<Color side, bool forward = true>
   void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  template<Color side>
+  void doubleIncrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* middle, Accumulator* outputAcc, KingBucketInfo* kingBucket, Square dp2removeSquare);
 
   template<bool I8, Color side>
   void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
