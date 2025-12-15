@@ -134,20 +134,6 @@ else ifeq ($(arch), avx512vnni)
 else ifeq ($(arch), avx512)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=skylake-avx512 -mbmi2
 	CFLAGS := $(CFLAGS) -march=skylake-avx512 -mbmi2
-else ifeq ($(arch), bmi2)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=haswell -mbmi2
-	CFLAGS := $(CFLAGS) -march=haswell -mbmi2
-else ifeq ($(arch), avx2)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=haswell
-	CFLAGS := $(CFLAGS) -march=haswell
-else ifeq ($(arch), fma)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -mfma
-	CFLAGS := $(CFLAGS) -mssse3 -mfma
-else ifeq ($(arch), ssse3)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3
-	CFLAGS := $(CFLAGS) -mssse3
-else ifeq ($(arch), generic)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
 else
 $(error Architecture not supported: $(arch))
 endif

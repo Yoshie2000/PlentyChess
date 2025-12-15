@@ -197,6 +197,78 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
     DirtyPiece& dirtyPiece = outputAcc->dirtyPiece;
     Color color = static_cast<Color>(dirtyPiece.pieceColor != side);
 
+#if defined(__AVX512F__) && defined(__AVX512BW__)
+
+    VecI16* inputVec = (VecI16*)inputAcc->pieceState[side];
+    VecI16* outputVec = (VecI16*)outputAcc->pieceState[side];
+    VecI16 registers[L1_ITERATIONS];
+
+    for (int i = 0; i < L1_ITERATIONS; i++)
+        registers[i] = inputVec[i];
+
+    // Promotion
+    if (dirtyPiece.target == NO_SQUARE) {
+        int sub1 = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ squareFlip, color, kingBucket->bucket);
+        int add1 = ThreatInputs::getPieceFeature(dirtyPiece.addPiece, dirtyPiece.addSquare ^ squareFlip, color, kingBucket->bucket);
+        VecI16* subWeightsVec1 = (VecI16*)&networkData->inputPsqWeights[sub1 * L1_SIZE];
+        VecI16* addWeightsVec1 = (VecI16*)&networkData->inputPsqWeights[add1 * L1_SIZE];
+
+        if (dirtyPiece.removeSquare != NO_SQUARE) {
+            // Promotion capture
+            int sub2 = ThreatInputs::getPieceFeature(dirtyPiece.removePiece, dirtyPiece.removeSquare ^ squareFlip, flip(color), kingBucket->bucket);
+            VecI16* subWeightsVec2 = (VecI16*)&networkData->inputPsqWeights[sub2 * L1_SIZE];
+
+            for (int i = 0; i < L1_ITERATIONS; ++i) {
+                registers[i] = addEpi16(subEpi16(subEpi16(registers[i], subWeightsVec1[i]), subWeightsVec2[i]), addWeightsVec1[i]);
+            }
+        } else {
+            for (int i = 0; i < L1_ITERATIONS; ++i) {
+                registers[i] = addEpi16(subEpi16(registers[i], subWeightsVec1[i]), addWeightsVec1[i]);
+            }
+        }
+    }
+    // Castling
+    else if (dirtyPiece.addSquare != NO_SQUARE) {
+        int sub1 = ThreatInputs::getPieceFeature(Piece::KING, dirtyPiece.origin ^ squareFlip, color, kingBucket->bucket);
+        int add1 = ThreatInputs::getPieceFeature(Piece::KING, dirtyPiece.target ^ squareFlip, color, kingBucket->bucket);
+        int sub2 = ThreatInputs::getPieceFeature(Piece::ROOK, dirtyPiece.removeSquare ^ squareFlip, color, kingBucket->bucket);
+        int add2 = ThreatInputs::getPieceFeature(Piece::ROOK, dirtyPiece.addSquare ^ squareFlip, color, kingBucket->bucket);
+        VecI16* subWeightsVec1 = (VecI16*)&networkData->inputPsqWeights[sub1 * L1_SIZE];
+        VecI16* addWeightsVec1 = (VecI16*)&networkData->inputPsqWeights[add1 * L1_SIZE];
+        VecI16* subWeightsVec2 = (VecI16*)&networkData->inputPsqWeights[sub2 * L1_SIZE];
+        VecI16* addWeightsVec2 = (VecI16*)&networkData->inputPsqWeights[add2 * L1_SIZE];
+
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
+            registers[i] = addEpi16(addEpi16(subEpi16(subEpi16(registers[i], subWeightsVec1[i]), subWeightsVec2[i]), addWeightsVec1[i]), addWeightsVec2[i]);
+        }
+    }
+    // Other
+    else {
+        int sub1 = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ squareFlip, color, kingBucket->bucket);
+        int add1 = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.target ^ squareFlip, color, kingBucket->bucket);
+        VecI16* subWeightsVec1 = (VecI16*)&networkData->inputPsqWeights[sub1 * L1_SIZE];
+        VecI16* addWeightsVec1 = (VecI16*)&networkData->inputPsqWeights[add1 * L1_SIZE];
+
+        if (dirtyPiece.removeSquare != NO_SQUARE) {
+            // Capture / EP
+            int sub2 = ThreatInputs::getPieceFeature(dirtyPiece.removePiece, dirtyPiece.removeSquare ^ squareFlip, flip(color), kingBucket->bucket);
+            VecI16* subWeightsVec2 = (VecI16*)&networkData->inputPsqWeights[sub2 * L1_SIZE];
+
+            for (int i = 0; i < L1_ITERATIONS; ++i) {
+                registers[i] = addEpi16(subEpi16(subEpi16(registers[i], subWeightsVec1[i]), subWeightsVec2[i]), addWeightsVec1[i]);
+            }
+        } else {
+            for (int i = 0; i < L1_ITERATIONS; ++i) {
+                registers[i] = addEpi16(subEpi16(registers[i], subWeightsVec1[i]), addWeightsVec1[i]);
+            }
+        }
+    }
+
+    for (int i = 0; i < L1_ITERATIONS; i++)
+        outputVec[i] = registers[i];
+
+#else
+
     // Promotion
     if (dirtyPiece.target == NO_SQUARE) {
         int sub1 = ThreatInputs::getPieceFeature(dirtyPiece.piece, dirtyPiece.origin ^ squareFlip, color, kingBucket->bucket);
@@ -230,6 +302,8 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
             subFromAccumulator<false, side>(outputAcc->pieceState, outputAcc->pieceState, sub2);
         }
     }
+
+#endif
 }
 
 template<Color side>
