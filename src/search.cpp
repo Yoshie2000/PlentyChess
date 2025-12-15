@@ -750,9 +750,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         if ((stack - 2)->staticEval != EVAL_NONE) {
             improving = stack->staticEval > (stack - 2)->staticEval;
         }
-        else if ((stack - 4)->staticEval != EVAL_NONE) {
-            improving = stack->staticEval > (stack - 4)->staticEval;
-        }
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
