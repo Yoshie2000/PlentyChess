@@ -43,13 +43,6 @@ constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
 
 constexpr int L1_ITERATIONS = L1_SIZE / I16_VEC_SIZE;
 
-struct DirtyPiece {
-  Square origin;
-  Square target;
-  Piece piece;
-  Color pieceColor;
-};
-
 struct DirtyThreat {
   uint8_t piece;
   uint8_t attackedPiece;
@@ -85,8 +78,7 @@ struct Accumulator {
   alignas(ALIGNMENT) int16_t threatState[2][L1_SIZE];
   alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
 
-  DirtyPiece dirtyPieces[4];
-  int numDirtyPieces;
+  DirtyPiece dirtyPiece;
   DirtyThreat dirtyThreats[256];
   int numDirtyThreats;
 
@@ -128,14 +120,11 @@ public:
 
   FinnyEntry finnyTable[2][KING_BUCKETS];
 
-  void addPiece(Square square, Piece piece, Color pieceColor);
-  void removePiece(Square square, Piece piece, Color pieceColor);
-  void movePiece(Square origin, Square target, Piece piece, Color pieceColor);
   void updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add);
 
   void incrementAccumulator();
   void decrementAccumulator();
-  void finalizeMove(Board* board);
+  void finalizeMove(Board* board, DirtyPiece dirtyPiece);
 
   void reset(Board* board);
   template<Color side>
