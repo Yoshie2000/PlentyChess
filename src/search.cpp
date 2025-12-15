@@ -818,7 +818,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
         Board* boardCopy = doNullMove(board);
+        stack->inNMP = true;
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
+        stack->inNMP = false;
         undoNullMove();
 
         if (stopped || exiting)
@@ -1185,6 +1187,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                             history.setCounterMove((stack - 1)->move, move);
 
                         history.updateQuietHistories(historyUpdateDepth, board, stack, move, moveSearchCount, quietMoves);
+
+                        if (stack->ply > 0 && (stack - 1)->inNMP && !capture) {
+                            history.updateQuietHistory(move, board->stm, board, 100 + 50 * depth);
+                        }
                     }
                     if (captureMoves.size())
                         history.updateCaptureHistory(historyUpdateDepth, board, move, moveSearchCount, captureMoves);
@@ -1371,6 +1377,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].correctionValue = 0;
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
+                stackList[i].inNMP = false;
                 stackList[i].ttPv = false;
             }
 
@@ -1596,6 +1603,7 @@ void Worker::tdatagen() {
             stackList[i].correctionValue = 0;
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
+            stackList[i].inNMP = false;
             stackList[i].ttPv = false;
         }
 
