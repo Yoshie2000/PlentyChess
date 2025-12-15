@@ -7,6 +7,7 @@
 #include <functional>
 #include <map>
 #include <atomic>
+#include <array>
 
 #include "board.h"
 #include "search.h"

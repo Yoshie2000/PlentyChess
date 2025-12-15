@@ -288,3 +288,20 @@ struct SearchStack {
     int16_t* contHist;
     int16_t* contCorrHist;
 };
+
+struct DirtyPiece {
+    // Base data for a standard move
+    Piece piece;
+    Color pieceColor;
+    Square origin, target; // target is empty in case of promotion
+
+    // For captures - color of the piece is the opposite of pieceColor
+    // In case of castling, contains the origin square of the rook
+    Piece removePiece;
+    Square removeSquare;
+
+    // For promotions - color of the piece is the same as pieceColor
+    // In case of castling, contains the target square of the rook
+    Piece addPiece;
+    Square addSquare;
+};
