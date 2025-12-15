@@ -141,13 +141,14 @@ else ifeq ($(arch), avx2)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=haswell
 	CFLAGS := $(CFLAGS) -march=haswell
 else ifeq ($(arch), fma)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -mfma
-	CFLAGS := $(CFLAGS) -mssse3 -mfma
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -mfma -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
+	CFLAGS := $(CFLAGS) -mssse3 -mfma -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
 else ifeq ($(arch), ssse3)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3
-	CFLAGS := $(CFLAGS) -mssse3
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
+	CFLAGS := $(CFLAGS) -mssse3 -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
 else ifeq ($(arch), generic)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
+	CFLAGS := $(CFLAGS) -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
 else
 $(error Architecture not supported: $(arch))
 endif
