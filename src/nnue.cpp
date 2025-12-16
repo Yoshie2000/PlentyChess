@@ -81,12 +81,12 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     ThreatInputs::FeatureList threatFeatures;
     ThreatInputs::addThreatFeatures<side>(board, threatFeatures);
     for (int featureIndex : threatFeatures)
-        addToAccumulator<true, side>(acc->threatState, acc->threatState, featureIndex);
+        addToThreatAccumulator<side>(acc->threatState, acc->threatState, featureIndex);
 
     ThreatInputs::FeatureList pieceFeatures;
     ThreatInputs::addPieceFeatures(board, side, pieceFeatures, KING_BUCKET_LAYOUT);
     for (int featureIndex : pieceFeatures)
-        addToAccumulator<false, side>(acc->pieceState, acc->pieceState, featureIndex);
+        addToPieceAccumulator<side>(acc->pieceState, acc->pieceState, featureIndex);
 
     acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
     acc->board = board;
@@ -163,12 +163,12 @@ void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
             while (addBB) {
                 Square square = popLSB(&addBB);
                 int featureIndex = ThreatInputs::getPieceFeature(p, square ^ (side * 56) ^ (kingBucket->mirrored * 7), static_cast<Color>(c != side), kingBucket->bucket);
-                addToAccumulator<false, side>(finnyEntry->pieceState, finnyEntry->pieceState, featureIndex);
+                addToPieceAccumulator<side>(finnyEntry->pieceState, finnyEntry->pieceState, featureIndex);
             }
             while (removeBB) {
                 Square square = popLSB(&removeBB);
                 int featureIndex = ThreatInputs::getPieceFeature(p, square ^ (side * 56) ^ (kingBucket->mirrored * 7), static_cast<Color>(c != side), kingBucket->bucket);
-                subFromAccumulator<false, side>(finnyEntry->pieceState, finnyEntry->pieceState, featureIndex);
+                subFromPieceAccumulator<side>(finnyEntry->pieceState, finnyEntry->pieceState, featureIndex);
             }
         }
     }
@@ -187,7 +187,7 @@ void NNUE::refreshThreatFeatures(Accumulator* acc) {
     ThreatInputs::FeatureList threatFeatures;
     ThreatInputs::addThreatFeatures<side>(acc->board, threatFeatures);
     for (int featureIndex : threatFeatures)
-        addToAccumulator<true, side>(acc->threatState, acc->threatState, featureIndex);
+        addToThreatAccumulator<side>(acc->threatState, acc->threatState, featureIndex);
 }
 
 template<Color side>
@@ -484,7 +484,7 @@ Eval NNUE::evaluate(Board* board) {
 
 #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     int nnzCount = 0;
-    alignas(ALIGNMENT) uint16_t nnzIndices[L1_SIZE / INT8_PER_INT32];
+    alignas(ALIGNMENT) uint16_t nnzIndices[2 * L1_SIZE / INT8_PER_INT32];
 
     VecI32* pairwiseOutputsVecI32 = reinterpret_cast<VecI32*>(pairwiseOutputs);
     VecI16_v128 nnzZero = setZero_v128();
@@ -561,7 +561,7 @@ Eval NNUE::evaluate(Board* board) {
     }
 
 #else
-    for (int ft = 0; ft < L1_SIZE; ft++) {
+    for (int ft = 0; ft < 2 * L1_SIZE; ft++) {
         if (!pairwiseOutputs[ft])
             continue;
 

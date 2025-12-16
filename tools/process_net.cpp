@@ -15,7 +15,6 @@ constexpr int KING_BUCKETS = 12;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int THREAT_INPUT_SIZE = 79856;
-constexpr int INPUT_SIZE = THREAT_INPUT_SIZE + KING_BUCKETS * 768;
 constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
@@ -27,14 +26,15 @@ constexpr int ALIGNMENT = 64;
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
 
 struct RawNetworkData {
-    float inputWeights[(INPUT_SIZE + 768) * L1_SIZE]; // has a factoriser bucket
-    float inputPieceWeights[(KING_BUCKETS + 1) * 768 * L1_SIZE]; // also has a factoriser bucket
+    float inputWeights_threat[THREAT_INPUT_SIZE * L1_SIZE];
+    float inputWeights_factoriser[768 * L1_SIZE];
+    float inputWeights_pst[768 * KING_BUCKETS * L1_SIZE];
+    float inputWeights_factoriser2[768 * L1_SIZE];
+    float inputWeights_pst2[768 * KING_BUCKETS * L1_SIZE];
     float inputBiases[L1_SIZE];
     float inputPieceBiases[L1_SIZE];
-    float l1Weights[L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
-    float l1PieceWeights[L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
+    float l1Weights[2 * L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
     float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    float l1PieceBiases[OUTPUT_BUCKETS][L2_SIZE];
     float l2Weights[2 * L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
     float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
     float l3Weights[L3_SIZE + 2 * L2_SIZE][OUTPUT_BUCKETS];
@@ -104,41 +104,33 @@ float readFloat(std::istream& is) {
 void quantizeNetwork() {
     // Add factorized input weights to buckets, and quantize
     for (int w = 0; w < THREAT_INPUT_SIZE * L1_SIZE; w++) {
-        tmp.inputThreatWeights[w] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights[w]), -128, 127);
+        tmp.inputThreatWeights[w] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights_threat[w]), -128, 127);
     }
     for (int kb = 0; kb < KING_BUCKETS; kb++) {
         for (int w = 0; w < 768 * L1_SIZE; w++) {
             int psqIdx = kb * 768 * L1_SIZE + w;
-            int rawIdx = 768 * L1_SIZE + THREAT_INPUT_SIZE * L1_SIZE + psqIdx;
-            int factoriserIdx = THREAT_INPUT_SIZE * L1_SIZE + w;
-            tmp.inputPsqWeights[psqIdx] = quantize<INPUT_QUANT>(raw.inputWeights[rawIdx] + raw.inputWeights[factoriserIdx]);
-            tmp.inputPsqWeights[L1_SIZE * 768 * KING_BUCKETS + psqIdx] = quantize<INPUT_QUANT>(raw.inputPieceWeights[768 * L1_SIZE + psqIdx] + raw.inputPieceWeights[w]);
+            tmp.inputPsqWeights[psqIdx] = quantize<INPUT_QUANT>(raw.inputWeights_pst[psqIdx] + raw.inputWeights_factoriser[w]);
+            tmp.inputPsqWeights[L1_SIZE * 768 * KING_BUCKETS + psqIdx] = quantize<INPUT_QUANT>(raw.inputWeights_pst2[psqIdx] + raw.inputWeights_factoriser2[w]);
         }
     }
 
     // Quantize input biases
-    for (int b = 0; b < 2 * L1_SIZE; b++) {
-        tmp.inputBiases[b] = quantize<INPUT_QUANT>(raw.inputBiases[b] + raw.inputPieceBiases[b]);
+    for (int b = 0; b < L1_SIZE; b++) {
+        tmp.inputBiases[b] = quantize<INPUT_QUANT>(raw.inputBiases[b]);
+        tmp.inputBiases[b + L1_SIZE] = quantize<INPUT_QUANT>(raw.inputPieceBiases[b]);
     }
 
     // Quantize L1 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+        for (int l1 = 0; l1 < 2 * L1_SIZE; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                tmp.l1Weights[b][l2 * L1_SIZE + l1] = quantize<L1_QUANT>(((float*)raw.l1Weights)[b * L1_SIZE * L2_SIZE + l2 * L1_SIZE + l1]);
-                tmp.l1Weights[b][l2 * L1_SIZE + l1 + L1_SIZE] = quantize<L1_QUANT>(((float*)raw.l1PieceWeights)[b * L1_SIZE * L2_SIZE + l2 * L1_SIZE + l1]);
+                tmp.l1Weights[b][l2 * 2 * L1_SIZE + l1] = quantize<L1_QUANT>(((float*)raw.l1Weights)[b * 2 * L1_SIZE * L2_SIZE + l2 * 2 * L1_SIZE + l1]);
             }
         }
     }
 
-    // Add together L1 biases
-    for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-        for (int l2 = 0; l2 < L2_SIZE; l2++) {
-            tmp.l1Biases[b][l2] = raw.l1Biases[b][l2] + raw.l1PieceBiases[b][l2];
-        }
-    }
-
     // std::memcpy the rest
+    std::memcpy(tmp.l1Biases, raw.l1Biases, sizeof(raw.l1Biases));
     std::memcpy(tmp.l2Weights, raw.l2Weights, sizeof(raw.l2Weights));
     std::memcpy(tmp.l2Biases, raw.l2Biases, sizeof(raw.l2Biases));
     std::memcpy(tmp.l3Weights, raw.l3Weights, sizeof(raw.l3Weights));
