@@ -917,7 +917,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         uint64_t nodesBeforeMove = searchData.nodesSearched;
 
         bool capture = board->isCapture(move);
-        bool importantCapture = stack->ttPv && capture && !cutNode;
+        bool importantCapture = stack->ttPv && capture && !cutNode && (pvNode || movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES);
         int moveHistory = history.getHistory(board, stack, move, capture);
 
         if (!rootNode
