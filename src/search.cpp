@@ -944,7 +944,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     movegen.skipQuietMoves();
                 else {
                     Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
-                    if (fpValue + PIECE_VALUES[capturedPiece] <= alpha && movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES)
+                    if (fpValue + PIECE_VALUES[capturedPiece] <= alpha && (movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES || move.isPromotion()))
                         break;
                 }
             }
