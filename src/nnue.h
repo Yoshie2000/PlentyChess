@@ -8,23 +8,23 @@
 #include "simd.h"
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
-  0,  1,  2,  3,  3,  2,  1,  0,
-  4,  5,  6,  7,  7,  6,  5,  4,
-  8,  8,  9,  9,  9,  9,  8,  8,
- 10, 10, 10, 10, 10, 10, 10, 10,
- 11, 11, 11, 11, 11, 11, 11, 11,
- 11, 11, 11, 11, 11, 11, 11, 11, 
- 11, 11, 11, 11, 11, 11, 11, 11, 
- 11, 11, 11, 11, 11, 11, 11, 11, 
+  0, 1, 2, 3, 3, 2, 1, 0,
+  4, 5, 6, 7, 7, 6, 5, 4,
+  8, 8, 8, 8, 8, 8, 8, 8,
+  9, 9, 9, 9, 9, 9, 9, 9,
+  9, 9, 9, 9, 9, 9, 9, 9,
+  9, 9, 9, 9, 9, 9, 9, 9,
+  9, 9, 9, 9, 9, 9, 9, 9,
+  9, 9, 9, 9, 9, 9, 9, 9,
 };
-constexpr int KING_BUCKETS = 12;
+constexpr int KING_BUCKETS = 10;
 
 constexpr int INPUT_SIZE = ThreatInputs::FEATURE_COUNT + 768 * KING_BUCKETS;
-constexpr int L1_SIZE = 640;
+constexpr int L1_SIZE = 512;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
-constexpr int OUTPUT_BUCKETS = 8;
+constexpr int OUTPUT_BUCKETS = 1;
 
 constexpr int NETWORK_SCALE = 287;
 constexpr int INPUT_QUANT = 255;
@@ -94,15 +94,15 @@ struct FinnyEntry {
 };
 
 struct NetworkData {
-  alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
   alignas(ALIGNMENT) int8_t inputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
+  alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
-  alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
-  alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-  alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
-  alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
-  alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
+  alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+  alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
+  alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][L2_SIZE * L3_SIZE];
+  alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
+  alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE];
+  alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
 };
 
 extern NetworkData* networkData;
