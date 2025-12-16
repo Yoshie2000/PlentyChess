@@ -107,10 +107,14 @@ void quantizeNetwork() {
         tmp.inputThreatWeights[w] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights_threat[w]), -128, 127);
     }
     for (int kb = 0; kb < KING_BUCKETS; kb++) {
-        for (int w = 0; w < 768 * L1_SIZE; w++) {
-            int psqIdx = kb * 768 * L1_SIZE + w;
-            tmp.inputPsqWeights[psqIdx] = quantize<INPUT_QUANT>(raw.inputWeights_pst[psqIdx] + raw.inputWeights_factoriser[w]);
-            tmp.inputPsqWeights[L1_SIZE * 768 * KING_BUCKETS + psqIdx] = quantize<INPUT_QUANT>(raw.inputWeights_pst2[psqIdx] + raw.inputWeights_factoriser2[w]);
+        for (int f = 0; f < 768; f++) {
+            for (int l1 = 0; l1 < L1_SIZE; l1++) {
+                int w = f * L1_SIZE + l1;
+                int psqIdx = kb * 768 * L1_SIZE + w;
+                int outIdx = kb * 768 * 2 * L1_SIZE + w;
+                tmp.inputPsqWeights[outIdx] = quantize<INPUT_QUANT>(raw.inputWeights_pst[psqIdx] + raw.inputWeights_factoriser[w]);
+                tmp.inputPsqWeights[outIdx + L1_SIZE] = quantize<INPUT_QUANT>(raw.inputWeights_pst2[psqIdx] + raw.inputWeights_factoriser2[w]);
+            }
         }
     }
 
