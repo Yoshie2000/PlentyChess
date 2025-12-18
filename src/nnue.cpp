@@ -446,7 +446,7 @@ Eval NNUE::evaluate(Board* board) {
     }
 
     // PST only L1
-    for (int pw = pairwiseOffset; pw < 2 * pairwiseOffset; pw += 2) {
+    for (int pw = 2 * pairwiseOffset; pw < 3 * pairwiseOffset; pw += 2) {
         // STM
         VecI16 clipped1 = minEpi16(maxEpi16(stmPieceAcc[pw], i16Zero), i16Quant);
         VecI16 clipped2 = minEpi16(stmPieceAcc[pw + pairwiseOffset], i16Quant);
