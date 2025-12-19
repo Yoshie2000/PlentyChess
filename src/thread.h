@@ -57,43 +57,9 @@ inline void configureThreadBinding(int threadId) {
     if (!shouldConfigureNuma())
         return;
 
-    auto getCoreMasksPerNumaNode = []() {
-        // Credit to Halogen for this code
-        std::vector<cpu_set_t> nodeCoreMasks;
-        if (numa_available() == -1) {
-            return nodeCoreMasks;
-        }
-
-        for (int node = 0; node < numa_num_configured_nodes(); ++node) {
-            struct bitmask* coreMask = numa_allocate_cpumask();
-            if (numa_node_to_cpus(node, coreMask) != 0) {
-                std::cerr << "info string Could not get core mask for NUMA node " << node << std::endl;
-                return nodeCoreMasks;
-            }
-
-            cpu_set_t cpuset;
-            CPU_ZERO(&cpuset);
-
-            for (size_t cpu = 0; cpu < coreMask->size; ++cpu)
-                if (numa_bitmask_isbitset(coreMask, cpu)) {
-                    CPU_SET(cpu, &cpuset);
-                }
-
-            numa_free_cpumask(coreMask);
-            nodeCoreMasks.push_back(cpuset);
-        }
-
-        return nodeCoreMasks;
-    };
-
-    static auto coreMasksPerNumaNode = getCoreMasksPerNumaNode();
-    if (coreMasksPerNumaNode.size() == 0)
-        return;
-    
-    int result = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &coreMasksPerNumaNode[getNumaNode(threadId)]);
-    if (result != 0) {
-        std::cerr << "info string Could not set NUMA affinity for thread " << threadId << std::endl;
-    }
+    int numaNode = getNumaNode(threadId);
+    numa_run_on_node(numaNode);
+    numa_set_preferred(numaNode);
 
 #endif
     (void) threadId;
