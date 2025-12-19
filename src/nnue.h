@@ -196,15 +196,11 @@ inline void writeFloat(std::ostream& os, float f) {
 
 class NNZ {
 public:
-  int64_t activations[L1_SIZE / 2] = {};
-  int64_t activations2[L1_SIZE / 2] = {};
+  int64_t activations[L1_SIZE] = {};
 
   void addActivations(uint8_t* neurons) {
-    for (int i = 0; i < L1_SIZE; i++) {
-      activations[i % (L1_SIZE / 2)] += bool(neurons[i]);
-    }
-    for (int i = 0; i < L1_SIZE; i++) {
-      activations2[i % (L1_SIZE / 2)] += bool(neurons[i + L1_SIZE]);
+    for (int i = 0; i < 2 * L1_SIZE; i++) {
+      activations[i % L1_SIZE] += bool(neurons[i]);
     }
   }
 
@@ -214,8 +210,7 @@ public:
   int8_t  oldL1Weights[OUTPUT_BUCKETS][2 * L1_SIZE * L2_SIZE];
   NetworkData nnzOutNet;
 
-  int order[L1_SIZE / 2];
-  int order2[L1_SIZE / 2];
+  int order[L1_SIZE];
 
   void permuteNetwork() {
     std::ifstream infile("./quantised.bin", std::ios::binary);
@@ -231,56 +226,32 @@ public:
     memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
-    for (int i = 0; i < L1_SIZE / 2; i++) {
+    for (int i = 0; i < L1_SIZE; i++) {
       order[i] = i;
-      order2[i] = i;
     }
     std::stable_sort(order, order + L1_SIZE / 2, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
-    std::stable_sort(order2, order2 + L1_SIZE / 2, [&](const int& a, const int& b) { return activations2[a] < activations2[b]; });
+    std::stable_sort(order + L1_SIZE / 2, order + L1_SIZE, [&](const int& a, const int& b) { return activations[a] < activations[b]; });
 
-    for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
-      int ord = order[l1];
+    for (int l1 = 0; l1 < L1_SIZE; l1++) {
 
       // Input weights
       for (int ip = 0; ip < 768 * KING_BUCKETS; ip++) {
-        nnzOutNet.inputPsqWeights[ip * 2 * L1_SIZE + l1] = oldInputPsqWeights[ip * 2 * L1_SIZE + ord];
-        nnzOutNet.inputPsqWeights[ip * 2 * L1_SIZE + l1 + L1_SIZE / 2] = oldInputPsqWeights[ip * 2 * L1_SIZE + ord + L1_SIZE / 2];
+        nnzOutNet.inputPsqWeights[ip * 2 * L1_SIZE + l1] = oldInputPsqWeights[ip * 2 * L1_SIZE + order[l1]];
+        nnzOutNet.inputPsqWeights[ip * 2 * L1_SIZE + l1 + L1_SIZE] = oldInputPsqWeights[ip * 2 * L1_SIZE + order[l1] + L1_SIZE];
       }
       for (int ip = 0; ip < ThreatInputs::FEATURE_COUNT; ip++) {
-        nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1] = oldInputThreatWeights[ip * L1_SIZE + ord];
-        nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputThreatWeights[ip * L1_SIZE + ord + L1_SIZE / 2];
+        nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1] = oldInputThreatWeights[ip * L1_SIZE + order[l1]];
       }
 
       // Input biases
-      nnzOutNet.inputBiases[l1] = oldInputBiases[ord];
-      nnzOutNet.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[ord + L1_SIZE / 2];
+      nnzOutNet.inputBiases[l1] = oldInputBiases[order[l1]];
+      nnzOutNet.inputBiases[l1 + L1_SIZE] = oldInputBiases[order[l1] + L1_SIZE];
 
       // L1 weights
       for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
         for (int l2 = 0; l2 < L2_SIZE; l2++) {
-          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[ord * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(ord + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-        }
-      }
-    }
-    for (int l1 = L1_SIZE; l1 < 3 * L1_SIZE / 2; l1++) {
-      int ord = order2[l1 - L1_SIZE] + L1_SIZE;
-
-      // Input weights
-      for (int ip = 0; ip < 768 * KING_BUCKETS; ip++) {
-        nnzOutNet.inputPsqWeights[ip * 2 * L1_SIZE + l1] = oldInputPsqWeights[ip * 2 * L1_SIZE + ord];
-        nnzOutNet.inputPsqWeights[ip * 2 * L1_SIZE + l1 + L1_SIZE / 2] = oldInputPsqWeights[ip * 2 * L1_SIZE + ord + L1_SIZE / 2];
-      }
-
-      // Input biases
-      nnzOutNet.inputBiases[l1] = oldInputBiases[ord];
-      nnzOutNet.inputBiases[l1 + L1_SIZE / 2] = oldInputBiases[ord + L1_SIZE / 2];
-
-      // L1 weights
-      for (int ob = 0; ob < OUTPUT_BUCKETS; ob++) {
-        for (int l2 = 0; l2 < L2_SIZE; l2++) {
-          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[ord * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
-          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(ord + L1_SIZE / 2) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[order[l1] * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
+          reinterpret_cast<int8_t*>(nnzOutNet.l1Weights)[(l1 + L1_SIZE) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2] = reinterpret_cast<int8_t*>(oldL1Weights)[(order[l1] + L1_SIZE) * OUTPUT_BUCKETS * L2_SIZE + ob * L2_SIZE + l2];
         }
       }
     }
