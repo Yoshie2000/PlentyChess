@@ -37,7 +37,7 @@ bool playRandomMoves(Board& board, Worker* thread, int remainingMoves) {
         return true;
     }
 
-    Move move;
+    Move move{};
     while (!move) {
         int r = std::rand() % 100;
         Piece randomPiece = r < 35 ? Piece::PAWN : r < 50 ? Piece::KNIGHT : r < 65 ? Piece::BISHOP : r < 80 ? Piece::QUEEN : r < 95 ? Piece::KING : Piece::ROOK;

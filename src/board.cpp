@@ -393,7 +393,7 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
     Piece piece = pieces[origin];
     Piece promotionPiece = Piece::NONE;
 
-    DirtyPiece dirtyPiece;
+    DirtyPiece dirtyPiece{};
     dirtyPiece.piece = piece;
     dirtyPiece.pieceColor = stm;
     dirtyPiece.origin = origin;
