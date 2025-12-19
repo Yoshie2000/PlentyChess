@@ -83,11 +83,11 @@ struct Board {
     bool chess960;
 
     void startpos();
-    void parseFen(std::string fen, bool chess960) {
+    void parseFen(std::string fen, bool isChess960) {
         std::istringstream iss(fen);
-        parseFen(iss, chess960);
+        parseFen(iss, isChess960);
     };
-    void parseFen(std::istringstream& iss, bool chess960);
+    void parseFen(std::istringstream& iss, bool isChess960);
     std::string fen();
 
     template<bool add, bool computeRays = true>

@@ -597,8 +597,8 @@ Eval NNUE::evaluate(Board* board) {
     constexpr int chunks = 64 / sizeof(VecF);
 
     VecF resultSums[chunks];
-    for (int i = 0; i < chunks; i++)
-        resultSums[i] = psZero;
+    for (int j = 0; j < chunks; j++)
+        resultSums[j] = psZero;
 
     VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData->l3Weights[bucket]);
     for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2 += chunks) {
