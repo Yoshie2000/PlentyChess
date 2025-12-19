@@ -37,12 +37,78 @@ inline bool shouldConfigureNuma() {
 #endif
 }
 
-inline int getNumaNode(int threadId) {
+inline int getNumaNode(size_t threadId) {
 #ifdef USE_NUMA
     if (!shouldConfigureNuma()) {
         return 0;
     }
-    return threadId % numa_num_configured_nodes();
+
+    auto getCoresPerNode = []() {
+        std::vector<std::pair<int, std::vector<size_t>>> coresPerNode;
+
+        if (numa_available() == -1) {
+
+            std::vector<size_t> cores;
+            for (size_t i = 0; i < std::thread::hardware_concurrency(); i++) {
+                cores.push_back(i);
+            }
+            coresPerNode.push_back(std::make_pair(0, cores));
+
+        } else {
+
+            for (int node = 0; node < numa_num_configured_nodes(); ++node) {
+                struct bitmask* coreMask = numa_allocate_cpumask();
+                if (numa_node_to_cpus(node, coreMask) != 0) {
+                    std::cerr << "info string Could not get core mask for NUMA node " << node << std::endl;
+                    throw std::bad_alloc();
+                }
+
+                cpu_set_t cpuset;
+                CPU_ZERO(&cpuset);
+
+                std::vector<size_t> cores;
+                for (size_t cpu = 0; cpu < coreMask->size; ++cpu) {
+                    if (numa_bitmask_isbitset(coreMask, cpu)) {
+                        cores.push_back(cpu);
+                    }
+                }
+
+                numa_free_cpumask(coreMask);
+                if (cores.size()) {
+                    coresPerNode.push_back(std::make_pair(node, cores));
+                }
+            }
+
+        }
+
+        std::cout << "info string NUMA Core to Node association:" << std::endl;
+        unsigned int coreCount = 0;
+        for (auto& [node, cores] : coresPerNode) {
+            std::cout << "info string Node " << node << ": ";
+            for (auto& core : cores) std::cout << core << ",";
+            std::cout << std::endl;
+            coreCount += cores.size();
+        }
+        if (coreCount != std::thread::hardware_concurrency()) {
+            std::cerr << "info string Detected NUMA core count does not match hardware concurrency!" << std::endl;
+            throw std::bad_alloc();
+        }
+
+        return coresPerNode;
+    };
+
+    static auto coresPerNode = getCoresPerNode();
+    assert(coresPerNode.size() > 0);
+
+    size_t counter = 0;
+    threadId %= std::thread::hardware_concurrency();
+    for (auto& [node, cores] : coresPerNode) {
+        if (threadId < counter + cores.size())
+            return node;
+        counter += cores.size();
+    }
+    std::cerr << "info string This should never happen!" << std::endl;
+    throw std::bad_alloc();
 #else
     (void) threadId;
     return 0;

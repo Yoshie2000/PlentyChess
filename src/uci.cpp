@@ -349,12 +349,12 @@ void speedtest(Board& board, std::vector<Hash>& boardHistory) {
     int numHash = 16 * numThreads;
     int numSeconds = 150;
 
-    threads.resize(numThreads);
-    TT.resize(numHash);
     UCI::Options.minimal.value = true;
     UCI::Options.moveOverhead.value = 0;
     UCI::Options.hash.value = numHash;
     UCI::Options.threads.value = numThreads;
+    TT.resize(numHash);
+    threads.resize(numThreads);
 
     // Scale time per move based on fishtest LTC model
     auto getCorrectedTime = [&](int ply) {
