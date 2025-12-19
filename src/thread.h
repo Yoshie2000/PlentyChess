@@ -37,12 +37,8 @@ inline bool shouldConfigureNuma() {
 #endif
 }
 
-inline int getNumaNode(size_t threadId) {
 #ifdef USE_NUMA
-    if (!shouldConfigureNuma()) {
-        return 0;
-    }
-
+inline std::vector<std::pair<int, std::vector<size_t>>> getCoresPerNumaNode() {
     auto getCoresPerNode = []() {
         std::vector<std::pair<int, std::vector<size_t>>> coresPerNode;
 
@@ -99,14 +95,31 @@ inline int getNumaNode(size_t threadId) {
 
     static auto coresPerNode = getCoresPerNode();
     assert(coresPerNode.size() > 0);
+    return coresPerNode;
+}
 
+inline int getNumaNodeCount() {
+    return getCoresPerNumaNode().size();
+}
+
+#endif
+
+inline int getNumaNode(size_t threadId) {
+#ifdef USE_NUMA
+    if (!shouldConfigureNuma()) {
+        return 0;
+    }
+
+    auto coresPerNode = getCoresPerNumaNode();
     size_t counter = 0;
     threadId %= std::thread::hardware_concurrency();
+
     for (auto& [node, cores] : coresPerNode) {
         if (threadId < counter + cores.size())
             return node;
         counter += cores.size();
     }
+
     std::cerr << "info string This should never happen!" << std::endl;
     throw std::bad_alloc();
 #else
@@ -257,7 +270,7 @@ public:
         if (shouldConfigureNuma()) {
 
             networkWeights.clear();
-            networkWeights.resize(numa_num_configured_nodes());
+            networkWeights.resize(getNumaNodeCount());
 
             for (size_t i = 0; i < networkWeights.size(); i++) {
                 NetworkData* weights = reinterpret_cast<NetworkData*>(numa_alloc_onnode(sizeof(NetworkData), i));
