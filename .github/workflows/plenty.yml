@@ -6,32 +6,71 @@ on:
 
 jobs:
   engine:
-    name: PlentyChess Build & Bench
+    name: PlentyChess Binaries
     runs-on: ${{matrix.os}}
     strategy:
+      fail-fast: true
       matrix:
-        os: [ubuntu-24.04, macos-14]
-        architecture: [arm64]
-    
+        include:
+
+          - os: ubuntu-24.04
+            binary_name: linux-generic
+            makefile_arch: generic
+            makefile_target:
+
+          - os: ubuntu-24.04-arm
+            binary_name: linux-neon
+            makefile_arch: arm64
+            makefile_target: profile-build
+
+          - os: macos-14
+            binary_name: macos-neon
+            makefile_arch: arm64
+            makefile_target: profile-build
+
+          - os: ubuntu-24.04
+            binary_name: android-neon
+            makefile_arch: android
+            makefile_target:
+
     steps:
 
     - name: Clone
       uses: actions/checkout@v2
+    
+    - name: Set up android compilation environment
+      if: ${{matrix.makefile_arch == 'android'}}
+      run: |
+        sudo apt update && sudo apt install qemu-user
+        NDKV="27.2.12479018"
+        ANDROID_ROOT=/usr/local/lib/android
+        ANDROID_SDK_ROOT=$ANDROID_ROOT/sdk
+        SDKMANAGER=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager
+        echo "y" | $SDKMANAGER "ndk;$NDKV"
+        ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/$NDKV
+        ANDROID_NDK_BIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin
+        echo "ANDROID_NDK_BIN=$ANDROID_NDK_BIN" >> $GITHUB_ENV
 
     - name: Compile
-      run: make -j profile-build EXE=PlentyChess
+      run: |
+        if [ ${{matrix.makefile_arch == 'android'}} ]; then
+          export PATH=${{ env.ANDROID_NDK_BIN }}:$PATH
+        fi
+
+        make -j ${{matrix.makefile_target}} EXE=PlentyChess-${{matrix.binary_name}} arch=${{matrix.makefile_arch}}
 
     - name: Bench
       run: |
         git fetch origin ${{ github.event.pull_request.head.ref }}
         git checkout FETCH_HEAD
         bench=$(git show --summary | grep -oE 'Bench: [0-9]+' | awk '{print $2}')
-        ./PlentyChess bench 2> output
+        ./PlentyChess-${{matrix.binary_name}} bench 2> output
         real=$(grep 'Nodes searched' output | awk '{print $4}')
         if [[ "$bench" != "$real" ]]; then echo "got $real, expected $bench (real: '$(git show --summary)')" && exit 1; fi
     
     - name: Upload binary
       uses: actions/upload-artifact@v4
+      if: ${{matrix.makefile_arch != 'generic'}}
       with:
-        name: PlentyChess-${{github.sha}}-neon-${{matrix.os}}
-        path: ./PlentyChess
+        name: PlentyChess-${{github.sha}}-${{matrix.binary_name}}
+        path: ./PlentyChess-${{matrix.binary_name}}

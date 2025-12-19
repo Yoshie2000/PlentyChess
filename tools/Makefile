@@ -6,12 +6,16 @@ SOURCES = process_net.cpp
 PROGRAM = process_net
 
 # CPU Flags
-ifeq ($(arch), arm64)
+ifeq ($(arch), android)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
+else ifeq ($(arch), arm64)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
 else ifeq ($(arch), avx512vnni)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=cascadelake
 else ifeq ($(arch), avx512)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=skylake-avx512
+else ifeq ($(arch), bmi2)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=haswell -mbmi2
 else ifeq ($(arch), avx2)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=haswell
 else ifeq ($(arch), fma)

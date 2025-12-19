@@ -1,6 +1,6 @@
 CXX = clang++
 CC  = $(CXX)
-CFLAGS = -mpopcnt -w -pthread -O3
+CFLAGS = -w -pthread -O3
 CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
 LDFLAGS = 
 CXXFLAGS_EXTRA = 
@@ -93,15 +93,6 @@ ifeq ($(arch),)
 		IS_ZEN5  := $(shell echo | $(CXX) -march=native -dM -E - | grep -c "__znver5")
 	endif
 
-# On Zen1/2 systems, which have slow PEXT instructions, we don't want to build with BMI2
-	ifeq ($(HAS_BMI2),1)
-		ifeq ($(IS_ZEN1),0)
-			ifeq ($(IS_ZEN2),0)
-				BMI2 := true
-			endif
-		endif
-	endif
-
 # Select best build
 	ifneq ($(IS_ZEN5),0)
 		arch := avx512vnni
@@ -109,6 +100,16 @@ ifeq ($(arch),)
 		arch := avx512
 	else ifneq ($(HAS_AVX2),0)
 		arch := avx2
+
+# On Zen1/2 systems, which have slow PEXT instructions, we don't want to build with BMI2
+		ifeq ($(HAS_BMI2),1)
+			ifeq ($(IS_ZEN1),0)
+				ifeq ($(IS_ZEN2),0)
+					arch := bmi2
+				endif
+			endif
+		endif
+
 	else ifneq ($(HAS_FMA),0)
 		arch := fma
 	else ifneq ($(HAS_SSSE3),0)
@@ -120,31 +121,36 @@ $(info Autodetected architecture: $(arch))
 endif
 
 # CPU Flags
-ifeq ($(arch), arm64)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
+ifeq ($(arch), android)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a+simd -static
+	LDFLAGS := $(LDFLAGS) -lstdc++
+	CXX := aarch64-linux-android29-clang++
+	CC := aarch64-linux-android29-clang
+else ifeq ($(arch), arm64)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a+simd
 else ifeq ($(arch), avx512vnni)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=cascadelake
-	CFLAGS := $(CFLAGS) -march=cascadelake
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=cascadelake -mbmi2
+	CFLAGS := $(CFLAGS) -march=cascadelake -mbmi2
 else ifeq ($(arch), avx512)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=skylake-avx512
-	CFLAGS := $(CFLAGS) -march=skylake-avx512
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=skylake-avx512 -mbmi2
+	CFLAGS := $(CFLAGS) -march=skylake-avx512 -mbmi2
+else ifeq ($(arch), bmi2)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=haswell -mbmi2
+	CFLAGS := $(CFLAGS) -march=haswell -mbmi2
 else ifeq ($(arch), avx2)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=haswell
 	CFLAGS := $(CFLAGS) -march=haswell
 else ifeq ($(arch), fma)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -mfma
-	CFLAGS := $(CFLAGS) -mssse3 -mfma
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -mfma -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
+	CFLAGS := $(CFLAGS) -mssse3 -mfma -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
 else ifeq ($(arch), ssse3)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3
-	CFLAGS := $(CFLAGS) -mssse3
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -mssse3 -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
+	CFLAGS := $(CFLAGS) -mssse3 -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
 else ifeq ($(arch), generic)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
+	CFLAGS := $(CFLAGS) -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
 else
 $(error Architecture not supported: $(arch))
-endif
-ifdef BMI2
-	CXXFLAGS := $(CXXFLAGS) -DUSE_BMI2 -mbmi2
-	CFLAGS := $(CFLAGS) -mbmi2
 endif
 
 ifdef PROCESS_NET

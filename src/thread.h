@@ -7,6 +7,7 @@
 #include <functional>
 #include <map>
 #include <atomic>
+#include <array>
 
 #ifdef USE_NUMA
 #include <sched.h>
@@ -101,9 +102,9 @@ inline void configureThreadBinding(int threadId) {
 struct RootMove {
     Eval value = -EVAL_INFINITE;
     Eval meanScore = EVAL_NONE;
-    int16_t depth = 0;
+    Depth depth = 0;
     int selDepth = 0;
-    Move move = MOVE_NULL;
+    Move move = Move::none();
     std::vector<Move> pv;
 };
 
@@ -111,7 +112,7 @@ class ThreadPool;
 
 class Worker {
 
-    std::vector<uint64_t> boardHistory;
+    std::vector<Hash> boardHistory;
 
 public:
 
@@ -137,6 +138,7 @@ public:
     std::vector<RootMove> rootMoves;
     std::map<Move, uint64_t> rootMoveNodes;
     std::vector<Move> excludedRootMoves;
+    std::vector<std::array<MoveGen, 2>> movepickers;
 
     Worker() = delete;
     Worker(ThreadPool* threadPool, NetworkData* networkData, int threadId);
@@ -160,7 +162,7 @@ private:
     void printUCI(Worker* thread, int multiPvCount = 1);
     Worker* chooseBestThread();
 
-    Board* doMove(Board* board, uint64_t newHash, Move move);
+    Board* doMove(Board* board, Hash newHash, Move move);
     void undoMove();
     Board* doNullMove(Board* board);
     void undoNullMove();
@@ -168,7 +170,7 @@ private:
     bool isDraw(Board* board, int ply);
 
     template <NodeType nt>
-    Eval search(Board* board, SearchStack* stack, int16_t depth, Eval alpha, Eval beta, bool cutNode);
+    Eval search(Board* board, SearchStack* stack, Depth depth, Eval alpha, Eval beta, bool cutNode);
 
     template <NodeType nodeType>
     Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta);
@@ -186,7 +188,7 @@ public:
 
     SearchParameters searchParameters;
     Board rootBoard;
-    std::vector<uint64_t> rootBoardHistory;
+    std::vector<Hash> rootBoardHistory;
 
     std::atomic<size_t> startedThreads;
 
@@ -259,7 +261,7 @@ public:
         while (startedThreads < numThreads) {}
     }
 
-    void startSearching(Board board, std::vector<uint64_t> boardHistory, SearchParameters parameters) {
+    void startSearching(Board board, std::vector<Hash> boardHistory, SearchParameters parameters) {
         stopSearching();
         waitForSearchFinished();
 

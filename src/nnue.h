@@ -19,7 +19,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
 };
 constexpr int KING_BUCKETS = 12;
 
-constexpr int INPUT_SIZE = 2 * ThreatInputs::PieceOffsets::END + 768 * KING_BUCKETS;
+constexpr int INPUT_SIZE = ThreatInputs::FEATURE_COUNT + 768 * KING_BUCKETS;
 constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
@@ -27,9 +27,9 @@ constexpr int L3_SIZE = 32;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int NETWORK_SCALE = 287;
-constexpr int INPUT_QUANT = 362;
+constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
-constexpr int INPUT_SHIFT = 10;
+constexpr int INPUT_SHIFT = 9;
 
 constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
 
@@ -43,22 +43,24 @@ constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
 
 constexpr int L1_ITERATIONS = L1_SIZE / I16_VEC_SIZE;
 
-struct DirtyPiece {
-  Square origin;
-  Square target;
-  Piece piece;
-  Color pieceColor;
+struct DirtyThreat {
+  uint8_t piece;
+  uint8_t attackedPiece;
+  Square square;
+  uint8_t attackedSquare;
+
+  DirtyThreat() = default;
+
+  DirtyThreat(Piece _piece, Color _pieceColor, Piece _attackedPiece, Color _attackedPieceColor, Square _square, Square _attackedSquare, bool _add) {
+    piece = static_cast<uint8_t>(_piece | (_pieceColor << 3));
+    attackedPiece = static_cast<uint8_t>(_attackedPiece | (_attackedPieceColor << 3));
+    square = _square;
+    attackedSquare = static_cast<uint8_t>(_attackedSquare | (_add << 7));
+  }
+
 };
 
-struct DirtyThreat {
-  Piece piece;
-  Piece attackedPiece;
-  Square square;
-  Square attackedSquare;
-  Color pieceColor;
-  Color attackedColor;
-  bool add;
-};
+static_assert(sizeof(DirtyThreat) == 4);
 
 struct KingBucketInfo {
   uint8_t bucket;
@@ -76,8 +78,7 @@ struct Accumulator {
   alignas(ALIGNMENT) int16_t threatState[2][L1_SIZE];
   alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
 
-  DirtyPiece dirtyPieces[4];
-  int numDirtyPieces;
+  DirtyPiece dirtyPiece;
   DirtyThreat dirtyThreats[256];
   int numDirtyThreats;
 
@@ -93,7 +94,8 @@ struct FinnyEntry {
 };
 
 struct NetworkData {
-  alignas(ALIGNMENT) int16_t inputWeights[INPUT_SIZE * L1_SIZE];
+  alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+  alignas(ALIGNMENT) int8_t inputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -125,18 +127,15 @@ public:
 
   FinnyEntry finnyTable[2][KING_BUCKETS];
 
-  void addPiece(Square square, Piece piece, Color pieceColor);
-  void removePiece(Square square, Piece piece, Color pieceColor);
-  void movePiece(Square origin, Square target, Piece piece, Color pieceColor);
   void updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add);
 
   void incrementAccumulator();
   void decrementAccumulator();
-  void finalizeMove(Board* board);
+  void finalizeMove(Board* board, DirtyPiece dirtyPiece);
 
   void reset(Board* board);
   template<Color side>
-  __attribute_noinline__ void resetAccumulator(Board* board, Accumulator* acc);
+  void resetAccumulator(Board* board, Accumulator* acc);
 
   Eval evaluate(Board* board);
   template<Color side>
@@ -152,11 +151,11 @@ public:
   template<Color side>
   void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
-  template<Color side>
+  template<bool I8, Color side>
   void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
-  template<Color side>
+  template<bool I8, Color side>
   void subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
-  template<Color side>
+  template<bool I8, Color side>
   void addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex);
 
 };
@@ -206,7 +205,8 @@ public:
     }
   }
 
-  int16_t oldInputWeights[INPUT_SIZE * L1_SIZE];
+  int16_t oldInputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+  int8_t oldInputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
   int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   NetworkData nnzOutNet;
@@ -222,7 +222,8 @@ public:
     infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
     infile.close();
 
-    memcpy(oldInputWeights, nnzOutNet.inputWeights, sizeof(nnzOutNet.inputWeights));
+    memcpy(oldInputPsqWeights, nnzOutNet.inputPsqWeights, sizeof(nnzOutNet.inputPsqWeights));
+    memcpy(oldInputThreatWeights, nnzOutNet.inputThreatWeights, sizeof(nnzOutNet.inputThreatWeights));
     memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
 
@@ -234,9 +235,13 @@ public:
     for (int l1 = 0; l1 < L1_SIZE / 2; l1++) {
 
       // Input weights
-      for (int ip = 0; ip < INPUT_SIZE; ip++) {
-        nnzOutNet.inputWeights[ip * L1_SIZE + l1] = oldInputWeights[ip * L1_SIZE + order[l1]];
-        nnzOutNet.inputWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
+      for (int ip = 0; ip < 768 * KING_BUCKETS; ip++) {
+        nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1] = oldInputPsqWeights[ip * L1_SIZE + order[l1]];
+        nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputPsqWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
+      }
+      for (int ip = 0; ip < ThreatInputs::FEATURE_COUNT; ip++) {
+        nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1] = oldInputThreatWeights[ip * L1_SIZE + order[l1]];
+        nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputThreatWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
       }
 
       // Input biases
@@ -258,7 +263,8 @@ public:
         std::cerr << "Error opening file for writing" << std::endl;
         return;
     }
-    for (auto v : nnzOutNet.inputWeights) writeSLEB128(outfile, v);
+    for (auto v : nnzOutNet.inputPsqWeights) writeSLEB128(outfile, v);
+    for (auto v : nnzOutNet.inputThreatWeights) writeSLEB128(outfile, v);
     for (auto v : nnzOutNet.inputBiases)  writeSLEB128(outfile, v);
     for (auto& b : nnzOutNet.l1Weights)   for (auto v : b) writeSLEB128(outfile, v);
     for (auto& b : nnzOutNet.l1Biases)    for (auto v : b) writeFloat(outfile, v);

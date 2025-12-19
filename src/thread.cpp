@@ -18,7 +18,7 @@ void Worker::startSearching() {
     rootBoard = threadPool->rootBoard;
     boardHistory.clear();
     boardHistory.reserve(MAX_PLY + 1);
-    for (uint64_t hash : threadPool->rootBoardHistory) {
+    for (Hash hash : threadPool->rootBoardHistory) {
         boardHistory.push_back(hash);
     }
     memcpy(&rootBoard, &threadPool->rootBoard, sizeof(Board));

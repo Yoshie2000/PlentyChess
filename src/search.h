@@ -17,7 +17,7 @@ extern int LMP_MARGIN[MAX_PLY][2];
 
 void initReductions();
 
-uint64_t perft(Board& board, int16_t depth);
+uint64_t perft(Board& board, Depth depth);
 
 struct SearchParameters {
     bool perft; // Perft (requires depth)
@@ -32,7 +32,7 @@ struct SearchParameters {
     uint64_t winc; // White's increment per move (ms)
     uint64_t binc; // Black's increment per move (ms)
     int movestogo; // Moves to the next time control
-    int16_t depth; // Search depth
+    Depth depth; // Search depth
     uint64_t nodes; // Search exactly this many nodes
     int mate; // TODO: Search for mate in X moves
     uint64_t movetime; // Search exactly this many ms
@@ -75,6 +75,7 @@ struct SearchData {
     int64_t startTime;
     int64_t optTime;
     int64_t maxTime;
+    bool doSoftTM;
 
     SearchData() {
         nmpPlies = 0;
@@ -84,6 +85,7 @@ struct SearchData {
         startTime = 0;
         optTime = 0;
         maxTime = 0;
+        doSoftTM = true;
     }
 };
 

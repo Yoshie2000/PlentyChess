@@ -1,10 +1,58 @@
 #pragma once
 
 #if defined(ARCH_X86)
+
 #include <immintrin.h>
 #include <xmmintrin.h>
+
+using VecI16_v128 = __m128i;
+
+inline VecI16_v128 setZero_v128() {
+  return _mm_setzero_si128();
+}
+
+inline VecI16_v128 set1Epi16_v128(int i) {
+  return _mm_set1_epi16(i);
+}
+
+inline VecI16_v128 loadu_v128(const uint16_t* addr) {
+  return _mm_loadu_si128(reinterpret_cast<const VecI16_v128*>(addr));
+}
+
+inline void storeu_v128(uint16_t* addr, VecI16_v128 x) {
+  _mm_storeu_si128(reinterpret_cast<VecI16_v128*>(addr), x);
+}
+
+inline VecI16_v128 addEpi16_v128(VecI16_v128 x, VecI16_v128 y) {
+  return _mm_add_epi16(x, y);
+}
+
 #else
+
 #include <arm_neon.h>
+
+using VecI16_v128 = uint16x8_t;
+
+inline VecI16_v128 setZero_v128() {
+  return vdupq_n_u16(0);
+}
+
+inline VecI16_v128 set1Epi16_v128(int i) {
+  return vdupq_n_u16(i);
+}
+
+inline VecI16_v128 loadu_v128(const uint16_t* addr) {
+  return vld1q_u16(addr);
+}
+
+inline void storeu_v128(uint16_t* addr, VecI16_v128 x) {
+  vst1q_u16(addr, x);
+}
+
+inline VecI16_v128 addEpi16_v128(VecI16_v128 x, VecI16_v128 y) {
+  return vaddq_u16(x, y);
+}
+
 #endif
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
@@ -12,6 +60,7 @@
 using VecI8 = __m512i;
 using VecIu8 = __m512i;
 using VecI16 = __m512i;
+using VecI16s = __m256i;
 using VecIu16 = __m512i;
 using VecI32 = __m512i;
 using VecF = __m512;
@@ -22,6 +71,10 @@ inline VecI16 addEpi16(VecI16 x, VecI16 y) {
 
 inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return _mm512_sub_epi16(x, y);
+}
+
+inline VecI16 convertEpi8Epi16(VecI16s x) {
+  return _mm512_cvtepi8_epi16(x);
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
@@ -36,7 +89,7 @@ inline VecI16 set1Epi16(int i) {
   return _mm512_set1_epi16(i);
 }
 
-inline VecI16 set1Epi32(int i) {
+inline VecIu8 set1Epi32(int i) {
   return _mm512_set1_epi32(i);
 }
 
@@ -121,6 +174,7 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 using VecI8 = __m256i;
 using VecIu8 = __m256i;
 using VecI16 = __m256i;
+using VecI16s = __m128i;
 using VecIu16 = __m256i;
 using VecI32 = __m256i;
 using VecF = __m256;
@@ -131,6 +185,10 @@ inline VecI16 addEpi16(VecI16 x, VecI16 y) {
 
 inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return _mm256_sub_epi16(x, y);
+}
+
+inline VecI16 convertEpi8Epi16(VecI16s x) {
+  return _mm256_cvtepi8_epi16(x);
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
@@ -145,7 +203,7 @@ inline VecI16 set1Epi16(int i) {
   return _mm256_set1_epi16(i);
 }
 
-inline VecI16 set1Epi32(int i) {
+inline VecIu8 set1Epi32(int i) {
   return _mm256_set1_epi32(i);
 }
 
@@ -229,6 +287,7 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 using VecI8 = __m128i;
 using VecIu8 = __m128i;
 using VecI16 = __m128i;
+using VecI16s = uint64_t;
 using VecIu16 = __m128i;
 using VecI32 = __m128i;
 using VecF = __m128;
@@ -240,6 +299,20 @@ inline VecI16 addEpi16(VecI16 x, VecI16 y) {
 inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return _mm_sub_epi16(x, y);
 }
+
+#if defined(__FMA__)
+inline VecI16 convertEpi8Epi16(VecI16s x) {
+  return _mm_cvtepi8_epi16(_mm_set_epi64x(0, x));
+}
+#else
+inline VecI16 convertEpi8Epi16(VecI16s x) {
+  __m128i v8 = _mm_cvtsi64_si128(x);
+  v8 = _mm_slli_si128(v8, 8);
+  v8 = _mm_srli_si128(v8, 8);
+  __m128i sign = _mm_cmpgt_epi8(_mm_setzero_si128(), v8);
+  return _mm_unpacklo_epi8(v8, sign);
+}
+#endif
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
   return _mm_min_epi16(x, y);
@@ -253,7 +326,7 @@ inline VecI16 set1Epi16(int i) {
   return _mm_set1_epi16(i);
 }
 
-inline VecI16 set1Epi32(int i) {
+inline VecIu8 set1Epi32(int i) {
   return _mm_set1_epi32(i);
 }
 
@@ -341,6 +414,7 @@ inline uint32_t vecNNZ(VecI32 chunk) {
 using VecI8 = int8x16_t;
 using VecIu8 = uint8x16_t;
 using VecI16 = int16x8_t;
+using VecI16s = int8x8_t;
 using VecIu16 = uint16x8_t;
 using VecI32 = int32x4_t;
 using VecF = float32x4_t;
@@ -352,6 +426,10 @@ inline VecI16 addEpi16(VecI16 x, VecI16 y) {
 
 inline VecI16 subEpi16(VecI16 x, VecI16 y) {
   return vsubq_s16(x, y);
+}
+
+inline VecI16 convertEpi8Epi16(VecI16s x) {
+  return vshll_n_s8(x, 0);
 }
 
 inline VecI16 minEpi16(VecI16 x, VecI16 y) {
@@ -366,8 +444,8 @@ inline VecI16 set1Epi16(int i) {
   return vdupq_n_s16(i);
 }
 
-inline VecI32 set1Epi32(int i) {
-  return vdupq_n_s32(i);
+inline VecIu8 set1Epi32(int i) {
+  return vreinterpretq_u8_s32(vdupq_n_s32(i));
 }
 
 inline VecI16 srliEpi16(VecI16 x, int shift) {
