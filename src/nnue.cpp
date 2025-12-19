@@ -409,382 +409,284 @@ void NNUE::addSubToThreatAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outp
 }
 
 Eval NNUE::evaluate(Board* board) {
+    // Make sure the current accumulators are up to date
+    calculateAccumulators<Color::WHITE>();
+    calculateAccumulators<Color::BLACK>();
+
+    assert(lastCalculatedAccumulator[Color::WHITE] == currentAccumulator && lastCalculatedAccumulator[Color::BLACK] == currentAccumulator);
+
+    // Calculate output bucket based on piece count
     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
     constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
     int bucket = (pieceCount - 2) / divisor;
+    assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
 
-    // Input layer
-    float l0[2][L1_SIZE];
-    float l0p[2][L1_SIZE];
+    Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
-    std::memcpy(l0[0], rawNet.inputBiases, sizeof(rawNet.inputBiases));
-    std::memcpy(l0[1], rawNet.inputBiases, sizeof(rawNet.inputBiases));
-    std::memcpy(l0p[0], rawNet.inputPieceBiases, sizeof(rawNet.inputPieceBiases));
-    std::memcpy(l0p[1], rawNet.inputPieceBiases, sizeof(rawNet.inputPieceBiases));
+    VecI16* stmThreatAcc = reinterpret_cast<VecI16*>(accumulator->threatState[board->stm]);
+    VecI16* stmPieceAcc = reinterpret_cast<VecI16*>(accumulator->pieceState[board->stm]);
+    VecI16* oppThreatAcc = reinterpret_cast<VecI16*>(accumulator->threatState[1 - board->stm]);
+    VecI16* oppPieceAcc = reinterpret_cast<VecI16*>(accumulator->pieceState[1 - board->stm]);
 
-    for (Color side : {Color::WHITE, Color::BLACK}) {
+    VecI16 i16Zero = set1Epi16(0);
+    VecI16 i16Quant = set1Epi16(INPUT_QUANT);
 
-        ThreatInputs::FeatureList threatFeatures;
-        if (side == Color::WHITE)
-            ThreatInputs::addThreatFeatures<Color::WHITE>(board, threatFeatures);
-        else
-            ThreatInputs::addThreatFeatures<Color::BLACK>(board, threatFeatures);
-        for (int featureIndex : threatFeatures) {
-            for (int i = 0; i < L1_SIZE; i++) {
-                l0[side][i] += rawNet.inputWeights_threat[featureIndex * L1_SIZE + i];
-            }
+    // ---------------------- FT ACTIVATION & PAIRWISE ----------------------
+
+    alignas(ALIGNMENT) uint8_t pairwiseOutputs[2 * L1_SIZE];
+    VecIu8* pairwiseOutputsVec = reinterpret_cast<VecIu8*>(pairwiseOutputs);
+
+    constexpr int inverseShift = 16 - INPUT_SHIFT;
+    constexpr int pairwiseOffset = L1_SIZE / I16_VEC_SIZE / 2;
+    for (int pw = 0; pw < pairwiseOffset; pw += 2) {
+        // STM
+        VecI16 clipped1 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw], stmThreatAcc[pw]), i16Zero), i16Quant);
+        VecI16 clipped2 = minEpi16(addEpi16(stmPieceAcc[pw + pairwiseOffset], stmThreatAcc[pw + pairwiseOffset]), i16Quant);
+        VecI16 shift = slliEpi16(clipped1, inverseShift);
+        VecI16 mul1 = mulhiEpi16(shift, clipped2);
+
+        clipped1 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw + 1], stmThreatAcc[pw + 1]), i16Zero), i16Quant);
+        clipped2 = minEpi16(addEpi16(stmPieceAcc[pw + 1 + pairwiseOffset], stmThreatAcc[pw + 1 + pairwiseOffset]), i16Quant);
+        shift = slliEpi16(clipped1, inverseShift);
+        VecI16 mul2 = mulhiEpi16(shift, clipped2);
+
+        pairwiseOutputsVec[pw / 2] = packusEpi16(mul1, mul2);
+
+        // NSTM
+        clipped1 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw], oppThreatAcc[pw]), i16Zero), i16Quant);
+        clipped2 = minEpi16(addEpi16(oppPieceAcc[pw + pairwiseOffset], oppThreatAcc[pw + pairwiseOffset]), i16Quant);
+        shift = slliEpi16(clipped1, inverseShift);
+        mul1 = mulhiEpi16(shift, clipped2);
+
+        clipped1 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw + 1], oppThreatAcc[pw + 1]), i16Zero), i16Quant);
+        clipped2 = minEpi16(addEpi16(oppPieceAcc[pw + 1 + pairwiseOffset], oppThreatAcc[pw + 1 + pairwiseOffset]), i16Quant);
+        shift = slliEpi16(clipped1, inverseShift);
+        mul2 = mulhiEpi16(shift, clipped2);
+
+        pairwiseOutputsVec[pw / 2 + pairwiseOffset / 2] = packusEpi16(mul1, mul2);
+    }
+
+    // PST only L1
+    for (int pw = 2 * pairwiseOffset; pw < 3 * pairwiseOffset; pw += 2) {
+        // STM
+        VecI16 clipped1 = minEpi16(maxEpi16(stmPieceAcc[pw], i16Zero), i16Quant);
+        VecI16 clipped2 = minEpi16(stmPieceAcc[pw + pairwiseOffset], i16Quant);
+        VecI16 shift = slliEpi16(clipped1, inverseShift);
+        VecI16 mul1 = mulhiEpi16(shift, clipped2);
+
+        clipped1 = minEpi16(maxEpi16(stmPieceAcc[pw + 1], i16Zero), i16Quant);
+        clipped2 = minEpi16(stmPieceAcc[pw + 1 + pairwiseOffset], i16Quant);
+        shift = slliEpi16(clipped1, inverseShift);
+        VecI16 mul2 = mulhiEpi16(shift, clipped2);
+
+        pairwiseOutputsVec[pw / 2] = packusEpi16(mul1, mul2);
+
+        // NSTM
+        clipped1 = minEpi16(maxEpi16(oppPieceAcc[pw], i16Zero), i16Quant);
+        clipped2 = minEpi16(oppPieceAcc[pw + pairwiseOffset], i16Quant);
+        shift = slliEpi16(clipped1, inverseShift);
+        mul1 = mulhiEpi16(shift, clipped2);
+
+        clipped1 = minEpi16(maxEpi16(oppPieceAcc[pw + 1], i16Zero), i16Quant);
+        clipped2 = minEpi16(oppPieceAcc[pw + 1 + pairwiseOffset], i16Quant);
+        shift = slliEpi16(clipped1, inverseShift);
+        mul2 = mulhiEpi16(shift, clipped2);
+
+        pairwiseOutputsVec[pw / 2 + pairwiseOffset / 2] = packusEpi16(mul1, mul2);
+    }
+
+#if defined(PROCESS_NET)
+    nnz.addActivations(pairwiseOutputs);
+#endif
+
+    alignas(ALIGNMENT) int l1MatmulOutputs[L2_SIZE] = {};
+
+    // ---------------------- NNZ COMPUTATION ----------------------
+
+#if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
+    int nnzCount = 0;
+    alignas(ALIGNMENT) uint16_t nnzIndices[2 * L1_SIZE / INT8_PER_INT32];
+
+    VecI32* pairwiseOutputsVecI32 = reinterpret_cast<VecI32*>(pairwiseOutputs);
+    VecI16_v128 nnzZero = setZero_v128();
+    VecI16_v128 nnzIncrement = set1Epi16_v128(8);
+    for (int i = 0; i < 2 * L1_SIZE / INT8_PER_INT32 / 16; i++) {
+        uint32_t nnzMask = 0;
+
+        for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
+            nnzMask |= vecNNZ(pairwiseOutputsVecI32[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
         }
 
-        ThreatInputs::FeatureList pieceFeatures;
-        ThreatInputs::addPieceFeatures(board, side, pieceFeatures, KING_BUCKET_LAYOUT);
-        for (int featureIndex : pieceFeatures) {
-            int factoriserIndex = featureIndex % 768;
-            for (int i = 0; i < L1_SIZE; i++) {
-                l0[side][i] += rawNet.inputWeights_pst[featureIndex * L1_SIZE + i] + rawNet.inputWeights_factoriser[factoriserIndex * L1_SIZE + i];
-                l0p[side][i] += rawNet.inputWeights_pst2[featureIndex * L1_SIZE + i] + rawNet.inputWeights_factoriser2[factoriserIndex * L1_SIZE + i];
-            }
+        for (int j = 0; j < 16 / 8; j++) {
+            uint16_t lookup = (nnzMask >> (j * 8)) & 0xFF;
+            VecI16_v128 offsets = loadu_v128(nnzLookup[lookup]);
+            storeu_v128(nnzIndices + nnzCount, addEpi16_v128(nnzZero, offsets));
+            nnzCount += BB::popcount(lookup);
+            nnzZero = addEpi16_v128(nnzZero, nnzIncrement);
         }
     }
 
-    float l1[2 * L1_SIZE];
+    // ---------------------- SPARSE L1 PROPAGATION ----------------------
 
-    // Activate & Pairwise
-    float* l0_stm = board->stm == Color::WHITE ? l0[0] : l0[1];
-    float* l0_ntm = board->stm == Color::WHITE ? l0[1] : l0[0];
-    float* l0p_stm = board->stm == Color::WHITE ? l0p[0] : l0p[1];
-    float* l0p_ntm = board->stm == Color::WHITE ? l0p[1] : l0p[0];
-    for (int i = 0; i < L1_SIZE / 2; i++) {
-        float clamped1 = std::clamp(l0_stm[i], 0.0f, 1.0f);
-        float clamped2 = std::clamp(l0_stm[i + L1_SIZE / 2], 0.0f, 1.0f);
-        l1[i] = clamped1 * clamped2;
+    int* pairwiseOutputsPacks = reinterpret_cast<int*>(pairwiseOutputs);
+    VecI32* l1MatmulOutputsVec = reinterpret_cast<VecI32*>(l1MatmulOutputs);
+    int8_t* l1Weights = networkData->l1Weights[bucket];
 
-        clamped1 = std::clamp(l0_ntm[i], 0.0f, 1.0f);
-        clamped2 = std::clamp(l0_ntm[i + L1_SIZE / 2], 0.0f, 1.0f);
-        l1[i + L1_SIZE / 2] = clamped1 * clamped2;
+#if defined(__AVX512VNNI__)
+    VecI32 acc0{}, acc1{};
 
-        clamped1 = std::clamp(l0p_stm[i], 0.0f, 1.0f);
-        clamped2 = std::clamp(l0p_stm[i + L1_SIZE / 2], 0.0f, 1.0f);
-        l1[i + L1_SIZE] = clamped1 * clamped2;
+    int i = 0;
+    for (; i < nnzCount - 3; i += 4) {
+        int pw_1 = nnzIndices[i];
+        int pw_2 = nnzIndices[i + 1];
+        int pw_3 = nnzIndices[i + 2];
+        int pw_4 = nnzIndices[i + 3];
+        VecIu8 u8_1 = set1Epi32(pairwiseOutputsPacks[pw_1]);
+        VecIu8 u8_2 = set1Epi32(pairwiseOutputsPacks[pw_2]);
+        VecIu8 u8_3 = set1Epi32(pairwiseOutputsPacks[pw_3]);
+        VecIu8 u8_4 = set1Epi32(pairwiseOutputsPacks[pw_4]);
+        VecI8* weights_1 = reinterpret_cast<VecI8*>(&l1Weights[pw_1 * INT8_PER_INT32 * L2_SIZE]);
+        VecI8* weights_2 = reinterpret_cast<VecI8*>(&l1Weights[pw_2 * INT8_PER_INT32 * L2_SIZE]);
+        VecI8* weights_3 = reinterpret_cast<VecI8*>(&l1Weights[pw_3 * INT8_PER_INT32 * L2_SIZE]);
+        VecI8* weights_4 = reinterpret_cast<VecI8*>(&l1Weights[pw_4 * INT8_PER_INT32 * L2_SIZE]);
 
-        clamped1 = std::clamp(l0p_ntm[i], 0.0f, 1.0f);
-        clamped2 = std::clamp(l0p_ntm[i + L1_SIZE / 2], 0.0f, 1.0f);
-        l1[i + 3 * L1_SIZE / 2] = clamped1 * clamped2;
+        acc0 = dpbusdEpi32x2(acc0, u8_1, weights_1[0], u8_2, weights_2[0]);
+        acc1 = dpbusdEpi32x2(acc1, u8_3, weights_3[0], u8_4, weights_4[0]);
     }
 
-    // L1
-    float l2[L2_SIZE];
-    std::memcpy(l2, rawNet.l1Biases[bucket], sizeof(rawNet.l1Biases[bucket]));
-    for (int l1i = 0; l1i < 2 * L1_SIZE; l1i++) {
-        for (int l2i = 0; l2i < L2_SIZE; l2i++) {
-            l2[l2i] += l1[l1i] * rawNet.l1Weights[l1i][bucket][l2i];
+    l1MatmulOutputsVec[0] = _mm512_add_epi32(acc0, acc1);
+#else
+    int i = 0;
+    for (; i < nnzCount - 1; i += 2) {
+        int pw_1 = nnzIndices[i];
+        int pw_2 = nnzIndices[i + 1];
+        VecIu8 u8_1 = set1Epi32(pairwiseOutputsPacks[pw_1]);
+        VecIu8 u8_2 = set1Epi32(pairwiseOutputsPacks[pw_2]);
+        VecI8* weights_1 = reinterpret_cast<VecI8*>(&l1Weights[pw_1 * INT8_PER_INT32 * L2_SIZE]);
+        VecI8* weights_2 = reinterpret_cast<VecI8*>(&l1Weights[pw_2 * INT8_PER_INT32 * L2_SIZE]);
+
+        for (int l1 = 0; l1 < L2_SIZE / I32_VEC_SIZE; l1++) {
+            l1MatmulOutputsVec[l1] = dpbusdEpi32x2(l1MatmulOutputsVec[l1], u8_1, weights_1[l1], u8_2, weights_2[l1]);
         }
     }
-    float l2out[2 * L2_SIZE];
-    for (int l2i = 0; l2i < L2_SIZE; l2i++) {
-        l2out[l2i] = std::clamp(l2[l2i], 0.0f, 1.0f);
-        l2out[l2i + L2_SIZE] = std::clamp(l2[l2i] * l2[l2i], 0.0f, 1.0f);
-    }
+#endif
 
-    // L2
-    float l3[L3_SIZE];
-    std::memcpy(l3, rawNet.l2Biases[bucket], sizeof(rawNet.l2Biases[bucket]));
-    for (int l2i = 0; l2i < 2 * L2_SIZE; l2i++) {
-        for (int l3i = 0; l3i < L3_SIZE; l3i++) {
-            l3[l3i] += l2out[l2i] * rawNet.l2Weights[l2i][bucket][l3i];
+    for (; i < nnzCount; i++) {
+        int pw = nnzIndices[i];
+        VecIu8 u8 = set1Epi32(pairwiseOutputsPacks[pw]);
+        VecI8* weights = reinterpret_cast<VecI8*>(&l1Weights[pw * INT8_PER_INT32 * L2_SIZE]);
+
+        for (int l1 = 0; l1 < L2_SIZE / I32_VEC_SIZE; l1++) {
+            l1MatmulOutputsVec[l1] = dpbusdEpi32(l1MatmulOutputsVec[l1], u8, weights[l1]);
         }
     }
-    float l3out[L3_SIZE];
-    for (int l3i = 0; l3i < L3_SIZE; l3i++) {
-        l3out[l3i] = std::clamp(l3[l3i], 0.0f, 1.0f);
-        l3out[l3i] *= l3out[l3i];
+
+#else
+    for (int ft = 0; ft < 2 * L1_SIZE; ft++) {
+        if (!pairwiseOutputs[ft])
+            continue;
+
+        for (int l1 = 0; l1 < L2_SIZE; l1++) {
+            l1MatmulOutputs[l1] += pairwiseOutputs[ft] * networkData->l1Weights[bucket][ft * L2_SIZE + l1];
+        }
+    }
+#endif
+
+    // ---------------------- CONVERT TO FLOATS & ACTIVATE L1 ----------------------
+
+    alignas(ALIGNMENT) float l1Outputs[2 * L2_SIZE];
+#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
+
+    VecF psNorm = set1Ps(L1_NORMALISATION);
+    VecF psZero = set1Ps(0.0f);
+    VecF psOne = set1Ps(1.0f);
+
+    VecF* l1Biases = reinterpret_cast<VecF*>(networkData->l1Biases[bucket]);
+    VecF* l1OutputsVec = reinterpret_cast<VecF*>(l1Outputs);
+
+    for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
+        VecF converted = cvtepi32Ps(l1MatmulOutputsVec[l2]);
+        VecF l1Result = fmaddPs(converted, psNorm, l1Biases[l2]);
+        l1OutputsVec[l2] = maxPs(minPs(l1Result, psOne), psZero);
+        l1OutputsVec[l2 + L2_SIZE / FLOAT_VEC_SIZE] = minPs(mulPs(l1Result, l1Result), psOne);
+    }
+#else
+    for (int l1 = 0; l1 < L2_SIZE; l1++) {
+        float l1Result = std::fma(static_cast<float>(l1MatmulOutputs[l1]), L1_NORMALISATION, networkData->l1Biases[bucket][l1]);
+        l1Outputs[l1] = std::clamp(l1Result, 0.0f, 1.0f);
+        l1Outputs[l1 + L2_SIZE] = std::clamp(l1Result * l1Result, 0.0f, 1.0f);
+    }
+#endif
+
+    // ---------------------- L2 PROPAGATION & ACTIVATION ----------------------
+
+    alignas(ALIGNMENT) float l2Outputs[L3_SIZE];
+    memcpy(l2Outputs, networkData->l2Biases[bucket], sizeof(l2Outputs));
+
+#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
+    VecF* l2OutputsVec = reinterpret_cast<VecF*>(l2Outputs);
+    for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
+        VecF l1Vec = set1Ps(l1Outputs[l1]);
+        VecF* weights = reinterpret_cast<VecF*>(&networkData->l2Weights[bucket][l1 * L3_SIZE]);
+        for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
+            l2OutputsVec[l2] = fmaddPs(l1Vec, weights[l2], l2OutputsVec[l2]);
+        }
+    }
+    for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
+        VecF l2Activated = maxPs(minPs(l2OutputsVec[l2], psOne), psZero);
+        l2OutputsVec[l2] = mulPs(l2Activated, l2Activated);
+    }
+#else
+    for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
+        for (int l2 = 0; l2 < L3_SIZE; l2++) {
+            l2Outputs[l2] = std::fma(l1Outputs[l1], networkData->l2Weights[bucket][l1 * L3_SIZE + l2], l2Outputs[l2]);
+        }
+    }
+    for (int l2 = 0; l2 < L3_SIZE; l2++) {
+        float l2Activated = std::clamp(l2Outputs[l2], 0.0f, 1.0f);
+        l2Outputs[l2] = l2Activated * l2Activated;
+    }
+#endif
+
+    // ---------------------- L3 PROPAGATION ----------------------
+
+#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
+    constexpr int chunks = 64 / sizeof(VecF);
+
+    VecF resultSums[chunks];
+    for (int j = 0; j < chunks; j++)
+        resultSums[j] = psZero;
+
+    VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData->l3Weights[bucket]);
+    for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2 += chunks) {
+        for (int chunk = 0; chunk < chunks; chunk++) {
+            resultSums[chunk] = fmaddPs(l2OutputsVec[l2 + chunk], l3WeightsVec[l2 + chunk], resultSums[chunk]);
+        }
+    }
+    for (int l1 = 0; l1 < 2 * L2_SIZE / FLOAT_VEC_SIZE; l1 += chunks) {
+        for (int chunk = 0; chunk < chunks; chunk++) {
+            resultSums[chunk] = fmaddPs(l1OutputsVec[l1 + chunk], l3WeightsVec[L3_SIZE / FLOAT_VEC_SIZE + l1 + chunk], resultSums[chunk]);
+        }
     }
 
-    // L3
-    float out = rawNet.l3Biases[bucket];
-    for (int l3i = 0; l3i < L3_SIZE; l3i++) {
-        out += l3out[l3i] * rawNet.l3Weights[l3i][bucket];
-        out += l2out[l3i] * rawNet.l3Weights[l3i + L3_SIZE][bucket];
+    float result = networkData->l3Biases[bucket] + reduceAddPs(resultSums);
+#else
+    constexpr int chunks = 64 / sizeof(float);
+    float resultSums[chunks] = {};
+
+    for (int l2 = 0; l2 < L3_SIZE; l2 += chunks) {
+        for (int chunk = 0; chunk < chunks; chunk++) {
+            resultSums[chunk] = std::fma(l2Outputs[l2 + chunk], networkData->l3Weights[bucket][l2 + chunk], resultSums[chunk]);
+        }
     }
-    return out * NETWORK_SCALE;
+    for (int l1 = 0; l1 < 2 * L2_SIZE; l1 += chunks) {
+        for (int chunk = 0; chunk < chunks; chunk++) {
+            resultSums[chunk] = std::fma(l1Outputs[l1 + chunk], networkData->l3Weights[bucket][L3_SIZE + l1 + chunk], resultSums[chunk]);
+        }
+    }
 
-    //     // Make sure the current accumulators are up to date
-    //     calculateAccumulators<Color::WHITE>();
-    //     calculateAccumulators<Color::BLACK>();
+    float result = networkData->l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
+#endif
 
-    //     assert(lastCalculatedAccumulator[Color::WHITE] == currentAccumulator && lastCalculatedAccumulator[Color::BLACK] == currentAccumulator);
-
-    //     // Calculate output bucket based on piece count
-    //     int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
-    //     constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-    //     int bucket = (pieceCount - 2) / divisor;
-    //     assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
-
-    //     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
-
-    //     VecI16* stmThreatAcc = reinterpret_cast<VecI16*>(accumulator->threatState[board->stm]);
-    //     VecI16* stmPieceAcc = reinterpret_cast<VecI16*>(accumulator->pieceState[board->stm]);
-    //     VecI16* oppThreatAcc = reinterpret_cast<VecI16*>(accumulator->threatState[1 - board->stm]);
-    //     VecI16* oppPieceAcc = reinterpret_cast<VecI16*>(accumulator->pieceState[1 - board->stm]);
-
-    //     VecI16 i16Zero = set1Epi16(0);
-    //     VecI16 i16Quant = set1Epi16(INPUT_QUANT);
-
-    //     // ---------------------- FT ACTIVATION & PAIRWISE ----------------------
-
-    //     alignas(ALIGNMENT) uint8_t pairwiseOutputs[2 * L1_SIZE];
-    //     VecIu8* pairwiseOutputsVec = reinterpret_cast<VecIu8*>(pairwiseOutputs);
-
-    //     constexpr int inverseShift = 16 - INPUT_SHIFT;
-    //     constexpr int pairwiseOffset = L1_SIZE / I16_VEC_SIZE / 2;
-    //     for (int pw = 0; pw < pairwiseOffset; pw += 2) {
-    //         // STM
-    //         VecI16 clipped1 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw], stmThreatAcc[pw]), i16Zero), i16Quant);
-    //         VecI16 clipped2 = minEpi16(addEpi16(stmPieceAcc[pw + pairwiseOffset], stmThreatAcc[pw + pairwiseOffset]), i16Quant);
-    //         VecI16 shift = slliEpi16(clipped1, inverseShift);
-    //         VecI16 mul1 = mulhiEpi16(shift, clipped2);
-
-    //         clipped1 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw + 1], stmThreatAcc[pw + 1]), i16Zero), i16Quant);
-    //         clipped2 = minEpi16(addEpi16(stmPieceAcc[pw + 1 + pairwiseOffset], stmThreatAcc[pw + 1 + pairwiseOffset]), i16Quant);
-    //         shift = slliEpi16(clipped1, inverseShift);
-    //         VecI16 mul2 = mulhiEpi16(shift, clipped2);
-
-    //         pairwiseOutputsVec[pw / 2] = packusEpi16(mul1, mul2);
-
-    //         // NSTM
-    //         clipped1 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw], oppThreatAcc[pw]), i16Zero), i16Quant);
-    //         clipped2 = minEpi16(addEpi16(oppPieceAcc[pw + pairwiseOffset], oppThreatAcc[pw + pairwiseOffset]), i16Quant);
-    //         shift = slliEpi16(clipped1, inverseShift);
-    //         mul1 = mulhiEpi16(shift, clipped2);
-
-    //         clipped1 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw + 1], oppThreatAcc[pw + 1]), i16Zero), i16Quant);
-    //         clipped2 = minEpi16(addEpi16(oppPieceAcc[pw + 1 + pairwiseOffset], oppThreatAcc[pw + 1 + pairwiseOffset]), i16Quant);
-    //         shift = slliEpi16(clipped1, inverseShift);
-    //         mul2 = mulhiEpi16(shift, clipped2);
-
-    //         pairwiseOutputsVec[pw / 2 + pairwiseOffset / 2] = packusEpi16(mul1, mul2);
-    //     }
-
-    //     // PST only L1
-    //     for (int pw = 2 * pairwiseOffset; pw < 3 * pairwiseOffset; pw += 2) {
-    //         // STM
-    //         VecI16 clipped1 = minEpi16(maxEpi16(stmPieceAcc[pw], i16Zero), i16Quant);
-    //         VecI16 clipped2 = minEpi16(stmPieceAcc[pw + pairwiseOffset], i16Quant);
-    //         VecI16 shift = slliEpi16(clipped1, inverseShift);
-    //         VecI16 mul1 = mulhiEpi16(shift, clipped2);
-
-    //         clipped1 = minEpi16(maxEpi16(stmPieceAcc[pw + 1], i16Zero), i16Quant);
-    //         clipped2 = minEpi16(stmPieceAcc[pw + 1 + pairwiseOffset], i16Quant);
-    //         shift = slliEpi16(clipped1, inverseShift);
-    //         VecI16 mul2 = mulhiEpi16(shift, clipped2);
-
-    //         pairwiseOutputsVec[pw / 2] = packusEpi16(mul1, mul2);
-
-    //         // NSTM
-    //         clipped1 = minEpi16(maxEpi16(oppPieceAcc[pw], i16Zero), i16Quant);
-    //         clipped2 = minEpi16(oppPieceAcc[pw + pairwiseOffset], i16Quant);
-    //         shift = slliEpi16(clipped1, inverseShift);
-    //         mul1 = mulhiEpi16(shift, clipped2);
-
-    //         clipped1 = minEpi16(maxEpi16(oppPieceAcc[pw + 1], i16Zero), i16Quant);
-    //         clipped2 = minEpi16(oppPieceAcc[pw + 1 + pairwiseOffset], i16Quant);
-    //         shift = slliEpi16(clipped1, inverseShift);
-    //         mul2 = mulhiEpi16(shift, clipped2);
-
-    //         pairwiseOutputsVec[pw / 2 + pairwiseOffset / 2] = packusEpi16(mul1, mul2);
-    //     }
-
-    // #if defined(PROCESS_NET)
-    //     nnz.addActivations(pairwiseOutputs);
-    // #endif
-
-    //     alignas(ALIGNMENT) int l1MatmulOutputs[L2_SIZE] = {};
-
-    //     // ---------------------- NNZ COMPUTATION ----------------------
-
-    // #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-    //     int nnzCount = 0;
-    //     alignas(ALIGNMENT) uint16_t nnzIndices[2 * L1_SIZE / INT8_PER_INT32];
-
-    //     VecI32* pairwiseOutputsVecI32 = reinterpret_cast<VecI32*>(pairwiseOutputs);
-    //     VecI16_v128 nnzZero = setZero_v128();
-    //     VecI16_v128 nnzIncrement = set1Epi16_v128(8);
-    //     for (int i = 0; i < 2 * L1_SIZE / INT8_PER_INT32 / 16; i++) {
-    //         uint32_t nnzMask = 0;
-
-    //         for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
-    //             nnzMask |= vecNNZ(pairwiseOutputsVecI32[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
-    //         }
-
-    //         for (int j = 0; j < 16 / 8; j++) {
-    //             uint16_t lookup = (nnzMask >> (j * 8)) & 0xFF;
-    //             VecI16_v128 offsets = loadu_v128(nnzLookup[lookup]);
-    //             storeu_v128(nnzIndices + nnzCount, addEpi16_v128(nnzZero, offsets));
-    //             nnzCount += BB::popcount(lookup);
-    //             nnzZero = addEpi16_v128(nnzZero, nnzIncrement);
-    //         }
-    //     }
-
-    //     // ---------------------- SPARSE L1 PROPAGATION ----------------------
-
-    //     int* pairwiseOutputsPacks = reinterpret_cast<int*>(pairwiseOutputs);
-    //     VecI32* l1MatmulOutputsVec = reinterpret_cast<VecI32*>(l1MatmulOutputs);
-    //     int8_t* l1Weights = networkData->l1Weights[bucket];
-
-    // #if defined(__AVX512VNNI__)
-    //     VecI32 acc0{}, acc1{};
-
-    //     int i = 0;
-    //     for (; i < nnzCount - 3; i += 4) {
-    //         int pw_1 = nnzIndices[i];
-    //         int pw_2 = nnzIndices[i + 1];
-    //         int pw_3 = nnzIndices[i + 2];
-    //         int pw_4 = nnzIndices[i + 3];
-    //         VecIu8 u8_1 = set1Epi32(pairwiseOutputsPacks[pw_1]);
-    //         VecIu8 u8_2 = set1Epi32(pairwiseOutputsPacks[pw_2]);
-    //         VecIu8 u8_3 = set1Epi32(pairwiseOutputsPacks[pw_3]);
-    //         VecIu8 u8_4 = set1Epi32(pairwiseOutputsPacks[pw_4]);
-    //         VecI8* weights_1 = reinterpret_cast<VecI8*>(&l1Weights[pw_1 * INT8_PER_INT32 * L2_SIZE]);
-    //         VecI8* weights_2 = reinterpret_cast<VecI8*>(&l1Weights[pw_2 * INT8_PER_INT32 * L2_SIZE]);
-    //         VecI8* weights_3 = reinterpret_cast<VecI8*>(&l1Weights[pw_3 * INT8_PER_INT32 * L2_SIZE]);
-    //         VecI8* weights_4 = reinterpret_cast<VecI8*>(&l1Weights[pw_4 * INT8_PER_INT32 * L2_SIZE]);
-
-    //         acc0 = dpbusdEpi32x2(acc0, u8_1, weights_1[0], u8_2, weights_2[0]);
-    //         acc1 = dpbusdEpi32x2(acc1, u8_3, weights_3[0], u8_4, weights_4[0]);
-    //     }
-
-    //     l1MatmulOutputsVec[0] = _mm512_add_epi32(acc0, acc1);
-    // #else
-    //     int i = 0;
-    //     for (; i < nnzCount - 1; i += 2) {
-    //         int pw_1 = nnzIndices[i];
-    //         int pw_2 = nnzIndices[i + 1];
-    //         VecIu8 u8_1 = set1Epi32(pairwiseOutputsPacks[pw_1]);
-    //         VecIu8 u8_2 = set1Epi32(pairwiseOutputsPacks[pw_2]);
-    //         VecI8* weights_1 = reinterpret_cast<VecI8*>(&l1Weights[pw_1 * INT8_PER_INT32 * L2_SIZE]);
-    //         VecI8* weights_2 = reinterpret_cast<VecI8*>(&l1Weights[pw_2 * INT8_PER_INT32 * L2_SIZE]);
-
-    //         for (int l1 = 0; l1 < L2_SIZE / I32_VEC_SIZE; l1++) {
-    //             l1MatmulOutputsVec[l1] = dpbusdEpi32x2(l1MatmulOutputsVec[l1], u8_1, weights_1[l1], u8_2, weights_2[l1]);
-    //         }
-    //     }
-    // #endif
-
-    //     for (; i < nnzCount; i++) {
-    //         int pw = nnzIndices[i];
-    //         VecIu8 u8 = set1Epi32(pairwiseOutputsPacks[pw]);
-    //         VecI8* weights = reinterpret_cast<VecI8*>(&l1Weights[pw * INT8_PER_INT32 * L2_SIZE]);
-
-    //         for (int l1 = 0; l1 < L2_SIZE / I32_VEC_SIZE; l1++) {
-    //             l1MatmulOutputsVec[l1] = dpbusdEpi32(l1MatmulOutputsVec[l1], u8, weights[l1]);
-    //         }
-    //     }
-
-    // #else
-    //     for (int ft = 0; ft < 2 * L1_SIZE; ft++) {
-    //         if (!pairwiseOutputs[ft])
-    //             continue;
-
-    //         for (int l1 = 0; l1 < L2_SIZE; l1++) {
-    //             l1MatmulOutputs[l1] += pairwiseOutputs[ft] * networkData->l1Weights[bucket][ft * L2_SIZE + l1];
-    //         }
-    //     }
-    // #endif
-
-    //     // ---------------------- CONVERT TO FLOATS & ACTIVATE L1 ----------------------
-
-    //     alignas(ALIGNMENT) float l1Outputs[2 * L2_SIZE];
-    // #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-
-    //     VecF psNorm = set1Ps(L1_NORMALISATION);
-    //     VecF psZero = set1Ps(0.0f);
-    //     VecF psOne = set1Ps(1.0f);
-
-    //     VecF* l1Biases = reinterpret_cast<VecF*>(networkData->l1Biases[bucket]);
-    //     VecF* l1OutputsVec = reinterpret_cast<VecF*>(l1Outputs);
-
-    //     for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
-    //         VecF converted = cvtepi32Ps(l1MatmulOutputsVec[l2]);
-    //         VecF l1Result = fmaddPs(converted, psNorm, l1Biases[l2]);
-    //         l1OutputsVec[l2] = maxPs(minPs(l1Result, psOne), psZero);
-    //         l1OutputsVec[l2 + L2_SIZE / FLOAT_VEC_SIZE] = minPs(mulPs(l1Result, l1Result), psOne);
-    //     }
-    // #else
-    //     for (int l1 = 0; l1 < L2_SIZE; l1++) {
-    //         float l1Result = std::fma(static_cast<float>(l1MatmulOutputs[l1]), L1_NORMALISATION, networkData->l1Biases[bucket][l1]);
-    //         l1Outputs[l1] = std::clamp(l1Result, 0.0f, 1.0f);
-    //         l1Outputs[l1 + L2_SIZE] = std::clamp(l1Result * l1Result, 0.0f, 1.0f);
-    //     }
-    // #endif
-
-    //     // ---------------------- L2 PROPAGATION & ACTIVATION ----------------------
-
-    //     alignas(ALIGNMENT) float l2Outputs[L3_SIZE];
-    //     memcpy(l2Outputs, networkData->l2Biases[bucket], sizeof(l2Outputs));
-
-    // #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-    //     VecF* l2OutputsVec = reinterpret_cast<VecF*>(l2Outputs);
-    //     for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
-    //         VecF l1Vec = set1Ps(l1Outputs[l1]);
-    //         VecF* weights = reinterpret_cast<VecF*>(&networkData->l2Weights[bucket][l1 * L3_SIZE]);
-    //         for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
-    //             l2OutputsVec[l2] = fmaddPs(l1Vec, weights[l2], l2OutputsVec[l2]);
-    //         }
-    //     }
-    //     for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
-    //         VecF l2Activated = maxPs(minPs(l2OutputsVec[l2], psOne), psZero);
-    //         l2OutputsVec[l2] = mulPs(l2Activated, l2Activated);
-    //     }
-    // #else
-    //     for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
-    //         for (int l2 = 0; l2 < L3_SIZE; l2++) {
-    //             l2Outputs[l2] = std::fma(l1Outputs[l1], networkData->l2Weights[bucket][l1 * L3_SIZE + l2], l2Outputs[l2]);
-    //         }
-    //     }
-    //     for (int l2 = 0; l2 < L3_SIZE; l2++) {
-    //         float l2Activated = std::clamp(l2Outputs[l2], 0.0f, 1.0f);
-    //         l2Outputs[l2] = l2Activated * l2Activated;
-    //     }
-    // #endif
-
-    //     // ---------------------- L3 PROPAGATION ----------------------
-
-    // #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-    //     constexpr int chunks = 64 / sizeof(VecF);
-
-    //     VecF resultSums[chunks];
-    //     for (int j = 0; j < chunks; j++)
-    //         resultSums[j] = psZero;
-
-    //     VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData->l3Weights[bucket]);
-    //     for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2 += chunks) {
-    //         for (int chunk = 0; chunk < chunks; chunk++) {
-    //             resultSums[chunk] = fmaddPs(l2OutputsVec[l2 + chunk], l3WeightsVec[l2 + chunk], resultSums[chunk]);
-    //         }
-    //     }
-    //     for (int l1 = 0; l1 < 2 * L2_SIZE / FLOAT_VEC_SIZE; l1 += chunks) {
-    //         for (int chunk = 0; chunk < chunks; chunk++) {
-    //             resultSums[chunk] = fmaddPs(l1OutputsVec[l1 + chunk], l3WeightsVec[L3_SIZE / FLOAT_VEC_SIZE + l1 + chunk], resultSums[chunk]);
-    //         }
-    //     }
-
-    //     float result = networkData->l3Biases[bucket] + reduceAddPs(resultSums);
-    // #else
-    //     constexpr int chunks = 64 / sizeof(float);
-    //     float resultSums[chunks] = {};
-
-    //     for (int l2 = 0; l2 < L3_SIZE; l2 += chunks) {
-    //         for (int chunk = 0; chunk < chunks; chunk++) {
-    //             resultSums[chunk] = std::fma(l2Outputs[l2 + chunk], networkData->l3Weights[bucket][l2 + chunk], resultSums[chunk]);
-    //         }
-    //     }
-    //     for (int l1 = 0; l1 < 2 * L2_SIZE; l1 += chunks) {
-    //         for (int chunk = 0; chunk < chunks; chunk++) {
-    //             resultSums[chunk] = std::fma(l1Outputs[l1 + chunk], networkData->l3Weights[bucket][L3_SIZE + l1 + chunk], resultSums[chunk]);
-    //         }
-    //     }
-
-    //     float result = networkData->l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
-    // #endif
-
-    //     return result * NETWORK_SCALE;
+    return result * NETWORK_SCALE;
 }

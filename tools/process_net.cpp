@@ -106,15 +106,11 @@ void quantizeNetwork() {
     for (int w = 0; w < THREAT_INPUT_SIZE * L1_SIZE; w++) {
         tmp.inputThreatWeights[w] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights_threat[w]), -128, 127);
     }
-    for (int kb = 0; kb < KING_BUCKETS; kb++) {
-        for (int f = 0; f < 768; f++) {
-            for (int l1 = 0; l1 < L1_SIZE; l1++) {
-                int w = f * L1_SIZE + l1;
-                int psqIdx = kb * 768 * L1_SIZE + w;
-                int outIdx = kb * 768 * 2 * L1_SIZE + w;
-                tmp.inputPsqWeights[outIdx] = quantize<INPUT_QUANT>(raw.inputWeights_pst[psqIdx] + raw.inputWeights_factoriser[w]);
-                tmp.inputPsqWeights[outIdx + L1_SIZE] = quantize<INPUT_QUANT>(raw.inputWeights_pst2[psqIdx] + raw.inputWeights_factoriser2[w]);
-            }
+    for (int featureIndex = 0; featureIndex < KING_BUCKETS * 768; featureIndex++) {
+        int factoriserIndex = featureIndex % 768;
+        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+            tmp.inputPsqWeights[featureIndex * 2 * L1_SIZE + l1] = quantize<INPUT_QUANT>(raw.inputWeights_pst[featureIndex * L1_SIZE + l1] + raw.inputWeights_factoriser[factoriserIndex * L1_SIZE + l1]);
+            tmp.inputPsqWeights[featureIndex * 2 * L1_SIZE + l1 + L1_SIZE] = quantize<INPUT_QUANT>(raw.inputWeights_pst2[featureIndex * L1_SIZE + l1] + raw.inputWeights_factoriser2[factoriserIndex * L1_SIZE + l1]);
         }
     }
 
