@@ -1,7 +1,7 @@
 CXX = clang++
 CC  = $(CXX)
 CFLAGS = -w -pthread -O3
-CXXFLAGS = -std=c++17 -Wall -pedantic -Wextra -fcommon -pthread -O3
+CXXFLAGS = -std=c++17 -Wall -Wextra -pedantic -Werror -Wshadow -fcommon -pthread -O3
 LDFLAGS = 
 CXXFLAGS_EXTRA = 
 

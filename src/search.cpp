@@ -77,7 +77,7 @@ TUNE_INT(staticHistoryMin, -172, -500, -1);
 TUNE_INT(staticHistoryMax, 286, 1, 500);
 TUNE_INT(staticHistoryTempo, 27, 1, 60);
 
-TUNE_INT(rfpDepth, 1450, 200, 2000);
+TUNE_INT(rfpDepthLimit, 1450, 200, 2000);
 TUNE_INT(rfpBase, 17, -100, 100);
 TUNE_INT(rfpFactorLinear, 31, 1, 60);
 TUNE_INT(rfpFactorQuadratic, 700, 1, 1200);
@@ -776,7 +776,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // Reverse futility pruning
-    if (!rootNode && depth <= rfpDepth && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
+    if (!rootNode && depth <= rfpDepthLimit && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
         int rfpMargin, rfpDepth;
         if (board->checkers) {
             rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());

@@ -10,7 +10,7 @@
 #include "history.h"
 #include "uci.h"
 
-Worker::Worker(ThreadPool* threadPool, int threadId) : threadPool(threadPool), threadId(threadId), mainThread(threadId == 0) {
+Worker::Worker(ThreadPool* _threadPool, int _threadId) : threadPool(_threadPool), threadId(_threadId), mainThread(threadId == 0) {
     history.initHistory();
 }
 
