@@ -36,24 +36,6 @@ alignas(ALIGNMENT) uint16_t nnzLookup[256][8];
 NNZ nnz;
 #endif
 
-struct RawNetworkData {
-    float inputWeights_threat[ThreatInputs::FEATURE_COUNT * L1_SIZE];
-    float inputWeights_factoriser[768 * L1_SIZE];
-    float inputWeights_pst[768 * KING_BUCKETS * L1_SIZE];
-    float inputWeights_factoriser2[768 * L1_SIZE];
-    float inputWeights_pst2[768 * KING_BUCKETS * L1_SIZE];
-    float inputBiases[L1_SIZE];
-    float inputPieceBiases[L1_SIZE];
-    float l1Weights[2 * L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
-    float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-    float l2Weights[2 * L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
-    float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-    float l3Weights[L3_SIZE + 2 * L2_SIZE][OUTPUT_BUCKETS];
-    float l3Biases[OUTPUT_BUCKETS];
-};
-
-RawNetworkData rawNet;
-
 void initNetworkData() {
     ThreatInputs::initialise();
 
@@ -66,9 +48,6 @@ void initNetworkData() {
     }
 
     networkData = (NetworkData*)gNETWORKData;
-
-    std::ifstream in("raw.bin");
-    in.read(reinterpret_cast<char*>(&rawNet), sizeof(rawNet));
 }
 
 void NNUE::reset(Board* board) {
