@@ -38,7 +38,7 @@ public:
     Eval correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue);
     void updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus);
 
-    int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
+    std::pair<int, int> getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
 
     int16_t getPawnHistory(Board* board, Move move);
     void updatePawnHistory(Board* board, Move move, int16_t bonus);

@@ -425,7 +425,7 @@ void MoveGen::scoreQuiets() {
                 threatScore -= 7500;
         }
 
-        moveListScores.add(history->getHistory(board, searchStack, move, false) + threatScore);
+        moveListScores.add(history->getHistory(board, searchStack, move, false).first + threatScore);
     }
 }
 

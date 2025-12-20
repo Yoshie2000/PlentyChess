@@ -108,12 +108,39 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
     }
 }
 
-int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
+std::pair<int, int> History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
     if (isCapture) {
-        return *getCaptureHistory(board, move);
+        return std::make_pair(*getCaptureHistory(board, move), 0);
     }
     else {
-        return getQuietHistory(move, board->stm, board) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[move.origin()], move) + getPawnHistory(board, move);
+        ArrayVec<std::pair<int, int>, 6> historyValues;
+
+        historyValues.add(std::make_pair(1, getQuietHistory(move, board->stm, board)));
+        historyValues.add(std::make_pair(1, getPawnHistory(board, move)));
+
+        int pieceTo = 2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm;
+        if ((searchStack - 1)->movedPiece != Piece::NONE)
+            historyValues.add(std::make_pair(4, (searchStack - 1)->contHist[pieceTo]));
+        if ((searchStack - 2)->movedPiece != Piece::NONE)
+            historyValues.add(std::make_pair(2, (searchStack - 2)->contHist[pieceTo]));
+        if ((searchStack - 4)->movedPiece != Piece::NONE)
+            historyValues.add(std::make_pair(2, (searchStack - 4)->contHist[pieceTo]));
+        if ((searchStack - 6)->movedPiece != Piece::NONE)
+            historyValues.add(std::make_pair(2, (searchStack - 6)->contHist[pieceTo] / 2));
+
+        int sum = 0, weightedSum = 0;
+        for (auto [weight, value] : historyValues) {
+            sum += value;
+            weightedSum += weight * value;
+        }
+        int mean = sum / historyValues.size();
+        int distanceToMean = 0;
+        for (auto [weight, value] : historyValues) {
+            distanceToMean += std::abs(value - mean);
+        }
+        int complexity = distanceToMean / historyValues.size();
+
+        return std::make_pair(weightedSum, complexity);
     }
 }
 
