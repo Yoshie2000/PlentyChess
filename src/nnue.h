@@ -94,7 +94,6 @@ template<int L1_SIZE>
 struct Accumulator {
   alignas(ALIGNMENT) int16_t threatState[2][L1_SIZE];
   alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
-
   UEData* ueData;
 };
 
@@ -145,9 +144,10 @@ template<int L1_SIZE>
 class Network {
 public:
 
-using AccumType = Accumulator<L1_SIZE>;
-using FinnyType = FinnyEntry<L1_SIZE>;
-using Weights = std::conditional_t<L1_SIZE == L1_SIZE_BIG, NetworkDataBig, NetworkDataSmall>;
+  using AccumType = Accumulator<L1_SIZE>;
+  using FinnyType = FinnyEntry<L1_SIZE>;
+  using Weights = std::conditional_t<L1_SIZE == L1_SIZE_BIG, NetworkDataBig, NetworkDataSmall>;
+  constexpr static int L1_ITERATIONS = L1_SIZE / I16_VEC_SIZE;
 
   Weights* networkWeights;
   AccumType accumulatorStack[ACCUMULATOR_STACK_SIZE];

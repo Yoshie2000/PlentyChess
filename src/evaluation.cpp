@@ -27,8 +27,7 @@ constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
     90, 290, 310, 570, 1000, 0, 0
 };
 
-
-int getMaterialScale(Board* board) {
+std::pair<int, int> getMaterialScaleAndEvaluation(Board* board) {
     int pawnCount = BB::popcount(board->byPiece[Piece::PAWN]);
     int knightCount = BB::popcount(board->byPiece[Piece::KNIGHT]);
     int bishopCount = BB::popcount(board->byPiece[Piece::BISHOP]);
@@ -36,16 +35,28 @@ int getMaterialScale(Board* board) {
     int queenCount = BB::popcount(board->byPiece[Piece::QUEEN]);
 
     int materialValue = PIECE_VALUES[Piece::PAWN] * pawnCount + PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
-    return materialScaleBase + materialValue / materialScaleDivisor;
+    int materialScale = materialScaleBase + materialValue / materialScaleDivisor;
+
+    int pawnEval = 208 * (BB::popcount(board->byPiece[Piece::PAWN] & board->byColor[board->stm]) - BB::popcount(board->byPiece[Piece::PAWN] & board->byColor[flip(board->stm)]));
+    int knightEval = 781 * (BB::popcount(board->byPiece[Piece::KNIGHT] & board->byColor[board->stm]) - BB::popcount(board->byPiece[Piece::KNIGHT] & board->byColor[flip(board->stm)]));
+    int bishopEval = 825 * (BB::popcount(board->byPiece[Piece::BISHOP] & board->byColor[board->stm]) - BB::popcount(board->byPiece[Piece::BISHOP] & board->byColor[flip(board->stm)]));
+    int rookEval = 1276 * (BB::popcount(board->byPiece[Piece::ROOK] & board->byColor[board->stm]) - BB::popcount(board->byPiece[Piece::ROOK] & board->byColor[flip(board->stm)]));
+    int queenEval = 2538 * (BB::popcount(board->byPiece[Piece::QUEEN] & board->byColor[board->stm]) - BB::popcount(board->byPiece[Piece::QUEEN] & board->byColor[flip(board->stm)]));
+    int materialEval = pawnEval + knightEval + bishopEval + rookEval + queenEval;
+    return std::make_pair(materialScale, materialEval);
 }
 
 Eval evaluate(Board* board, BigNetwork* bigNet, SmallNetwork* smallNet) {
     assert(!board->checkers);
-    smallNet->lastCalculatedAccumulator[0] = smallNet->lastCalculatedAccumulator[0];
+    
+    auto [materialScale, materialEval] = getMaterialScaleAndEvaluation(board);
 
-    Eval eval = bigNet->evaluate(board);
-    eval = (eval * getMaterialScale(board)) / 1024;
+    bool useSmallNet = std::abs(materialEval) > 931;
+    Eval eval = useSmallNet ? smallNet->evaluate(board) : bigNet->evaluate(board);
+    if (useSmallNet && std::abs(eval) < 300)
+        eval = bigNet->evaluate(board);
 
+    eval = (eval * materialScale) / 1024;
     eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return (eval / 16) * 16;
 }
