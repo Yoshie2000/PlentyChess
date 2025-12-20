@@ -53,7 +53,7 @@ Eval evaluate(Board* board, BigNetwork* bigNet, SmallNetwork* smallNet) {
 
     bool useSmallNet = std::abs(materialEval) > 931;
     Eval eval = useSmallNet ? smallNet->evaluate(board) : bigNet->evaluate(board);
-    if (useSmallNet && std::abs(eval) < 600)
+    if (useSmallNet && std::abs(eval) < 450)
         eval = bigNet->evaluate(board);
 
     eval = (eval * materialScale) / 1024;
