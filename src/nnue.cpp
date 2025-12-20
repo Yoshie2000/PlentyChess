@@ -278,15 +278,15 @@ void Network<L1_SIZE>::incrementallyUpdateThreatFeatures(AccumType* inputAcc, Ac
 
     VecI16* inputVec = (VecI16*)inputAcc->threatState[side];
     VecI16* outputVec = (VecI16*)outputAcc->threatState[side];
-    VecI16 registers[L1_ITERATIONS_BIG];
+    VecI16 registers[L1_ITERATIONS];
 
-    for (int i = 0; i < L1_ITERATIONS_BIG; i++)
+    for (int i = 0; i < L1_ITERATIONS; i++)
         registers[i] = inputVec[i];
 
     while (addFeatures.size() && subFeatures.size()) {
         VecI16s* addWeightsVec = (VecI16s*)&networkWeights->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
         VecI16s* subWeightsVec = (VecI16s*)&networkWeights->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
-        for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
             VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
             VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
             registers[i] = subEpi16(addEpi16(registers[i], addWeights), subWeights);
@@ -295,7 +295,7 @@ void Network<L1_SIZE>::incrementallyUpdateThreatFeatures(AccumType* inputAcc, Ac
 
     while (addFeatures.size()) {
         VecI16s* addWeightVec = (VecI16s*)&networkWeights->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
-        for (int i = 0; i < L1_ITERATIONS_BIG; i++) {
+        for (int i = 0; i < L1_ITERATIONS; i++) {
             VecI16 addWeights = convertEpi8Epi16(addWeightVec[i]);
             registers[i] = addEpi16(registers[i], addWeights);
         }
@@ -303,13 +303,13 @@ void Network<L1_SIZE>::incrementallyUpdateThreatFeatures(AccumType* inputAcc, Ac
 
     while (subFeatures.size()) {
         VecI16s* subWeightVec = (VecI16s*)&networkWeights->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
-        for (int i = 0; i < L1_ITERATIONS_BIG; i++) {
+        for (int i = 0; i < L1_ITERATIONS; i++) {
             VecI16 subWeights = convertEpi8Epi16(subWeightVec[i]);
             registers[i] = subEpi16(registers[i], subWeights);
         }
     }
 
-    for (int i = 0; i < L1_ITERATIONS_BIG; i++)
+    for (int i = 0; i < L1_ITERATIONS; i++)
         outputVec[i] = registers[i];
 
 #else
@@ -341,14 +341,14 @@ void Network<L1_SIZE>::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*o
     if (I8) {
         VecI16s* weightsVec = (VecI16s*)&networkWeights->inputThreatWeights[featureIndex * L1_SIZE];
 
-        for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
             VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
             outputVec[i] = addEpi16(inputVec[i], addWeights);
         }
     } else {
         VecI16* weightsVec = (VecI16*)&networkWeights->inputPsqWeights[featureIndex * L1_SIZE];
 
-        for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
             outputVec[i] = addEpi16(inputVec[i], weightsVec[i]);
         }
     }
@@ -363,14 +363,14 @@ void Network<L1_SIZE>::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(
     if (I8) {
         VecI16s* weightsVec = (VecI16s*)&networkWeights->inputThreatWeights[featureIndex * L1_SIZE];
 
-        for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
             VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
             outputVec[i] = subEpi16(inputVec[i], addWeights);
         }
     } else {
         VecI16* weightsVec = (VecI16*)&networkWeights->inputPsqWeights[featureIndex * L1_SIZE];
         
-        for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
             outputVec[i] = subEpi16(inputVec[i], weightsVec[i]);
         }
     }
@@ -386,7 +386,7 @@ void Network<L1_SIZE>::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t
         VecI16s* addWeightsVec = (VecI16s*)&networkWeights->inputThreatWeights[addIndex * L1_SIZE];
         VecI16s* subWeightsVec = (VecI16s*)&networkWeights->inputThreatWeights[subIndex * L1_SIZE];
 
-        for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
             VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
             VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeights), subWeights);
@@ -395,7 +395,7 @@ void Network<L1_SIZE>::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t
         VecI16* addWeightsVec = (VecI16*)&networkWeights->inputPsqWeights[addIndex * L1_SIZE];
         VecI16* subWeightsVec = (VecI16*)&networkWeights->inputPsqWeights[subIndex * L1_SIZE];
 
-        for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
+        for (int i = 0; i < L1_ITERATIONS; ++i) {
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeightsVec[i]), subWeightsVec[i]);
         }
     }
@@ -461,7 +461,8 @@ Eval Network<L1_SIZE>::evaluate(Board* board) {
     }
 
 #if defined(PROCESS_NET)
-    nnz.addActivations(pairwiseOutputs);
+    if constexpr (L1_SIZE == L1_SIZE_BIG)
+        nnz.addActivations(pairwiseOutputs);
 #endif
 
     alignas(ALIGNMENT) int l1MatmulOutputs[L2_SIZE] = {};
