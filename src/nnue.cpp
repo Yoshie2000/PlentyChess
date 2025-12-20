@@ -50,11 +50,37 @@ void initNetworkData() {
     networkData = (NetworkData*)gNETWORKData;
 }
 
-void NNUE::reset(Board* board) {
+void UEData::updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add) {
+    assert(piece != Piece::NONE);
+    assert(attackedPiece != Piece::NONE);
+
+    dirtyThreats[numDirtyThreats++] = DirtyThreat(piece, pieceColor, attackedPiece, attackedColor, square, attackedSquare, add);
+}
+
+void UEData::finalizeMove(Board* _board, DirtyPiece _dirtyPiece) {
+    board = _board;
+    dirtyPiece = _dirtyPiece;
+
+    for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
+        kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
+    }
+}
+
+void UEData::reset(Board* _board) {
+    board = _board;
+    numDirtyThreats = 0;
+
+    for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
+        kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
+    }
+}
+
+template<int L1_SIZE>
+void Network<L1_SIZE>::reset(Board* board, UEData* ueData) {
     // Reset accumulator
     resetAccumulator<Color::WHITE>(board, &accumulatorStack[0]);
     resetAccumulator<Color::BLACK>(board, &accumulatorStack[0]);
-    accumulatorStack[0].numDirtyThreats = 0;
+    accumulatorStack[0].ueData = ueData;
 
     currentAccumulator = 0;
     lastCalculatedAccumulator[Color::WHITE] = 0;
@@ -71,8 +97,9 @@ void NNUE::reset(Board* board) {
     }
 }
 
+template<int L1_SIZE>
 template<Color side>
-void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
+void Network<L1_SIZE>::resetAccumulator(Board* board, AccumType* acc) {
     // Overwrite with biases
     memcpy(acc->threatState[side], networkData->bigNet.inputBiases, sizeof(networkData->bigNet.inputBiases));
     // Overwrite with zeroes
@@ -87,51 +114,34 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     ThreatInputs::addPieceFeatures(board, side, pieceFeatures, KING_BUCKET_LAYOUT);
     for (int featureIndex : pieceFeatures)
         addToAccumulator<false, side>(acc->pieceState, acc->pieceState, featureIndex);
-
-    acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
-    acc->board = board;
 }
 
-void NNUE::updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add) {
-    assert(piece != Piece::NONE);
-    assert(attackedPiece != Piece::NONE);
-
-    Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyThreats[acc->numDirtyThreats++] = DirtyThreat(piece, pieceColor, attackedPiece, attackedColor, square, attackedSquare, add);
-}
-
-void NNUE::incrementAccumulator() {
+template<int L1_SIZE>
+void Network<L1_SIZE>::incrementAccumulator(UEData* _ueData) {
     currentAccumulator++;
-    accumulatorStack[currentAccumulator].numDirtyThreats = 0;
+    _ueData->numDirtyThreats = 0;
+    accumulatorStack[currentAccumulator].ueData = _ueData;
 }
 
-void NNUE::decrementAccumulator() {
+template<int L1_SIZE>
+void Network<L1_SIZE>::decrementAccumulator() {
     assert(currentAccumulator > 0);
     currentAccumulator--;
     lastCalculatedAccumulator[Color::WHITE] = std::min(lastCalculatedAccumulator[Color::WHITE], currentAccumulator);
     lastCalculatedAccumulator[Color::BLACK] = std::min(lastCalculatedAccumulator[Color::BLACK], currentAccumulator);
 }
 
-void NNUE::finalizeMove(Board* board, DirtyPiece dirtyPiece) {
-    Accumulator* accumulator = &accumulatorStack[currentAccumulator];
-    accumulator->board = board;
-    accumulator->dirtyPiece = dirtyPiece;
-
-    for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {
-        accumulator->kingBucketInfo[side] = getKingBucket(side, lsb(board->byPiece[Piece::KING] & board->byColor[side]));
-    }
-}
-
+template<int L1_SIZE>
 template<Color side>
-void NNUE::calculateAccumulators() {
+void Network<L1_SIZE>::calculateAccumulators() {
     // Incrementally update all accumulators for this side
     while (lastCalculatedAccumulator[side] < currentAccumulator) {
 
-        Accumulator* inputAcc = &accumulatorStack[lastCalculatedAccumulator[side]];
-        Accumulator* outputAcc = &accumulatorStack[lastCalculatedAccumulator[side] + 1];
+        AccumType* inputAcc = &accumulatorStack[lastCalculatedAccumulator[side]];
+        AccumType* outputAcc = &accumulatorStack[lastCalculatedAccumulator[side] + 1];
 
-        KingBucketInfo* inputKingBucket = &inputAcc->kingBucketInfo[side];
-        KingBucketInfo* outputKingBucket = &outputAcc->kingBucketInfo[side];
+        KingBucketInfo* inputKingBucket = &inputAcc->ueData->kingBucketInfo[side];
+        KingBucketInfo* outputKingBucket = &outputAcc->ueData->kingBucketInfo[side];
 
         if (inputKingBucket->mirrored != outputKingBucket->mirrored)
             refreshThreatFeatures<side>(outputAcc);
@@ -147,15 +157,16 @@ void NNUE::calculateAccumulators() {
     }
 }
 
+template<int L1_SIZE>
 template<Color side>
-void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
-    FinnyEntry* finnyEntry = &finnyTable[kingBucket->mirrored][kingBucket->bucket];
+void Network<L1_SIZE>::refreshPieceFeatures(AccumType* acc, KingBucketInfo* kingBucket) {
+    FinnyType* finnyEntry = &finnyTable[kingBucket->mirrored][kingBucket->bucket];
 
     // Update matching finny table with the changed pieces
     for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
         for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
             Bitboard finnyBB = finnyEntry->byColor[side][c] & finnyEntry->byPiece[side][p];
-            Bitboard accBB = acc->board->byColor[c] & acc->board->byPiece[p];
+            Bitboard accBB = acc->ueData->board->byColor[c] & acc->ueData->board->byPiece[p];
 
             Bitboard addBB = accBB & ~finnyBB;
             Bitboard removeBB = ~accBB & finnyBB;
@@ -172,29 +183,31 @@ void NNUE::refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket) {
             }
         }
     }
-    memcpy(finnyEntry->byColor[side], acc->board->byColor, sizeof(finnyEntry->byColor[side]));
-    memcpy(finnyEntry->byPiece[side], acc->board->byPiece, sizeof(finnyEntry->byPiece[side]));
+    memcpy(finnyEntry->byColor[side], acc->ueData->board->byColor, sizeof(finnyEntry->byColor[side]));
+    memcpy(finnyEntry->byPiece[side], acc->ueData->board->byPiece, sizeof(finnyEntry->byPiece[side]));
 
     // Copy result to the current accumulator
     memcpy(acc->pieceState[side], finnyEntry->pieceState[side], sizeof(acc->pieceState[side]));
 }
 
+template<int L1_SIZE>
 template<Color side>
-void NNUE::refreshThreatFeatures(Accumulator* acc) {
+void Network<L1_SIZE>::refreshThreatFeatures(AccumType* acc) {
     // Overwrite with biases
     memcpy(acc->threatState[side], networkData->bigNet.inputBiases, sizeof(networkData->bigNet.inputBiases));
 
     ThreatInputs::FeatureList threatFeatures;
-    ThreatInputs::addThreatFeatures<side>(acc->board, threatFeatures);
+    ThreatInputs::addThreatFeatures<side>(acc->ueData->board, threatFeatures);
     for (int featureIndex : threatFeatures)
         addToAccumulator<true, side>(acc->threatState, acc->threatState, featureIndex);
 }
 
+template<int L1_SIZE>
 template<Color side>
-void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+void Network<L1_SIZE>::incrementallyUpdatePieceFeatures(AccumType* inputAcc, AccumType* outputAcc, KingBucketInfo* kingBucket) {
 
     Square squareFlip = (56 * side) ^ (7 * kingBucket->mirrored);
-    DirtyPiece& dirtyPiece = outputAcc->dirtyPiece;
+    DirtyPiece& dirtyPiece = outputAcc->ueData->dirtyPiece;
     Color color = static_cast<Color>(dirtyPiece.pieceColor != side);
 
     // Promotion
@@ -232,12 +245,13 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
     }
 }
 
+template<int L1_SIZE>
 template<Color side>
-void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
+void Network<L1_SIZE>::incrementallyUpdateThreatFeatures(AccumType* inputAcc, AccumType* outputAcc, KingBucketInfo* kingBucket) {
     ThreatInputs::FeatureList addFeatures, subFeatures;
 
-    for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
-        DirtyThreat& dt = outputAcc->dirtyThreats[dp];
+    for (int dp = 0; dp < outputAcc->ueData->numDirtyThreats; dp++) {
+        DirtyThreat& dt = outputAcc->ueData->dirtyThreats[dp];
         bool add = dt.attackedSquare >> 7;
 
         int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare & 0b111111, kingBucket->mirrored);
@@ -246,7 +260,7 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
         }
     }
 
-    if (!outputAcc->numDirtyThreats || (!addFeatures.size() && !subFeatures.size())) {
+    if (!outputAcc->ueData->numDirtyThreats || (!addFeatures.size() && !subFeatures.size())) {
         memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->bigNet.inputBiases));
         return;
     }
@@ -261,8 +275,8 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
         registers[i] = inputVec[i];
 
     while (addFeatures.size() && subFeatures.size()) {
-        VecI16s* addWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[addFeatures.remove(0) * L1_SIZE_BIG];
-        VecI16s* subWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[subFeatures.remove(0) * L1_SIZE_BIG];
+        VecI16s* addWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
+        VecI16s* subWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
             VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
@@ -271,7 +285,7 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
     }
 
     while (addFeatures.size()) {
-        VecI16s* addWeightVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[addFeatures.remove(0) * L1_SIZE_BIG];
+        VecI16s* addWeightVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
         for (int i = 0; i < L1_ITERATIONS_BIG; i++) {
             VecI16 addWeights = convertEpi8Epi16(addWeightVec[i]);
             registers[i] = addEpi16(registers[i], addWeights);
@@ -279,7 +293,7 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
     }
 
     while (subFeatures.size()) {
-        VecI16s* subWeightVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[subFeatures.remove(0) * L1_SIZE_BIG];
+        VecI16s* subWeightVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
         for (int i = 0; i < L1_ITERATIONS_BIG; i++) {
             VecI16 subWeights = convertEpi8Epi16(subWeightVec[i]);
             registers[i] = subEpi16(registers[i], subWeights);
@@ -309,20 +323,21 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
 #endif
 }
 
+template<int L1_SIZE>
 template<bool I8, Color side>
-void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE_BIG], int16_t(*outputData)[L1_SIZE_BIG], int featureIndex) {
+void Network<L1_SIZE>::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if (I8) {
-        VecI16s* weightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[featureIndex * L1_SIZE_BIG];
+        VecI16s* weightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[featureIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
             outputVec[i] = addEpi16(inputVec[i], addWeights);
         }
     } else {
-        VecI16* weightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[featureIndex * L1_SIZE_BIG];
+        VecI16* weightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[featureIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             outputVec[i] = addEpi16(inputVec[i], weightsVec[i]);
@@ -330,20 +345,21 @@ void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE_BIG], int16_t(*outputDat
     }
 }
 
+template<int L1_SIZE>
 template<bool I8, Color side>
-void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE_BIG], int16_t(*outputData)[L1_SIZE_BIG], int featureIndex) {
+void Network<L1_SIZE>::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if (I8) {
-        VecI16s* weightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[featureIndex * L1_SIZE_BIG];
+        VecI16s* weightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[featureIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
             outputVec[i] = subEpi16(inputVec[i], addWeights);
         }
     } else {
-        VecI16* weightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[featureIndex * L1_SIZE_BIG];
+        VecI16* weightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[featureIndex * L1_SIZE];
         
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             outputVec[i] = subEpi16(inputVec[i], weightsVec[i]);
@@ -351,14 +367,15 @@ void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE_BIG], int16_t(*outputD
     }
 }
 
+template<int L1_SIZE>
 template<bool I8, Color side>
-void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE_BIG], int16_t(*outputData)[L1_SIZE_BIG], int addIndex, int subIndex) {
+void Network<L1_SIZE>::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex) {
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if (I8) {
-        VecI16s* addWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[addIndex * L1_SIZE_BIG];
-        VecI16s* subWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[subIndex * L1_SIZE_BIG];
+        VecI16s* addWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[addIndex * L1_SIZE];
+        VecI16s* subWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[subIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
@@ -366,8 +383,8 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE_BIG], int16_t(*output
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeights), subWeights);
         }
     } else {
-        VecI16* addWeightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[addIndex * L1_SIZE_BIG];
-        VecI16* subWeightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[subIndex * L1_SIZE_BIG];
+        VecI16* addWeightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[addIndex * L1_SIZE];
+        VecI16* subWeightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[subIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeightsVec[i]), subWeightsVec[i]);
@@ -375,7 +392,8 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE_BIG], int16_t(*output
     }
 }
 
-Eval NNUE::evaluate(Board* board) {
+template<int L1_SIZE>
+Eval Network<L1_SIZE>::evaluate(Board* board) {
     // Make sure the current accumulators are up to date
     calculateAccumulators<Color::WHITE>();
     calculateAccumulators<Color::BLACK>();
@@ -388,7 +406,7 @@ Eval NNUE::evaluate(Board* board) {
     int bucket = (pieceCount - 2) / divisor;
     assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
 
-    Accumulator* accumulator = &accumulatorStack[currentAccumulator];
+    AccumType* accumulator = &accumulatorStack[currentAccumulator];
 
     VecI16* stmThreatAcc = reinterpret_cast<VecI16*>(accumulator->threatState[board->stm]);
     VecI16* stmPieceAcc = reinterpret_cast<VecI16*>(accumulator->pieceState[board->stm]);
@@ -628,3 +646,6 @@ Eval NNUE::evaluate(Board* board) {
 
     return result * NETWORK_SCALE;
 }
+
+template class Network<L1_SIZE_BIG>;
+template class Network<L1_SIZE_SMALL>;

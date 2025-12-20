@@ -145,7 +145,8 @@ namespace UCI {
     };
 
     extern UCIOptions Options;
-    extern NNUE nnue;
+    extern BigNetwork bigNet;
+    extern UEData ueData;
 
 }
 

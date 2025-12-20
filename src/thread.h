@@ -44,7 +44,10 @@ public:
     SearchData searchData;
     SearchParameters searchParameters;
     History history;
-    NNUE nnue;
+    BigNetwork bigNet;
+    SmallNetwork smallNet;
+    UEData ueData[ACCUMULATOR_STACK_SIZE];
+    UEData* currentUeData;
 
     ThreadPool* threadPool;
 
@@ -89,6 +92,8 @@ private:
 
     template <NodeType nodeType>
     Eval qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta);
+
+    void resetNetworks();
 
 };
 

@@ -9,7 +9,7 @@
 #include "bitboard.h"
 #include "types.h"
 
-class NNUE;
+struct UEData;
 
 namespace Castling {
 
@@ -91,16 +91,16 @@ struct Board {
     std::string fen();
 
     template<bool add, bool computeRays = true>
-    __always_inline void updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue, Bitboard allowedRayUpdates = ~bitboard(0));
+    __always_inline void updatePieceThreats(Piece piece, Color pieceColor, Square square, UEData* ueData, Bitboard allowedRayUpdates = ~bitboard(0));
     void updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta);
     void updatePieceCastling(Piece piece, Color pieceColor, Square origin);
 
-    void addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
-    void removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
-    void movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue);
-    void swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue);
+    void addPiece(Piece piece, Color pieceColor, Square square, UEData* ueData);
+    void removePiece(Piece piece, Color pieceColor, Square square, UEData* ueData);
+    void movePiece(Piece piece, Color pieceColor, Square origin, Square target, UEData* ueData);
+    void swapPiece(Piece piece, Color pieceColor, Square square, UEData* ueData);
 
-    void doMove(Move move, Hash newHash, NNUE* nnue);
+    void doMove(Move move, Hash newHash, UEData* ueData);
     void doNullMove();
 
     void calculateThreats();

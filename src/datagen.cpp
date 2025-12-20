@@ -51,7 +51,8 @@ bool playRandomMoves(Board& board, Worker* thread, int remainingMoves) {
         }
     }
     Board boardCopy = board;
-    boardCopy.doMove(move, boardCopy.hashAfter(move), &thread->nnue);
+    UCI::ueData.reset(&boardCopy);
+    boardCopy.doMove(move, boardCopy.hashAfter(move), &UCI::ueData);
 
     return playRandomMoves(boardCopy, thread, remainingMoves - 1);
 }
@@ -65,7 +66,8 @@ void Worker::tgenfens() {
         // Set up a fresh board
         Board board;
         board.startpos();
-        nnue.reset(&board);
+        UCI::ueData.reset(&board);
+        bigNet.reset(&board, &UCI::ueData);
 
         // Play 6-9 random moves
         int randomMoves = 6 + std::rand() % 4;

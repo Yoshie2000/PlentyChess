@@ -219,9 +219,9 @@ uint64_t perftInternal(Board& board, Depth depth) {
             continue;
 
         Board boardCopy = board;
-        boardCopy.doMove(move, boardCopy.hashAfter(move), &UCI::nnue);
+        UCI::ueData.reset(&boardCopy);
+        boardCopy.doMove(move, boardCopy.hashAfter(move), &UCI::ueData);
         uint64_t subNodes = perftInternal(boardCopy, depth - 1);
-        UCI::nnue.decrementAccumulator();
 
         nodes += subNodes;
     }
@@ -230,7 +230,6 @@ uint64_t perftInternal(Board& board, Depth depth) {
 
 uint64_t perft(Board& board, Depth depth) {
     clock_t begin = clock();
-    UCI::nnue.reset(&board);
 
     MoveList moves;
     generateMoves(&board, moves);
@@ -241,9 +240,9 @@ uint64_t perft(Board& board, Depth depth) {
             continue;
 
         Board boardCopy = board;
-        boardCopy.doMove(move, boardCopy.hashAfter(move), &UCI::nnue);
+        UCI::ueData.reset(&boardCopy);
+        boardCopy.doMove(move, boardCopy.hashAfter(move), &UCI::ueData);
         uint64_t subNodes = perftInternal(boardCopy, depth - 1);
-        UCI::nnue.decrementAccumulator();
 
         std::cout << move.toString(UCI::Options.chess960.value) << ": " << subNodes << std::endl;
 
@@ -309,13 +308,20 @@ Board* Worker::doMove(Board* board, Hash newHash, Move move) {
     Board* boardCopy = board + 1;
     *boardCopy = *board;
 
-    boardCopy->doMove(move, newHash, &nnue);
+    currentUeData++;
+    bigNet.incrementAccumulator(currentUeData);
+    smallNet.incrementAccumulator(currentUeData);
+
+    boardCopy->doMove(move, newHash, currentUeData);
     boardHistory.push_back(newHash);
+
     return boardCopy;
 }
 
 void Worker::undoMove() {
-    nnue.decrementAccumulator();
+    currentUeData--;
+    bigNet.decrementAccumulator();
+    smallNet.decrementAccumulator();
     boardHistory.pop_back();
 }
 
@@ -437,7 +443,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     // Check for stop
     if (stopped || exiting || stack->ply >= MAX_PLY - 1 || isDraw(board, stack->ply))
-        return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue) : drawEval(this);
+        return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &bigNet, &smallNet) : drawEval(this);
 
     stack->inCheck = board->checkerCount > 0;
 
@@ -484,7 +490,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
             bestValue = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue);
+        unadjustedEval = evaluate(board, &bigNet, &smallNet);
         stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
         ttEntry->update(board->hashes.hash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
     }
@@ -623,7 +629,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         // Check for stop or max depth
         if (stopped || exiting || stack->ply >= MAX_PLY - 1 || isDraw(board, stack->ply))
-            return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue) : drawEval(this);
+            return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &bigNet, &smallNet) : drawEval(this);
 
         // Mate distance pruning
         alpha = std::max((int)alpha, (int)matedIn(stack->ply));
@@ -736,14 +742,14 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
-        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
+        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &bigNet, &smallNet);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue);
+        unadjustedEval = evaluate(board, &bigNet, &smallNet);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         ttEntry->update(board->hashes.hash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
@@ -1266,8 +1272,8 @@ Move tbProbeMoveRoot(unsigned result) {
 void Worker::tsearch() {
     if (TUNE_ENABLED)
         initReductions();
-
-    nnue.reset(&rootBoard);
+    
+    resetNetworks();
 
     Move bestTbMove = Move::none();
     if (mainThread && BB::popcount(rootBoard.byColor[Color::WHITE] | rootBoard.byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
@@ -1555,7 +1561,7 @@ Worker* Worker::chooseBestThread() {
 }
 
 void Worker::tdatagen() {
-    nnue.reset(&rootBoard);
+    resetNetworks();
 
     searchData.nodesSearched = 0;
     searchData.tbHits = 0;
