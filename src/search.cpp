@@ -1056,7 +1056,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth) {
             Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
             reduction += lmrReductionOffset(importantCapture);
-            reduction -= (std::abs(correctionValue) + 100 * historyComplexity) / lmrCorrectionDivisor(importantCapture);
+            reduction -= (std::abs(correctionValue) + 10 * historyComplexity) / lmrCorrectionDivisor(importantCapture);
 
             if (boardCopy->checkers)
                 reduction -= lmrCheck(importantCapture);
