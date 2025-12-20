@@ -214,7 +214,7 @@ endif
 	$(info Processing network)
 	$(MAKE) -C tools clean
 	$(MAKE) -C tools arch=$(arch)
-	./tools/process_net $(PROCESS_NET) $(EVALFILE) ./processed.bin
+	./tools/process_net $(PROCESS_NET) $(EVALFILE) processed.bin
 endif
 
 all:

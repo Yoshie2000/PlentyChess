@@ -11,3 +11,4 @@ tools/process_net
 datagen_scrape/
 .vscode
 src/fathom/src/*.o
+*.bin.*
