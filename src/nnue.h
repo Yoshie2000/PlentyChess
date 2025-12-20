@@ -119,7 +119,7 @@ struct NetworkDataBig {
 };
 
 struct NetworkDataSmall {
-  alignas(ALIGNMENT) int16_t inputWeights[768 * KING_BUCKETS * L1_SIZE_SMALL];
+  alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE_SMALL];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE_SMALL];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE_SMALL * L2_SIZE];
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -127,6 +127,7 @@ struct NetworkDataSmall {
   alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
   alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
   alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
+  alignas(ALIGNMENT) int8_t  inputThreatWeights[1]; // exists to make the compiler happy
 };
 
 struct NetworkData {
@@ -144,9 +145,11 @@ template<int L1_SIZE>
 class Network {
 public:
 
-  using AccumType = Accumulator<L1_SIZE>;
-  using FinnyType = FinnyEntry<L1_SIZE>;
+using AccumType = Accumulator<L1_SIZE>;
+using FinnyType = FinnyEntry<L1_SIZE>;
+using Weights = std::conditional_t<L1_SIZE == L1_SIZE_BIG, NetworkDataBig, NetworkDataSmall>;
 
+  Weights* networkWeights;
   AccumType accumulatorStack[ACCUMULATOR_STACK_SIZE];
   int currentAccumulator;
   int lastCalculatedAccumulator[2];

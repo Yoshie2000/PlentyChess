@@ -77,6 +77,11 @@ void UEData::reset(Board* _board) {
 
 template<int L1_SIZE>
 void Network<L1_SIZE>::reset(Board* board, UEData* ueData) {
+    if constexpr (L1_SIZE == L1_SIZE_BIG)
+        networkWeights = &networkData->bigNet;
+    else
+        networkWeights = &networkData->smallNet;
+
     // Reset accumulator
     resetAccumulator<Color::WHITE>(board, &accumulatorStack[0]);
     resetAccumulator<Color::BLACK>(board, &accumulatorStack[0]);
@@ -91,8 +96,8 @@ void Network<L1_SIZE>::reset(Board* board, UEData* ueData) {
         for (int j = 0; j < KING_BUCKETS; j++) {
             memset(finnyTable[i][j].byColor, 0, sizeof(finnyTable[i][j].byColor));
             memset(finnyTable[i][j].byPiece, 0, sizeof(finnyTable[i][j].byPiece));
-            memset(finnyTable[i][j].pieceState[Color::WHITE], 0, sizeof(networkData->bigNet.inputBiases));
-            memset(finnyTable[i][j].pieceState[Color::BLACK], 0, sizeof(networkData->bigNet.inputBiases));
+            memset(finnyTable[i][j].pieceState[Color::WHITE], 0, sizeof(networkWeights->inputBiases));
+            memset(finnyTable[i][j].pieceState[Color::BLACK], 0, sizeof(networkWeights->inputBiases));
         }
     }
 }
@@ -101,14 +106,16 @@ template<int L1_SIZE>
 template<Color side>
 void Network<L1_SIZE>::resetAccumulator(Board* board, AccumType* acc) {
     // Overwrite with biases
-    memcpy(acc->threatState[side], networkData->bigNet.inputBiases, sizeof(networkData->bigNet.inputBiases));
+    memcpy(acc->threatState[side], networkWeights->inputBiases, sizeof(networkWeights->inputBiases));
     // Overwrite with zeroes
     memset(acc->pieceState[side], 0, sizeof(acc->pieceState[side]));
 
-    ThreatInputs::FeatureList threatFeatures;
-    ThreatInputs::addThreatFeatures<side>(board, threatFeatures);
-    for (int featureIndex : threatFeatures)
-        addToAccumulator<true, side>(acc->threatState, acc->threatState, featureIndex);
+    if constexpr (L1_SIZE == L1_SIZE_BIG) {
+        ThreatInputs::FeatureList threatFeatures;
+        ThreatInputs::addThreatFeatures<side>(board, threatFeatures);
+        for (int featureIndex : threatFeatures)
+            addToAccumulator<true, side>(acc->threatState, acc->threatState, featureIndex);
+    }
 
     ThreatInputs::FeatureList pieceFeatures;
     ThreatInputs::addPieceFeatures(board, side, pieceFeatures, KING_BUCKET_LAYOUT);
@@ -143,10 +150,12 @@ void Network<L1_SIZE>::calculateAccumulators() {
         KingBucketInfo* inputKingBucket = &inputAcc->ueData->kingBucketInfo[side];
         KingBucketInfo* outputKingBucket = &outputAcc->ueData->kingBucketInfo[side];
 
-        if (inputKingBucket->mirrored != outputKingBucket->mirrored)
-            refreshThreatFeatures<side>(outputAcc);
-        else
-            incrementallyUpdateThreatFeatures<side>(inputAcc, outputAcc, outputKingBucket);
+        if constexpr (L1_SIZE == L1_SIZE_BIG) {
+            if (inputKingBucket->mirrored != outputKingBucket->mirrored)
+                refreshThreatFeatures<side>(outputAcc);
+            else
+                incrementallyUpdateThreatFeatures<side>(inputAcc, outputAcc, outputKingBucket);
+        }
 
         if (inputKingBucket->bucket != outputKingBucket->bucket || inputKingBucket->mirrored != outputKingBucket->mirrored)
             refreshPieceFeatures<side>(outputAcc, outputKingBucket);
@@ -194,7 +203,7 @@ template<int L1_SIZE>
 template<Color side>
 void Network<L1_SIZE>::refreshThreatFeatures(AccumType* acc) {
     // Overwrite with biases
-    memcpy(acc->threatState[side], networkData->bigNet.inputBiases, sizeof(networkData->bigNet.inputBiases));
+    memcpy(acc->threatState[side], networkWeights->inputBiases, sizeof(networkWeights->inputBiases));
 
     ThreatInputs::FeatureList threatFeatures;
     ThreatInputs::addThreatFeatures<side>(acc->ueData->board, threatFeatures);
@@ -261,7 +270,7 @@ void Network<L1_SIZE>::incrementallyUpdateThreatFeatures(AccumType* inputAcc, Ac
     }
 
     if (!outputAcc->ueData->numDirtyThreats || (!addFeatures.size() && !subFeatures.size())) {
-        memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->bigNet.inputBiases));
+        memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkWeights->inputBiases));
         return;
     }
 
@@ -275,8 +284,8 @@ void Network<L1_SIZE>::incrementallyUpdateThreatFeatures(AccumType* inputAcc, Ac
         registers[i] = inputVec[i];
 
     while (addFeatures.size() && subFeatures.size()) {
-        VecI16s* addWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
-        VecI16s* subWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
+        VecI16s* addWeightsVec = (VecI16s*)&networkWeights->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
+        VecI16s* subWeightsVec = (VecI16s*)&networkWeights->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
             VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
@@ -285,7 +294,7 @@ void Network<L1_SIZE>::incrementallyUpdateThreatFeatures(AccumType* inputAcc, Ac
     }
 
     while (addFeatures.size()) {
-        VecI16s* addWeightVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
+        VecI16s* addWeightVec = (VecI16s*)&networkWeights->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
         for (int i = 0; i < L1_ITERATIONS_BIG; i++) {
             VecI16 addWeights = convertEpi8Epi16(addWeightVec[i]);
             registers[i] = addEpi16(registers[i], addWeights);
@@ -293,7 +302,7 @@ void Network<L1_SIZE>::incrementallyUpdateThreatFeatures(AccumType* inputAcc, Ac
     }
 
     while (subFeatures.size()) {
-        VecI16s* subWeightVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
+        VecI16s* subWeightVec = (VecI16s*)&networkWeights->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
         for (int i = 0; i < L1_ITERATIONS_BIG; i++) {
             VecI16 subWeights = convertEpi8Epi16(subWeightVec[i]);
             registers[i] = subEpi16(registers[i], subWeights);
@@ -330,14 +339,14 @@ void Network<L1_SIZE>::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*o
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if (I8) {
-        VecI16s* weightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[featureIndex * L1_SIZE];
+        VecI16s* weightsVec = (VecI16s*)&networkWeights->inputThreatWeights[featureIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
             outputVec[i] = addEpi16(inputVec[i], addWeights);
         }
     } else {
-        VecI16* weightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[featureIndex * L1_SIZE];
+        VecI16* weightsVec = (VecI16*)&networkWeights->inputPsqWeights[featureIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             outputVec[i] = addEpi16(inputVec[i], weightsVec[i]);
@@ -352,14 +361,14 @@ void Network<L1_SIZE>::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if (I8) {
-        VecI16s* weightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[featureIndex * L1_SIZE];
+        VecI16s* weightsVec = (VecI16s*)&networkWeights->inputThreatWeights[featureIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
             outputVec[i] = subEpi16(inputVec[i], addWeights);
         }
     } else {
-        VecI16* weightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[featureIndex * L1_SIZE];
+        VecI16* weightsVec = (VecI16*)&networkWeights->inputPsqWeights[featureIndex * L1_SIZE];
         
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             outputVec[i] = subEpi16(inputVec[i], weightsVec[i]);
@@ -374,8 +383,8 @@ void Network<L1_SIZE>::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if (I8) {
-        VecI16s* addWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[addIndex * L1_SIZE];
-        VecI16s* subWeightsVec = (VecI16s*)&networkData->bigNet.inputThreatWeights[subIndex * L1_SIZE];
+        VecI16s* addWeightsVec = (VecI16s*)&networkWeights->inputThreatWeights[addIndex * L1_SIZE];
+        VecI16s* subWeightsVec = (VecI16s*)&networkWeights->inputThreatWeights[subIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
@@ -383,8 +392,8 @@ void Network<L1_SIZE>::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeights), subWeights);
         }
     } else {
-        VecI16* addWeightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[addIndex * L1_SIZE];
-        VecI16* subWeightsVec = (VecI16*)&networkData->bigNet.inputPsqWeights[subIndex * L1_SIZE];
+        VecI16* addWeightsVec = (VecI16*)&networkWeights->inputPsqWeights[addIndex * L1_SIZE];
+        VecI16* subWeightsVec = (VecI16*)&networkWeights->inputPsqWeights[subIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS_BIG; ++i) {
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeightsVec[i]), subWeightsVec[i]);
@@ -418,11 +427,11 @@ Eval Network<L1_SIZE>::evaluate(Board* board) {
 
     // ---------------------- FT ACTIVATION & PAIRWISE ----------------------
 
-    alignas(ALIGNMENT) uint8_t pairwiseOutputs[L1_SIZE_BIG];
+    alignas(ALIGNMENT) uint8_t pairwiseOutputs[L1_SIZE];
     VecIu8* pairwiseOutputsVec = reinterpret_cast<VecIu8*>(pairwiseOutputs);
 
     constexpr int inverseShift = 16 - INPUT_SHIFT;
-    constexpr int pairwiseOffset = L1_SIZE_BIG / I16_VEC_SIZE / 2;
+    constexpr int pairwiseOffset = L1_SIZE / I16_VEC_SIZE / 2;
     for (int pw = 0; pw < pairwiseOffset; pw += 2) {
         // STM
         VecI16 clipped1 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw], stmThreatAcc[pw]), i16Zero), i16Quant);
@@ -461,12 +470,12 @@ Eval Network<L1_SIZE>::evaluate(Board* board) {
 
 #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     int nnzCount = 0;
-    alignas(ALIGNMENT) uint16_t nnzIndices[L1_SIZE_BIG / INT8_PER_INT32];
+    alignas(ALIGNMENT) uint16_t nnzIndices[L1_SIZE / INT8_PER_INT32];
 
     VecI32* pairwiseOutputsVecI32 = reinterpret_cast<VecI32*>(pairwiseOutputs);
     VecI16_v128 nnzZero = setZero_v128();
     VecI16_v128 nnzIncrement = set1Epi16_v128(8);
-    for (int i = 0; i < L1_SIZE_BIG / INT8_PER_INT32 / 16; i++) {
+    for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
         uint32_t nnzMask = 0;
 
         for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
@@ -486,7 +495,7 @@ Eval Network<L1_SIZE>::evaluate(Board* board) {
 
     int* pairwiseOutputsPacks = reinterpret_cast<int*>(pairwiseOutputs);
     VecI32* l1MatmulOutputsVec = reinterpret_cast<VecI32*>(l1MatmulOutputs);
-    int8_t* l1Weights = networkData->bigNet.l1Weights[bucket];
+    int8_t* l1Weights = networkWeights->l1Weights[bucket];
 
 #if defined(__AVX512VNNI__)
     VecI32 acc0{}, acc1{};
@@ -538,12 +547,12 @@ Eval Network<L1_SIZE>::evaluate(Board* board) {
     }
 
 #else
-    for (int ft = 0; ft < L1_SIZE_BIG; ft++) {
+    for (int ft = 0; ft < L1_SIZE; ft++) {
         if (!pairwiseOutputs[ft])
             continue;
 
         for (int l1 = 0; l1 < L2_SIZE; l1++) {
-            l1MatmulOutputs[l1] += pairwiseOutputs[ft] * networkData->bigNet.l1Weights[bucket][ft * L2_SIZE + l1];
+            l1MatmulOutputs[l1] += pairwiseOutputs[ft] * networkWeights->l1Weights[bucket][ft * L2_SIZE + l1];
         }
     }
 #endif
@@ -557,7 +566,7 @@ Eval Network<L1_SIZE>::evaluate(Board* board) {
     VecF psZero = set1Ps(0.0f);
     VecF psOne = set1Ps(1.0f);
 
-    VecF* l1Biases = reinterpret_cast<VecF*>(networkData->bigNet.l1Biases[bucket]);
+    VecF* l1Biases = reinterpret_cast<VecF*>(networkWeights->l1Biases[bucket]);
     VecF* l1OutputsVec = reinterpret_cast<VecF*>(l1Outputs);
 
     for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
@@ -568,7 +577,7 @@ Eval Network<L1_SIZE>::evaluate(Board* board) {
     }
 #else
     for (int l1 = 0; l1 < L2_SIZE; l1++) {
-        float l1Result = std::fma(static_cast<float>(l1MatmulOutputs[l1]), L1_NORMALISATION, networkData->bigNet.l1Biases[bucket][l1]);
+        float l1Result = std::fma(static_cast<float>(l1MatmulOutputs[l1]), L1_NORMALISATION, networkWeights->l1Biases[bucket][l1]);
         l1Outputs[l1] = std::clamp(l1Result, 0.0f, 1.0f);
         l1Outputs[l1 + L2_SIZE] = std::clamp(l1Result * l1Result, 0.0f, 1.0f);
     }
@@ -577,13 +586,13 @@ Eval Network<L1_SIZE>::evaluate(Board* board) {
     // ---------------------- L2 PROPAGATION & ACTIVATION ----------------------
 
     alignas(ALIGNMENT) float l2Outputs[L3_SIZE];
-    memcpy(l2Outputs, networkData->bigNet.l2Biases[bucket], sizeof(l2Outputs));
+    memcpy(l2Outputs, networkWeights->l2Biases[bucket], sizeof(l2Outputs));
 
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     VecF* l2OutputsVec = reinterpret_cast<VecF*>(l2Outputs);
     for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
         VecF l1Vec = set1Ps(l1Outputs[l1]);
-        VecF* weights = reinterpret_cast<VecF*>(&networkData->bigNet.l2Weights[bucket][l1 * L3_SIZE]);
+        VecF* weights = reinterpret_cast<VecF*>(&networkWeights->l2Weights[bucket][l1 * L3_SIZE]);
         for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
             l2OutputsVec[l2] = fmaddPs(l1Vec, weights[l2], l2OutputsVec[l2]);
         }
@@ -595,7 +604,7 @@ Eval Network<L1_SIZE>::evaluate(Board* board) {
 #else
     for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
         for (int l2 = 0; l2 < L3_SIZE; l2++) {
-            l2Outputs[l2] = std::fma(l1Outputs[l1], networkData->bigNet.l2Weights[bucket][l1 * L3_SIZE + l2], l2Outputs[l2]);
+            l2Outputs[l2] = std::fma(l1Outputs[l1], networkWeights->l2Weights[bucket][l1 * L3_SIZE + l2], l2Outputs[l2]);
         }
     }
     for (int l2 = 0; l2 < L3_SIZE; l2++) {
@@ -613,7 +622,7 @@ Eval Network<L1_SIZE>::evaluate(Board* board) {
     for (int j = 0; j < chunks; j++)
         resultSums[j] = psZero;
 
-    VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData->bigNet.l3Weights[bucket]);
+    VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkWeights->l3Weights[bucket]);
     for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
             resultSums[chunk] = fmaddPs(l2OutputsVec[l2 + chunk], l3WeightsVec[l2 + chunk], resultSums[chunk]);
@@ -625,23 +634,23 @@ Eval Network<L1_SIZE>::evaluate(Board* board) {
         }
     }
 
-    float result = networkData->bigNet.l3Biases[bucket] + reduceAddPs(resultSums);
+    float result = networkWeights->l3Biases[bucket] + reduceAddPs(resultSums);
 #else
     constexpr int chunks = 64 / sizeof(float);
     float resultSums[chunks] = {};
 
     for (int l2 = 0; l2 < L3_SIZE; l2 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = std::fma(l2Outputs[l2 + chunk], networkData->bigNet.l3Weights[bucket][l2 + chunk], resultSums[chunk]);
+            resultSums[chunk] = std::fma(l2Outputs[l2 + chunk], networkWeights->l3Weights[bucket][l2 + chunk], resultSums[chunk]);
         }
     }
     for (int l1 = 0; l1 < 2 * L2_SIZE; l1 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = std::fma(l1Outputs[l1 + chunk], networkData->bigNet.l3Weights[bucket][L3_SIZE + l1 + chunk], resultSums[chunk]);
+            resultSums[chunk] = std::fma(l1Outputs[l1 + chunk], networkWeights->l3Weights[bucket][L3_SIZE + l1 + chunk], resultSums[chunk]);
         }
     }
 
-    float result = networkData->bigNet.l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
+    float result = networkWeights->l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
 #endif
 
     return result * NETWORK_SCALE;
