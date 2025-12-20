@@ -70,3 +70,10 @@ void Worker::exit() {
 void Worker::ucinewgame() {
     history.initHistory();
 }
+
+void Worker::resetNetworks() {
+    currentUeData = &ueData[0];
+    currentUeData->reset(&rootBoard);
+    bigNet.reset(&rootBoard, currentUeData);
+    smallNet.reset(&rootBoard, currentUeData);
+}

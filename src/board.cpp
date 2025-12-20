@@ -206,7 +206,7 @@ std::string Board::fen() {
 }
 
 template<bool add, bool computeRays>
-__always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue, Bitboard allowedRayUpdates) {
+__always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, UEData* ueData, Bitboard allowedRayUpdates) {
     // Process attacks of the current piece to other pieces
     Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
     Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor) & occupancy;
@@ -217,7 +217,7 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
 
         assert(attackedPiece != Piece::NONE);
 
-        nnue->updateThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add);
+        ueData->updateThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add);
     }
 
     Bitboard rookAttacks = getRookMoves(square, occupancy);
@@ -250,10 +250,10 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
                 Piece attackedPiece = pieces[attackedSquare];
                 Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
 
-                nnue->updateThreat(slidingPiece, attackedPiece, slidingPieceSquare, attackedSquare, slidingPieceColor, attackedColor, !add);
+                ueData->updateThreat(slidingPiece, attackedPiece, slidingPieceSquare, attackedSquare, slidingPieceColor, attackedColor, !add);
             }
 
-            nnue->updateThreat(slidingPiece, piece, slidingPieceSquare, square, slidingPieceColor, pieceColor, add);
+            ueData->updateThreat(slidingPiece, piece, slidingPieceSquare, square, slidingPieceColor, pieceColor, add);
         }
     } else {
         incomingThreats |= slidingPieces;
@@ -267,7 +267,7 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
 
         assert(attackingPiece != Piece::NONE);
 
-        nnue->updateThreat(attackingPiece, piece, attackingSquare, square, attackingColor, pieceColor, add);
+        ueData->updateThreat(attackingPiece, piece, attackingSquare, square, attackingColor, pieceColor, add);
     }
 }
 
@@ -298,7 +298,7 @@ void Board::updatePieceCastling(Piece piece, Color pieceColor, Square origin) {
     }
 }
 
-void Board::addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
+void Board::addPiece(Piece piece, Color pieceColor, Square square, UEData* ueData) {
     assert(pieces[square] == Piece::NONE);
 
     Bitboard squareBB = bitboard(square);
@@ -307,12 +307,12 @@ void Board::addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
 
     pieces[square] = piece;
 
-    updatePieceThreats<true>(piece, pieceColor, square, nnue);
+    updatePieceThreats<true>(piece, pieceColor, square, ueData);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 };
 
-void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
+void Board::removePiece(Piece piece, Color pieceColor, Square square, UEData* ueData) {
     assert(pieces[square] != Piece::NONE);
 
     Bitboard squareBB = bitboard(square);
@@ -321,17 +321,17 @@ void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue
 
     pieces[square] = Piece::NONE;
 
-    updatePieceThreats<false>(piece, pieceColor, square, nnue);
+    updatePieceThreats<false>(piece, pieceColor, square, ueData);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 };
 
-void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue) {
+void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square target, UEData* ueData) {
     assert(pieces[origin] != Piece::NONE);
     assert(pieces[target] == Piece::NONE);
     
     Bitboard fromTo = bitboard(origin) ^ bitboard(target);
-    updatePieceThreats<false>(piece, pieceColor, origin, nnue, fromTo);
+    updatePieceThreats<false>(piece, pieceColor, origin, ueData, fromTo);
 
     byColor[pieceColor] ^= fromTo;
     byPiece[piece] ^= fromTo;
@@ -339,12 +339,12 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     pieces[origin] = Piece::NONE;
     pieces[target] = piece;
 
-    updatePieceThreats<true>(piece, pieceColor, target, nnue, fromTo);
+    updatePieceThreats<true>(piece, pieceColor, target, ueData, fromTo);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][origin] ^ Zobrist::PIECE_SQUARES[pieceColor][piece][target]);
     updatePieceCastling(piece, pieceColor, origin);
 };
 
-void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
+void Board::swapPiece(Piece piece, Color pieceColor, Square square, UEData* ueData) {
     assert(pieces[square] != Piece::NONE);
 
     Bitboard squareBB = bitboard(square);
@@ -356,7 +356,7 @@ void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) 
     byPiece[oldPiece] ^= squareBB;
     pieces[square] = Piece::NONE;
 
-    updatePieceThreats<false, false>(oldPiece, oldPieceColor, square, nnue);
+    updatePieceThreats<false, false>(oldPiece, oldPieceColor, square, ueData);
     updatePieceHash(oldPiece, oldPieceColor, Zobrist::PIECE_SQUARES[oldPieceColor][oldPiece][square]);
     updatePieceCastling(oldPiece, oldPieceColor, square);
 
@@ -365,20 +365,18 @@ void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) 
     byPiece[piece] ^= squareBB;
     pieces[square] = piece;
 
-    updatePieceThreats<true, false>(piece, pieceColor, square, nnue);
+    updatePieceThreats<true, false>(piece, pieceColor, square, ueData);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 };
 
-void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
+void Board::doMove(Move move, Hash newHash, UEData* ueData) {
     // Increment ply counters
     rule50_ply++;
     nullmove_ply++;
     if (stm == Color::BLACK)
         ply++;
     hashes.hash = newHash;
-
-    nnue->incrementAccumulator();
 
     // Calculate general information about the move
     Square origin = move.origin();
@@ -404,15 +402,15 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
     case MoveType::PROMOTION:
 
         if (capturedPiece != Piece::NONE) {
-            removePiece(capturedPiece, flip(stm), captureTarget, nnue);
+            removePiece(capturedPiece, flip(stm), captureTarget, ueData);
             dirtyPiece.removePiece = capturedPiece;
             dirtyPiece.removeSquare = captureTarget;
         }
 
-        removePiece(piece, stm, origin, nnue);
+        removePiece(piece, stm, origin, ueData);
         rule50_ply = 0;
         promotionPiece = move.promotionPiece();
-        addPiece(promotionPiece, stm, target, nnue);
+        addPiece(promotionPiece, stm, target, ueData);
 
         dirtyPiece.target = NO_SQUARE;
         dirtyPiece.addSquare = target;
@@ -427,10 +425,10 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
         Square rookTarget = Castling::getRookSquare(stm, direction);
         Square kingTarget = Castling::getKingSquare(stm, direction);
 
-        removePiece(Piece::KING, stm, origin, nnue);
-        removePiece(Piece::ROOK, stm, rookOrigin, nnue);
-        addPiece(Piece::KING, stm, kingTarget, nnue);
-        addPiece(Piece::ROOK, stm, rookTarget, nnue);
+        removePiece(Piece::KING, stm, origin, ueData);
+        removePiece(Piece::ROOK, stm, rookOrigin, ueData);
+        addPiece(Piece::KING, stm, kingTarget, ueData);
+        addPiece(Piece::ROOK, stm, rookTarget, ueData);
 
         dirtyPiece.target = kingTarget;
         dirtyPiece.removeSquare = rookOrigin;
@@ -441,7 +439,7 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
                            break;
 
     case MoveType::ENPASSANT:
-        movePiece(piece, stm, origin, target, nnue);
+        movePiece(piece, stm, origin, target, ueData);
         rule50_ply = 0;
 
         captureTarget = target - Direction::UP[stm];
@@ -449,7 +447,7 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
 
         assert(captureTarget < 64);
 
-        removePiece(Piece::PAWN, flip(stm), captureTarget, nnue);
+        removePiece(Piece::PAWN, flip(stm), captureTarget, ueData);
 
         dirtyPiece.removePiece = capturedPiece;
         dirtyPiece.removeSquare = captureTarget;
@@ -460,14 +458,14 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
 
         if (capturedPiece != Piece::NONE) {
             assert(target == captureTarget);
-            removePiece(piece, stm, origin, nnue);
-            swapPiece(piece, stm, target, nnue);
+            removePiece(piece, stm, origin, ueData);
+            swapPiece(piece, stm, target, ueData);
             rule50_ply = 0;
 
             dirtyPiece.removePiece = capturedPiece;
             dirtyPiece.removeSquare = captureTarget;
         } else {
-            movePiece(piece, stm, origin, target, nnue);
+            movePiece(piece, stm, origin, target, ueData);
         }
 
         if (piece == Piece::PAWN) {
@@ -505,7 +503,7 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
     stm = flip(stm);
     lastMove = move;
 
-    nnue->finalizeMove(this, dirtyPiece);
+    ueData->finalizeMove(this, dirtyPiece);
 
     calculateThreats();
 }

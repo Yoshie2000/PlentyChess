@@ -75,20 +75,32 @@ constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
   };
 }
 
-struct Accumulator {
-  alignas(ALIGNMENT) int16_t threatState[2][L1_SIZE_BIG];
-  alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE_BIG];
+constexpr int ACCUMULATOR_STACK_SIZE = MAX_PLY + 8;
 
+struct UEData {
   DirtyPiece dirtyPiece;
   DirtyThreat dirtyThreats[256];
   int numDirtyThreats;
 
   KingBucketInfo kingBucketInfo[2];
   Board* board;
+
+  void updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add);
+  void finalizeMove(Board* board, DirtyPiece dirtyPiece);
+  void reset(Board* board);
 };
 
+template<int L1_SIZE>
+struct Accumulator {
+  alignas(ALIGNMENT) int16_t threatState[2][L1_SIZE];
+  alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
+
+  UEData* ueData;
+};
+
+template<int L1_SIZE>
 struct FinnyEntry {
-  alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE_BIG];
+  alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
 
   Bitboard byColor[2][2];
   Bitboard byPiece[2][Piece::TOTAL];
@@ -128,47 +140,51 @@ void initNetworkData();
 
 struct Board;
 
-class NNUE {
+template<int L1_SIZE>
+class Network {
 public:
 
-  Accumulator accumulatorStack[MAX_PLY + 8];
+  using AccumType = Accumulator<L1_SIZE>;
+  using FinnyType = FinnyEntry<L1_SIZE>;
+
+  AccumType accumulatorStack[ACCUMULATOR_STACK_SIZE];
   int currentAccumulator;
   int lastCalculatedAccumulator[2];
 
-  FinnyEntry finnyTable[2][KING_BUCKETS];
+  FinnyType finnyTable[2][KING_BUCKETS];
 
-  void updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add);
-
-  void incrementAccumulator();
+  void incrementAccumulator(UEData* _ueData);
   void decrementAccumulator();
-  void finalizeMove(Board* board, DirtyPiece dirtyPiece);
 
-  void reset(Board* board);
+  void reset(Board* board, UEData* ueData);
   template<Color side>
-  void resetAccumulator(Board* board, Accumulator* acc);
+  void resetAccumulator(Board* board, AccumType* acc);
 
   Eval evaluate(Board* board);
   template<Color side>
   void calculateAccumulators();
 
   template<Color side>
-  void refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket);
+  void refreshPieceFeatures(AccumType* acc, KingBucketInfo* kingBucket);
   template<Color side>
-  void refreshThreatFeatures(Accumulator* acc);
+  void refreshThreatFeatures(AccumType* acc);
 
   template<Color side>
-  void incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  void incrementallyUpdatePieceFeatures(AccumType* inputAcc, AccumType* outputAcc, KingBucketInfo* kingBucket);
   template<Color side>
-  void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
+  void incrementallyUpdateThreatFeatures(AccumType* inputAcc, AccumType* outputAcc, KingBucketInfo* kingBucket);
 
   template<bool I8, Color side>
-  void addToAccumulator(int16_t(*inputData)[L1_SIZE_BIG], int16_t(*outputData)[L1_SIZE_BIG], int featureIndex);
+  void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
   template<bool I8, Color side>
-  void subFromAccumulator(int16_t(*inputData)[L1_SIZE_BIG], int16_t(*outputData)[L1_SIZE_BIG], int featureIndex);
+  void subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
   template<bool I8, Color side>
-  void addSubToAccumulator(int16_t(*inputData)[L1_SIZE_BIG], int16_t(*outputData)[L1_SIZE_BIG], int addIndex, int subIndex);
+  void addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex);
 
 };
+
+using BigNetwork = Network<L1_SIZE_BIG>;
+using SmallNetwork = Network<L1_SIZE_SMALL>;
 
 #if defined(PROCESS_NET)
 

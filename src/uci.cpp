@@ -24,7 +24,8 @@
 
 namespace UCI {
     UCIOptions Options;
-    NNUE nnue;
+    BigNetwork bigNet;
+    UEData ueData;
     bool optionsDirty = false;
 }
 
@@ -201,21 +202,15 @@ void position(std::string line, Board& board, std::vector<Hash>& boardHistory) {
     if (token != "moves")
         return;
 
-    UCI::nnue.reset(&board);
-    int moveCount = 0;
-
     while (iss >> token) {
         Move m = stringToMove(token.c_str(), &board);
         
         assert(board.isLegal(m));
 
         Board boardCopy = board;
-        boardCopy.doMove(m, board.hashAfter(m), &UCI::nnue);
+        UCI::ueData.reset(&boardCopy);
+        boardCopy.doMove(m, board.hashAfter(m), &UCI::ueData);
         boardHistory.push_back(boardCopy.hashes.hash);
-
-        if (moveCount++ > 200) {
-            UCI::nnue.reset(&boardCopy);
-        }
 
         board = boardCopy;
     }
@@ -523,8 +518,9 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "perfttest")) perfttest(board, boardHistory);
         else if (matchesToken(line, "debug")) board.debugBoard();
         else if (matchesToken(line, "eval")) {
-            UCI::nnue.reset(&board);
-            std::cout << UCI::nnue.evaluate(&board) << std::endl;
+            UCI::ueData.reset(&board);
+            UCI::bigNet.reset(&board, &UCI::ueData);
+            std::cout << UCI::bigNet.evaluate(&board) << std::endl;
         }
         else std::cout << "Unknown command" << std::endl;
     }
