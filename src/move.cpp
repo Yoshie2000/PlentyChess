@@ -364,6 +364,8 @@ Move MoveGen::nextMove() {
 }
 
 void MoveGen::scoreCaptures() {
+    Threats& threats = board->threats;
+
     for (int i = returnedMoves; i < moveList.size(); i++) {
         Move move = moveList[i];
 
@@ -373,7 +375,30 @@ void MoveGen::scoreCaptures() {
             continue;
         }
 
-        int score = *history->getCaptureHistory(board, move);
+        int threatScore = 0;
+        Piece piece = board->pieces[move.origin()];
+        Bitboard fromBB = bitboard(move.origin());
+        Bitboard toBB = bitboard(move.target());
+        if (piece == Piece::QUEEN) {
+            if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
+                threatScore += 10000;
+            if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
+                threatScore -= 10000;
+        }
+        else if (piece == Piece::ROOK) {
+            if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
+                threatScore += 6750;
+            if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
+                threatScore -= 6750;
+        }
+        else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
+            if (fromBB & threats.pawnThreats)
+                threatScore += 2500;
+            if (toBB & threats.pawnThreats)
+                threatScore -= 2500;
+        }
+
+        int score = *history->getCaptureHistory(board, move) + threatScore;
         switch (move.type()) {
             case MoveType::ENPASSANT:
                 score += 0;    
