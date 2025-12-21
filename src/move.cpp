@@ -381,21 +381,21 @@ void MoveGen::scoreCaptures() {
         Bitboard toBB = bitboard(move.target());
         if (piece == Piece::QUEEN) {
             if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
-                threatScore += 10000;
+                threatScore += 5000;
             if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
-                threatScore -= 10000;
+                threatScore -= 5000;
         }
         else if (piece == Piece::ROOK) {
             if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
-                threatScore += 6750;
+                threatScore += 3250;
             if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
-                threatScore -= 6750;
+                threatScore -= 3250;
         }
         else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
             if (fromBB & threats.pawnThreats)
-                threatScore += 2500;
+                threatScore += 1250;
             if (toBB & threats.pawnThreats)
-                threatScore -= 2500;
+                threatScore -= 1250;
         }
 
         int score = *history->getCaptureHistory(board, move) + threatScore;
