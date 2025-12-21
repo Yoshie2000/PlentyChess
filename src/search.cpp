@@ -1114,6 +1114,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
             moveSearchCount++;
+
+            if (!capture && value > alpha) {
+                int bonus = std::min(lmrPassBonusBase + lmrPassBonusFactor * depth, lmrPassBonusMax);
+                history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
+            }
         }
 
         // PV moves will be researched at full depth if good enough
