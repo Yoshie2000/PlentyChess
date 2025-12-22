@@ -450,7 +450,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     uint8_t ttFlag = TT_NOBOUND;
     bool ttPv = pvNode;
 
-    ttEntry = TT.probe(board->hashes.hash, &ttHit);
+    ttEntry = TT.probe(board->hashes.hash, board->rule50_ply, &ttHit);
     if (ttHit) {
         ttMove = ttEntry->getMove();
         ttValue = valueFromTt(ttEntry->getValue(), stack->ply, board->rule50_ply);
@@ -535,7 +535,7 @@ movesLoopQsearch:
             continue;
 
         Hash newHash = board->hashAfter(move);
-        TT.prefetch(newHash);
+        TT.prefetch(newHash, board->rule50_ply);
         moveCount++;
         searchData.nodesSearched++;
 
@@ -653,7 +653,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     stack->ttPv = excluded ? stack->ttPv : pvNode;
 
     if (!excluded) {
-        ttEntry = TT.probe(board->hashes.hash, &ttHit);
+        ttEntry = TT.probe(board->hashes.hash, board->rule50_ply, &ttHit);
         if (ttHit) {
             ttMove = rootNode && rootMoves[0].value > -EVAL_INFINITE ? rootMoves[0].move : ttEntry->getMove();
             ttValue = valueFromTt(ttEntry->getValue(), stack->ply, board->rule50_ply);
@@ -864,7 +864,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 continue;
 
             Hash newHash = board->hashAfter(move);
-            TT.prefetch(newHash);
+            TT.prefetch(newHash, board->rule50_ply);
 
             Square origin = move.origin();
             Square target = move.target();
@@ -1031,7 +1031,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         }
 
         Hash newHash = board->hashAfter(move);
-        TT.prefetch(newHash);
+        TT.prefetch(newHash, board->rule50_ply);
 
         // Some setup stuff
         Square origin = move.origin();

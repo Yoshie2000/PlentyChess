@@ -13,6 +13,7 @@ namespace Zobrist {
     Hash NO_PAWNS;
     Hash CASTLING[16];
     Hash ENPASSENT[8];
+    Hash FMR[100 / FMR_GRANULARITY];
 
     Hash CUCKOO_HASHES[8192];
     Move CUCKOO_MOVES[8192];
@@ -55,6 +56,14 @@ namespace Zobrist {
 
         for (int i = 0; i < 8; i++) {
             ENPASSENT[i] = dist(rng);
+        }
+
+        Hash zobristLowLmr = dist(rng);
+        for (int i = 0; i < 100 / FMR_GRANULARITY; i++) {
+            if (i * FMR_GRANULARITY <= 50)
+                FMR[i] = zobristLowLmr;
+            else
+                FMR[i] = dist(rng);
         }
 
         int count = 0;

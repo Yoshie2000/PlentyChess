@@ -17,6 +17,7 @@
 #include "move.h"
 #include "evaluation.h"
 #include "uci.h"
+#include "zobrist.h"
 
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     void* ptr;
@@ -120,17 +121,20 @@ public:
         clear();
     }
 
-    size_t index(Hash hash) {
+    size_t index(Hash hash, uint8_t fmr) {
+        // Modify hash using 50mr count
+        hash ^= Zobrist::FMR[fmr / Zobrist::FMR_GRANULARITY];
+
         // Find entry
         __extension__ using uint128 = unsigned __int128;
         return ((uint128)hash * (uint128)clusterCount) >> 64;
     }
 
-    void prefetch(Hash hash) {
-        __builtin_prefetch(&table[index(hash)]);
+    void prefetch(Hash hash, uint8_t fmr) {
+        __builtin_prefetch(&table[index(hash, fmr)]);
     }
 
-    TTEntry* probe(Hash hash, bool* found);
+    TTEntry* probe(Hash hash, uint8_t fmr, bool* found);
 
     int hashfull() {
         int count = 0;
