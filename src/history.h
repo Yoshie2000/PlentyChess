@@ -27,6 +27,8 @@ class History {
 
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
+    int16_t bestMoveMarginHistory[2][2][Piece::TOTAL][64];
+
 public:
 
     int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2];
@@ -57,5 +59,8 @@ public:
 
     Move getCounterMove(Move move);
     void setCounterMove(Move move, Move counter);
+
+    void updateBestMoveMarginHistory(Board* board, Move move, int16_t bonus);
+    int16_t getBestMoveMargin(Board* board, Move move);
 
 };

@@ -904,6 +904,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     SearchedMoveList quietMoves, captureMoves;
 
+    Eval ttMoveValue, singularValue;
+    bool didSingularSearch = false;
+
+    int16_t ttMoveMargin = ttMove ? history.getBestMoveMargin(board, ttMove) : 0;
+
     // Moves loop
     MoveGen& movegen = movepickers[stack->ply][excluded] = MoveGen(board, &history, stack, ttMove, depth / 100);
     Move move;
@@ -992,7 +997,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             bool currTtPv = stack->ttPv;
             stack->excludedMove = move;
-            Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
+            singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
+            didSingularSearch = true;
             stack->excludedMove = Move::none();
             stack->ttPv = currTtPv;
 
@@ -1083,6 +1089,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= lmrQuietImproving * improving;
             }
 
+            int tmp = -4;
+            if (ttMoveMargin >= 400)
+                tmp = 100;
+            reduction += tmp;
+
             Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
             stack->inLMR = true;
@@ -1124,6 +1135,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             value = -search<PV_NODE>(boardCopy, stack + 1, newDepth, -beta, -alpha, false);
             moveSearchCount++;
         }
+
+        if (move == ttMove)
+            ttMoveValue = value;
 
         undoMove();
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
@@ -1177,6 +1191,15 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     updatePv(stack, move);
 
                 if (bestValue >= beta) {
+
+                    if (bestMove == ttMove && didSingularSearch) {
+                        int bonus = std::clamp(int(ttMoveValue - singularValue) * depth / 512, -64, 64);
+                        history.updateBestMoveMarginHistory(board, ttMove, bonus);
+                    }
+                    else if (didSingularSearch) {
+                        int malus = std::clamp(int(bestValue - ttMoveValue) * depth / 512, -64, 64);
+                        history.updateBestMoveMarginHistory(board, ttMove, malus);
+                    }
 
                     int historyUpdateDepth = depth / 100 + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
 

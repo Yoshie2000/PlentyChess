@@ -56,6 +56,7 @@ void History::initHistory() {
     memset(minorCorrectionHistory, 0, sizeof(minorCorrectionHistory));
     memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
     memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
+    memset(bestMoveMarginHistory, 0, sizeof(continuationCorrectionHistory));
     for (int i = 0; i < PAWN_HISTORY_SIZE; i++) {
         for (int j = 0; j < 2; j++) {
             for (int k = 0; k < Piece::TOTAL; k++) {
@@ -244,4 +245,13 @@ Move History::getCounterMove(Move move) {
 
 void History::setCounterMove(Move move, Move counter) {
     counterMoves[move.origin()][move.target()] = counter;
+}
+
+void History::updateBestMoveMarginHistory(Board* board, Move move, int16_t bonus) {
+    int16_t scaledBonus = bonus - getBestMoveMargin(board, move) * std::abs(bonus) / 512;
+    bestMoveMarginHistory[board->isCapture(move)][board->stm][board->pieces[move.origin()]][move.target()] += scaledBonus;
+}
+
+int16_t History::getBestMoveMargin(Board* board, Move move) {
+    return bestMoveMarginHistory[board->isCapture(move)][board->stm][board->pieces[move.origin()]][move.target()];
 }
