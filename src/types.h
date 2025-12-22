@@ -35,7 +35,7 @@ inline std::ostream& operator<<(std::ostream& os, const Square square) {
     static std::string fileChars = "abcdefgh";
     os << fileChars[fileOf(square)] << rankChars[rankOf(square)];
     return os;
-};
+}
 
 // Color
 enum Color : uint8_t {
