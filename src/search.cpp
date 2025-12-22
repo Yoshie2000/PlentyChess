@@ -1089,8 +1089,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= lmrQuietImproving * improving;
             }
 
-            int tmp = -4;
-            if (ttMoveMargin >= 400)
+            int tmp = -10;
+            if (ttMoveMargin >= 300)
                 tmp = 100;
             reduction += tmp;
 
