@@ -108,12 +108,30 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
     }
 }
 
-int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
+std::pair<int, int> History::getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture) {
     if (isCapture) {
-        return *getCaptureHistory(board, move);
+        int captHist = *getCaptureHistory(board, move);
+        return std::make_pair(captHist, captHist);
     }
     else {
-        return getQuietHistory(move, board->stm, board) + 2 * getContinuationHistory(searchStack, board->stm, board->pieces[move.origin()], move) + getPawnHistory(board, move);
+        int quietHist = getQuietHistory(move, board->stm, board);
+        int pawnHist = getPawnHistory(board, move);
+
+        int ch1 = 0, ch2 = 0, ch4 = 0, ch6 = 0;
+        int pieceTo = 2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm;
+
+        if ((searchStack - 1)->movedPiece != Piece::NONE)
+            ch1 = (searchStack - 1)->contHist[pieceTo];
+        if ((searchStack - 2)->movedPiece != Piece::NONE)
+            ch2 = (searchStack - 2)->contHist[pieceTo];
+        if ((searchStack - 4)->movedPiece != Piece::NONE)
+            ch4 = (searchStack - 4)->contHist[pieceTo];
+        if ((searchStack - 6)->movedPiece != Piece::NONE)
+            ch6 = (searchStack - 6)->contHist[pieceTo];
+
+        int searchHistory = quietHist + pawnHist + 4 * ch1 + 2 * ch2 + 2 * ch4 + ch6;
+        int moveOrderHistory = quietHist + pawnHist + ch1 + ch2 + ch4 + ch6;
+        return std::make_pair(searchHistory, moveOrderHistory);
     }
 }
 
