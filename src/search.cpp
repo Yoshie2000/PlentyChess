@@ -785,7 +785,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         if (board->checkers) {
             rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
-        } else {
+        }
+        else {
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
@@ -1051,38 +1052,38 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         int newDepth = depth - 100 + 100 * extension;
         int8_t moveSearchCount = 0;
 
+        Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
+        reduction += lmrReductionOffset(importantCapture);
+        reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
+
+        if (boardCopy->checkers)
+            reduction -= lmrCheck(importantCapture);
+
+        if (cutNode)
+            reduction += lmrCutnode;
+
+        if (stack->ttPv) {
+            reduction -= lmrTtPv(importantCapture);
+            reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
+        }
+
+        if (capture) {
+            reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
+
+            if (importantCapture) {
+                reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
+                reduction = lmrImportantCaptureFactor * reduction / 100;
+            }
+        }
+        else {
+            reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
+            reduction -= lmrQuietPvNodeOffset * pvNode;
+            reduction -= lmrQuietImproving * improving;
+        }
+
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth) {
-            Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
-            reduction += lmrReductionOffset(importantCapture);
-            reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
-
-            if (boardCopy->checkers)
-                reduction -= lmrCheck(importantCapture);
-
-            if (cutNode)
-                reduction += lmrCutnode;
-
-            if (stack->ttPv) {
-                reduction -= lmrTtPv(importantCapture);
-                reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
-            }
-
-            if (capture) {
-                reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
-
-                if (importantCapture) {
-                    reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
-                    reduction = lmrImportantCaptureFactor * reduction / 100;
-                }
-            }
-            else {
-                reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
-                reduction -= lmrQuietPvNodeOffset * pvNode;
-                reduction -= lmrQuietImproving * improving;
-            }
-
             Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
             stack->inLMR = true;
@@ -1112,7 +1113,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (move == ttMove && searchData.rootDepth > 8 && ttDepth > 1)
                 newDepth = std::max(100, newDepth);
 
-            value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
+            value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth - 100 * (!capture && reduction >= 300), -(alpha + 1), -alpha, !cutNode);
             moveSearchCount++;
         }
 
@@ -1130,7 +1131,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         SearchedMoveList& list = capture ? captureMoves : quietMoves;
         if (list.size() < list.capacity())
-            list.add({move, moveSearchCount});
+            list.add({ move, moveSearchCount });
 
         if (stopped || exiting)
             return 0;
@@ -1244,15 +1245,15 @@ Move tbProbeMoveRoot(unsigned result) {
     if (promotion) {
         Piece promotionPiece = Piece::QUEEN;
         switch (promotion) {
-            case TB_PROMOTES_KNIGHT:
-                promotionPiece = Piece::KNIGHT;
-                break;
-            case TB_PROMOTES_BISHOP:
-                promotionPiece = Piece::BISHOP;
-                break;
-            case TB_PROMOTES_ROOK:
-                promotionPiece = Piece::ROOK;
-                break;
+        case TB_PROMOTES_KNIGHT:
+            promotionPiece = Piece::KNIGHT;
+            break;
+        case TB_PROMOTES_BISHOP:
+            promotionPiece = Piece::BISHOP;
+            break;
+        case TB_PROMOTES_ROOK:
+            promotionPiece = Piece::ROOK;
+            break;
         }
         return Move::makePromotion(origin, target, promotionPiece);
     }
