@@ -6,6 +6,7 @@
 #include "move.h"
 #include "evaluation.h"
 #include "spsa.h"
+#include "debug.h"
 
 // Quiet history
 TUNE_INT(historyBonusQuietBase, 140, 0, 250);
@@ -230,11 +231,22 @@ void History::updateQuietHistories(Depth depth, Board* board, SearchStack* stack
     updatePawnHistory(board, bestMove, pawnHistBonus * bestMoveSearchCount);
 
     // Decrease stats for all other quiets
+    int i = 0, scaledMalus;
     for (auto& [move, moveSearchCount] : searchedQuiets) {
         if (move == bestMove) continue;
-        updateQuietHistory(move, board->stm, board, -quietHistMalus * moveSearchCount);
-        updateContinuationHistory(stack, board->stm, board->pieces[move.origin()], move, -contHistMalus * moveSearchCount);
-        updatePawnHistory(board, move, -pawnHistMalus * moveSearchCount);
+        i++;
+
+        scaledMalus = 1143 * -quietHistMalus * moveSearchCount / 1024;
+        if (i > 5) scaledMalus -= scaledMalus * (i - 5) / i;
+        updateQuietHistory(move, board->stm, board, scaledMalus);
+
+        scaledMalus = 1143 * -contHistMalus * moveSearchCount / 1024;
+        if (i > 5) scaledMalus -= scaledMalus * (i - 5) / i;
+        updateContinuationHistory(stack, board->stm, board->pieces[move.origin()], move, scaledMalus);
+
+        scaledMalus = 1143 * -pawnHistMalus * moveSearchCount / 1024;
+        if (i > 5) scaledMalus -= scaledMalus * (i - 5) / i;
+        updatePawnHistory(board, move, scaledMalus);
     }
 }
 
