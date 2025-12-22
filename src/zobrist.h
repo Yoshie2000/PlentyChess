@@ -6,7 +6,7 @@
 
 namespace Zobrist {
 
-    constexpr int FMR_GRANULARITY = 12;
+    constexpr int FMR_GRANULARITY = 10;
 
     extern Hash PIECE_SQUARES[2][Piece::TOTAL][64];
     extern Hash STM_BLACK;

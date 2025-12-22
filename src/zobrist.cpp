@@ -58,8 +58,12 @@ namespace Zobrist {
             ENPASSENT[i] = dist(rng);
         }
 
+        Hash zobristLowLmr = dist(rng);
         for (int i = 0; i < 100 / FMR_GRANULARITY; i++) {
-            FMR[i] = dist(rng);
+            if (i * FMR_GRANULARITY <= 50)
+                FMR[i] = zobristLowLmr;
+            else
+                FMR[i] = dist(rng);
         }
 
         int count = 0;
