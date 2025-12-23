@@ -909,6 +909,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (stopped.load(std::memory_order_relaxed) || exiting)
         return 0;
 
+    bool potentialSingularity = depth >= extensionMinDepth && ttDepth >= depth - extensionTtDepthOffset && (ttFlag & TT_LOWERBOUND) && ttValue != EVAL_NONE && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY;
+
     SearchedMoveList quietMoves, captureMoves;
 
     // Moves loop
@@ -987,12 +989,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
         if (doExtensions
-            && depth >= extensionMinDepth
+            && potentialSingularity
             && move == ttMove
             && !excluded
-            && (ttFlag & TT_LOWERBOUND)
-            && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
-            && ttDepth >= depth - extensionTtDepthOffset
             ) {
             Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth / 100;
             int singularDepth = (depth - 100) / 2;
@@ -1198,7 +1197,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                         history.updateQuietHistories(historyUpdateDepth, board, stack, move, moveSearchCount, quietMoves);
                     }
                     if (captureMoves.size())
-                        history.updateCaptureHistory(historyUpdateDepth, board, move, moveSearchCount, captureMoves);
+                        history.updateCaptureHistory(historyUpdateDepth, board, move, moveSearchCount, captureMoves, !potentialSingularity);
                     break;
                 }
 
