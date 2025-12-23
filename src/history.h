@@ -51,7 +51,7 @@ public:
 
     int16_t* getCaptureHistory(Board* board, Move move);
     void updateSingleCaptureHistory(Board* board, Move move, int16_t bonus);
-    void updateCaptureHistory(Depth depth, Board* board, Move move, int moveSearchCount, SearchedMoveList& searchedCaptures, bool giveMalus);
+    void updateCaptureHistory(Depth depth, Board* board, Move move, int moveSearchCount, SearchedMoveList& searchedCaptures);
 
     void updateQuietHistories(Depth depth, Board* board, SearchStack* stack, Move move, int moveSearchCount, SearchedMoveList& searchedQuiets);
 

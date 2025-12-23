@@ -801,8 +801,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             return razorValue;
     }
 
+    bool potentialSingularity = depth >= extensionMinDepth && ttDepth >= depth - extensionTtDepthOffset && (ttFlag & TT_LOWERBOUND) && ttValue != EVAL_NONE && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY;
+
     // Null move pruning
     if (!pvNode
+        && !potentialSingularity
         && !board->checkers
         && eval >= beta
         && eval >= stack->staticEval
@@ -901,8 +904,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     if (stopped || exiting)
         return 0;
-
-    bool potentialSingularity = depth >= extensionMinDepth && ttDepth >= depth - extensionTtDepthOffset && (ttFlag & TT_LOWERBOUND) && ttValue != EVAL_NONE && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY;
 
     SearchedMoveList quietMoves, captureMoves;
 
@@ -1190,7 +1191,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                         history.updateQuietHistories(historyUpdateDepth, board, stack, move, moveSearchCount, quietMoves);
                     }
                     if (captureMoves.size())
-                        history.updateCaptureHistory(historyUpdateDepth, board, move, moveSearchCount, captureMoves, !potentialSingularity);
+                        history.updateCaptureHistory(historyUpdateDepth, board, move, moveSearchCount, captureMoves);
                     break;
                 }
 
