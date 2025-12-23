@@ -202,13 +202,16 @@ void History::updateSingleCaptureHistory(Board* board, Move move, int16_t bonus)
     *captHistScore += scaledBonus;
 }
 
-void History::updateCaptureHistory(Depth depth, Board* board, Move bestMove, int bestMoveSearchCount, SearchedMoveList& searchedCaptures) {
+void History::updateCaptureHistory(Depth depth, Board* board, Move bestMove, int bestMoveSearchCount, SearchedMoveList& searchedCaptures, bool giveMalus) {
     int captHistBonus = std::min(historyBonusCaptureBase + historyBonusCaptureFactor * depth, historyBonusCaptureMax);
     int captHistMalus = std::min(historyMalusCaptureBase + historyMalusCaptureFactor * depth, historyMalusCaptureMax);
 
     if (board->isCapture(bestMove)) {
         updateSingleCaptureHistory(board, bestMove, captHistBonus * bestMoveSearchCount);
     }
+
+    if (!giveMalus)
+        return;
 
     for (auto& [move, moveSearchCount] : searchedCaptures) {
         if (move == bestMove) continue;
