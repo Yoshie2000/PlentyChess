@@ -1073,8 +1073,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
 
                 if (importantCapture) {
-                    reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
                     reduction = lmrImportantCaptureFactor * reduction / 100;
+                    reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
                 }
             }
             else {
