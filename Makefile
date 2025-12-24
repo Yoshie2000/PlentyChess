@@ -175,17 +175,28 @@ else
 	CXXFLAGS := $(CXXFLAGS) -flto=auto
 
 	UNAME_S := $(shell uname -s)
-# Use LLD on Linux with clang if supported
+# Use LLD on Linux with clang if major versions match
 	ifneq ($(UNAME_S), Darwin)
-		ifeq ($(shell $(CXX) -fuse-ld=lld -Wl,--version >/dev/null 2>&1 && echo yes),yes)
-			COMPILER := $(shell $(CXX) --version | head -n 1)
-			ifeq (,$(findstring g++,$(COMPILER)))
-				LDFLAGS := $(LDFLAGS) -fuse-ld=lld
-			endif
-		endif
-	else
-	    CFLAGS := $(filter-out -mpopcnt,$(CFLAGS))
-	endif
+# Get major versions
+    CLANG_MAJOR := $(shell $(CXX) -dumpversion | cut -d. -f1)
+    LLD_VERSION_STR := $(shell ld.lld --version 2>/dev/null)
+    
+    ifneq ($(LLD_VERSION_STR),)
+        LLD_MAJOR := $(shell ld.lld --version | grep -oE '[0-9]+' | head -n1)
+        
+# Only use LLD if it exists and matches Clang's major version
+        ifeq ($(CLANG_MAJOR),$(LLD_MAJOR))
+            ifeq ($(shell $(CXX) -fuse-ld=lld -Wl,--version >/dev/null 2>&1 && echo yes),yes)
+                COMPILER := $(shell $(CXX) --version | head -n 1)
+                ifeq (,$(findstring g++,$(COMPILER)))
+                    LDFLAGS := $(LDFLAGS) -fuse-ld=lld
+                endif
+            endif
+        endif
+    endif
+else
+    CFLAGS := $(filter-out -mpopcnt,$(CFLAGS))
+endif
 endif
 
 # Network flags
