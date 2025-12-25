@@ -449,6 +449,7 @@ void uciLoop(int argc, char* argv[]) {
     std::vector<Hash> boardHistory;
     Board board;
     board.startpos();
+    boardHistory.push_back(board.hashes.hash);
 
     std::cout << "UCI thread running" << std::endl;
 
