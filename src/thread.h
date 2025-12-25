@@ -188,7 +188,7 @@ public:
     uint64_t nodesSearched() {
         uint64_t sum = 0;
         for (auto& worker : workers) {
-            sum += worker.get()->searchData.nodesSearched;
+            sum += worker.get()->searchData.nodesSearched.load(std::memory_order_relaxed);
         }
         return sum;
     }

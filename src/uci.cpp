@@ -495,7 +495,10 @@ void uciLoop(int argc, char* argv[]) {
             threads.waitForSearchFinished();
         }
 
-        else if (matchesToken(line, "isready")) std::cout << "readyok" << std::endl;
+        else if (matchesToken(line, "isready")) {
+            threads.waitForSearchFinished();
+            std::cout << "readyok" << std::endl;
+        }
         else if (matchesToken(line, "ucinewgame")) {
             threads.resize(UCI::Options.threads.value);
             TT.resize(UCI::Options.hash.value);

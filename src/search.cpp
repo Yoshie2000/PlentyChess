@@ -302,7 +302,7 @@ int valueFromTt(int value, int ply, int rule50) {
 }
 
 Eval drawEval(Worker* thread) {
-    return 4 - (thread->searchData.nodesSearched & 3);  // Small overhead to avoid 3-fold blindness
+    return 4 - (thread->searchData.nodesSearched.load(std::memory_order_relaxed) & 3);  // Small overhead to avoid 3-fold blindness
 }
 
 Board* Worker::doMove(Board* board, Hash newHash, Move move) {
@@ -542,7 +542,7 @@ movesLoopQsearch:
         Hash newHash = board->hashAfter(move);
         TT.prefetch(newHash, board->rule50_ply);
         moveCount++;
-        searchData.nodesSearched++;
+        searchData.nodesSearched.fetch_add(1, std::memory_order_relaxed);
 
         Square origin = move.origin();
         Square target = move.target();
@@ -923,7 +923,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         if (!board->isLegal(move))
             continue;
 
-        uint64_t nodesBeforeMove = searchData.nodesSearched;
+        uint64_t nodesBeforeMove = searchData.nodesSearched.load(std::memory_order_relaxed);
 
         bool capture = board->isCapture(move);
         bool importantCapture = stack->ttPv && capture && !cutNode;
@@ -1048,7 +1048,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];;
 
         moveCount++;
-        searchData.nodesSearched++;
+        searchData.nodesSearched.fetch_add(1, std::memory_order_relaxed);
 
         Board* boardCopy = doMove(board, newHash, move);
 
@@ -1142,9 +1142,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         if (rootNode) {
             if (rootMoveNodes.count(move) == 0)
-                rootMoveNodes[move] = searchData.nodesSearched - nodesBeforeMove;
+                rootMoveNodes[move] = searchData.nodesSearched.load(std::memory_order_relaxed) - nodesBeforeMove;
             else
-                rootMoveNodes[move] = searchData.nodesSearched - nodesBeforeMove + rootMoveNodes[move];
+                rootMoveNodes[move] = searchData.nodesSearched.load(std::memory_order_relaxed) - nodesBeforeMove + rootMoveNodes[move];
 
             RootMove* rootMove = &rootMoves[0];
             for (RootMove& rm : rootMoves) {
@@ -1296,7 +1296,7 @@ void Worker::tsearch() {
             bestTbMove = tbProbeMoveRoot(result);
     }
 
-    searchData.nodesSearched = 0;
+    searchData.nodesSearched.store(0, std::memory_order_relaxed);
     searchData.tbHits = 0;
     if (mainThread)
         initTimeManagement(rootBoard, searchParameters, searchData);
@@ -1460,7 +1460,7 @@ void Worker::iterativeDeepening() {
             tmAdjustment *= tmEvalDiffBase + std::clamp(previousValue - rootMoves[0].value, tmEvalDiffMin, tmEvalDiffMax) * tmEvalDiffFactor;
 
             // Based on fraction of nodes that went into the best move
-            tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched);
+            tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched.load(std::memory_order_relaxed));
 
             // Based on search score complexity
             if (baseValue != EVAL_NONE) {
@@ -1562,7 +1562,7 @@ Worker* Worker::chooseBestThread() {
 void Worker::tdatagen() {
     nnue.reset(&rootBoard);
 
-    searchData.nodesSearched = 0;
+    searchData.nodesSearched.store(0, std::memory_order_relaxed);
     searchData.tbHits = 0;
     initTimeManagement(rootBoard, searchParameters, searchData);
     {
@@ -1632,7 +1632,7 @@ void Worker::tdatagen() {
             sortRootMoves();
 
             // Stop if we need to
-            if (stopped.load(std::memory_order_relaxed) || exiting || searchData.nodesSearched >= searchParameters.nodes)
+            if (stopped.load(std::memory_order_relaxed) || exiting || searchData.nodesSearched.load(std::memory_order_relaxed) >= searchParameters.nodes)
                 break;
 
             // Our window was too high, lower alpha for next iteration
@@ -1658,7 +1658,7 @@ void Worker::tdatagen() {
             delta *= aspirationWindowDeltaFactor;
         }
 
-        if (stopped.load(std::memory_order_relaxed) || exiting || searchData.nodesSearched >= searchParameters.nodes)
+        if (stopped.load(std::memory_order_relaxed) || exiting || searchData.nodesSearched.load(std::memory_order_relaxed) >= searchParameters.nodes)
             break;
 
         previousValue = rootMoves[0].value;
