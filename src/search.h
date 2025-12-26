@@ -6,6 +6,7 @@
 #include <iostream>
 #include <inttypes.h>
 #include <vector>
+#include <atomic>
 
 #include "board.h"
 #include "move.h"
@@ -69,7 +70,7 @@ struct SearchData {
     int rootDepth;
     int selDepth;
 
-    uint64_t nodesSearched;
+    std::atomic_uint64_t nodesSearched;
     uint64_t tbHits;
 
     int64_t startTime;

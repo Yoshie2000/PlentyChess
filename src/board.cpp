@@ -310,7 +310,7 @@ void Board::addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
     updatePieceThreats<true>(piece, pieceColor, square, nnue);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
-};
+}
 
 void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
     assert(pieces[square] != Piece::NONE);
@@ -324,7 +324,7 @@ void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue
     updatePieceThreats<false>(piece, pieceColor, square, nnue);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
-};
+}
 
 void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue) {
     assert(pieces[origin] != Piece::NONE);
@@ -342,7 +342,7 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     updatePieceThreats<true>(piece, pieceColor, target, nnue, fromTo);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][origin] ^ Zobrist::PIECE_SQUARES[pieceColor][piece][target]);
     updatePieceCastling(piece, pieceColor, origin);
-};
+}
 
 void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
     assert(pieces[square] != Piece::NONE);
@@ -368,7 +368,7 @@ void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) 
     updatePieceThreats<true, false>(piece, pieceColor, square, nnue);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
-};
+}
 
 void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
     // Increment ply counters

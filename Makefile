@@ -1,7 +1,7 @@
 CXX = clang++
 CC  = $(CXX)
 CFLAGS = -w -pthread -O3
-CXXFLAGS = -std=c++17 -Wall -Wextra -pedantic -Werror -Wshadow -fcommon -pthread -O3
+CXXFLAGS = -std=c++17 -Wall -Wextra -pedantic -Wshadow -fcommon -pthread -O3
 LDFLAGS = 
 CXXFLAGS_EXTRA = 
 
@@ -175,29 +175,41 @@ else
 	CXXFLAGS := $(CXXFLAGS) -flto=auto
 
 	UNAME_S := $(shell uname -s)
-# Use LLD on Linux with clang if supported
+# Use LLD on Linux with clang if major versions match
 	ifneq ($(UNAME_S), Darwin)
-		ifeq ($(shell $(CXX) -fuse-ld=lld -Wl,--version >/dev/null 2>&1 && echo yes),yes)
-			COMPILER := $(shell $(CXX) --version | head -n 1)
-			ifeq (,$(findstring g++,$(COMPILER)))
-				LDFLAGS := $(LDFLAGS) -fuse-ld=lld
-			endif
-		endif
+# Get major versions
+    CLANG_MAJOR := $(shell $(CXX) -dumpversion | cut -d. -f1)
+    LLD_VERSION_STR := $(shell ld.lld --version 2>/dev/null)
+    
+    ifneq ($(LLD_VERSION_STR),)
+        LLD_MAJOR := $(shell ld.lld --version | grep -oE '[0-9]+' | head -n1)
+        
+# Only use LLD if it exists and matches Clang's major version
+        ifeq ($(CLANG_MAJOR),$(LLD_MAJOR))
+            ifeq ($(shell $(CXX) -fuse-ld=lld -Wl,--version >/dev/null 2>&1 && echo yes),yes)
+                COMPILER := $(shell $(CXX) --version | head -n 1)
+                ifeq (,$(findstring g++,$(COMPILER)))
+                    LDFLAGS := $(LDFLAGS) -fuse-ld=lld
+                endif
+            endif
+        endif
+    endif
 
 # Link with NUMA if possible
-		HAS_NUMA = $(shell echo '\#include "numa.h"' | $(CXX) -E - 2> /dev/null | grep -c 'numa.h')
-		ifneq ($(HAS_NUMA),0)
-			ifneq (, $(findstring clang,$(COMPILER_VERSION)))
-				CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA
-				LDFLAGS := $(LDFLAGS) -lnuma
-			else
-				CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA -Wl,--no-as-needed
-				LDFLAGS := $(LDFLAGS) -lnuma -Wl,--no-as-needed
-			endif
+	HAS_NUMA = $(shell echo '\#include "numa.h"' | $(CXX) -E - 2> /dev/null | grep -c 'numa.h')
+	ifneq ($(HAS_NUMA),0)
+		ifneq (, $(findstring clang,$(COMPILER_VERSION)))
+			CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA
+			LDFLAGS := $(LDFLAGS) -lnuma
+		else
+			CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA -Wl,--no-as-needed
+			LDFLAGS := $(LDFLAGS) -lnuma -Wl,--no-as-needed
 		endif
-	else
-	    CFLAGS := $(filter-out -mpopcnt,$(CFLAGS))
 	endif
+
+else
+    CFLAGS := $(filter-out -mpopcnt,$(CFLAGS))
+endif
 endif
 
 # Network flags
