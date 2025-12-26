@@ -449,14 +449,14 @@ Eval NNUE::evaluate(Board* board) {
     VecI16_v128 nnzZero = setZero_v128();
     VecI16_v128 nnzIncrement = set1Epi16_v128(8);
     for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
-        uint32_t nnz = 0;
+        uint32_t nnzMask = 0;
 
         for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
-            nnz |= vecNNZ(pairwiseOutputsVecI32[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
+            nnzMask |= vecNNZ(pairwiseOutputsVecI32[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
         }
 
         for (int j = 0; j < 16 / 8; j++) {
-            uint16_t lookup = (nnz >> (j * 8)) & 0xFF;
+            uint16_t lookup = (nnzMask >> (j * 8)) & 0xFF;
             VecI16_v128 offsets = loadu_v128(nnzLookup[lookup]);
             storeu_v128(nnzIndices + nnzCount, addEpi16_v128(nnzZero, offsets));
             nnzCount += BB::popcount(lookup);
@@ -586,7 +586,47 @@ Eval NNUE::evaluate(Board* board) {
     }
 #endif
 
-    // ---------------------- L3 PROPAGATION ----------------------
+    // ---------------------- L3 PROPAGATION & ACTIVATION ----------------------
+
+    alignas(ALIGNMENT) float l3Outputs[L4_SIZE];
+    memcpy(l3Outputs, networkData->l3Biases[bucket], sizeof(l3Outputs));
+    
+#if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
+    VecF* l3OutputsVec = reinterpret_cast<VecF*>(l3Outputs);
+    for (int l2 = 0; l2 < L3_SIZE; l2++) {
+        VecF l2Vec = set1Ps(l2Outputs[l2]);
+        VecF* weights = reinterpret_cast<VecF*>(&networkData->l3Weights[bucket][l2 * L4_SIZE]);
+        for (int l3 = 0; l3 < L4_SIZE / FLOAT_VEC_SIZE; l3++) {
+            l3OutputsVec[l3] = fmaddPs(l2Vec, weights[l3], l3OutputsVec[l3]);
+        }
+    }
+    for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
+        VecF l2Vec = set1Ps(l1Outputs[l1]);
+        VecF* weights = reinterpret_cast<VecF*>(&networkData->l3Weights[bucket][(l1 + L3_SIZE) * L4_SIZE]);
+        for (int l3 = 0; l3 < L4_SIZE / FLOAT_VEC_SIZE; l3++) {
+            l3OutputsVec[l3] = fmaddPs(l2Vec, weights[l3], l3OutputsVec[l3]);
+        }
+    }
+    for (int l3 = 0; l3 < L4_SIZE / FLOAT_VEC_SIZE; l3++) {
+        l3OutputsVec[l3] = maxPs(minPs(l3OutputsVec[l3], psOne), psZero);
+    }
+#else
+    for (int l2 = 0; l2 < L3_SIZE; l2++) {
+        for (int l3 = 0; l3 < L4_SIZE; l3++) {
+            l3Outputs[l3] = std::fma(l2Outputs[l2], networkData->l3Weights[bucket][l2 * L4_SIZE + l3], l3Outputs[l3]);
+        }
+    }
+    for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
+        for (int l3 = 0; l3 < L4_SIZE; l3++) {
+            l3Outputs[l3] = std::fma(l1Outputs[l1], networkData->l3Weights[bucket][(l1 + L3_SIZE) * L4_SIZE + l3], l3Outputs[l3]);
+        }
+    }
+    for (int l3 = 0; l3 < L4_SIZE; l3++) {
+        l3Outputs[l3] = std::clamp(l3Outputs[l3], 0.0f, 1.0f);
+    }
+#endif
+    
+    // ---------------------- L4 PROPAGATION ----------------------
 
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     constexpr int chunks = 64 / sizeof(VecF);
@@ -595,35 +635,25 @@ Eval NNUE::evaluate(Board* board) {
     for (int j = 0; j < chunks; j++)
         resultSums[j] = psZero;
 
-    VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData->l3Weights[bucket]);
-    for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2 += chunks) {
+    VecF* l4WeightsVec = reinterpret_cast<VecF*>(networkData->l4Weights[bucket]);
+    for (int l3 = 0; l3 < L4_SIZE / FLOAT_VEC_SIZE; l3 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = fmaddPs(l2OutputsVec[l2 + chunk], l3WeightsVec[l2 + chunk], resultSums[chunk]);
-        }
-    }
-    for (int l1 = 0; l1 < 2 * L2_SIZE / FLOAT_VEC_SIZE; l1 += chunks) {
-        for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = fmaddPs(l1OutputsVec[l1 + chunk], l3WeightsVec[L3_SIZE / FLOAT_VEC_SIZE + l1 + chunk], resultSums[chunk]);
+            resultSums[chunk] = fmaddPs(l3OutputsVec[l3 + chunk], l4WeightsVec[l3 + chunk], resultSums[chunk]);
         }
     }
 
-    float result = networkData->l3Biases[bucket] + reduceAddPs(resultSums);
+    float result = networkData->l4Biases[bucket] + reduceAddPs(resultSums);
 #else
     constexpr int chunks = 64 / sizeof(float);
     float resultSums[chunks] = {};
 
-    for (int l2 = 0; l2 < L3_SIZE; l2 += chunks) {
+    for (int l3 = 0; l3 < L4_SIZE; l3 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = std::fma(l2Outputs[l2 + chunk], networkData->l3Weights[bucket][l2 + chunk], resultSums[chunk]);
-        }
-    }
-    for (int l1 = 0; l1 < 2 * L2_SIZE; l1 += chunks) {
-        for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = std::fma(l1Outputs[l1 + chunk], networkData->l3Weights[bucket][L3_SIZE + l1 + chunk], resultSums[chunk]);
+            resultSums[chunk] = std::fma(l3Outputs[l3 + chunk], networkData->l4Weights[bucket][l3 + chunk], resultSums[chunk]);
         }
     }
 
-    float result = networkData->l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
+    float result = networkData->l4Biases[bucket] + reduceAddPsR(resultSums, chunks);
 #endif
 
     return result * NETWORK_SCALE;

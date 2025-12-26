@@ -23,6 +23,7 @@ constexpr int INPUT_SIZE = ThreatInputs::FEATURE_COUNT + 768 * KING_BUCKETS;
 constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
+constexpr int L4_SIZE = 16;
 
 constexpr int OUTPUT_BUCKETS = 8;
 
@@ -95,14 +96,16 @@ struct FinnyEntry {
 
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
-  alignas(ALIGNMENT) int8_t inputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
+  alignas(ALIGNMENT) int8_t  inputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
   alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
   alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
-  alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
+  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L4_SIZE * (L3_SIZE + 2 * L2_SIZE)];
+  alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS][L4_SIZE];
+  alignas(ALIGNMENT) float   l4Weights[OUTPUT_BUCKETS][L4_SIZE];
+  alignas(ALIGNMENT) float   l4Biases[OUTPUT_BUCKETS];
 };
 
 extern NetworkData* networkData;
@@ -264,7 +267,9 @@ public:
     for (auto& b : nnzOutNet.l2Weights)   for (auto v : b) writeFloat(outfile, v);
     for (auto& b : nnzOutNet.l2Biases)    for (auto v : b) writeFloat(outfile, v);
     for (auto& b : nnzOutNet.l3Weights)   for (auto v : b) writeFloat(outfile, v);
-    for (auto v : nnzOutNet.l3Biases)     writeFloat(outfile, v);
+    for (auto& b : nnzOutNet.l3Biases)    for (auto v : b) writeFloat(outfile, v);
+    for (auto& b : nnzOutNet.l4Weights)   for (auto v : b) writeFloat(outfile, v);
+    for (auto v : nnzOutNet.l4Biases)     writeFloat(outfile, v);
     outfile.close();
     std::cout << "NNZ permuted net written to ./compressed.bin" << std::endl;
   }
