@@ -38,7 +38,7 @@ public:
     std::condition_variable cv;
 
     bool searching = false;
-    bool stopped = false;
+    std::atomic_bool stopped = false;
     bool exiting = false;
 
     SearchData searchData;
@@ -144,7 +144,7 @@ public:
 
         for (auto& worker : workers) {
             worker.get()->rootMoves.clear();
-            worker.get()->stopped = false;
+            worker.get()->stopped.store(false, std::memory_order_relaxed);
             std::lock_guard<std::mutex> lock(worker.get()->mutex);
             worker.get()->searching = true;
         }
@@ -156,7 +156,7 @@ public:
 
     void stopSearching() {
         for (auto& worker : workers) {
-            worker.get()->stopped = true;
+            worker.get()->stopped.store(true, std::memory_order_relaxed);
         }
     }
 
@@ -188,7 +188,7 @@ public:
     uint64_t nodesSearched() {
         uint64_t sum = 0;
         for (auto& worker : workers) {
-            sum += worker.get()->searchData.nodesSearched;
+            sum += worker.get()->searchData.nodesSearched.load(std::memory_order_relaxed);
         }
         return sum;
     }

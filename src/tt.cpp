@@ -5,6 +5,7 @@
 TUNE_INT(ttReplaceTtpvBonus, 225, 0, 400);
 TUNE_INT(ttReplaceOffset, 443, 0, 800);
 
+__attribute__((no_sanitize("thread")))
 void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, uint8_t _rule50, bool wasPv, int _flags) {
     // Update bestMove if it exists
     // Or clear it for a different position
@@ -21,6 +22,7 @@ void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval 
     }
 }
 
+__attribute__((no_sanitize("thread")))
 TTEntry* TranspositionTable::probe(Hash hash, uint8_t fmr, bool* found) {
     TTCluster* cluster = &table[index(hash, fmr)];
     uint16_t hash16 = (uint16_t)hash;

@@ -73,6 +73,7 @@ struct TTEntry {
     constexpr Eval getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
 
+    __attribute__((no_sanitize("thread")))
     void update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, uint8_t rule50, bool wasPv, int _flags);
     bool isInitialised() { return hash != 0; };
 };
@@ -134,6 +135,7 @@ public:
         __builtin_prefetch(&table[index(hash, fmr)]);
     }
 
+    __attribute__((no_sanitize("thread")))
     TTEntry* probe(Hash hash, uint8_t fmr, bool* found);
 
     int hashfull() {
