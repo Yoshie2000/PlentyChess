@@ -75,7 +75,7 @@ TUNE_INT(iirReduction, 90, 0, 200);
 TUNE_INT(staticHistoryFactor, -250, -200, -1);
 TUNE_INT(staticHistoryMin, -750, -500, -1);
 TUNE_INT(staticHistoryMax, 750, 1, 500);
-TUNE_INT(staticHistoryTempo, 470, 1, 60);
+TUNE_INT(staticHistoryTempo, 400, 1, 60);
 
 TUNE_INT(rfpDepthLimit, 1450, 200, 2000);
 TUNE_INT(rfpBase, 17, -100, 100);
