@@ -151,7 +151,7 @@ TUNE_INT(lmrQuietHistoryDivisor, 28908, 10000, 60000);
 TUNE_INT(lmrHistoryFactorCapture, 3122217, 2500000, 4000000);
 TUNE_INT(lmrHistoryFactorImportantCapture, 3006170, 2500000, 4000000);
 TUNE_INT(lmrImportantBadCaptureOffset, 110, 0, 230);
-TUNE_INT(lmrImportantCaptureFactor, 31, 0, 60);
+TUNE_INT(lmrImportantCaptureFactor, 62, 0, 60);
 TUNE_INT(lmrQuietPvNodeOffset, 19, 0, 50);
 TUNE_INT(lmrQuietImproving, 58, 0, 100);
 
@@ -1103,7 +1103,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
             newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
 
-            if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
+            if (value > alpha && reducedDepth < newDepth && !(!importantCapture && ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
                 moveSearchCount++;
 
