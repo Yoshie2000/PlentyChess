@@ -163,7 +163,7 @@ inline int lmrCaptureHistoryDivisor(bool importantCapture) { return importantCap
 inline int lmrCorrectionDivisor(bool importantCapture) { return importantCapture ? lmrCorrectionDivisorImportantCapture : lmrCorrectionDivisorQuietOrNormalCapture; }
 
 TUNE_INT(postlmrOppWorseningThreshold, 240, 150, 450);
-TUNE_INT(postlmrOppWorseningReduction, 145, 0, 200);
+TUNE_INT(postlmrOppWorseningReduction, 190, 0, 200);
 
 TUNE_INT(lmrPvNodeExtension, 109, 0, 200);
 TUNE_INT_DISABLED(lmrDeeperBase, 40, 1, 100);
@@ -647,6 +647,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     (stack + 1)->killer = Move::none();
     (stack + 1)->excludedMove = Move::none();
     stack->inCheck = board->checkerCount > 0;
+    stack->moveCount = 0;
 
     // TT Lookup
     bool ttHit = false;
@@ -777,8 +778,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     // Post-LMR depth adjustments
     if (!board->checkers && (stack - 1)->inLMR) {
         int additionalReduction = 0;
+        
         if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
-            additionalReduction -= postlmrOppWorseningReduction;
+            additionalReduction -= postlmrOppWorseningReduction - std::min(5 * (stack - 1)->moveCount, 100);
 
         depth -= additionalReduction;
         (stack - 1)->reduction += additionalReduction;
@@ -1048,6 +1050,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];;
 
         moveCount++;
+        stack->moveCount++;
         searchData.nodesSearched.fetch_add(1, std::memory_order_relaxed);
 
         Board* boardCopy = doMove(board, newHash, move);
@@ -1378,6 +1381,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].capture = false;
                 stackList[i].inCheck = false;
                 stackList[i].correctionValue = 0;
+                stackList[i].moveCount = 0;
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
                 stackList[i].ttPv = false;
@@ -1603,6 +1607,7 @@ void Worker::tdatagen() {
             stackList[i].capture = false;
             stackList[i].inCheck = false;
             stackList[i].correctionValue = 0;
+            stackList[i].moveCount = 0;
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
             stackList[i].ttPv = false;
