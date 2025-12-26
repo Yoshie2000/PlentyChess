@@ -449,14 +449,14 @@ Eval NNUE::evaluate(Board* board) {
     VecI16_v128 nnzZero = setZero_v128();
     VecI16_v128 nnzIncrement = set1Epi16_v128(8);
     for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
-        uint32_t nnz = 0;
+        uint32_t nnzMask = 0;
 
         for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
-            nnz |= vecNNZ(pairwiseOutputsVecI32[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
+            nnzMask |= vecNNZ(pairwiseOutputsVecI32[i * 16 / I32_VEC_SIZE + j]) << (j * I32_VEC_SIZE);
         }
 
         for (int j = 0; j < 16 / 8; j++) {
-            uint16_t lookup = (nnz >> (j * 8)) & 0xFF;
+            uint16_t lookup = (nnzMask >> (j * 8)) & 0xFF;
             VecI16_v128 offsets = loadu_v128(nnzLookup[lookup]);
             storeu_v128(nnzIndices + nnzCount, addEpi16_v128(nnzZero, offsets));
             nnzCount += BB::popcount(lookup);
