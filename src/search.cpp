@@ -72,10 +72,10 @@ TUNE_INT(iirCheckDepth, 509, 0, 1000);
 TUNE_INT(iirLowTtDepthOffset, 437, 0, 850);
 TUNE_INT(iirReduction, 90, 0, 200);
 
-TUNE_INT(staticHistoryFactor, -101, -200, -1);
-TUNE_INT(staticHistoryMin, -172, -500, -1);
-TUNE_INT(staticHistoryMax, 286, 1, 500);
-TUNE_INT(staticHistoryTempo, 27, 1, 60);
+TUNE_INT(staticHistoryFactor, -250, -200, -1);
+TUNE_INT(staticHistoryMin, -430, -500, -1);
+TUNE_INT(staticHistoryMax, 715, 1, 500);
+TUNE_INT(staticHistoryTempo, 170, 1, 60);
 
 TUNE_INT(rfpDepthLimit, 1450, 200, 2000);
 TUNE_INT(rfpBase, 17, -100, 100);
