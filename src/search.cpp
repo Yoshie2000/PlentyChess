@@ -219,7 +219,7 @@ uint64_t perftInternal(Board& board, Depth depth) {
             continue;
 
         Board boardCopy = board;
-        boardCopy.doMove(move, boardCopy.hashAfter(move), &UCI::nnue);
+        boardCopy.doMove(move, boardCopy.hashAfter(move).first, &UCI::nnue);
         uint64_t subNodes = perftInternal(boardCopy, depth - 1);
         UCI::nnue.decrementAccumulator();
 
@@ -241,7 +241,7 @@ uint64_t perft(Board& board, Depth depth) {
             continue;
 
         Board boardCopy = board;
-        boardCopy.doMove(move, boardCopy.hashAfter(move), &UCI::nnue);
+        boardCopy.doMove(move, boardCopy.hashAfter(move).first, &UCI::nnue);
         uint64_t subNodes = perftInternal(boardCopy, depth - 1);
         UCI::nnue.decrementAccumulator();
 
@@ -455,7 +455,8 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     uint8_t ttFlag = TT_NOBOUND;
     bool ttPv = pvNode;
 
-    ttEntry = TT.probe(board->hashes.hash, board->rule50_ply, &ttHit);
+    Hash fmrHash = board->hashes.hash ^ Zobrist::FMR[board->rule50_ply / Zobrist::FMR_GRANULARITY];
+    ttEntry = TT.probe(fmrHash, &ttHit);
     if (ttHit) {
         ttMove = ttEntry->getMove();
         ttValue = valueFromTt(ttEntry->getValue(), stack->ply, board->rule50_ply);
@@ -491,7 +492,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     else {
         unadjustedEval = evaluate(board, &nnue);
         stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
-        ttEntry->update(board->hashes.hash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
+        ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
     }
     futilityValue = std::min(stack->staticEval + qsFutilityOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
 
@@ -499,7 +500,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (bestValue >= beta) {
         if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
             bestValue = (bestValue + beta) / 2;
-        ttEntry->update(board->hashes.hash, Move::none(), ttEntry->depth, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
+        ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
         return bestValue;
     }
     if (alpha < bestValue)
@@ -539,8 +540,8 @@ movesLoopQsearch:
         if (!board->isLegal(move))
             continue;
 
-        Hash newHash = board->hashAfter(move);
-        TT.prefetch(newHash, board->rule50_ply);
+        auto [newHash, newFmrHash] = board->hashAfter(move);
+        TT.prefetch(newFmrHash);
         moveCount++;
         searchData.nodesSearched.fetch_add(1, std::memory_order_relaxed);
 
@@ -590,7 +591,7 @@ movesLoopQsearch:
 
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : TT_UPPERBOUND;
-    ttEntry->update(board->hashes.hash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, ttPv, flags);
+    ttEntry->update(fmrHash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, ttPv, flags);
 
     return bestValue;
 }
@@ -649,6 +650,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     stack->inCheck = board->checkerCount > 0;
 
     // TT Lookup
+    Hash fmrHash = board->hashes.hash ^ Zobrist::FMR[board->rule50_ply / Zobrist::FMR_GRANULARITY];
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
     Move ttMove = Move::none();
@@ -658,7 +660,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     stack->ttPv = excluded ? stack->ttPv : pvNode;
 
     if (!excluded) {
-        ttEntry = TT.probe(board->hashes.hash, board->rule50_ply, &ttHit);
+        ttEntry = TT.probe(fmrHash, &ttHit);
         if (ttHit) {
             ttMove = rootNode && rootMoves[0].value > -EVAL_INFINITE ? rootMoves[0].move : ttEntry->getMove();
             ttValue = valueFromTt(ttEntry->getValue(), stack->ply, board->rule50_ply);
@@ -710,7 +712,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
 
             if (tbBound == TT_EXACTBOUND || (tbBound == TT_LOWERBOUND ? tbValue >= beta : tbValue <= alpha)) {
-                ttEntry->update(board->hashes.hash, Move::none(), depth, EVAL_NONE, valueToTT(tbValue, stack->ply), board->rule50_ply, stack->ttPv, tbBound);
+                ttEntry->update(fmrHash, Move::none(), depth, EVAL_NONE, valueToTT(tbValue, stack->ply), board->rule50_ply, stack->ttPv, tbBound);
                 return tbValue;
             }
 
@@ -751,7 +753,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         unadjustedEval = evaluate(board, &nnue);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
-        ttEntry->update(board->hashes.hash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
+        ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
     }
 
     // Improving
@@ -868,8 +870,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (move == excludedMove || !board->isLegal(move))
                 continue;
 
-            Hash newHash = board->hashAfter(move);
-            TT.prefetch(newHash, board->rule50_ply);
+            auto [newHash, newFmrHash] = board->hashAfter(move);
+            TT.prefetch(newFmrHash);
 
             Square origin = move.origin();
             Square target = move.target();
@@ -893,7 +895,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (value >= probCutBeta) {
                 value = std::min(value, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(board->hashes.hash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
+                ttEntry->update(fmrHash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
                 return value;
             }
         }
@@ -1017,7 +1019,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
                 Eval value = std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(board->hashes.hash, ttMove, singularDepth, unadjustedEval, value, board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
+                ttEntry->update(fmrHash, ttMove, singularDepth, unadjustedEval, value, board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
 
                 // Adjust correction history
                 if (!board->checkers && singularValue > stack->staticEval) {
@@ -1035,8 +1037,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 extension = -2;
         }
 
-        Hash newHash = board->hashAfter(move);
-        TT.prefetch(newHash, board->rule50_ply);
+        auto [newHash, newFmrHash] = board->hashAfter(move);
+        TT.prefetch(newFmrHash);
 
         // Some setup stuff
         Square origin = move.origin();
@@ -1228,7 +1230,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(board->hashes.hash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
+        ttEntry->update(fmrHash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
 
     // Adjust correction history
     if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {

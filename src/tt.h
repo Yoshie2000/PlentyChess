@@ -17,7 +17,6 @@
 #include "move.h"
 #include "evaluation.h"
 #include "uci.h"
-#include "zobrist.h"
 
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     void* ptr;
@@ -73,7 +72,6 @@ struct TTEntry {
     constexpr Eval getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
 
-    __attribute__((no_sanitize("thread")))
     void update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, uint8_t rule50, bool wasPv, int _flags);
     bool isInitialised() { return hash != 0; };
 };
@@ -122,21 +120,17 @@ public:
         clear();
     }
 
-    size_t index(Hash hash, uint8_t fmr) {
-        // Modify hash using 50mr count
-        hash ^= Zobrist::FMR[fmr / Zobrist::FMR_GRANULARITY];
-
+    size_t index(Hash hash) {
         // Find entry
         __extension__ using uint128 = unsigned __int128;
         return ((uint128)hash * (uint128)clusterCount) >> 64;
     }
 
-    void prefetch(Hash hash, uint8_t fmr) {
-        __builtin_prefetch(&table[index(hash, fmr)]);
+    void prefetch(Hash hash) {
+        __builtin_prefetch(&table[index(hash)]);
     }
 
-    __attribute__((no_sanitize("thread")))
-    TTEntry* probe(Hash hash, uint8_t fmr, bool* found);
+    TTEntry* probe(Hash hash, bool* found);
 
     int hashfull() {
         int count = 0;
