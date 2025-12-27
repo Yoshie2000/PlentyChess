@@ -1104,7 +1104,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
 
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
+                stack->doPCM = true;
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
+                stack->doPCM = false;
                 moveSearchCount++;
 
                 if (!capture) {
@@ -1220,7 +1222,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         bestValue = board->checkers ? matedIn(stack->ply) : 0;
     }
 
-    if (!bestMove && (stack - 1)->inLMR && !(stack - 1)->capture && !!(stack - 1)->move && !(stack - 1)->move.isPromotion()) {
+    if (!bestMove && (stack - 1)->doPCM && !(stack - 1)->capture && !!(stack - 1)->move && !(stack - 1)->move.isPromotion()) {
         int bonus = std::min(50 + 50 * depth, 500);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, bonus);
     }
@@ -1385,6 +1387,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].correctionValue = 0;
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
+                stackList[i].doPCM = false;
                 stackList[i].ttPv = false;
             }
 
@@ -1610,6 +1613,7 @@ void Worker::tdatagen() {
             stackList[i].correctionValue = 0;
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
+            stackList[i].doPCM = false;
             stackList[i].ttPv = false;
         }
 
