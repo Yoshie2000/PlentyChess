@@ -210,7 +210,7 @@ void position(std::string line, Board& board, std::vector<Hash>& boardHistory) {
         assert(board.isLegal(m));
 
         Board boardCopy = board;
-        boardCopy.doMove(m, board.hashAfter(m), &UCI::nnue);
+        boardCopy.doMove(m, board.hashAfter(m).first, &UCI::nnue);
         boardHistory.push_back(boardCopy.hashes.hash);
 
         if (moveCount++ > 200) {
