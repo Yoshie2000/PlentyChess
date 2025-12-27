@@ -997,7 +997,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             bool currTtPv = stack->ttPv;
             stack->excludedMove = move;
-            Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
+            Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, false);
             stack->excludedMove = Move::none();
             stack->ttPv = currTtPv;
 
