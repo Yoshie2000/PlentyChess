@@ -785,7 +785,7 @@ bool Board::givesCheck(Move move) {
     }
 }
 
-Hash Board::hashAfter(Move move) {
+std::pair<Hash, Hash> Board::hashAfter(Move move) {
     Hash hash = hashes.hash ^ Zobrist::STM_BLACK;
 
     Square origin = move.origin();
@@ -867,7 +867,9 @@ Hash Board::hashAfter(Move move) {
         hash ^= Zobrist::PIECE_SQUARES[stm][piece][target] ^ Zobrist::PIECE_SQUARES[stm][promotionPiece][target];
     }
 
-    return hash;
+    uint8_t newFmr = isCapture(move) || piece == Piece::PAWN ? 0 : rule50_ply + 1;
+    Hash fmrHash = hash ^ Zobrist::FMR[newFmr / Zobrist::FMR_GRANULARITY];
+    return std::make_pair(hash, fmrHash);
 }
 
 void Board::updateSliderPins(Color side) {

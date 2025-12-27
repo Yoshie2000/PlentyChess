@@ -120,7 +120,7 @@ struct Board {
         return castlingSquares[2 * side + direction];
     }
 
-    Hash hashAfter(Move move);
+    std::pair<Hash, Hash> hashAfter(Move move);
 
     void updateSliderPins(Color side);
 
