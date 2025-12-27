@@ -1220,7 +1220,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         bestValue = board->checkers ? matedIn(stack->ply) : 0;
     }
 
-    if (!bestMove && excluded && !(stack - 1)->capture && !!(stack - 1)->move && !(stack - 1)->move.isPromotion()) {
+    if (!bestMove && (stack - 1)->inLMR && !(stack - 1)->capture && !!(stack - 1)->move && !(stack - 1)->move.isPromotion()) {
         int bonus = std::min(50 + 50 * depth, 500);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, bonus);
     }
