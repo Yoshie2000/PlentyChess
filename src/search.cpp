@@ -828,9 +828,14 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0][0][0];
         int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
+        stack->reduction = R;
+        stack->inLMR = true;
+
         Board* boardCopy = doNullMove(board);
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
         undoNullMove();
+
+        stack->inLMR = false;
 
         if (stopped.load(std::memory_order_relaxed) || exiting)
             return 0;
