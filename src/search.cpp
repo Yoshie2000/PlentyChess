@@ -827,7 +827,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
         Board* boardCopy = doNullMove(board);
+        stack->doPCM = true;
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
+        stack->doPCM = false;
         undoNullMove();
 
         if (stopped.load(std::memory_order_relaxed) || exiting)
@@ -1126,9 +1128,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (move == ttMove && searchData.rootDepth > 8 && ttDepth > 1)
                 newDepth = std::max(100, newDepth);
 
-            stack->doPCM = true;
             value = -search<PV_NODE>(boardCopy, stack + 1, newDepth, -beta, -alpha, false);
-            stack->doPCM = false;
             moveSearchCount++;
         }
 
