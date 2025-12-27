@@ -672,7 +672,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // TT cutoff
-    if (!pvNode && ttDepth >= depth - ttCutOffset + ttCutFailHighMargin * (ttValue >= beta) && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (!pvNode && ttDepth >= depth - ttCutOffset + ttCutFailHighMargin * (ttValue >= beta) && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)) && board->rule50_ply < 90)
         return ttValue;
 
     // TB Probe
