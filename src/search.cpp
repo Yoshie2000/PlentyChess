@@ -1117,9 +1117,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (move == ttMove && searchData.rootDepth > 8 && ttDepth > 1)
                 newDepth = std::max(100, newDepth);
 
-            stack->doPCM = true;
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
-            stack->doPCM = false;
             moveSearchCount++;
         }
 
@@ -1128,7 +1126,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (move == ttMove && searchData.rootDepth > 8 && ttDepth > 1)
                 newDepth = std::max(100, newDepth);
 
+            stack->doPCM = true;
             value = -search<PV_NODE>(boardCopy, stack + 1, newDepth, -beta, -alpha, false);
+            stack->doPCM = false;
             moveSearchCount++;
         }
 
