@@ -29,7 +29,7 @@ INCBIN(NETWORK, EVALFILE);
 #undef SP_MSVC
 #endif
 
-NetworkData* networkData;
+NetworkData* globalNetworkData;
 alignas(ALIGNMENT) uint16_t nnzLookup[256][8];
 
 #if defined(PROCESS_NET)
@@ -47,10 +47,15 @@ void initNetworkData() {
         }
     }
 
-    networkData = (NetworkData*)gNETWORKData;
+    globalNetworkData = (NetworkData*)gNETWORKData;
 }
 
 void NNUE::reset(Board* board) {
+    if (!networkData) {
+        assert(globalNetworkData);
+        networkData = globalNetworkData;
+    }
+
     // Reset accumulator
     resetAccumulator<Color::WHITE>(board, &accumulatorStack[0]);
     resetAccumulator<Color::BLACK>(board, &accumulatorStack[0]);

@@ -194,6 +194,19 @@ else
             endif
         endif
     endif
+
+# Link with NUMA if possible
+	HAS_NUMA = $(shell printf '\043include "numa.h"' | $(CXX) -E - 2> /dev/null | grep -c 'numa.h')
+	ifneq ($(HAS_NUMA),0)
+		ifneq (, $(findstring clang,$(COMPILER_VERSION)))
+			CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA
+			LDFLAGS := $(LDFLAGS) -lnuma
+		else
+			CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA -Wl,--no-as-needed
+			LDFLAGS := $(LDFLAGS) -lnuma -Wl,--no-as-needed
+		endif
+	endif
+
 else
     CFLAGS := $(filter-out -mpopcnt,$(CFLAGS))
 endif
