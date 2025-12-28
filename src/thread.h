@@ -128,6 +128,16 @@ inline int getNumaNode(size_t threadId) {
 #endif
 }
 
+inline int getThreadsOnNode(size_t numThreads, int node) {
+    int counter = 0;
+    for (size_t idx = 0; idx < numThreads; idx++) {
+        int threadNode = getNumaNode(idx);
+        if (node == threadNode)
+            counter++;
+    }
+    return counter;
+}
+
 inline void configureThreadBinding(int threadId) {
 #ifdef USE_NUMA
     if (!shouldConfigureNuma())
@@ -183,7 +193,7 @@ public:
     std::vector<std::array<MoveGen, 2>> movepickers;
 
     Worker() = delete;
-    Worker(ThreadPool* threadPool, NetworkData* networkData, int threadId);
+    Worker(ThreadPool* threadPool, NetworkData* networkData, SharedHistory* sharedHistory, int threadId);
 
     void startSearching();
     void waitForSearchFinished();
@@ -219,8 +229,6 @@ private:
 
 };
 
-static_assert(sizeof(Worker) % 64 == 0);
-
 class ThreadPool {
 
 public:
@@ -235,6 +243,7 @@ public:
     std::atomic<size_t> startedThreads;
 
     std::vector<NetworkData*> networkWeights;
+    std::vector<SharedHistory*> sharedHistories;
 
     ThreadPool() : workers(0), threads(0), searchParameters{}, rootBoardHistory() {
         resize(0);
@@ -250,41 +259,79 @@ public:
         
         exit();
 
+        // Free previous allocations
 #ifdef USE_NUMA
-        // Free existing duplicated weights
         if (shouldConfigureNuma()) {
+
             for (size_t i = 0; i < networkWeights.size(); i++) {
                 if (networkWeights[i] != globalNetworkData) {
                     numa_free(networkWeights[i], sizeof(NetworkData));
                 }
             }
+            networkWeights.clear();
+
+            for (size_t i = 0; i < sharedHistories.size(); i++) {
+                sharedHistories[i]->free();
+                numa_free(sharedHistories[i], sizeof(SharedHistory));
+            }
+            sharedHistories.clear();
+
         }
 #endif
+        for (size_t i = 0; i < sharedHistories.size(); i++) {
+            sharedHistories[i]->free();
+            alignedFree(sharedHistories[i]);
+        }
+        sharedHistories.clear();
 
-        networkWeights.clear();
-        networkWeights.resize(1);
-        networkWeights[0] = globalNetworkData;
-
+        // Allocate new objects
 #ifdef USE_NUMA
-        // Duplicate network weights across NUMA nodes if necessary
         if (shouldConfigureNuma()) {
 
-            networkWeights.clear();
-            networkWeights.resize(getNumaNodeCount());
+            auto coresPerNode = getCoresPerNumaNode();
 
+            networkWeights.resize(coresPerNode.size());
             for (size_t i = 0; i < networkWeights.size(); i++) {
-                NetworkData* weights = reinterpret_cast<NetworkData*>(numa_alloc_onnode(sizeof(NetworkData), i));
+                int nodeIdx = coresPerNode[i].first;
+                NetworkData* weights = reinterpret_cast<NetworkData*>(numa_alloc_onnode(sizeof(NetworkData), nodeIdx));
                 if (!weights) {
-                    std::cerr << "info string Could not allocate a NetworkData object on NUMA node " << i << std::endl;
+                    std::cerr << "info string Could not allocate a NetworkData object on NUMA node " << nodeIdx << std::endl;
                     throw std::bad_alloc();
                 }
-                std::cout << "info string Allocated a NetworkData object on NUMA node " << i << std::endl;
+                std::cout << "info string Allocated a NetworkData object on NUMA node " << nodeIdx << std::endl;
                 madvise(weights, sizeof(NetworkData), MADV_HUGEPAGE);
                 std::memcpy(weights, globalNetworkData, sizeof(NetworkData));
                 networkWeights[i] = weights;
             }
+
+            sharedHistories.resize(coresPerNode.size());
+            for (size_t i = 0; i < sharedHistories.size(); i++) {
+                int nodeIdx = coresPerNode[i].first;
+                SharedHistory* history = reinterpret_cast<SharedHistory*>(numa_alloc_onnode(sizeof(SharedHistory), nodeIdx));
+                if (!history) {
+                    std::cerr << "info string Could not allocate a SharedHistory object on NUMA node " << nodeIdx << std::endl;
+                    throw std::bad_alloc();
+                }
+                std::cout << "info string Allocated a SharedHistory object on NUMA node " << nodeIdx << std::endl;
+                madvise(history, sizeof(SharedHistory), MADV_HUGEPAGE);
+                *history = SharedHistory(getThreadsOnNode(numThreads, nodeIdx));
+                sharedHistories[i] = history;
+            }
         }
 #endif
+
+        // Standard allocation when NUMA is not used
+        if (networkWeights.empty()) {
+            networkWeights.resize(1);
+            networkWeights[0] = globalNetworkData;
+        }
+
+        if (sharedHistories.empty()) {
+            sharedHistories.resize(1);
+            SharedHistory* history = reinterpret_cast<SharedHistory*>(alignedAlloc(64, sizeof(SharedHistory)));
+            *history = SharedHistory(numThreads);
+            sharedHistories[0] = history;
+        }
 
         threads.clear();
         workers.clear();
@@ -295,7 +342,8 @@ public:
         for (size_t i = 0; i < numThreads; i++) {
             threads.push_back(std::make_unique<std::thread>([this, i]() {
                 configureThreadBinding(i);
-                workers[i] = std::make_unique<Worker>(this, networkWeights[getNumaNode(i)], i);
+                int nodeIdx = getNumaNode(i);
+                workers[i] = std::make_unique<Worker>(this, networkWeights[nodeIdx], sharedHistories[nodeIdx], i);
                 workers[i]->idle();
             }));
         }

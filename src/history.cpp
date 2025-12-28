@@ -6,6 +6,7 @@
 #include "move.h"
 #include "evaluation.h"
 #include "spsa.h"
+#include "utils.h"
 
 // Quiet history
 TUNE_INT(historyBonusQuietBase, 140, 0, 250);
@@ -46,16 +47,92 @@ TUNE_INT(minorCorrectionFactor, 4178, 1000, 7500);
 TUNE_INT(majorCorrectionFactor, 2295, 1000, 7500);
 TUNE_INT(continuationCorrectionFactor, 5762, 1000, 7500);
 
+SharedHistory::SharedHistory(int _threadsOnNode): threadsOnNode(_threadsOnNode) {
+    threadsPowerOfTwo = _threadsOnNode > 1 ? (2ULL << msb(_threadsOnNode - 1)) : 1;
+
+    for (Color side : {Color::WHITE, Color::BLACK}) {
+        correctionHistory[side] = reinterpret_cast<std::atomic<int16_t>*>(alignedAlloc(64, threadsPowerOfTwo * CORRECTION_HISTORY_SIZE * sizeof(int16_t)));
+        minorCorrectionHistory[side] = reinterpret_cast<std::atomic<int16_t>*>(alignedAlloc(64, threadsPowerOfTwo * CORRECTION_HISTORY_SIZE * sizeof(int16_t)));
+        majorCorrectionHistory[side] = reinterpret_cast<std::atomic<int16_t>*>(alignedAlloc(64, threadsPowerOfTwo * CORRECTION_HISTORY_SIZE * sizeof(int16_t)));
+        nonPawnCorrectionHistory[side][Color::WHITE] = reinterpret_cast<std::atomic<int16_t>*>(alignedAlloc(64, threadsPowerOfTwo * CORRECTION_HISTORY_SIZE * sizeof(int16_t)));
+        nonPawnCorrectionHistory[side][Color::BLACK] = reinterpret_cast<std::atomic<int16_t>*>(alignedAlloc(64, threadsPowerOfTwo * CORRECTION_HISTORY_SIZE * sizeof(int16_t)));
+    }
+
+    hashMask = threadsPowerOfTwo * CORRECTION_HISTORY_SIZE - 1;
+}
+
+void SharedHistory::free() {
+    for (Color side : {Color::WHITE, Color::BLACK}) {
+        alignedFree(correctionHistory[side]);
+        alignedFree(minorCorrectionHistory[side]);
+        alignedFree(majorCorrectionHistory[side]);
+        alignedFree(nonPawnCorrectionHistory[side][Color::WHITE]);
+        alignedFree(nonPawnCorrectionHistory[side][Color::BLACK]);
+    }
+}
+
+void SharedHistory::initHistory(int threadIdx) {
+    size_t size = threadsPowerOfTwo * CORRECTION_HISTORY_SIZE / threadsOnNode;
+    size_t start = threadIdx * size;
+    if (threadIdx == threadsOnNode - 1)
+        size = threadsPowerOfTwo * CORRECTION_HISTORY_SIZE - start;
+
+    for (Color side : {Color::WHITE, Color::BLACK}) {
+        memset(&correctionHistory[side][start], 0, size * sizeof(int16_t));
+        memset(&minorCorrectionHistory[side][start], 0, size * sizeof(int16_t));
+        memset(&majorCorrectionHistory[side][start], 0, size * sizeof(int16_t));
+        memset(&nonPawnCorrectionHistory[side][Color::WHITE][start], 0, size * sizeof(int16_t));
+        memset(&nonPawnCorrectionHistory[side][Color::BLACK][start], 0, size * sizeof(int16_t));
+    }
+}
+
+int16_t SharedHistory::getPawnCorrectionEntry(Board* board) {
+    return correctionHistory[board->stm][board->hashes.pawnHash & hashMask].load(std::memory_order_relaxed);
+}
+
+void SharedHistory::storePawnCorrectionEntry(Board* board, int16_t value) {
+    correctionHistory[board->stm][board->hashes.pawnHash & hashMask].store(value, std::memory_order_relaxed);
+}
+
+int16_t SharedHistory::getNonPawnCorrectionEntryWhite(Board* board) {
+    return nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & hashMask].load(std::memory_order_relaxed);
+}
+
+void SharedHistory::storeNonPawnCorrectionEntryWhite(Board* board, int16_t value) {
+    nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & hashMask].store(value, std::memory_order_relaxed);
+}
+
+int16_t SharedHistory::getNonPawnCorrectionEntryBlack(Board* board) {
+    return nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & hashMask].load(std::memory_order_relaxed);
+}
+
+void SharedHistory::storeNonPawnCorrectionEntryBlack(Board* board, int16_t value) {
+    nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & hashMask].store(value, std::memory_order_relaxed);
+}
+
+int16_t SharedHistory::getMinorCorrectionEntry(Board* board) {
+    return minorCorrectionHistory[board->stm][board->hashes.minorHash & hashMask].load(std::memory_order_relaxed);
+}
+
+void SharedHistory::storeMinorCorrectionEntry(Board* board, int16_t value) {
+    minorCorrectionHistory[board->stm][board->hashes.minorHash & hashMask].store(value, std::memory_order_relaxed);
+}
+
+int16_t SharedHistory::getMajorCorrectionEntry(Board* board) {
+    return majorCorrectionHistory[board->stm][board->hashes.majorHash & hashMask].load(std::memory_order_relaxed);
+}
+
+void SharedHistory::storeMajorCorrectionEntry(Board* board, int16_t value) {
+    majorCorrectionHistory[board->stm][board->hashes.majorHash & hashMask].store(value, std::memory_order_relaxed);
+}
+
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
     memset(counterMoves, 0, sizeof(counterMoves));
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
-    memset(correctionHistory, 0, sizeof(correctionHistory));
-    memset(nonPawnCorrectionHistory, 0, sizeof(nonPawnCorrectionHistory));
-    memset(minorCorrectionHistory, 0, sizeof(minorCorrectionHistory));
-    memset(majorCorrectionHistory, 0, sizeof(majorCorrectionHistory));
     memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
+
     for (int i = 0; i < PAWN_HISTORY_SIZE; i++) {
         for (int j = 0; j < 2; j++) {
             for (int k = 0; k < Piece::TOTAL; k++) {
@@ -65,13 +142,15 @@ void History::initHistory() {
             }
         }
     }
+
+    sharedHistory->initHistory(threadIdx);
 }
 
 Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
-    int64_t pawnEntry = correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t nonPawnEntry = nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t minorEntry = minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t majorEntry = majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)];
+    auto pawnEntry = sharedHistory->getPawnCorrectionEntry(board);
+    int64_t nonPawnEntry = sharedHistory->getNonPawnCorrectionEntryWhite(board) + sharedHistory->getNonPawnCorrectionEntryBlack(board);
+    int64_t minorEntry = sharedHistory->getMinorCorrectionEntry(board);
+    int64_t majorEntry = sharedHistory->getMajorCorrectionEntry(board);
     int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
 
     return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
@@ -86,20 +165,27 @@ Eval History::correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue)
 
 void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus) {
     // Pawn
-    Eval scaledBonus = bonus - correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    int16_t value = sharedHistory->getPawnCorrectionEntry(board);
+    Eval scaledBonus = bonus - value * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    sharedHistory->storePawnCorrectionEntry(board, value + scaledBonus);
 
     // Non-Pawn
-    scaledBonus = bonus - nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
-    scaledBonus = bonus - nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    value = sharedHistory->getNonPawnCorrectionEntryWhite(board);
+    scaledBonus = bonus - value * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    sharedHistory->storeNonPawnCorrectionEntryWhite(board, value + scaledBonus);
+
+    value = sharedHistory->getNonPawnCorrectionEntryBlack(board);
+    scaledBonus = bonus - value * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    sharedHistory->storeNonPawnCorrectionEntryBlack(board, value + scaledBonus);
 
     // Minor / Major
-    scaledBonus = bonus - minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
-    scaledBonus = bonus - majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    value = sharedHistory->getMinorCorrectionEntry(board);
+    scaledBonus = bonus - value * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    sharedHistory->storeMinorCorrectionEntry(board, value + scaledBonus);
+
+    value = sharedHistory->getMajorCorrectionEntry(board);
+    scaledBonus = bonus - value * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    sharedHistory->storeMajorCorrectionEntry(board, value + scaledBonus);
 
     // Continuation
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
