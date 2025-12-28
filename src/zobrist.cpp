@@ -13,7 +13,7 @@ namespace Zobrist {
     Hash NO_PAWNS;
     Hash CASTLING[16];
     Hash ENPASSENT[8];
-    Hash FMR[100 / FMR_GRANULARITY];
+    Hash FMR[110 / FMR_GRANULARITY];
 
     Hash CUCKOO_HASHES[8192];
     Move CUCKOO_MOVES[8192];
