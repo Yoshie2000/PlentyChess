@@ -37,8 +37,8 @@ TTEntry* TranspositionTable::probe(Hash hash, bool* found) {
 
         if (i > 0) {
             // Check if this entry would be better suited for replacement than the current replace entry
-            int replaceValue = replace->depth - 100 * ((GENERATION_CYCLE + TT_GENERATION_COUNTER - replace->flags) & GENERATION_MASK);
-            int entryValue = cluster->entries[i].depth - 100 * ((GENERATION_CYCLE + TT_GENERATION_COUNTER - cluster->entries[i].flags) & GENERATION_MASK);
+            int replaceValue = replace->depth - 200 * ((GENERATION_CYCLE + TT_GENERATION_COUNTER - replace->flags) & GENERATION_MASK);
+            int entryValue = cluster->entries[i].depth - 200 * ((GENERATION_CYCLE + TT_GENERATION_COUNTER - cluster->entries[i].flags) & GENERATION_MASK);
             if ((!cluster->entries[i].isInitialised() && replace->isInitialised()) || replaceValue > entryValue)
                 replace = &cluster->entries[i];
         }
