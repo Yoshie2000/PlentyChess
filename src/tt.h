@@ -73,7 +73,7 @@ struct TTEntry {
     constexpr bool getTtPv() { return flags & 0x4; };
 
     void update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, uint8_t rule50, bool wasPv, int _flags);
-    bool isInitialised() { return hash != 0; };
+    bool isInitialised() { return hash != 0 || depth != 0 || eval != 0 || flags != 0; };
 };
 
 struct TTCluster {
