@@ -1098,7 +1098,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             moveSearchCount++;
 
             stack->inLMR = false;
-            reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * pvNode;
+            reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + 100) + lmrPvNodeExtension * (pvNode && !bestMove);
             stack->reduction = 0;
 
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100;
