@@ -777,9 +777,13 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         depth -= iirReduction;
 
     // Post-LMR depth adjustments
-    if (!board->checkers && (stack - 1)->inLMR) {
+    if (!board->checkers) {
         int additionalReduction = 0;
-        if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
+
+        if ((stack - 1)->inLMR && (stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
+            additionalReduction -= postlmrOppWorseningReduction;
+        
+        if ((stack - 1)->inNMP && (stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
             additionalReduction -= postlmrOppWorseningReduction;
 
         depth -= additionalReduction;
@@ -829,13 +833,13 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
         stack->reduction = R;
-        stack->inLMR = true;
+        stack->inNMP = true;
 
         Board* boardCopy = doNullMove(board);
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
         undoNullMove();
 
-        stack->inLMR = false;
+        stack->inNMP = false;
 
         if (stopped.load(std::memory_order_relaxed) || exiting)
             return 0;
@@ -1387,6 +1391,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].correctionValue = 0;
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
+                stackList[i].inNMP = false;
                 stackList[i].ttPv = false;
             }
 
@@ -1612,6 +1617,7 @@ void Worker::tdatagen() {
             stackList[i].correctionValue = 0;
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
+            stackList[i].inNMP = false;
             stackList[i].ttPv = false;
         }
 
