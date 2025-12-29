@@ -496,17 +496,19 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     }
     futilityValue = std::min(stack->staticEval + qsFutilityOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
 
+movesLoopQsearch:
+
     // Stand pat
     if (bestValue >= beta) {
         if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
             bestValue = (bestValue + beta) / 2;
-        ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
+        if (!board->checkers)
+            ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
         return bestValue;
     }
     if (alpha < bestValue)
         alpha = bestValue;
 
-movesLoopQsearch:
     // Mate distance pruning
     alpha = std::max((int)alpha, (int)matedIn(stack->ply));
     beta = std::min((int)beta, (int)mateIn(stack->ply + 1));
@@ -953,7 +955,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (lmrDepth < fpDepth && fpValue <= alpha) {
                 if (!capture)
                     movegen.skipQuietMoves();
-                else if (!move.isPromotion()) {
+                else if (!move.isPromotion() && !board->givesCheck(move)) {
                     Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
                     if (fpValue + PIECE_VALUES[capturedPiece] <= alpha && movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES)
                         break;
