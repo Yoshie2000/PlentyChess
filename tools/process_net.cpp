@@ -19,6 +19,7 @@ constexpr int INPUT_SIZE = THREAT_INPUT_SIZE + KING_BUCKETS * 768;
 constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
+constexpr int OUTPUTS = 3;
 
 constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
@@ -33,8 +34,8 @@ struct RawNetworkData {
     float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
     float l2Weights[2 * L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
     float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-    float l3Weights[L3_SIZE + 2 * L2_SIZE][OUTPUT_BUCKETS];
-    float l3Biases[OUTPUT_BUCKETS];
+    float l3Weights[L3_SIZE + 2 * L2_SIZE][OUTPUT_BUCKETS][OUTPUTS];
+    float l3Biases[OUTPUT_BUCKETS][OUTPUTS];
 };
 
 struct NetworkData {
@@ -45,8 +46,8 @@ struct NetworkData {
     alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
     alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
     alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-    alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
-    alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS];
+    alignas(ALIGNMENT) float l3Weights[OUTPUT_BUCKETS][OUTPUTS * (L3_SIZE + 2 * L2_SIZE)];
+    alignas(ALIGNMENT) float l3Biases[OUTPUT_BUCKETS][OUTPUTS];
 };
 
 RawNetworkData raw;
@@ -198,7 +199,9 @@ void transposePermuteNetwork() {
         }
 
         for (int l3 = 0; l3 < L3_SIZE + 2 * L2_SIZE; l3++) {
-            out.l3Weights[b][l3] = reinterpret_cast<float*>(tmp.l3Weights)[l3 * OUTPUT_BUCKETS + b];
+            for (int o = 0; o < OUTPUTS; o++) {
+                out.l3Weights[b][o * (L3_SIZE + 2 * L2_SIZE) + l3] = reinterpret_cast<float*>(tmp.l3Weights)[l3 * OUTPUT_BUCKETS * OUTPUTS + b * OUTPUTS + o];
+            }
         }
     }
 
@@ -257,7 +260,7 @@ int main(int argc, char* argv[]) {
         for (auto& b : tmp.l2Weights)    for (auto& v : b) v = readFloat(infile);
         for (auto& b : tmp.l2Biases)     for (auto& v : b) v = readFloat(infile);
         for (auto& b : tmp.l3Weights)    for (auto& v : b) v = readFloat(infile);
-        for (auto& v : tmp.l3Biases)     v = readFloat(infile);
+        for (auto& b : tmp.l3Biases)     for (auto& v : b) v = readFloat(infile);
         infile.close();
     }
 
