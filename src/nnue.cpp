@@ -593,43 +593,70 @@ Eval NNUE::evaluate(Board* board) {
 
     // ---------------------- L3 PROPAGATION ----------------------
 
+    float outputs[OUTPUTS];
+
+    for (int outputIdx = 0; outputIdx < OUTPUTS; outputIdx++) {
+
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-    constexpr int chunks = 64 / sizeof(VecF);
+        constexpr int chunks = 64 / sizeof(VecF);
 
-    VecF resultSums[chunks];
-    for (int j = 0; j < chunks; j++)
-        resultSums[j] = psZero;
+        VecF resultSums[chunks];
+        for (int j = 0; j < chunks; j++)
+            resultSums[j] = psZero;
 
-    VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData->l3Weights[bucket]);
-    for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2 += chunks) {
-        for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = fmaddPs(l2OutputsVec[l2 + chunk], l3WeightsVec[l2 + chunk], resultSums[chunk]);
+        VecF* l3WeightsVec = reinterpret_cast<VecF*>(&networkData->l3Weights[bucket][outputIdx * (L3_SIZE + 2 * L2_SIZE)]);
+        for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2 += chunks) {
+            for (int chunk = 0; chunk < chunks; chunk++) {
+                resultSums[chunk] = fmaddPs(l2OutputsVec[l2 + chunk], l3WeightsVec[l2 + chunk], resultSums[chunk]);
+            }
         }
-    }
-    for (int l1 = 0; l1 < 2 * L2_SIZE / FLOAT_VEC_SIZE; l1 += chunks) {
-        for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = fmaddPs(l1OutputsVec[l1 + chunk], l3WeightsVec[L3_SIZE / FLOAT_VEC_SIZE + l1 + chunk], resultSums[chunk]);
+        for (int l1 = 0; l1 < 2 * L2_SIZE / FLOAT_VEC_SIZE; l1 += chunks) {
+            for (int chunk = 0; chunk < chunks; chunk++) {
+                resultSums[chunk] = fmaddPs(l1OutputsVec[l1 + chunk], l3WeightsVec[L3_SIZE / FLOAT_VEC_SIZE + l1 + chunk], resultSums[chunk]);
+            }
         }
-    }
 
-    float result = networkData->l3Biases[bucket] + reduceAddPs(resultSums);
+        outputs[outputIdx] = networkData->l3Biases[bucket][outputIdx] + reduceAddPs(resultSums);
 #else
-    constexpr int chunks = 64 / sizeof(float);
-    float resultSums[chunks] = {};
+        constexpr int chunks = 64 / sizeof(float);
+        float resultSums[chunks] = {};
 
-    for (int l2 = 0; l2 < L3_SIZE; l2 += chunks) {
-        for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = std::fma(l2Outputs[l2 + chunk], networkData->l3Weights[bucket][l2 + chunk], resultSums[chunk]);
+        float* l3Weights = &networkData->l3Weights[bucket][outputIdx * (L3_SIZE + 2 * L2_SIZE)];
+        for (int l2 = 0; l2 < L3_SIZE; l2 += chunks) {
+            for (int chunk = 0; chunk < chunks; chunk++) {
+                resultSums[chunk] = std::fma(l2Outputs[l2 + chunk], l3Weights[l2 + chunk], resultSums[chunk]);
+            }
         }
-    }
-    for (int l1 = 0; l1 < 2 * L2_SIZE; l1 += chunks) {
-        for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = std::fma(l1Outputs[l1 + chunk], networkData->l3Weights[bucket][L3_SIZE + l1 + chunk], resultSums[chunk]);
+        for (int l1 = 0; l1 < 2 * L2_SIZE; l1 += chunks) {
+            for (int chunk = 0; chunk < chunks; chunk++) {
+                resultSums[chunk] = std::fma(l1Outputs[l1 + chunk], l3Weights[L3_SIZE + l1 + chunk], resultSums[chunk]);
+            }
         }
-    }
 
-    float result = networkData->l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
+        outputs[outputIdx] = networkData->l3Biases[bucket][outputIdx] + reduceAddPsR(resultSums, chunks);
 #endif
 
-    return result * NETWORK_SCALE;
+    }
+
+    float loss = outputs[0];
+    float draw = outputs[1];
+    float win = outputs[2];
+
+    float max = std::max(win, std::max(draw, loss));
+    win = std::exp(win - max);
+    draw = std::exp(draw - max);
+    loss = std::exp(loss - max);
+
+    float sum = win + draw + loss;
+    win /= sum;
+    draw /= sum;
+    loss /= sum;
+
+    constexpr float DELTA = 0.000000001f;
+    constexpr int LIMIT = 1 << std::numeric_limits<float>::digits;
+
+    float result = std::clamp<float>(draw * 0.5 + win, 0.0f + DELTA, 1.0f - DELTA);
+    result = -NETWORK_SCALE * std::log(1.0f / result - 1.0f);
+    result = std::clamp<float>(result, -LIMIT, LIMIT);
+    return result;
 }
