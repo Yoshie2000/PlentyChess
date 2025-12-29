@@ -477,8 +477,10 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (board->checkers) {
         stack->staticEval = bestValue = unadjustedEval = futilityValue = -EVAL_INFINITE;
 
-        if (ttValue != EVAL_NONE && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
-            bestValue = futilityValue = ttValue;
+        if (ttValue != EVAL_NONE && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND))) {
+            bestValue = ttValue;
+            futilityValue = std::min(ttValue + 80, EVAL_TBWIN_IN_MAX_PLY - 1);
+        }
 
         goto movesLoopQsearch;
     }
