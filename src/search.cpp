@@ -140,7 +140,7 @@ TUNE_INT(extensionMinDepth, 624, 0, 1200);
 TUNE_INT(extensionTtDepthOffset, 499, 0, 800);
 TUNE_INT(doubleExtensionDepthIncreaseFactor, 100, 0, 200);
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
-TUNE_INT(doubleExtensionDepthIncrease, 1002, 200, 2000);
+TUNE_INT(doubleExtensionDepthIncrease, 1400, 200, 2000);
 TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
@@ -1030,12 +1030,15 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
                 extension = 1;
-                if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
-                    extension = 2;
-                    depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
-                    if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
-                        extension = 3;
-                }
+
+                int dextMargin = doubleExtensionMargin + 300 * pvNode + 50 * board->isCapture(move) - std::abs(correctionValue / 1048576);
+                int textMargin = tripleExtensionMargin + 350 * pvNode + 75 * board->isCapture(move) - std::abs(correctionValue / 1048576);
+
+                extension += singularValue + dextMargin < singularBeta;
+                extension += singularValue + textMargin < singularBeta;
+
+                if (extension > 1 && !pvNode && depth < doubleExtensionDepthIncrease)
+                    depth += doubleExtensionDepthIncreaseFactor;
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
