@@ -16,7 +16,7 @@ constexpr int PAWN_HISTORY_SIZE = 8192;
 constexpr int CORRECTION_HISTORY_SIZE = 16384;
 constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 
-class SharedHistory {
+class alignas(64) SharedHistory {
 
     std::atomic<int16_t>* correctionHistory[2];
     std::atomic<int16_t>* nonPawnCorrectionHistory[2][2];
@@ -49,6 +49,8 @@ public:
     void free();
 
 };
+
+static_assert(sizeof(SharedHistory) % 64 == 0, "sizeof(SharedHistory) must be a multiple of 64");
 
 class History {
 
