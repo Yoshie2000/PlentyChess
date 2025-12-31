@@ -256,62 +256,64 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
         return;
     }
 
+    
 #if defined(__AVX512F__) && defined(__AVX512BW__)
+    constexpr int REGISTER_ITERATIONS = 1;
+#elif defined(__AVX2__)
+    constexpr int REGISTER_ITERATIONS = 4;
+#else
+    constexpr int REGISTER_ITERATIONS = 4;
+#endif
+
+    constexpr int REGISTERS = L1_ITERATIONS / REGISTER_ITERATIONS;
+    static_assert(L1_ITERATIONS % REGISTER_ITERATIONS == 0);
 
     VecI16* inputVec = (VecI16*)inputAcc->threatState[side];
     VecI16* outputVec = (VecI16*)outputAcc->threatState[side];
-    VecI16 registers[L1_ITERATIONS];
 
-    for (int i = 0; i < L1_ITERATIONS; i++)
-        registers[i] = inputVec[i];
+    for (int ri = 0; ri < REGISTER_ITERATIONS; ri++) {
 
-    while (addFeatures.size() && subFeatures.size()) {
-        VecI16s* addWeightsVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
-        VecI16s* subWeightsVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
-        for (int i = 0; i < L1_ITERATIONS; ++i) {
-            VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
-            VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
-            registers[i] = subEpi16(addEpi16(registers[i], addWeights), subWeights);
+        VecI16 registers[REGISTERS];
+        int weightOffset = ri * REGISTERS;
+
+        for (int i = 0; i < REGISTERS; i++)
+            registers[i] = inputVec[weightOffset + i];
+
+        int addI = 0, subI = 0;
+        while (addI < addFeatures.size() && subI < subFeatures.size()) {
+            VecI16s* addWeightsVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures[addI] * L1_SIZE];
+            VecI16s* subWeightsVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures[subI] * L1_SIZE];
+            for (int i = 0; i < REGISTERS; ++i) {
+                VecI16 addWeights = convertEpi8Epi16(addWeightsVec[weightOffset + i]);
+                VecI16 subWeights = convertEpi8Epi16(subWeightsVec[weightOffset + i]);
+                registers[i] = subEpi16(addEpi16(registers[i], addWeights), subWeights);
+            }
+            addI++;
+            subI++;
         }
-    }
 
-    while (addFeatures.size()) {
-        VecI16s* addWeightVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
-        for (int i = 0; i < L1_ITERATIONS; i++) {
-            VecI16 addWeights = convertEpi8Epi16(addWeightVec[i]);
-            registers[i] = addEpi16(registers[i], addWeights);
+        while (addI < addFeatures.size()) {
+            VecI16s* addWeightVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures[addI] * L1_SIZE];
+            for (int i = 0; i < REGISTERS; i++) {
+                VecI16 addWeights = convertEpi8Epi16(addWeightVec[weightOffset + i]);
+                registers[i] = addEpi16(registers[i], addWeights);
+            }
+            addI++;
         }
-    }
 
-    while (subFeatures.size()) {
-        VecI16s* subWeightVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
-        for (int i = 0; i < L1_ITERATIONS; i++) {
-            VecI16 subWeights = convertEpi8Epi16(subWeightVec[i]);
-            registers[i] = subEpi16(registers[i], subWeights);
+        while (subI < subFeatures.size()) {
+            VecI16s* subWeightVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures[subI] * L1_SIZE];
+            for (int i = 0; i < REGISTERS; i++) {
+                VecI16 subWeights = convertEpi8Epi16(subWeightVec[weightOffset + i]);
+                registers[i] = subEpi16(registers[i], subWeights);
+            }
+            subI++;
         }
+
+        for (int i = 0; i < REGISTERS; i++)
+            outputVec[weightOffset + i] = registers[i];
+
     }
-
-    for (int i = 0; i < L1_ITERATIONS; i++)
-        outputVec[i] = registers[i];
-
-#else
-
-    while (addFeatures.size() && subFeatures.size()) {
-        addSubToAccumulator<true, side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0), subFeatures.remove(0));
-        inputAcc = outputAcc;
-    }
-
-    while (addFeatures.size()) {
-        addToAccumulator<true, side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0));
-        inputAcc = outputAcc;
-    }
-
-    while (subFeatures.size()) {
-        subFromAccumulator<true, side>(inputAcc->threatState, outputAcc->threatState, subFeatures.remove(0));
-        inputAcc = outputAcc;
-    }
-
-#endif
 }
 
 template<bool I8, Color side>
