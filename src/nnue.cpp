@@ -258,7 +258,7 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
 
     
 #if defined(__AVX512F__) && defined(__AVX512BW__)
-    constexpr int REGISTER_ITERATIONS = 1;
+    constexpr int REGISTER_ITERATIONS = 4;
 #elif defined(__AVX2__)
     constexpr int REGISTER_ITERATIONS = 2;
 #else
@@ -270,22 +270,22 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
 
     VecI16* inputVec = (VecI16*)inputAcc->threatState[side];
     VecI16* outputVec = (VecI16*)outputAcc->threatState[side];
+    VecI16s* inputWeights = (VecI16s*)networkData->inputThreatWeights;
 
     for (int ri = 0; ri < REGISTER_ITERATIONS; ri++) {
 
         VecI16 registers[REGISTERS];
-        int weightOffset = ri * REGISTERS;
 
         for (int i = 0; i < REGISTERS; i++)
-            registers[i] = inputVec[weightOffset + i];
+            registers[i] = inputVec[i];
 
         int addI = 0, subI = 0;
         while (addI < addFeatures.size() && subI < subFeatures.size()) {
-            VecI16s* addWeightsVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures[addI] * L1_SIZE];
-            VecI16s* subWeightsVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures[subI] * L1_SIZE];
+            VecI16s* addWeightsVec = &inputWeights[addFeatures[addI] * L1_ITERATIONS];
+            VecI16s* subWeightsVec = &inputWeights[subFeatures[subI] * L1_ITERATIONS];
             for (int i = 0; i < REGISTERS; ++i) {
-                VecI16 addWeights = convertEpi8Epi16(addWeightsVec[weightOffset + i]);
-                VecI16 subWeights = convertEpi8Epi16(subWeightsVec[weightOffset + i]);
+                VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
+                VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
                 registers[i] = subEpi16(addEpi16(registers[i], addWeights), subWeights);
             }
             addI++;
@@ -293,26 +293,29 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
         }
 
         while (addI < addFeatures.size()) {
-            VecI16s* addWeightVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures[addI] * L1_SIZE];
+            VecI16s* addWeightVec = &inputWeights[addFeatures[addI] * L1_ITERATIONS];
             for (int i = 0; i < REGISTERS; i++) {
-                VecI16 addWeights = convertEpi8Epi16(addWeightVec[weightOffset + i]);
+                VecI16 addWeights = convertEpi8Epi16(addWeightVec[i]);
                 registers[i] = addEpi16(registers[i], addWeights);
             }
             addI++;
         }
 
         while (subI < subFeatures.size()) {
-            VecI16s* subWeightVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures[subI] * L1_SIZE];
+            VecI16s* subWeightVec = &inputWeights[subFeatures[subI] * L1_ITERATIONS];
             for (int i = 0; i < REGISTERS; i++) {
-                VecI16 subWeights = convertEpi8Epi16(subWeightVec[weightOffset + i]);
+                VecI16 subWeights = convertEpi8Epi16(subWeightVec[i]);
                 registers[i] = subEpi16(registers[i], subWeights);
             }
             subI++;
         }
 
         for (int i = 0; i < REGISTERS; i++)
-            outputVec[weightOffset + i] = registers[i];
+            outputVec[i] = registers[i];
 
+        inputVec += REGISTERS;
+        outputVec += REGISTERS;
+        inputWeights += REGISTERS;
     }
 }
 
