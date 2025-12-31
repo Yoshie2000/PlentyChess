@@ -1222,9 +1222,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         bestValue = board->checkers ? matedIn(stack->ply) : 0;
     }
 
-    if (!bestMove && !(stack - 1)->capture && !!(stack - 1)->move && !(stack - 1)->move.isPromotion()) {
+    if (!bestMove && (stack - 1)->capture && !!(stack - 1)->move) {
         int bonus = 50;
-        history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, bonus);
+        history.updateSingleCaptureHistory(board - 1, (stack - 1)->move, bonus);
     }
 
     if (pvNode)
