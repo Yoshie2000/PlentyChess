@@ -258,7 +258,7 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
 
     
 #if defined(__AVX512F__) && defined(__AVX512BW__)
-    constexpr int REGISTER_ITERATIONS = 4;
+    constexpr int REGISTER_ITERATIONS = 1;
 #elif defined(__AVX2__)
     constexpr int REGISTER_ITERATIONS = 2;
 #else
