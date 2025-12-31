@@ -424,6 +424,10 @@ void genfens(std::string params, Board& board, std::vector<Hash>& boardHistory) 
             nextToken(&params, &token);
             parameters.genfensSeed = std::stoi(token);
         }
+        if (matchesToken(token, "book")) {
+            parameters.genfensBook = params;
+            params = "";
+        }
     }
 
     TT.newSearch();
