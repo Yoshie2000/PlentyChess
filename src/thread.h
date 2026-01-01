@@ -151,6 +151,14 @@ inline void configureThreadBinding(int threadId, int numThreads) {
     (void) threadId;
 }
 
+inline void configureThreadBinding(int numaNode) {
+#ifdef USE_NUMA
+    numa_run_on_node(numaNode);
+    numa_set_preferred(numaNode);
+#endif
+    (void) numaNode;
+}
+
 struct RootMove {
     Eval value = -EVAL_INFINITE;
     Eval meanScore = EVAL_NONE;
@@ -316,7 +324,11 @@ public:
                 }
                 std::cout << "info string Allocated a SharedHistory object on NUMA node " << nodeIdx << std::endl;
                 madvise(history, sizeof(SharedHistory), MADV_HUGEPAGE);
-                *history = SharedHistory(getThreadsOnNode(nodeIdx, numThreads));
+                std::thread tempThread([nodeIdx, history, numThreads]() {
+                    configureThreadBinding(nodeIdx);
+                    *history = SharedHistory(getThreadsOnNode(nodeIdx, numThreads));
+                });
+                tempThread.join();
                 sharedHistories[i] = history;
             }
         }
