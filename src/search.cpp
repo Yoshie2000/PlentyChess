@@ -98,9 +98,9 @@ TUNE_INT(nmpDivisor, 211, 10, 500);
 TUNE_INT_DISABLED(nmpEvalDepth, 7, 1, 100);
 TUNE_INT(nmpEvalBase, 164, 50, 350);
 
-TUNE_INT(probcutReduction, 409, 0, 800);
+TUNE_INT(probCutReduction, 409, 0, 800);
 TUNE_INT(probCutBetaOffset, 206, 1, 400);
-TUNE_INT(probCutDepth, 560, 100, 1000);
+TUNE_INT(probCutMinDepth, 560, 100, 1000);
 
 TUNE_INT(iir2Reduction, 101, 0, 200);
 TUNE_INT(iir2MinDepth, 266, 100, 500);
@@ -856,9 +856,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (!pvNode
         && !board->checkers
         && !excluded
-        && depth > probCutDepth
+        && depth > probCutMinDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
-        && !(ttDepth >= depth - probcutReduction && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
+        && !(ttDepth >= depth - probCutReduction && ttValue != EVAL_NONE && ttValue < probCutBeta)) {
 
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
@@ -885,8 +885,22 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             Eval value = -qsearch<NON_PV_NODE>(boardCopy, stack + 1, -probCutBeta, -probCutBeta + 1);
 
-            if (value >= probCutBeta)
-                value = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - probcutReduction - 100, -probCutBeta, -probCutBeta + 1, !cutNode);
+            Depth initialProbCutDepth = depth - probCutReduction - 100;
+            Depth probCutDepth = initialProbCutDepth - std::clamp((value - probCutBeta - 50) / 300, 0, 3);
+            probCutDepth = std::max<Depth>(0, probCutDepth);
+
+            Eval adjustedProbCutBeta = std::clamp(probCutBeta + (initialProbCutDepth - probCutDepth) * 300, -EVAL_TBWIN_IN_MAX_PLY + 1, EVAL_TBWIN_IN_MAX_PLY - 1);
+
+            if (value >= probCutBeta) {
+                value = -search<NON_PV_NODE>(boardCopy, stack + 1, probCutDepth, -adjustedProbCutBeta, -adjustedProbCutBeta + 1, !cutNode);
+
+                if (value < adjustedProbCutBeta && probCutBeta < adjustedProbCutBeta) {
+                    probCutDepth = initialProbCutDepth;
+                    value = -search<NON_PV_NODE>(boardCopy, stack + 1, probCutDepth, -probCutBeta, -probCutBeta + 1, !cutNode);
+                } else {
+                    probCutBeta = adjustedProbCutBeta;
+                }
+            }
 
             undoMove();
 
@@ -895,7 +909,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (value >= probCutBeta) {
                 value = std::min(value, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(fmrHash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
+                ttEntry->update(fmrHash, move, depth - probCutReduction, unadjustedEval, valueToTT(value, stack->ply), board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
                 return value;
             }
         }
