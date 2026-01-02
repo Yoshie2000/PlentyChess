@@ -1018,7 +1018,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
-                Eval value = std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
+                Eval value = std::min((singularBeta * depth + 100 * beta) / (depth + 100), EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(fmrHash, ttMove, singularDepth, unadjustedEval, value, board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
 
                 // Adjust correction history
