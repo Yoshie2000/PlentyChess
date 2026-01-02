@@ -16,7 +16,6 @@ constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 
 class History {
 
-    int16_t quietHistory[2][64][2][64][2];
     Move counterMoves[64][64];
     int16_t captureHistory[2][Piece::TOTAL][64][Piece::TOTAL];
 
@@ -28,6 +27,8 @@ class History {
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
 public:
+
+    int16_t quietHistory[2][64][2][64][2];
 
     int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2];
     int16_t continuationCorrectionHistory[2][Piece::TOTAL][64][2][2];
