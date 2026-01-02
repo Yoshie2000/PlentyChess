@@ -206,7 +206,7 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
     // Continuation
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
         value = (searchStack - 1)->contCorrHist->load(std::memory_order_relaxed);
-        scaledBonus = bonus - value / CORRECTION_HISTORY_LIMIT;
+        scaledBonus = bonus - value * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
         (searchStack - 1)->contCorrHist->store(value + scaledBonus, std::memory_order_relaxed);
     }
 }
