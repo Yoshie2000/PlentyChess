@@ -170,7 +170,7 @@ std::string Board::fen() {
                     os << std::to_string(freeSquares);
                     freeSquares = 0;
                 }
-                os << ((byColor[Color::WHITE] & bitboard(s)) ? toupper(pieceChars[p]) : pieceChars[p]);
+                os << char((byColor[Color::WHITE] & bitboard(s)) ? toupper(pieceChars[p]) : pieceChars[p]);
             }
         }
         if (freeSquares != 0)
