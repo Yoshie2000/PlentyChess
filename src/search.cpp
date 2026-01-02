@@ -1031,8 +1031,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 // This move is singular and we should investigate it further
                 extension = 1;
 
-                int dextMargin = doubleExtensionMargin + 300 * pvNode + 50 * board->isCapture(move) - std::abs(correctionValue / 1572864);
-                int textMargin = tripleExtensionMargin + 350 * pvNode + 75 * board->isCapture(move) - std::abs(correctionValue / 1572864);
+                int dextMargin = doubleExtensionMargin + 300 * pvNode - std::abs(correctionValue / 2072864);
+                int textMargin = tripleExtensionMargin + 350 * pvNode + 75 * board->isCapture(move) - std::abs(correctionValue / 2072864);
 
                 extension += singularValue + dextMargin < singularBeta;
                 extension += singularValue + textMargin < singularBeta;
