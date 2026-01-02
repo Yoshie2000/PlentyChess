@@ -5,6 +5,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <atomic>
 
 #if !defined(__always_inline)
 #define __always_inline
@@ -286,7 +287,7 @@ struct SearchStack {
     Move killer;
 
     int16_t* contHist;
-    int16_t* contCorrHist;
+    std::atomic<int16_t>* contCorrHist;
 };
 
 struct DirtyPiece {

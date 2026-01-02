@@ -16,12 +16,15 @@ constexpr int PAWN_HISTORY_SIZE = 8192;
 constexpr int CORRECTION_HISTORY_SIZE = 16384;
 constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 
+constexpr int CONTCORR_HISTORY_SIZE = Piece::TOTAL * 64 * 2 * 2;
+
 class alignas(64) SharedHistory {
 
     std::atomic<int16_t>* correctionHistory[2];
     std::atomic<int16_t>* nonPawnCorrectionHistory[2][2];
     std::atomic<int16_t>* minorCorrectionHistory[2];
     std::atomic<int16_t>* majorCorrectionHistory[2];
+    std::atomic<int16_t>* continuationCorrectionHistory[2];
 
     int threadsOnNode;
     int threadsPowerOfTwo;
@@ -45,6 +48,8 @@ public:
     int16_t getMajorCorrectionEntry(Board* board);
     void storeMajorCorrectionEntry(Board* board, int16_t value);
 
+    std::atomic<int16_t>* getContinuationCorrectionPointer(Board* board, Move move);
+
     void initHistory(int threadIdx);
     void free();
 
@@ -59,14 +64,12 @@ class History {
     int16_t pawnHistory[PAWN_HISTORY_SIZE][2][Piece::TOTAL][64];
 
     int threadIdx;
-    SharedHistory* sharedHistory;
 
 public:
 
     int16_t quietHistory[2][64][2][64][2];
-
     int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2];
-    int16_t continuationCorrectionHistory[2][Piece::TOTAL][64][2][2];
+    SharedHistory* sharedHistory;
 
     History() = delete;
     History(int _threadIdx, SharedHistory* _sharedHistory): threadIdx(_threadIdx), sharedHistory(_sharedHistory) {}

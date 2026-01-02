@@ -56,6 +56,7 @@ SharedHistory::SharedHistory(int _threadsOnNode): threadsOnNode(_threadsOnNode) 
         majorCorrectionHistory[side] = reinterpret_cast<std::atomic<int16_t>*>(alignedAlloc(64, threadsPowerOfTwo * CORRECTION_HISTORY_SIZE * sizeof(int16_t)));
         nonPawnCorrectionHistory[side][Color::WHITE] = reinterpret_cast<std::atomic<int16_t>*>(alignedAlloc(64, threadsPowerOfTwo * CORRECTION_HISTORY_SIZE * sizeof(int16_t)));
         nonPawnCorrectionHistory[side][Color::BLACK] = reinterpret_cast<std::atomic<int16_t>*>(alignedAlloc(64, threadsPowerOfTwo * CORRECTION_HISTORY_SIZE * sizeof(int16_t)));
+        continuationCorrectionHistory[side] = reinterpret_cast<std::atomic<int16_t>*>(alignedAlloc(64, CONTCORR_HISTORY_SIZE * sizeof(int16_t)));
     }
 
     hashMask = threadsPowerOfTwo * CORRECTION_HISTORY_SIZE - 1;
@@ -68,6 +69,7 @@ void SharedHistory::free() {
         alignedFree(majorCorrectionHistory[side]);
         alignedFree(nonPawnCorrectionHistory[side][Color::WHITE]);
         alignedFree(nonPawnCorrectionHistory[side][Color::BLACK]);
+        alignedFree(continuationCorrectionHistory[side]);
     }
 }
 
@@ -83,6 +85,9 @@ void SharedHistory::initHistory(int threadIdx) {
         memset(&majorCorrectionHistory[side][start], 0, size * sizeof(int16_t));
         memset(&nonPawnCorrectionHistory[side][Color::WHITE][start], 0, size * sizeof(int16_t));
         memset(&nonPawnCorrectionHistory[side][Color::BLACK][start], 0, size * sizeof(int16_t));
+
+        if (threadIdx == 0)
+            memset(&continuationCorrectionHistory[side][0], 0, CONTCORR_HISTORY_SIZE * sizeof(int16_t));
     }
 }
 
@@ -126,12 +131,23 @@ void SharedHistory::storeMajorCorrectionEntry(Board* board, int16_t value) {
     majorCorrectionHistory[board->stm][board->hashes.majorHash & hashMask].store(value, std::memory_order_relaxed);
 }
 
+std::atomic<int16_t>* SharedHistory::getContinuationCorrectionPointer(Board* board, Move move) {
+    if (!move) return &continuationCorrectionHistory[board->stm][0];
+
+    int pieceIdx = board->pieces[move.origin()];
+    int targetIdx = move.target();
+    int originThreatenedIdx = board->isSquareThreatened(move.origin());
+    int targetThreatenedIdx = board->isSquareThreatened(move.target());
+
+    int idx = 256 * pieceIdx + 4 * targetIdx + 2 * originThreatenedIdx + targetThreatenedIdx;
+    return &continuationCorrectionHistory[board->stm][idx];
+}
+
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
     memset(counterMoves, 0, sizeof(counterMoves));
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
-    memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
 
     for (int i = 0; i < PAWN_HISTORY_SIZE; i++) {
         for (int j = 0; j < 2; j++) {
@@ -151,7 +167,7 @@ Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
     int64_t nonPawnEntry = sharedHistory->getNonPawnCorrectionEntryWhite(board) + sharedHistory->getNonPawnCorrectionEntryBlack(board);
     int64_t minorEntry = sharedHistory->getMinorCorrectionEntry(board);
     int64_t majorEntry = sharedHistory->getMajorCorrectionEntry(board);
-    int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
+    int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? (searchStack - 1)->contCorrHist->load(std::memory_order_relaxed) : 0;
 
     return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
 }
@@ -189,8 +205,9 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
 
     // Continuation
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
-        scaledBonus = bonus - *(searchStack - 1)->contCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-        *(searchStack - 1)->contCorrHist += scaledBonus;
+        value = (searchStack - 1)->contCorrHist->load(std::memory_order_relaxed);
+        scaledBonus = bonus - value / CORRECTION_HISTORY_LIMIT;
+        (searchStack - 1)->contCorrHist->store(value + scaledBonus, std::memory_order_relaxed);
     }
 }
 
