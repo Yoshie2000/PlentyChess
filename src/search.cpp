@@ -1010,14 +1010,18 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 // This move is singular and we should investigate it further
                 extension = 1;
 
-                int dextMargin = doubleExtensionMargin + 300 * pvNode - std::abs(correctionValue / 2072864);
-                int textMargin = tripleExtensionMargin + 350 * pvNode + 75 * board->isCapture(move) - std::abs(correctionValue / 2072864);
+                if (!pvNode) {
 
-                extension += singularValue + dextMargin < singularBeta;
-                extension += singularValue + textMargin < singularBeta;
+                    int dextMargin = doubleExtensionMargin - std::abs(correctionValue / 1572864);
+                    int textMargin = tripleExtensionMargin + 75 * board->isCapture(move) - std::abs(correctionValue / 1572864);
 
-                if (extension > 1 && !pvNode && depth < doubleExtensionDepthIncrease)
-                    depth += doubleExtensionDepthIncreaseFactor;
+                    extension += singularValue + dextMargin < singularBeta;
+                    extension += singularValue + textMargin < singularBeta;
+
+                    if (extension > 1 && depth < doubleExtensionDepthIncrease)
+                        depth += doubleExtensionDepthIncreaseFactor;
+
+                }
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
