@@ -301,7 +301,7 @@ int valueFromTt(int value, int ply, int rule50) {
     return value;
 }
 
-Eval drawEval(Worker* thread) {
+int drawEval(Worker* thread) {
     return 4 - (thread->searchData.nodesSearched.load(std::memory_order_relaxed) & 3);  // Small overhead to avoid 3-fold blindness
 }
 
@@ -472,7 +472,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     Move bestMove = Move::none();
     Eval bestValue, futilityValue, unadjustedEval;
 
-    Eval correctionValue = history.getCorrectionValue(board, stack);
+    int correctionValue = history.getCorrectionValue(board, stack);
     stack->correctionValue = correctionValue;
     if (board->checkers) {
         stack->staticEval = bestValue = unadjustedEval = futilityValue = -EVAL_INFINITE;
@@ -731,7 +731,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
 
-    Eval correctionValue = history.getCorrectionValue(board, stack);
+    int correctionValue = history.getCorrectionValue(board, stack);
     stack->correctionValue = correctionValue;
     if (board->checkers) {
         stack->staticEval = EVAL_NONE;
@@ -894,7 +894,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 return 0;
 
             if (value >= probCutBeta) {
-                value = std::min(value, EVAL_TBWIN_IN_MAX_PLY - 1);
+                value = std::min<Eval>(value, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(fmrHash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
                 return value;
             }
@@ -1018,7 +1018,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
-                Eval value = std::min(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
+                Eval value = std::min<Eval>(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(fmrHash, ttMove, singularDepth, unadjustedEval, value, board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
 
                 // Adjust correction history
@@ -1378,7 +1378,7 @@ void Worker::iterativeDeepening() {
 
             for (size_t i = 0; i < stackList.capacity(); i++) {
                 stackList[i].pvLength = 0;
-                stackList[i].ply = i - STACK_OVERHEAD;
+                stackList[i].ply = int(i) - STACK_OVERHEAD;
                 stackList[i].staticEval = EVAL_NONE;
                 stackList[i].excludedMove = Move::none();
                 stackList[i].killer = Move::none();
@@ -1396,7 +1396,7 @@ void Worker::iterativeDeepening() {
             searchData.selDepth = 0;
 
             // Aspiration Windows
-            Eval delta = 2 * EVAL_INFINITE;
+            Eval delta = EVAL_INFINITE;
             Eval alpha = -EVAL_INFINITE;
             Eval beta = EVAL_INFINITE;
             Eval value;
@@ -1406,14 +1406,17 @@ void Worker::iterativeDeepening() {
                 if (rootMoves[0].meanScore == EVAL_NONE)
                     delta = aspirationWindowDelta;
                 else
-                    delta = aspirationWindowDeltaBase + rootMoves[0].meanScore * rootMoves[0].meanScore / aspirationWindowDeltaDivisor;
-                alpha = std::max(previousValue - delta, -EVAL_INFINITE);
-                beta = std::min(previousValue + delta, (int)EVAL_INFINITE);
+                    delta = std::min<int>(aspirationWindowDeltaBase + rootMoves[0].meanScore * rootMoves[0].meanScore / aspirationWindowDeltaDivisor, EVAL_INFINITE);
+                assert(delta > 0);
+
+                alpha = std::max<int>(previousValue - delta, -EVAL_INFINITE);
+                beta = std::min<int>(previousValue + delta, EVAL_INFINITE);
             }
 
             int failHighs = 0;
             while (true) {
                 int searchDepth = std::max(1, depth - failHighs);
+
                 value = search<ROOT_NODE>(board, stack, searchDepth * 100, alpha, beta, false);
 
                 sortRootMoves();
@@ -1425,12 +1428,12 @@ void Worker::iterativeDeepening() {
                 // Our window was too high, lower alpha for next iteration
                 if (value <= alpha) {
                     beta = (alpha + beta) / 2;
-                    alpha = std::max(value - delta, -EVAL_INFINITE);
+                    alpha = std::max<int>(value - delta, -EVAL_INFINITE);
                     failHighs = 0;
                 }
                 // Our window was too low, increase beta for next iteration
                 else if (value >= beta) {
-                    beta = std::min(value + delta, (int)EVAL_INFINITE);
+                    beta = std::min<int>(value + delta, EVAL_INFINITE);
                     failHighs = std::min(failHighs + 1, aspirationWindowMaxFailHighs);
                 }
                 // Our window was good, increase depth for next iteration
@@ -1442,7 +1445,8 @@ void Worker::iterativeDeepening() {
                     failHighs = 0;
                 }
 
-                delta *= aspirationWindowDeltaFactor;
+                delta = std::clamp<int>(delta * aspirationWindowDeltaFactor, -EVAL_INFINITE, EVAL_INFINITE);
+                assert(delta > 0);
             }
 
             if (stopped.load(std::memory_order_relaxed) || exiting)
@@ -1603,7 +1607,7 @@ void Worker::tdatagen() {
     for (Depth depth = 1; depth <= maxDepth; depth++) {
         for (int i = 0; i < MAX_PLY + STACK_OVERHEAD + 2; i++) {
             stackList[i].pvLength = 0;
-            stackList[i].ply = i - STACK_OVERHEAD;
+            stackList[i].ply = int(i) - STACK_OVERHEAD;
             stackList[i].staticEval = EVAL_NONE;
             stackList[i].excludedMove = Move::none();
             stackList[i].killer = Move::none();
@@ -1621,7 +1625,7 @@ void Worker::tdatagen() {
         searchData.selDepth = 0;
 
         // Aspiration Windows
-        Eval delta = 2 * EVAL_INFINITE;
+        Eval delta = EVAL_INFINITE;
         Eval alpha = -EVAL_INFINITE;
         Eval beta = EVAL_INFINITE;
         Eval value;

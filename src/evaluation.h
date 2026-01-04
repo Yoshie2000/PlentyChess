@@ -14,13 +14,13 @@ const Eval EVAL_TBWIN_IN_MAX_PLY = EVAL_TBWIN - MAX_PLY;
 const Eval EVAL_INFINITE = 31000;
 const Eval EVAL_NONE = 31010;
 
-extern Eval PIECE_VALUES[Piece::TOTAL + 1];
+extern int PIECE_VALUES[Piece::TOTAL + 1];
 
 Eval evaluate(Board* board, NNUE* nnue);
 
 std::string formatEval(Eval value);
 
-bool SEE(Board* board, Move move, Eval threshold);
+bool SEE(Board* board, Move move, int threshold);
 
 constexpr Eval mateIn(int ply) {
     return EVAL_MATE - ply;

@@ -17,16 +17,15 @@ TUNE_INT_DISABLED(queenValue, 909, 700, 1100);
 TUNE_INT_DISABLED(materialScaleBase, 920, 512, 1536);
 TUNE_INT_DISABLED(materialScaleDivisor, 48, 32, 64);
 
-Eval fakePiece = 0;
+int fakePiece = 0;
 
-Eval PIECE_VALUES[Piece::TOTAL + 1] = {
+int PIECE_VALUES[Piece::TOTAL + 1] = {
     pawnValue, knightValue, bishopValue, rookValue, queenValue, fakePiece, fakePiece
 };
 
-constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
+constexpr int SEE_VALUES[Piece::TOTAL + 1] = {
     90, 290, 310, 570, 1000, 0, 0
 };
-
 
 int getMaterialScale(Board* board) {
     int pawnCount = BB::popcount(board->byPiece[Piece::PAWN]);
@@ -69,7 +68,7 @@ std::string formatEval(Eval value) {
     return evalString;
 }
 
-bool SEE(Board* board, Move move, Eval threshold) {
+bool SEE(Board* board, Move move, int threshold) {
     assert(board->isPseudoLegal(move));
 
     // "Special" moves pass SEE
