@@ -122,12 +122,12 @@ endif
 
 # CPU Flags
 ifeq ($(arch), android)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a+simd -static
+	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a -static
 	LDFLAGS := $(LDFLAGS) -lstdc++
 	CXX := aarch64-linux-android29-clang++
 	CC := aarch64-linux-android29-clang
 else ifeq ($(arch), arm64)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a+simd
+	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a
 else ifeq ($(arch), avx512vnni)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=cascadelake -mbmi2
 	CFLAGS := $(CFLAGS) -march=cascadelake -mbmi2
@@ -198,12 +198,14 @@ else
 # Link with NUMA if possible
 	HAS_NUMA = $(shell printf '\043include "numa.h"' | $(CXX) -E - 2> /dev/null | grep -c 'numa.h')
 	ifneq ($(HAS_NUMA),0)
-		ifneq (, $(findstring clang,$(COMPILER_VERSION)))
-			CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA
-			LDFLAGS := $(LDFLAGS) -lnuma
-		else
-			CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA -Wl,--no-as-needed
-			LDFLAGS := $(LDFLAGS) -lnuma -Wl,--no-as-needed
+		ifneq ($(arch),android)
+			ifneq (, $(findstring clang,$(COMPILER_VERSION)))
+				CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA
+				LDFLAGS := $(LDFLAGS) -lnuma
+			else
+				CXXFLAGS := $(CXXFLAGS) -DUSE_NUMA -Wl,--no-as-needed
+				LDFLAGS := $(LDFLAGS) -lnuma -Wl,--no-as-needed
+			endif
 		endif
 	endif
 
