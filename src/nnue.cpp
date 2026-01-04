@@ -658,5 +658,8 @@ Eval NNUE::evaluate(Board* board) {
     float result = std::clamp<float>(draw * 0.5 + win, 0.0f + DELTA, 1.0f - DELTA);
     result = -NETWORK_SCALE * std::log(1.0f / result - 1.0f);
     result = std::clamp<float>(result, -LIMIT, LIMIT);
-    return result;
+    Score score = result;
+
+    Eval eval(score, 255 * win, 255 * draw);
+    return eval;
 }

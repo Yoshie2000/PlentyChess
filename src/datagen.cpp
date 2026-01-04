@@ -28,7 +28,7 @@ bool playRandomMoves(Board& board, Worker* thread, int remainingMoves) {
         thread->rootBoard = board;
         thread->tdatagen();
 
-        Eval verificationScore = thread->rootMoves[0].value;
+        Score verificationScore = thread->rootMoves[0].value;
 
         if (std::abs(verificationScore) >= 1000)
             return false;

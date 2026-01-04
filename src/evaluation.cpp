@@ -38,29 +38,29 @@ int getMaterialScale(Board* board) {
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
-Eval evaluate(Board* board, NNUE* nnue) {
+Score evaluate(Board* board, NNUE* nnue) {
     assert(!board->checkers);
 
-    Eval eval = nnue->evaluate(board);    
+    Score eval = nnue->evaluate(board);    
     eval = (eval * getMaterialScale(board)) / 1024;
 
-    eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
+    eval = std::clamp((int)eval, (int)-SCORE_TBWIN_IN_MAX_PLY + 1, (int)SCORE_TBWIN_IN_MAX_PLY - 1);
     return (eval / 16) * 16;
 }
 
-std::string formatEval(Eval value) {
+std::string formatEval(Score value) {
     std::string evalString;
-    if (value >= EVAL_MATE_IN_MAX_PLY) {
-        evalString = "mate " + std::to_string((EVAL_MATE - value) / 2 + 1);
+    if (value >= SCORE_MATE_IN_MAX_PLY) {
+        evalString = "mate " + std::to_string((SCORE_MATE - value) / 2 + 1);
     }
-    else if (value <= -EVAL_MATE_IN_MAX_PLY) {
-        evalString = "mate " + std::to_string(-(EVAL_MATE + value) / 2);
+    else if (value <= -SCORE_MATE_IN_MAX_PLY) {
+        evalString = "mate " + std::to_string(-(SCORE_MATE + value) / 2);
     }
-    else if (value >= EVAL_TBWIN_IN_MAX_PLY) {
-        evalString = "cp " + std::to_string(1000 * 100 - ((EVAL_TBWIN - value) / 2 + 1) * 100);
+    else if (value >= SCORE_TBWIN_IN_MAX_PLY) {
+        evalString = "cp " + std::to_string(1000 * 100 - ((SCORE_TBWIN - value) / 2 + 1) * 100);
     }
-    else if (value <= -EVAL_TBWIN_IN_MAX_PLY) {
-        evalString = "cp " + std::to_string(-1000 * 100 + ((EVAL_TBWIN + value) / 2) * 100);
+    else if (value <= -SCORE_TBWIN_IN_MAX_PLY) {
+        evalString = "cp " + std::to_string(-1000 * 100 + ((SCORE_TBWIN + value) / 2) * 100);
     }
     else {
         evalString = "cp " + std::to_string(100 * value / 253);

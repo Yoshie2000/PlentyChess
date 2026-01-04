@@ -11,11 +11,19 @@
 #endif
 
 // General constants and types
-using Eval = int16_t;
+using Score = int16_t;
 using Square = uint8_t;
 using Bitboard = uint64_t;
 using Depth = int16_t;
 using Hash = uint64_t;
+
+struct Eval {
+    Score score;
+    uint8_t win, draw;
+
+    Eval(): score(SCORE_NONE), win(0), draw(0) {}
+    Eval(Score _score, uint8_t _win, uint8_t _draw): score(_score), win(_win), draw(_draw) {}
+};
 
 constexpr int MAX_PLY = 250;
 constexpr Depth MAX_DEPTH = (MAX_PLY - 1) * 100;
@@ -273,7 +281,7 @@ struct SearchStack {
 
     int ply;
 
-    Eval staticEval;
+    Score staticEval;
 
     Move move;
     Piece movedPiece;

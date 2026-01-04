@@ -36,7 +36,7 @@ public:
     void initHistory();
 
     int getCorrectionValue(Board* board, SearchStack* searchStack);
-    Eval correctStaticEval(uint8_t rule50, Eval eval, int correctionValue);
+    Score correctStaticEval(uint8_t rule50, Score eval, int correctionValue);
     void updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus);
 
     int getHistory(Board* board, SearchStack* searchStack, Move move, bool isCapture);
