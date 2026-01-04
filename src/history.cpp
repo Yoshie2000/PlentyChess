@@ -67,7 +67,7 @@ void History::initHistory() {
     }
 }
 
-Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
+int History::getCorrectionValue(Board* board, SearchStack* searchStack) {
     int64_t pawnEntry = correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t nonPawnEntry = nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t minorEntry = minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)];
@@ -77,7 +77,7 @@ Eval History::getCorrectionValue(Board* board, SearchStack* searchStack) {
     return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
 }
 
-Eval History::correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue) {
+Eval History::correctStaticEval(uint8_t rule50, Eval eval, int correctionValue) {
     eval = eval * (300 - rule50) / 300;
     Eval adjustedEval = eval + correctionValue / 65536;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
@@ -86,7 +86,7 @@ Eval History::correctStaticEval(uint8_t rule50, Eval eval, Eval correctionValue)
 
 void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus) {
     // Pawn
-    Eval scaledBonus = bonus - correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    int scaledBonus = bonus - correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
     correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 
     // Non-Pawn

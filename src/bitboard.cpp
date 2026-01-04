@@ -23,8 +23,9 @@ namespace BB {
 
         for (direction = DIRECTIONS[Piece::KING][0]; direction <= DIRECTIONS[Piece::KING][1]; direction++) {
             lastSquare = LASTSQ_TABLE[origin][direction];
-            toSquare = origin + DIRECTION_DELTAS[direction];
-            if (toSquare >= 64) continue;
+            int safeToSquare = origin + DIRECTION_DELTAS[direction];
+            if (safeToSquare < 0 || safeToSquare >= 64) continue;
+            toSquare = safeToSquare;
 
             toSquareBB = bitboard(toSquare);
             if (origin != lastSquare && toSquareBB)

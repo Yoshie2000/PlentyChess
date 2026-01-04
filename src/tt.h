@@ -59,8 +59,8 @@ struct TTEntry {
     uint16_t hash = 0;
     Move bestMove = Move::none();
     Depth depth = 0;
-    int16_t eval = 0;
-    int16_t value = 0;
+    Eval eval = 0;
+    Eval value = 0;
     uint8_t flags = 0;
     uint8_t rule50 = 0;
 
