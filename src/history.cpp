@@ -77,11 +77,14 @@ int History::getCorrectionValue(Board* board, SearchStack* searchStack) {
     return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
 }
 
-Score History::correctStaticEval(uint8_t rule50, Score eval, int correctionValue) {
-    eval = eval * (300 - rule50) / 300;
-    Score adjustedEval = eval + correctionValue / 65536;
-    adjustedEval = std::clamp((int)adjustedEval, (int)-SCORE_TBWIN_IN_MAX_PLY + 1, (int)SCORE_TBWIN_IN_MAX_PLY - 1);
-    return adjustedEval;
+Eval History::correctStaticEval(uint8_t rule50, Eval eval, int correctionValue) {
+    Score score = eval.score;
+
+    score = score * (300 - rule50) / 300;
+    score += correctionValue / 65536;
+    score = std::clamp<int>(score + correctionValue / 65536, -SCORE_TBWIN_IN_MAX_PLY + 1, SCORE_TBWIN_IN_MAX_PLY - 1);
+    
+    return eval.withScore(score);
 }
 
 void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus) {

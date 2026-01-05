@@ -17,19 +17,47 @@ using Bitboard = uint64_t;
 using Depth = int16_t;
 using Hash = uint64_t;
 
-struct Eval {
-    Score score;
-    uint8_t win, draw;
-
-    Eval(): score(SCORE_NONE), win(0), draw(0) {}
-    Eval(Score _score, uint8_t _win, uint8_t _draw): score(_score), win(_win), draw(_draw) {}
-};
-
 constexpr int MAX_PLY = 250;
 constexpr Depth MAX_DEPTH = (MAX_PLY - 1) * 100;
 constexpr int MAX_MOVES = 218;
 constexpr int MAX_CAPTURES = 74;
 constexpr Square NO_SQUARE = 64;
+
+const Score SCORE_MATE = 30000;
+const Score SCORE_MATE_IN_MAX_PLY = SCORE_MATE - MAX_PLY;
+const Score SCORE_TBWIN = SCORE_MATE_IN_MAX_PLY - 1000;
+const Score SCORE_TBWIN_IN_MAX_PLY = SCORE_TBWIN - MAX_PLY;
+const Score SCORE_INFINITE = 31000;
+const Score SCORE_NONE = -31010;
+
+struct Eval {
+    Score score;
+    uint8_t win, draw;
+
+    Eval(): score(SCORE_NONE), win(0), draw(0) {}
+    Eval(Score _score): score(_score), win(255), draw(255) {}
+    Eval(Score _score, uint8_t _win, uint8_t _draw): score(_score), win(_win), draw(_draw) {}
+
+    Eval withScore(Score s) {
+        return Eval(s, win, draw);
+    }
+
+    bool hasWDL() {
+        return win + draw <= 255;
+    }
+
+    Eval operator-() {
+        return Eval(-score, 255 - draw - win, draw);
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, Eval eval) {
+        if (eval.hasWDL())
+            os << "Score: " << int(eval.score) << ", W: " << int(float(eval.win) / 255) << "%, D: " << int(float(eval.draw) / 255) << "%, L: " << int(float(255 - eval.win - eval.draw) / 255) << std::endl; 
+        else
+            os << "Score: " << int(eval.score) << std::endl; 
+        return os;
+    }
+};
 
 constexpr int fileOf(const Square square) {
     return square % 8;
@@ -281,7 +309,7 @@ struct SearchStack {
 
     int ply;
 
-    Score staticEval;
+    Eval staticEval;
 
     Move move;
     Piece movedPiece;

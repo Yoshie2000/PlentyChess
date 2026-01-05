@@ -38,14 +38,15 @@ int getMaterialScale(Board* board) {
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
-Score evaluate(Board* board, NNUE* nnue) {
+Eval evaluate(Board* board, NNUE* nnue) {
     assert(!board->checkers);
 
-    Score eval = nnue->evaluate(board);    
-    eval = (eval * getMaterialScale(board)) / 1024;
+    Eval eval = nnue->evaluate(board);    
+    eval.score = (eval.score * getMaterialScale(board)) / 1024;
 
-    eval = std::clamp((int)eval, (int)-SCORE_TBWIN_IN_MAX_PLY + 1, (int)SCORE_TBWIN_IN_MAX_PLY - 1);
-    return (eval / 16) * 16;
+    eval.score = std::clamp<int>(eval.score, -SCORE_TBWIN_IN_MAX_PLY + 1, SCORE_TBWIN_IN_MAX_PLY - 1);
+    eval.score = (eval.score / 16) * 16;
+    return eval;
 }
 
 std::string formatEval(Score value) {

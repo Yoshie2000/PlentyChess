@@ -142,7 +142,7 @@ inline void configureThreadBinding(int threadId) {
 }
 
 struct RootMove {
-    Score value = -SCORE_INFINITE;
+    Eval value = Eval(-SCORE_INFINITE);
     Score meanScore = SCORE_NONE;
     Depth depth = 0;
     int selDepth = 0;
@@ -212,10 +212,10 @@ private:
     bool isDraw(Board* board, int ply);
 
     template <NodeType nt>
-    Score search(Board* board, SearchStack* stack, Depth depth, Score alpha, Score beta, bool cutNode);
+    Eval search(Board* board, SearchStack* stack, Depth depth, Score alpha, Score beta, bool cutNode);
 
     template <NodeType nodeType>
-    Score qsearch(Board* board, SearchStack* stack, Score alpha, Score beta);
+    Eval qsearch(Board* board, SearchStack* stack, Score alpha, Score beta);
 
 };
 
