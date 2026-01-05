@@ -480,7 +480,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Score alpha, Score beta) 
     int correctionValue = history.getCorrectionValue(board, stack);
     stack->correctionValue = correctionValue;
     if (board->checkers) {
-        stack->staticEval = bestValue = unadjustedEval = futilityValue = Eval();
+        stack->staticEval = bestValue = unadjustedEval = futilityValue = Eval(-SCORE_INFINITE);
 
         if (ttValue.score != SCORE_NONE && std::abs(ttValue.score) < SCORE_TBWIN_IN_MAX_PLY && ((ttFlag == TT_UPPERBOUND && ttValue.score < bestValue.score) || (ttFlag == TT_LOWERBOUND && ttValue.score > bestValue.score) || (ttFlag == TT_EXACTBOUND)))
             bestValue = futilityValue = ttValue;
@@ -587,10 +587,12 @@ movesLoopQsearch:
         }
     }
 
-    if (bestValue.score == SCORE_NONE) {
+    if (bestValue.score == -SCORE_INFINITE) {
         assert(board->checkers && moveCount == 0);
         bestValue = Eval(matedIn(stack->ply), 0, 0); // Checkmate
     }
+
+    assert(bestValue.score > -SCORE_INFINITE && bestValue.score < SCORE_INFINITE);
 
     if (!pvNode && std::abs(bestValue.score) < SCORE_TBWIN_IN_MAX_PLY && std::abs(beta) < SCORE_TBWIN_IN_MAX_PLY && bestValue.score >= beta) {
         bestValue = bestValue.withScore((bestValue.score + beta) / 2);
