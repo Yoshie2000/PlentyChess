@@ -28,7 +28,7 @@ const Score SCORE_MATE_IN_MAX_PLY = SCORE_MATE - MAX_PLY;
 const Score SCORE_TBWIN = SCORE_MATE_IN_MAX_PLY - 1000;
 const Score SCORE_TBWIN_IN_MAX_PLY = SCORE_TBWIN - MAX_PLY;
 const Score SCORE_INFINITE = 31000;
-const Score SCORE_NONE = -31010;
+const Score SCORE_NONE = 31010;
 
 struct Eval {
     Score score;

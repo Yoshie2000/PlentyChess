@@ -480,7 +480,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Score alpha, Score beta) 
     int correctionValue = history.getCorrectionValue(board, stack);
     stack->correctionValue = correctionValue;
     if (board->checkers) {
-        stack->staticEval = bestValue = unadjustedEval = futilityValue = Eval();
+        stack->staticEval = bestValue = unadjustedEval = futilityValue = Eval(-SCORE_INFINITE);
 
         if (ttValue.score != SCORE_NONE && std::abs(ttValue.score) < SCORE_TBWIN_IN_MAX_PLY && ((ttFlag == TT_UPPERBOUND && ttValue.score < bestValue.score) || (ttFlag == TT_LOWERBOUND && ttValue.score > bestValue.score) || (ttFlag == TT_EXACTBOUND)))
             bestValue = futilityValue = ttValue;
@@ -587,10 +587,12 @@ movesLoopQsearch:
         }
     }
 
-    if (bestValue.score == SCORE_NONE) {
+    if (bestValue.score == -SCORE_INFINITE) {
         assert(board->checkers && moveCount == 0);
         bestValue = Eval(matedIn(stack->ply), 0, 0); // Checkmate
     }
+
+    assert(bestValue.score > -SCORE_INFINITE && bestValue.score < SCORE_INFINITE);
 
     if (!pvNode && std::abs(bestValue.score) < SCORE_TBWIN_IN_MAX_PLY && std::abs(beta) < SCORE_TBWIN_IN_MAX_PLY && bestValue.score >= beta) {
         bestValue = bestValue.withScore((bestValue.score + beta) / 2);
@@ -1508,7 +1510,7 @@ void Worker::printUCI(Worker* thread, int multiPvCount) {
 
     for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
         RootMove rootMove = thread->rootMoves[rootMoveIdx];
-        std::cout << "info depth " << rootMove.depth << " seldepth " << rootMove.selDepth << " score " << formatEval(rootMove.value.score) << " multipv " << (rootMoveIdx + 1) << " nodes " << nodes << " tbhits " << threadPool->tbhits() << " time " << ms << " nps " << nps << " hashfull " << TT.hashfull() << " pv ";
+        std::cout << "info depth " << rootMove.depth << " seldepth " << rootMove.selDepth << " score " << formatEval(rootMove.value.score) << " wdl " << (100 * rootMove.value.win / 255) << " " << (100 * rootMove.value.draw / 255) << " " << (100 * (255 - rootMove.value.win - rootMove.value.draw) / 255) << " multipv " << (rootMoveIdx + 1) << " nodes " << nodes << " tbhits " << threadPool->tbhits() << " time " << ms << " nps " << nps << " hashfull " << TT.hashfull() << " pv ";
 
         // Send PV
         for (Move move : rootMove.pv)
