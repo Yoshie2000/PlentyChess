@@ -728,6 +728,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         }
     }
 
+    bool potentialSingularity = depth >= extensionMinDepth && !excluded && (ttFlag & TT_LOWERBOUND) && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY && ttDepth >= depth - extensionTtDepthOffset;
+
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
 
@@ -863,7 +865,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
 
-        Move probcutTtMove = ttMove && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : Move::none();
+        bool useTtMove = ttMove && board->isPseudoLegal(ttMove) && (board->isCapture(ttMove) || potentialSingularity);
+        Move probcutTtMove = useTtMove && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : Move::none();
         MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth / 100);
         Move move;
         while ((move = movegen.nextMove())) {
@@ -986,14 +989,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         // Extensions
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
-        if (doExtensions
-            && depth >= extensionMinDepth
-            && move == ttMove
-            && !excluded
-            && (ttFlag & TT_LOWERBOUND)
-            && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
-            && ttDepth >= depth - extensionTtDepthOffset
-            ) {
+        if (doExtensions && potentialSingularity && move == ttMove) {
             Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth / 100;
             int singularDepth = (depth - 100) / 2;
 
