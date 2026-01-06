@@ -929,6 +929,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         bool capture = board->isCapture(move);
         bool importantCapture = stack->ttPv && capture && !cutNode;
+        bool isKiller = stack->killer == move;
         int moveHistory = history.getHistory(board, stack, move, capture);
 
         if (!rootNode
@@ -973,7 +974,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100)
+            if (!pvNode && !isKiller && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100)
                 continue;
 
             // SEE Pruning
