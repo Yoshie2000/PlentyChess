@@ -927,6 +927,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         uint64_t nodesBeforeMove = searchData.nodesSearched.load(std::memory_order_relaxed);
 
+        bool isKiller = move == stack->killer;
         bool capture = board->isCapture(move);
         bool importantCapture = stack->ttPv && capture && !cutNode;
         int moveHistory = history.getHistory(board, stack, move, capture);
@@ -947,7 +948,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
 
             // Futility pruning
-            int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * !bestMove);
+            int fpValue = eval + fpBase + (fpFactor + 10 * isKiller) * lmrDepth / 100 + pvNode * (fpPvNode + fpPvNodeBadCapture * !bestMove);
             if (!capture && (stack - 1)->movedPiece != Piece::NONE)
                 fpValue += (stack - 1)->contHist[2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm] / 500;
             if (lmrDepth < fpDepth && fpValue <= alpha) {
