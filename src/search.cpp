@@ -165,7 +165,7 @@ inline int lmrCorrectionDivisor(bool importantCapture) { return importantCapture
 TUNE_INT(postlmrOppWorseningThreshold, 240, 150, 450);
 TUNE_INT(postlmrOppWorseningReduction, 145, 0, 200);
 
-TUNE_INT(lmrPvNodeExtension, 109, 0, 200);
+TUNE_INT(lmrPvNodeExtension, 200, 0, 200);
 TUNE_INT_DISABLED(lmrDeeperBase, 40, 1, 100);
 TUNE_INT_DISABLED(lmrDeeperFactor, 2, 0, 10);
 TUNE_INT(lmrDeeperWeight, 112, 0, 200);
