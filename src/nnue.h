@@ -27,7 +27,7 @@ constexpr int OUTPUTS = 4;
 
 constexpr int OUTPUT_BUCKETS = 8;
 
-constexpr int NETWORK_SCALE = 291;
+constexpr int NETWORK_SCALE = 274;
 constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
 constexpr int INPUT_SHIFT = 9;

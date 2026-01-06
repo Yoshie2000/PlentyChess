@@ -638,26 +638,26 @@ Eval NNUE::evaluate(Board* board) {
 
     }
 
-    // float loss = outputs[0];
-    // float draw = outputs[1];
-    // float win = outputs[2];
+    float loss = outputs[0];
+    float draw = outputs[1];
+    float win = outputs[2];
 
-    // float max = std::max(win, std::max(draw, loss));
-    // win = std::exp(win - max);
-    // draw = std::exp(draw - max);
-    // loss = std::exp(loss - max);
+    float max = std::max(win, std::max(draw, loss));
+    win = std::exp(win - max);
+    draw = std::exp(draw - max);
+    loss = std::exp(loss - max);
 
-    // float sum = win + draw + loss;
-    // win /= sum;
-    // draw /= sum;
-    // loss /= sum;
+    float sum = win + draw + loss;
+    win /= sum;
+    draw /= sum;
+    loss /= sum;
 
-    // constexpr float DELTA = 0.000000001f;
-    // constexpr int LIMIT = 1 << std::numeric_limits<float>::digits;
+    constexpr float DELTA = 0.000000001f;
+    constexpr int LIMIT = 1 << std::numeric_limits<float>::digits;
 
-    // float result = std::clamp<float>(draw * 0.5 + win, 0.0f + DELTA, 1.0f - DELTA);
-    // result = -NETWORK_SCALE * std::log(1.0f / result - 1.0f);
-    // result = std::clamp<float>(result, -LIMIT, LIMIT);
-    // return result;
-    return outputs[3] * NETWORK_SCALE;
+    float result = std::clamp<float>(draw * 0.5 + win, 0.0f + DELTA, 1.0f - DELTA);
+    result = -NETWORK_SCALE * std::log(1.0f / result - 1.0f);
+    result = std::clamp<float>(result, -LIMIT, LIMIT);
+    
+    return (result + outputs[3] * NETWORK_SCALE) / 2.0;
 }
