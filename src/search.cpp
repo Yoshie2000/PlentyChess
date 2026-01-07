@@ -767,9 +767,14 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // Adjust quiet history based on how much the previous move changed static eval
+    int policyAdjustment = 0;
     if (!excluded && !board->checkers && (stack - 1)->movedPiece != Piece::NONE && !(stack - 1)->capture && !(stack - 1)->inCheck && stack->ply > 1) {
         int bonus = std::clamp(staticHistoryFactor * int(stack->staticEval + (stack - 1)->staticEval) / 10, staticHistoryMin, staticHistoryMax) + staticHistoryTempo;
+
+        int currentHistory = history.getQuietHistory((stack - 1)->move, flip(board->stm), board - 1);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, bonus);
+        int updatedQuietHistory = history.getQuietHistory((stack - 1)->move, flip(board->stm), board - 1);
+        policyAdjustment = updatedQuietHistory - currentHistory;
     }
 
     // IIR
@@ -780,7 +785,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (!board->checkers && (stack - 1)->inLMR) {
         int additionalReduction = 0;
         if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
-            additionalReduction -= postlmrOppWorseningReduction;
+            additionalReduction -= postlmrOppWorseningReduction + 50 * (policyAdjustment >= 750);
 
         depth -= additionalReduction;
         (stack - 1)->reduction += additionalReduction;
