@@ -576,8 +576,7 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
     for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
-        VecF l2Activated = maxPs(minPs(l2OutputsVec[l2], psOne), psZero);
-        l2OutputsVec[l2] = mulPs(l2Activated, l2Activated);
+        l2OutputsVec[l2] = maxPs(minPs(l2OutputsVec[l2], psOne), psZero);
     }
 #else
     for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
@@ -586,8 +585,7 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
     for (int l2 = 0; l2 < L3_SIZE; l2++) {
-        float l2Activated = std::clamp(l2Outputs[l2], 0.0f, 1.0f);
-        l2Outputs[l2] = l2Activated * l2Activated;
+        l2Outputs[l2] = std::clamp(l2Outputs[l2], 0.0f, 1.0f);
     }
 #endif
 
