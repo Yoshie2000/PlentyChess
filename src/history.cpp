@@ -46,6 +46,8 @@ TUNE_INT(minorCorrectionFactor, 4178, 1000, 7500);
 TUNE_INT(majorCorrectionFactor, 2295, 1000, 7500);
 TUNE_INT(continuationCorrectionFactor, 5762, 1000, 7500);
 
+TUNE_INT(fiftyMoveRuleScaleFactor, 300, 100, 300);
+
 void History::initHistory() {
     memset(quietHistory, 0, sizeof(quietHistory));
     memset(counterMoves, 0, sizeof(counterMoves));
@@ -78,7 +80,7 @@ int History::getCorrectionValue(Board* board, SearchStack* searchStack) {
 }
 
 Eval History::correctStaticEval(uint8_t rule50, Eval eval, int correctionValue) {
-    eval = eval * (300 - rule50) / 300;
+    eval = eval * (fiftyMoveRuleScaleFactor - rule50) / fiftyMoveRuleScaleFactor;
     Eval adjustedEval = eval + correctionValue / 65536;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return adjustedEval;

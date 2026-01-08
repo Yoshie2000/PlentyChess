@@ -8,19 +8,17 @@
 #include "nnue.h"
 #include "spsa.h"
 
-TUNE_INT_DISABLED(pawnValue, 96, 50, 150);
-TUNE_INT_DISABLED(knightValue, 298, 200, 400);
-TUNE_INT_DISABLED(bishopValue, 301, 200, 400);
-TUNE_INT_DISABLED(rookValue, 507, 400, 600);
-TUNE_INT_DISABLED(queenValue, 909, 700, 1100);
+TUNE_INT(materialScalePawnValue, 96, 1, 200);
+TUNE_INT(materialScaleKnightValue, 298, 1, 600);
+TUNE_INT(materialScaleBishopValue, 301, 1, 600);
+TUNE_INT(materialScaleRookValue, 507, 1, 1000);
+TUNE_INT(materialScaleQueenValue, 909, 1, 2000);
 
-TUNE_INT_DISABLED(materialScaleBase, 920, 512, 1536);
-TUNE_INT_DISABLED(materialScaleDivisor, 48, 32, 64);
-
-int fakePiece = 0;
+TUNE_INT(materialScaleBase, 920, 1, 2000);
+TUNE_INT(materialScaleDivisor, 48, 1, 100);
 
 int PIECE_VALUES[Piece::TOTAL + 1] = {
-    pawnValue, knightValue, bishopValue, rookValue, queenValue, fakePiece, fakePiece
+    96, 298, 301, 507, 909, 0, 0
 };
 
 constexpr int SEE_VALUES[Piece::TOTAL + 1] = {
@@ -34,7 +32,7 @@ int getMaterialScale(Board* board) {
     int rookCount = BB::popcount(board->byPiece[Piece::ROOK]);
     int queenCount = BB::popcount(board->byPiece[Piece::QUEEN]);
 
-    int materialValue = PIECE_VALUES[Piece::PAWN] * pawnCount + PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
+    int materialValue = materialScalePawnValue * pawnCount + materialScaleKnightValue * knightCount + materialScaleBishopValue * bishopCount + materialScaleRookValue * rookCount + materialScaleQueenValue * queenCount;
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
