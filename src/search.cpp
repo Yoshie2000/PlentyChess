@@ -1004,6 +1004,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         }
 
+        int newDepth = depth - 100;
+
         // Extensions
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
@@ -1027,12 +1029,14 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (stopped.load(std::memory_order_relaxed) || exiting)
                 return 0;
 
+            // This move is singular and we should investigate it further
             if (singularValue < singularBeta) {
-                // This move is singular and we should investigate it further
+
                 extension = 1;
+                depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
+
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
                     extension = 2;
-                    depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
                     if (!board->isCapture(move) && singularValue + tripleExtensionMargin < singularBeta)
                         extension = 3;
                 }
@@ -1058,6 +1062,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 extension = -2;
         }
 
+        newDepth += 100 * extension;
+
         auto [newHash, newFmrHash] = board->hashAfter(move);
         TT.prefetch(newFmrHash);
 
@@ -1076,7 +1082,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         Board* boardCopy = doMove(board, newHash, move);
 
         Eval value = 0;
-        int newDepth = depth - 100 + 100 * extension;
         int8_t moveSearchCount = 0;
 
         // Very basic LMR: Late moves are being searched with less depth
