@@ -1004,6 +1004,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         }
 
+        int newDepth = depth - 100;
+
         // Extensions
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
@@ -1031,11 +1033,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 // This move is singular and we should investigate it further
                 extension = 1;
 
-                int dextMargin = doubleExtensionMargin + 300 * pvNode - std::abs(correctionValue / 2072864);
-                int textMargin = tripleExtensionMargin + 350 * pvNode + 75 * board->isCapture(move) - std::abs(correctionValue / 2072864);
+                int dextMargin = doubleExtensionMargin - std::abs(correctionValue / 2072864);
+                int textMargin = tripleExtensionMargin + 75 * board->isCapture(move) - std::abs(correctionValue / 2072864);
 
-                extension += singularValue + dextMargin < singularBeta;
-                extension += singularValue + textMargin < singularBeta;
+                extension += !pvNode && singularValue + dextMargin < singularBeta;
+                extension += !pvNode && singularValue + textMargin < singularBeta;
 
                 if (extension > 1 && !pvNode && depth < doubleExtensionDepthIncrease)
                     depth += doubleExtensionDepthIncreaseFactor;
@@ -1061,6 +1063,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 extension = -2;
         }
 
+        newDepth += 100 * extension;
+
         auto [newHash, newFmrHash] = board->hashAfter(move);
         TT.prefetch(newFmrHash);
 
@@ -1079,7 +1083,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         Board* boardCopy = doMove(board, newHash, move);
 
         Eval value = 0;
-        int newDepth = depth - 100 + 100 * extension;
         int8_t moveSearchCount = 0;
 
         // Very basic LMR: Late moves are being searched with less depth
