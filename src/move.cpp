@@ -15,7 +15,11 @@
 
 TUNE_INT_DISABLED(mpPromotionScoreFactor, 101, 10, 10000);
 TUNE_INT_DISABLED(mpMvvLvaScoreFactor, 147, 10, 10000);
-TUNE_INT_DISABLED(mpSeeDivisor, 83, 10, 150);
+TUNE_INT(mpSeeDivisor, 80, 10, 150);
+
+TUNE_INT(mpThreatQueenValue, 19431, 10000, 30000);
+TUNE_INT(mpThreatRookValue, 12315, 7500, 17500);
+TUNE_INT(mpThreatKnightValue, 7973, 5000, 10000);
 
 void generatePawn_quiet(Board* board, MoveList& moves, Bitboard targetMask) {
     Bitboard pawns = board->byPiece[Piece::PAWN] & board->byColor[board->stm];
@@ -408,21 +412,21 @@ void MoveGen::scoreQuiets() {
         Bitboard toBB = bitboard(move.target());
         if (piece == Piece::QUEEN) {
             if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
-                threatScore += 20000;
+                threatScore += mpThreatQueenValue;
             if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
-                threatScore -= 20000;
+                threatScore -= mpThreatQueenValue;
         }
         else if (piece == Piece::ROOK) {
             if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
-                threatScore += 12500;
+                threatScore += mpThreatRookValue;
             if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
-                threatScore -= 12500;
+                threatScore -= mpThreatRookValue;
         }
         else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
             if (fromBB & threats.pawnThreats)
-                threatScore += 7500;
+                threatScore += mpThreatKnightValue;
             if (toBB & threats.pawnThreats)
-                threatScore -= 7500;
+                threatScore -= mpThreatKnightValue;
         }
 
         moveListScores.add(history->getHistory(board, searchStack, move, false) + threatScore);
