@@ -1004,8 +1004,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         }
 
-        int newDepth = depth - 100;
-
         // Extensions
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
@@ -1033,7 +1031,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (singularValue < singularBeta) {
 
                 extension = 1;
-                depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
 
                 if (!pvNode && singularValue + doubleExtensionMargin < singularBeta) {
                     extension = 2;
@@ -1062,7 +1059,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 extension = -2;
         }
 
-        newDepth += 100 * extension;
+        int newDepth = depth - 100 + 100 * extension;
 
         auto [newHash, newFmrHash] = board->hashAfter(move);
         TT.prefetch(newFmrHash);
@@ -1160,6 +1157,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         undoMove();
         assert(value > -EVAL_INFINITE && value < EVAL_INFINITE);
+
+        if (extension > 0)
+            depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
 
         SearchedMoveList& list = capture ? captureMoves : quietMoves;
         if (list.size() < list.capacity())
