@@ -1035,8 +1035,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 extension = 1;
                 depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
 
-                int dextMargin = doubleExtensionMargin - std::abs(correctionValue / 1572864);
-                int textMargin = tripleExtensionMargin + 75 * board->isCapture(move) - std::abs(correctionValue / 1572864);
+                int dextMargin = doubleExtensionMargin - std::abs(correctionValue / 2072864);
+                int textMargin = tripleExtensionMargin + 100 * board->isCapture(move) - std::abs(correctionValue / 2572864);
 
                 if (!pvNode) {
                     extension += singularValue + dextMargin < singularBeta;
