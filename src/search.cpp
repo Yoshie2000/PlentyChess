@@ -834,6 +834,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         && depth >= nmpMinDepth
         && stack->ply >= searchData.nmpPlies
         && board->hasNonPawns()
+        && (ttValue == EVAL_NONE || !ttMove || ((ttFlag & TT_LOWERBOUND) && !SEE(board, ttMove, 226)))
         ) {
         stack->capture = false;
         stack->move = Move::none();
