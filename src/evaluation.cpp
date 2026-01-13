@@ -8,25 +8,22 @@
 #include "nnue.h"
 #include "spsa.h"
 
-TUNE_INT_DISABLED(pawnValue, 96, 50, 150);
-TUNE_INT_DISABLED(knightValue, 298, 200, 400);
-TUNE_INT_DISABLED(bishopValue, 301, 200, 400);
-TUNE_INT_DISABLED(rookValue, 507, 400, 600);
-TUNE_INT_DISABLED(queenValue, 909, 700, 1100);
+TUNE_INT(materialScalePawnValue, 86, 1, 200);
+TUNE_INT(materialScaleKnightValue, 290, 1, 600);
+TUNE_INT(materialScaleBishopValue, 313, 1, 600);
+TUNE_INT(materialScaleRookValue, 506, 1, 1000);
+TUNE_INT(materialScaleQueenValue, 1033, 1, 2000);
 
-TUNE_INT_DISABLED(materialScaleBase, 920, 512, 1536);
-TUNE_INT_DISABLED(materialScaleDivisor, 48, 32, 64);
+TUNE_INT(materialScaleBase, 870, 1, 2000);
+TUNE_INT(materialScaleDivisor, 38, 1, 100);
 
-Eval fakePiece = 0;
-
-Eval PIECE_VALUES[Piece::TOTAL + 1] = {
-    pawnValue, knightValue, bishopValue, rookValue, queenValue, fakePiece, fakePiece
+int PIECE_VALUES[Piece::TOTAL + 1] = {
+    96, 298, 301, 507, 909, 0, 0
 };
 
-constexpr Eval SEE_VALUES[Piece::TOTAL + 1] = {
+constexpr int SEE_VALUES[Piece::TOTAL + 1] = {
     90, 290, 310, 570, 1000, 0, 0
 };
-
 
 int getMaterialScale(Board* board) {
     int pawnCount = BB::popcount(board->byPiece[Piece::PAWN]);
@@ -35,7 +32,7 @@ int getMaterialScale(Board* board) {
     int rookCount = BB::popcount(board->byPiece[Piece::ROOK]);
     int queenCount = BB::popcount(board->byPiece[Piece::QUEEN]);
 
-    int materialValue = PIECE_VALUES[Piece::PAWN] * pawnCount + PIECE_VALUES[Piece::KNIGHT] * knightCount + PIECE_VALUES[Piece::BISHOP] * bishopCount + PIECE_VALUES[Piece::ROOK] * rookCount + PIECE_VALUES[Piece::QUEEN] * queenCount;
+    int materialValue = materialScalePawnValue * pawnCount + materialScaleKnightValue * knightCount + materialScaleBishopValue * bishopCount + materialScaleRookValue * rookCount + materialScaleQueenValue * queenCount;
     return materialScaleBase + materialValue / materialScaleDivisor;
 }
 
@@ -69,7 +66,7 @@ std::string formatEval(Eval value) {
     return evalString;
 }
 
-bool SEE(Board* board, Move move, Eval threshold) {
+bool SEE(Board* board, Move move, int threshold) {
     assert(board->isPseudoLegal(move));
 
     // "Special" moves pass SEE
