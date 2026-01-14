@@ -1015,7 +1015,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
             && ttDepth >= depth - extensionTtDepthOffset
             ) {
-            Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth / 100;
+            Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth / 125;
             int singularDepth = (depth - 100) / 2;
 
             bool currTtPv = stack->ttPv;
