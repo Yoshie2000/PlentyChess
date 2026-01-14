@@ -139,9 +139,7 @@ TUNE_INT(seeMarginQuiet, -74, -146, -1);
 TUNE_INT(extensionMinDepth, 624, 0, 1200);
 TUNE_INT(extensionTtDepthOffset, 499, 0, 800);
 TUNE_INT(doubleExtensionDepthIncreaseFactor, 100, 0, 200);
-TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
 TUNE_INT(doubleExtensionDepthIncrease, 1002, 200, 2000);
-TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
@@ -199,6 +197,18 @@ TUNE_INT(correctionHistoryFactorMulticut, 177, 0, 300);
 
 int REDUCTIONS[3][MAX_PLY][MAX_MOVES];
 int LMP_MARGIN[MAX_PLY][2];
+
+int64_t fractionalLog2(uint32_t x) {
+    assert(x > 0);
+
+    uint32_t head = __builtin_clz(x);
+    uint32_t rem = (x << (head + 1)) >> 22;
+
+    int64_t big = (31 - head) * 1024;
+    int64_t small = rem + (355 * rem * (1024 - rem)) / (1024 * 1024);
+
+    return 100 * (big + small) / 1024;
+}
 
 void initReductions() {
     REDUCTIONS[0][0][0] = 0;
@@ -1028,19 +1038,18 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 return 0;
 
             if (singularValue < singularBeta) {
-                // This move is singular and we should investigate it further
-                int singularMargin = singularBeta - singularValue;
 
+                // This move is singular and we should investigate it further
                 extension = 100;
                 
                 if (!pvNode) {
-                    extension += 100 * std::clamp(singularMargin, 0, doubleExtensionMargin) / doubleExtensionMargin;
 
-                    if (!board->isCapture(move))
-                        extension += 100 * std::clamp(singularMargin - doubleExtensionMargin, 0, tripleExtensionMargin - doubleExtensionMargin) / (tripleExtensionMargin - doubleExtensionMargin);
-                    
-                    if (singularMargin > doubleExtensionMargin)
-                        depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
+                    extension += 100 * fractionalLog2(singularBeta - singularValue) / 270;
+                    int maxExtension = board->isCapture(move) ? 200 : 300;
+                    extension = std::min(extension, maxExtension);
+
+                    if (extension >= 200 && depth < doubleExtensionDepthIncrease)
+                        depth += doubleExtensionDepthIncreaseFactor;
                 }
 
             }
