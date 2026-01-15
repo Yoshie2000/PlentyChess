@@ -28,12 +28,14 @@ class History {
 
 public:
 
-    int16_t quietHistory[2][64][2][64][2];
+    int16_t quietFromToHistory[2][64][2][64][2];
+    int16_t quietPieceToHistory[2][6][2][64][2];
 
     int16_t continuationHistory[2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2];
     int16_t continuationCorrectionHistory[2][Piece::TOTAL][64][2][2];
 
     void initHistory();
+    void ageHistories();
 
     int getCorrectionValue(Board* board, SearchStack* searchStack);
     Eval correctStaticEval(uint8_t rule50, Eval eval, int correctionValue);

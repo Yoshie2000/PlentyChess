@@ -1355,12 +1355,7 @@ void Worker::tsearch() {
 }
 
 void Worker::iterativeDeepening() {
-    for (auto& a : history.quietHistory)
-        for (auto& b : a)
-            for (auto& c : b)
-                for (auto& d : c)
-                    for (auto& e : d)
-                        e = 3 * e / 4;
+    history.ageHistories();
 
     int multiPvCount = 0;
     {

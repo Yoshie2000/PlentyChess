@@ -49,7 +49,8 @@ TUNE_INT(continuationCorrectionFactor, 6019, 1000, 7500);
 TUNE_INT(fiftyMoveRuleScaleFactor, 293, 100, 300);
 
 void History::initHistory() {
-    memset(quietHistory, 0, sizeof(quietHistory));
+    memset(quietFromToHistory, 0, sizeof(quietFromToHistory));
+    memset(quietPieceToHistory, 0, sizeof(quietPieceToHistory));
     memset(counterMoves, 0, sizeof(counterMoves));
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
@@ -67,6 +68,21 @@ void History::initHistory() {
             }
         }
     }
+}
+
+void History::ageHistories() {
+    for (auto& a : quietFromToHistory)
+        for (auto& b : a)
+            for (auto& c : b)
+                for (auto& d : c)
+                    for (auto& e : d)
+                        e = 3 * e / 4;
+    for (auto& a : quietPieceToHistory)
+        for (auto& b : a)
+            for (auto& c : b)
+                for (auto& d : c)
+                    for (auto& e : d)
+                        e = 3 * e / 4;
 }
 
 int History::getCorrectionValue(Board* board, SearchStack* searchStack) {
@@ -121,13 +137,25 @@ int History::getHistory(Board* board, SearchStack* searchStack, Move move, bool 
 
 int16_t History::getQuietHistory(Move move, Color stm, Board* board) {
     Square origin = move.origin(), target = move.target();
-    return quietHistory[stm][origin][board->isSquareThreatened(origin)][target][board->isSquareThreatened(target)];
+    Piece movedPiece = board->pieces[origin];
+    bool originThreatened = board->isSquareThreatened(origin);
+    bool targetThreatened = board->isSquareThreatened(target);
+
+    int16_t fromTo = quietFromToHistory[stm][origin][originThreatened][target][targetThreatened];
+    int16_t pieceTo = quietPieceToHistory[stm][movedPiece][originThreatened][target][targetThreatened];
+    return int(fromTo + pieceTo) / 2;
 }
 
 void History::updateQuietHistory(Move move, Color stm, Board* board, int16_t bonus) {
     int16_t scaledBonus = bonus - getQuietHistory(move, stm, board) * std::abs(bonus) / 32000;
+
     Square origin = move.origin(), target = move.target();
-    quietHistory[stm][origin][board->isSquareThreatened(origin)][target][board->isSquareThreatened(target)] += scaledBonus;
+    Piece movedPiece = board->pieces[origin];
+    bool originThreatened = board->isSquareThreatened(origin);
+    bool targetThreatened = board->isSquareThreatened(target);
+
+    quietFromToHistory[stm][origin][originThreatened][target][targetThreatened] += scaledBonus;
+    quietPieceToHistory[stm][movedPiece][originThreatened][target][targetThreatened] += scaledBonus;
 }
 
 int16_t History::getPawnHistory(Board* board, Move move) {
