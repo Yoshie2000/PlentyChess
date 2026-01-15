@@ -567,8 +567,6 @@ movesLoopQsearch:
         stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];
 
-        playedQuiet |= move != ttMove && !capture;
-
         Board* boardCopy = doMove(board, newHash, move);
         Eval value = -qsearch<nodeType>(boardCopy, stack + 1, -beta, -alpha);
         undoMove();
@@ -580,6 +578,8 @@ movesLoopQsearch:
 
         if (value > bestValue) {
             bestValue = value;
+
+            playedQuiet |= !capture;
 
             if (value > alpha) {
                 bestMove = move;
