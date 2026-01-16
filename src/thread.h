@@ -138,6 +138,17 @@ inline int getThreadsOnNode(int node, int numThreads) {
     return counter;
 }
 
+inline int getThreadIdxOnNode(int threadId, int numThreads) {
+    int node = getNumaNode(threadId, numThreads);
+    int counter = 0;
+    for (int idx = 0; idx < threadId; idx++) {
+        int threadNode = getNumaNode(idx, numThreads);
+        if (node == threadNode)
+            counter++;
+    }
+    return counter;
+}
+
 inline void configureThreadBinding(int threadId, int numThreads) {
 #ifdef USE_NUMA
     if (!shouldConfigureNuma(numThreads))
@@ -201,7 +212,7 @@ public:
     std::vector<std::array<MoveGen, 2>> movepickers;
 
     Worker() = delete;
-    Worker(ThreadPool* threadPool, NetworkData* networkData, SharedHistory* sharedHistory, int threadId);
+    Worker(ThreadPool* threadPool, NetworkData* networkData, SharedHistory* sharedHistory, int threadId, int threadIdOnNode);
 
     void startSearching();
     void waitForSearchFinished();
@@ -357,7 +368,8 @@ public:
             threads.push_back(std::make_unique<std::thread>([this, numThreads, i]() {
                 configureThreadBinding(i, numThreads);
                 int nodeIdx = getNumaNode(i, numThreads);
-                workers[i] = std::make_unique<Worker>(this, networkWeights[nodeIdx], sharedHistories[nodeIdx], i);
+                int threadIdxOnNode = getThreadIdxOnNode(i, numThreads);
+                workers[i] = std::make_unique<Worker>(this, networkWeights[nodeIdx], sharedHistories[nodeIdx], i, threadIdxOnNode);
                 workers[i]->idle();
             }));
         }

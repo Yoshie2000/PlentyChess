@@ -10,7 +10,7 @@
 #include "history.h"
 #include "uci.h"
 
-Worker::Worker(ThreadPool* _threadPool, NetworkData* _networkData, SharedHistory* _sharedHistory, int _threadId) : history(_threadId, _sharedHistory), nnue(_networkData), threadPool(_threadPool), threadId(_threadId), mainThread(threadId == 0) {
+Worker::Worker(ThreadPool* _threadPool, NetworkData* _networkData, SharedHistory* _sharedHistory, int _threadId, int _threadIdOnNode) : history(_threadIdOnNode, _sharedHistory), nnue(_networkData), threadPool(_threadPool), threadId(_threadId), mainThread(threadId == 0) {
     history.initHistory();
 }
 
