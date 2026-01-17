@@ -638,25 +638,8 @@ Eval NNUE::evaluate(Board* board) {
 
     }
 
-    float loss = outputs[0];
-    float draw = outputs[1];
-    float win = outputs[2];
-
-    float max = std::max(win, std::max(draw, loss));
-    win = std::exp(win - max);
-    draw = std::exp(draw - max);
-    loss = std::exp(loss - max);
-
-    float sum = win + draw + loss;
-    win /= sum;
-    draw /= sum;
-    loss /= sum;
-
-    constexpr float DELTA = 0.000000001f;
-    constexpr int LIMIT = 1 << std::numeric_limits<float>::digits;
-
-    float result = std::clamp<float>(draw * 0.5 + win, 0.0f + DELTA, 1.0f - DELTA);
-    result = -NETWORK_SCALE * std::log(1.0f / result - 1.0f);
-    result = std::clamp<float>(result, -LIMIT, LIMIT);
-    return result;
+    float x = outputs[0];
+    float y = outputs[1];
+    float result = x * (1.0f + std::clamp(y, 0.0f, 1.0f));
+    return result * NETWORK_SCALE;    
 }

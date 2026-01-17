@@ -23,7 +23,7 @@ constexpr int INPUT_SIZE = ThreatInputs::FEATURE_COUNT + 768 * KING_BUCKETS;
 constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
-constexpr int OUTPUTS = 3;
+constexpr int OUTPUTS = 2;
 
 constexpr int OUTPUT_BUCKETS = 8;
 
