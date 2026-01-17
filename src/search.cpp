@@ -804,10 +804,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (!rootNode && depth <= rfpDepthLimit && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
         int rfpMargin, rfpDepth;
         if (board->checkers) {
-            rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
+            rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture()) + 10 * pvNode;
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
         } else {
-            rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
+            rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture()) + 10 * pvNode;
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
         if (eval - rfpMargin >= beta) {
