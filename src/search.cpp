@@ -514,7 +514,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     futilityValue = std::min(stack->staticEval + qsFutilityOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Stand pat
-    if (bestValue >= beta && (!ttMove || !board->isCapture(ttMove) || useTtValue || !SEE(board, ttMove, 100))) {
+    if (bestValue >= beta && (!ttMove || !board->isCapture(ttMove) || !SEE(board, ttMove, 0))) {
         if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
             bestValue = (bestValue + beta) / 2;
         ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
