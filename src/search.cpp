@@ -514,7 +514,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (bestValue >= beta) {
         if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
             bestValue = (bestValue + beta) / 2;
-        ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, bestValue, board->rule50_ply, ttPv, TT_LOWERBOUND);
+        ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, ttValue, board->rule50_ply, ttPv, ttFlag);
         return bestValue;
     }
     if (alpha < bestValue)
