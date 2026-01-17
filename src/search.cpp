@@ -136,7 +136,7 @@ TUNE_INT(historyPruningFactorQuiet, -6796, -12000, -1);
 TUNE_INT(seeMarginCapture, -22, -44, -1);
 TUNE_INT(seeMarginQuiet, -74, -146, -1);
 
-TUNE_INT(extensionMinDepth, 500, 0, 1200);
+TUNE_INT(extensionMinDepth, 575, 0, 1200);
 TUNE_INT(extensionTtDepthOffset, 499, 0, 800);
 TUNE_INT(doubleExtensionDepthIncreaseFactor, 100, 0, 200);
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
