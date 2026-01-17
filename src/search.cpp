@@ -1208,6 +1208,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 bestMove = move;
                 alpha = value;
 
+                moveCount++;
+
                 if (pvNode)
                     updatePv(stack, move);
 
