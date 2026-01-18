@@ -149,6 +149,35 @@ else ifeq ($(arch), ssse3)
 else ifeq ($(arch), generic)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
 	CFLAGS := $(CFLAGS) -finline-functions -fno-exceptions -pipe -fno-rtti -fomit-frame-pointer -fsee
+else ifeq ($(arch), wasm)
+	CXX := em++
+	CC := emcc
+	CXXFLAGS := -std=c++17 -Wall -Wextra -pedantic -Wshadow -fcommon -O3 -DNDEBUG -DARCH_WASM
+	CFLAGS := -w -O3
+	LDFLAGS :=
+	WASM_FLAGS := -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=134217728 -s MAXIMUM_MEMORY=536870912 -s STACK_SIZE=1048576
+	WASM_FLAGS += -s EXPORTED_FUNCTIONS='["_main","_wasm_send_command","_wasm_get_output","_wasm_init","_wasm_process_commands","_malloc","_free"]'
+	WASM_FLAGS += -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","stringToUTF8","lengthBytesUTF8"]'
+	WASM_FLAGS += -s MODULARIZE=1 -s EXPORT_NAME=PlentyChess
+	WASM_FLAGS += --embed-file processed.bin@processed.bin
+	PROGRAM := engine.js
+	# Exclude tbprobe.c for wasm (uses mmap), add wasm_glue.cpp
+	SOURCES := $(filter-out src/fathom/src/tbprobe.c, $(SOURCES)) src/wasm_glue.cpp
+else ifeq ($(arch), wasm-simd)
+	CXX := em++
+	CC := emcc
+	CXXFLAGS := -std=c++17 -Wall -Wextra -pedantic -Wshadow -fcommon -O3 -DNDEBUG -DARCH_WASM -DARCH_WASM_SIMD -msimd128
+	CFLAGS := -w -O3 -msimd128
+	LDFLAGS :=
+	WASM_FLAGS := -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=134217728 -s MAXIMUM_MEMORY=536870912 -s STACK_SIZE=1048576
+	WASM_FLAGS += -s EXPORTED_FUNCTIONS='["_main","_wasm_send_command","_wasm_get_output","_wasm_init","_wasm_process_commands","_malloc","_free"]'
+	WASM_FLAGS += -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","stringToUTF8","lengthBytesUTF8"]'
+	WASM_FLAGS += -s MODULARIZE=1 -s EXPORT_NAME=PlentyChess
+	WASM_FLAGS += --embed-file processed.bin@processed.bin
+	WASM_FLAGS += -msimd128
+	PROGRAM := engine.js
+	# Exclude tbprobe.c for wasm (uses mmap), add wasm_glue.cpp
+	SOURCES := $(filter-out src/fathom/src/tbprobe.c, $(SOURCES)) src/wasm_glue.cpp
 else
 $(error Architecture not supported: $(arch))
 endif
@@ -171,19 +200,26 @@ ifeq ($(OS), Windows_NT)
         	CXXFLAGS := $(CXXFLAGS) -flto=auto
 	endif
 else
+# Skip LTO and platform-specific flags for Wasm
+ifneq ($(filter wasm wasm-simd,$(arch)),)
+	# Wasm: no LTO, no platform-specific flags
+else
 	CFLAGS := $(CFLAGS) -flto=auto
 	CXXFLAGS := $(CXXFLAGS) -flto=auto
+endif
 
+# Skip platform-specific flags for Wasm
+ifeq ($(filter wasm wasm-simd,$(arch)),)
 	UNAME_S := $(shell uname -s)
 # Use LLD on Linux with clang if major versions match
 	ifneq ($(UNAME_S), Darwin)
 # Get major versions
     CLANG_MAJOR := $(shell $(CXX) -dumpversion | cut -d. -f1)
     LLD_VERSION_STR := $(shell ld.lld --version 2>/dev/null)
-    
+
     ifneq ($(LLD_VERSION_STR),)
         LLD_MAJOR := $(shell ld.lld --version | grep -oE '[0-9]+' | head -n1)
-        
+
 # Only use LLD if it exists and matches Clang's major version
         ifeq ($(CLANG_MAJOR),$(LLD_MAJOR))
             ifeq ($(shell $(CXX) -fuse-ld=lld -Wl,--version >/dev/null 2>&1 && echo yes),yes)
@@ -210,6 +246,7 @@ else
 else
     CFLAGS := $(filter-out -mpopcnt,$(CFLAGS))
 endif
+endif # not wasm
 endif
 
 # Network flags
@@ -258,7 +295,7 @@ endif
 
 _pgo:	CXXFLAGS_EXTRA := $(PGO_GENERATE)
 _pgo:	$(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(LDFLAGS) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(LDFLAGS) $(WASM_FLAGS) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 		./$(PROGRAM) bench
 		$(RM) src/*.o *~ engine
 		$(PGO_MERGE)
@@ -266,7 +303,7 @@ _pgo:	$(OBJS)
 		$(RM) -rf $(PGO_FILES)
 
 _nopgo:	$(OBJS)
-		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(LDFLAGS) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
+		$(CXX) $(CXXFLAGS) $(CXXFLAGS_EXTRA) $(LDFLAGS) $(WASM_FLAGS) $(filter-out $(EVALFILE) process-net,$^) -o $(PROGRAM)
 
 clean:	
 		$(RM) src/*.o src/fathom/src/*.o *~ engine processed.bin

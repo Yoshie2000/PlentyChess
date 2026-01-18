@@ -67,3 +67,22 @@ Profiled builds do not currently work with compilers installed via MinGW/msys2.
 Building an Android binary requires a linux device with NDK installed.
 
 The Makefile will automatically use the NDK compiler when invoked with `arch=android`.
+
+## Building for WebAssembly
+
+Requires [Emscripten](https://emscripten.org/docs/getting_started/downloads.html).
+
+```bash
+source /path/to/emsdk/emsdk_env.sh
+make arch=wasm-simd   # SIMD build (recommended)
+make arch=wasm        # scalar fallback
+```
+
+Outputs `engine.js` and `engine.wasm`. Serve with a local web server and open `wasm_example.html`:
+
+```bash
+python3 -m http.server 8000
+# Open http://localhost:8000/wasm_example.html
+```
+
+Note: Runs single-threaded. Deep searches block the browser UI.

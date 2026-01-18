@@ -11,3 +11,5 @@ tools/process_net
 datagen_scrape/
 .vscode
 src/fathom/src/*.o
+engine.js
+engine.wasm

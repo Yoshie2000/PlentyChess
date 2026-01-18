@@ -11,6 +11,36 @@
 #include <arm_neon.h>
 #endif
 
+#ifdef ARCH_WASM
+// For Wasm, we load the network from the embedded filesystem
+#include <cstdio>
+static unsigned char* gNETWORKData = nullptr;
+static unsigned int gNETWORKSize = 0;
+
+static void loadNetworkFromFile() {
+    FILE* f = fopen(EVALFILE, "rb");
+    if (!f) {
+        std::cerr << "Failed to open network file: " << EVALFILE << std::endl;
+        return;
+    }
+
+    fseek(f, 0, SEEK_END);
+    gNETWORKSize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    gNETWORKData = new unsigned char[gNETWORKSize];
+    size_t read = fread(gNETWORKData, 1, gNETWORKSize, f);
+    fclose(f);
+
+    if (read != gNETWORKSize) {
+        std::cerr << "Failed to read network file completely" << std::endl;
+        delete[] gNETWORKData;
+        gNETWORKData = nullptr;
+        gNETWORKSize = 0;
+    }
+}
+#else
+// For native builds, use INCBIN
 #ifdef _MSC_VER
 #define SP_MSVC
 #pragma push_macro("_MSC_VER")
@@ -28,6 +58,7 @@ INCBIN(NETWORK, EVALFILE);
 #pragma pop_macro("_MSC_VER")
 #undef SP_MSVC
 #endif
+#endif // ARCH_WASM
 
 NetworkData* globalNetworkData;
 alignas(ALIGNMENT) uint16_t nnzLookup[256][8];
@@ -47,6 +78,13 @@ void initNetworkData() {
         }
     }
 
+#ifdef ARCH_WASM
+    loadNetworkFromFile();
+    if (!gNETWORKData) {
+        std::cerr << "Failed to load network data!" << std::endl;
+        return;
+    }
+#endif
     globalNetworkData = (NetworkData*)gNETWORKData;
 }
 

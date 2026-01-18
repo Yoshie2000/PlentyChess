@@ -80,7 +80,11 @@ namespace UCI {
             1,
             1,
             1,
+#ifdef ARCH_WASM
+            1  // Wasm is single-threaded
+#else
             4096
+#endif
         };
 
         UCIOption<UCI_SPIN> multiPV = {

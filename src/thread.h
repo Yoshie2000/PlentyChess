@@ -1,8 +1,10 @@
 #pragma once
 
+#ifndef ARCH_WASM
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#endif
 #include <deque>
 #include <functional>
 #include <map>
@@ -21,7 +23,9 @@
 #include "tt.h"
 
 inline bool shouldConfigureNuma() {
-#ifdef USE_NUMA
+#ifdef ARCH_WASM
+    return false;
+#elif defined(USE_NUMA)
     if (numa_available() == -1) {
         return false;
     }
@@ -30,7 +34,7 @@ inline bool shouldConfigureNuma() {
     static int availableCores = std::thread::hardware_concurrency();
     if (UCI::Options.threads.value <= availableCores / 2)
         return false;
-    
+
     return true;
 #else
     return false;
@@ -159,9 +163,11 @@ class Worker {
 public:
 
     Board rootBoard;
-    
+
+#ifndef ARCH_WASM
     std::mutex mutex;
     std::condition_variable cv;
+#endif
 
     bool searching = false;
     std::atomic_bool stopped = false;
@@ -226,7 +232,9 @@ class ThreadPool {
 public:
 
     std::vector<std::unique_ptr<Worker>> workers;
+#ifndef ARCH_WASM
     std::vector<std::unique_ptr<std::thread>> threads;
+#endif
 
     SearchParameters searchParameters;
     Board rootBoard;
@@ -236,18 +244,45 @@ public:
 
     std::vector<NetworkData*> networkWeights;
 
+#ifdef ARCH_WASM
+    ThreadPool() : workers(0), searchParameters{}, rootBoardHistory() {
+        resize(1); // Wasm is always single-threaded
+    }
+#else
     ThreadPool() : workers(0), threads(0), searchParameters{}, rootBoardHistory() {
         resize(0);
     }
+#endif
 
     ~ThreadPool() {
         exit();
     }
 
     void resize(size_t numThreads) {
+#ifdef ARCH_WASM
+        // Wasm is always single-threaded
+        numThreads = 1;
+        if (workers.size() == numThreads)
+            return;
+
+        exit();
+
+        networkWeights.clear();
+        networkWeights.resize(1);
+        networkWeights[0] = globalNetworkData;
+
+        workers.clear();
+        workers.resize(numThreads);
+
+        // In Wasm, create workers directly without threads
+        for (size_t i = 0; i < numThreads; i++) {
+            workers[i] = std::make_unique<Worker>(this, networkWeights[0], i);
+        }
+        startedThreads = numThreads;
+#else
         if (threads.size() == numThreads)
             return;
-        
+
         exit();
 
 #ifdef USE_NUMA
@@ -301,6 +336,7 @@ public:
         }
 
         while (startedThreads < numThreads) {}
+#endif
     }
 
     void startSearching(Board board, std::vector<Hash> boardHistory, SearchParameters parameters) {
@@ -314,13 +350,22 @@ public:
         for (auto& worker : workers) {
             worker.get()->rootMoves.clear();
             worker.get()->stopped.store(false, std::memory_order_relaxed);
+#ifndef ARCH_WASM
             std::lock_guard<std::mutex> lock(worker.get()->mutex);
+#endif
             worker.get()->searching = true;
         }
 
+#ifdef ARCH_WASM
+        // In Wasm, run search synchronously
+        for (auto& worker : workers) {
+            worker.get()->startSearching();
+        }
+#else
         for (auto& worker : workers) {
             worker.get()->cv.notify_all();
         }
+#endif
     }
 
     void stopSearching() {

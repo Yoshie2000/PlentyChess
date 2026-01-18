@@ -20,7 +20,9 @@
 #include "spsa.h"
 #include "nnue.h"
 #include "uci.h"
+#ifndef ARCH_WASM
 #include "fathom/src/tbprobe.h"
+#endif
 #include "zobrist.h"
 #include "debug.h"
 
@@ -689,6 +691,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (!pvNode && ttDepth >= depth - ttCutOffset + ttCutFailHighMargin * (ttValue >= beta) && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
+#ifndef ARCH_WASM
     // TB Probe
     if (!rootNode && !excluded && BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
         unsigned result = tb_probe_wdl(
@@ -741,6 +744,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
         }
     }
+#endif
 
     // Static evaluation
     Eval eval = EVAL_NONE, unadjustedEval = EVAL_NONE, probCutBeta = EVAL_NONE;
@@ -1271,6 +1275,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     return bestValue;
 }
 
+#ifndef ARCH_WASM
 Move tbProbeMoveRoot(unsigned result) {
     Square origin = TB_GET_FROM(result);
     Square target = TB_GET_TO(result);
@@ -1297,6 +1302,7 @@ Move tbProbeMoveRoot(unsigned result) {
 
     return Move::makeNormal(origin, target);
 }
+#endif
 
 void Worker::tsearch() {
     if (TUNE_ENABLED)
@@ -1305,6 +1311,7 @@ void Worker::tsearch() {
     nnue.reset(&rootBoard);
 
     Move bestTbMove = Move::none();
+#ifndef ARCH_WASM
     if (mainThread && BB::popcount(rootBoard.byColor[Color::WHITE] | rootBoard.byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
         unsigned result = tb_probe_root(
             rootBoard.byColor[Color::WHITE],
@@ -1325,6 +1332,7 @@ void Worker::tsearch() {
         if (result != TB_RESULT_FAILED)
             bestTbMove = tbProbeMoveRoot(result);
     }
+#endif
 
     searchData.nodesSearched.store(0, std::memory_order_relaxed);
     searchData.tbHits = 0;

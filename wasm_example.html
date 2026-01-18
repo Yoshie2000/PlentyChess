@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlentyChess Wasm Example</title>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #output {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 10px;
+            height: 400px;
+            overflow-y: scroll;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        #input {
+            width: 100%;
+            font-family: monospace;
+            font-size: 14px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .controls {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>PlentyChess WebAssembly Demo</h1>
+    <p>A chess engine running in your browser via WebAssembly.</p>
+
+    <div class="controls">
+        <button onclick="sendCommand('uci')">UCI</button>
+        <button onclick="sendCommand('isready')">Is Ready</button>
+        <button onclick="sendCommand('ucinewgame')">New Game</button>
+        <button onclick="sendCommand('position startpos')">Start Position</button>
+        <button onclick="sendCommand('go depth 10')">Go (depth 10)</button>
+        <button onclick="sendCommand('stop')">Stop</button>
+        <button onclick="sendCommand('bench')">Benchmark</button>
+    </div>
+
+    <div id="output"></div>
+    <input type="text" id="input" placeholder="Enter UCI command..." onkeypress="handleKeyPress(event)">
+
+    <h3>Usage</h3>
+    <p>Build with: <code>make arch=wasm-simd</code> or <code>make arch=wasm</code></p>
+    <p>Then serve this directory with a local web server (required for Wasm):</p>
+    <pre>python3 -m http.server 8000</pre>
+    <p>Open <a href="http://localhost:8000/wasm_example.html">http://localhost:8000/wasm_example.html</a></p>
+
+    <script src="engine.js"></script>
+    <script>
+        let engine = null;
+        const outputEl = document.getElementById('output');
+        const inputEl = document.getElementById('input');
+
+        function log(text) {
+            outputEl.textContent += text + '\n';
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        async function initEngine() {
+            log('Loading PlentyChess WebAssembly...');
+            try {
+                // PlentyChess is the factory function loaded via script tag
+                engine = await PlentyChess();
+
+                // Initialize the engine
+                engine._wasm_init();
+                log('Engine initialized successfully!');
+
+                // Get initial output
+                const output = engine.UTF8ToString(engine._wasm_get_output());
+                if (output) log(output);
+
+            } catch (e) {
+                log('Error loading engine: ' + e.message);
+                console.error(e);
+                log('Make sure to build with: make arch=wasm-simd');
+            }
+        }
+
+        function sendCommand(cmd) {
+            if (!engine) {
+                log('Engine not loaded yet!');
+                return;
+            }
+
+            log('> ' + cmd);
+
+            // Send command to engine - allocate string on heap
+            const cmdLen = engine.lengthBytesUTF8(cmd) + 1;
+            const cmdPtr = engine._malloc(cmdLen);
+            engine.stringToUTF8(cmd, cmdPtr, cmdLen);
+            engine._wasm_send_command(cmdPtr);
+            engine._free(cmdPtr);
+
+            // Process the command
+            engine._wasm_process_commands();
+
+            // Get output
+            setTimeout(() => {
+                const output = engine.UTF8ToString(engine._wasm_get_output());
+                if (output) log(output);
+            }, 10);
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                const cmd = inputEl.value.trim();
+                if (cmd) {
+                    sendCommand(cmd);
+                    inputEl.value = '';
+                }
+            }
+        }
+
+        // Initialize on load
+        initEngine();
+    </script>
+</body>
+</html>

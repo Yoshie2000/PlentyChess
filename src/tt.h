@@ -5,11 +5,13 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#ifndef ARCH_WASM
 #include <thread>
+#endif
 #include <vector>
 #include <string.h>
 
-#if defined(__linux__)
+#if defined(__linux__) && !defined(ARCH_WASM)
 #include <sys/mman.h>
 #endif
 
@@ -26,9 +28,9 @@ inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
     ptr = std::aligned_alloc(alignment, requiredBytes);
 #endif
 
-#if defined(__linux__)
+#if defined(__linux__) && !defined(ARCH_WASM)
     madvise(ptr, requiredBytes, MADV_HUGEPAGE);
-#endif 
+#endif
 
     return ptr;
 }
@@ -121,9 +123,27 @@ public:
     }
 
     size_t index(Hash hash) {
-        // Find entry
+        // Find entry using mulhi64 (high 64 bits of 64x64 multiplication)
+#if defined(ARCH_WASM)
+        // Portable implementation for Wasm
+        uint64_t a = hash;
+        uint64_t b = clusterCount;
+        uint64_t a_lo = a & 0xFFFFFFFF;
+        uint64_t a_hi = a >> 32;
+        uint64_t b_lo = b & 0xFFFFFFFF;
+        uint64_t b_hi = b >> 32;
+
+        uint64_t p0 = a_lo * b_lo;
+        uint64_t p1 = a_lo * b_hi;
+        uint64_t p2 = a_hi * b_lo;
+        uint64_t p3 = a_hi * b_hi;
+
+        uint64_t carry = ((p0 >> 32) + (p1 & 0xFFFFFFFF) + (p2 & 0xFFFFFFFF)) >> 32;
+        return p3 + (p1 >> 32) + (p2 >> 32) + carry;
+#else
         __extension__ using uint128 = unsigned __int128;
         return ((uint128)hash * (uint128)clusterCount) >> 64;
+#endif
     }
 
     void prefetch(Hash hash) {
@@ -144,6 +164,10 @@ public:
     }
 
     void clear() {
+#ifdef ARCH_WASM
+        // Single-threaded clear for Wasm
+        std::memset(static_cast<void*>(table), 0, sizeof(TTCluster) * clusterCount);
+#else
         size_t threadCount = UCI::Options.threads.value;
         std::vector<std::thread> ts;
 
@@ -158,6 +182,7 @@ public:
         for (auto& t : ts) {
             t.join();
         }
+#endif
     }
 
 };

@@ -18,9 +18,17 @@
 #include "nnue.h"
 #include "spsa.h"
 #include "history.h"
+#ifndef ARCH_WASM
 #include "fathom/src/tbprobe.h"
+#endif
 #include "debug.h"
 #include "bench.h"
+
+#ifdef ARCH_WASM
+extern "C" bool wasm_has_command();
+extern "C" bool wasm_get_next_command(std::string& out);
+namespace WasmIO { void initWasmIO(); }
+#endif
 
 namespace UCI {
     UCIOptions Options;
@@ -267,12 +275,14 @@ void setoption(std::string line) {
     UCI::Options.forEach(setUciOption(name, value));
     SPSA::trySetParam(name, value);
 
+#ifndef ARCH_WASM
     if (name == "SyzygyPath") {
         std::string path = UCI::Options.syzygyPath.value;
         tb_init(path.c_str());
         if (!TB_LARGEST)
             std::cout << "info string Tablebases failed to load" << std::endl;
     }
+#endif
 }
 
 void go(std::string line, Board& board, std::vector<Hash>& boardHistory) {
@@ -345,7 +355,11 @@ void go(std::string line, Board& board, std::vector<Hash>& boardHistory) {
 }
 
 void speedtest(Board& board, std::vector<Hash>& boardHistory) {
+#ifdef ARCH_WASM
+    int numThreads = 1;
+#else
     int numThreads = std::thread::hardware_concurrency();
+#endif
     int numHash = 16 * numThreads;
     int numSeconds = 150;
 
@@ -447,6 +461,95 @@ struct printOptions
     }
 };
 
+#ifdef ARCH_WASM
+// Wasm-specific global state
+static std::vector<Hash> wasmBoardHistory;
+static Board wasmBoard;
+static bool wasmInitialized = false;
+
+// Process a single UCI command for Wasm
+void processCommand(const std::string& line) {
+    if (!wasmInitialized) {
+        threads.resize(1);
+        wasmBoard.startpos();
+        wasmBoardHistory.push_back(wasmBoard.hashes.hash);
+        wasmInitialized = true;
+    }
+
+    if (matchesToken(line, "quit")) {
+        threads.stopSearching();
+        threads.exit();
+    }
+    else if (matchesToken(line, "stop")) {
+        threads.searchParameters.ponderhit = false;
+        threads.stopSearching();
+    }
+    else if (matchesToken(line, "ponderhit")) {
+        threads.searchParameters.ponderhit = true;
+        threads.stopSearching();
+    }
+    else if (matchesToken(line, "wait")) {
+        threads.waitForSearchFinished();
+    }
+    else if (matchesToken(line, "isready")) {
+        threads.waitForSearchFinished();
+        std::cout << "readyok" << std::endl;
+    }
+    else if (matchesToken(line, "ucinewgame")) {
+        threads.resize(UCI::Options.threads.value);
+        TT.resize(UCI::Options.hash.value);
+        threads.ucinewgame();
+        UCI::optionsDirty = false;
+    }
+    else if (matchesToken(line, "uci")) {
+        std::cout << "id name PlentyChess " << static_cast<std::string>(VERSION) << " (Wasm)\nid author Yoshie2000\n" << std::endl;
+        UCI::Options.forEach(printOptions());
+        SPSA::printUCI();
+        std::cout << std::endl << "uciok" << std::endl;
+    }
+    else if (matchesToken(line, "go")) {
+        if (UCI::optionsDirty) {
+            threads.resize(UCI::Options.threads.value);
+            TT.resize(UCI::Options.hash.value);
+            UCI::optionsDirty = false;
+        }
+        go(line, wasmBoard, wasmBoardHistory);
+    }
+    else if (matchesToken(line, "position")) position(line.substr(9), wasmBoard, wasmBoardHistory);
+    else if (matchesToken(line, "setoption")) setoption(line.substr(10));
+    else if (matchesToken(line, "bench")) bench(wasmBoard, wasmBoardHistory);
+    else if (matchesToken(line, "perfttest")) perfttest(wasmBoard, wasmBoardHistory);
+    else if (matchesToken(line, "debug")) wasmBoard.debugBoard();
+    else if (matchesToken(line, "eval")) {
+        UCI::nnue.reset(&wasmBoard);
+        std::cout << UCI::nnue.evaluate(&wasmBoard) << std::endl;
+    }
+    else if (!line.empty()) {
+        std::cout << "Unknown command" << std::endl;
+    }
+}
+
+void uciLoop(int argc, char* argv[]) {
+    (void)argc;
+    (void)argv;
+
+    WasmIO::initWasmIO();
+    threads.resize(1);
+    wasmBoard.startpos();
+    wasmBoardHistory.push_back(wasmBoard.hashes.hash);
+    wasmInitialized = true;
+
+    std::cout << "PlentyChess Wasm ready" << std::endl;
+
+    // Process any pending commands
+    std::string line;
+    while (wasm_get_next_command(line)) {
+        processCommand(line);
+    }
+}
+
+#else
+
 void uciLoop(int argc, char* argv[]) {
     threads.resize(1);
     std::vector<Hash> boardHistory;
@@ -538,3 +641,5 @@ void uciLoop(int argc, char* argv[]) {
 
     std::cout << "UCI thread stopping" << std::endl;
 }
+
+#endif

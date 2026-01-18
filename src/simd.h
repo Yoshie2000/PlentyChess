@@ -27,6 +27,70 @@ inline VecI16_v128 addEpi16_v128(VecI16_v128 x, VecI16_v128 y) {
   return _mm_add_epi16(x, y);
 }
 
+#elif defined(ARCH_WASM_SIMD)
+
+#include <wasm_simd128.h>
+
+using VecI16_v128 = v128_t;
+
+inline VecI16_v128 setZero_v128() {
+  return wasm_i16x8_splat(0);
+}
+
+inline VecI16_v128 set1Epi16_v128(int i) {
+  return wasm_i16x8_splat(i);
+}
+
+inline VecI16_v128 loadu_v128(const uint16_t* addr) {
+  return wasm_v128_load(addr);
+}
+
+inline void storeu_v128(uint16_t* addr, VecI16_v128 x) {
+  wasm_v128_store(addr, x);
+}
+
+inline VecI16_v128 addEpi16_v128(VecI16_v128 x, VecI16_v128 y) {
+  return wasm_i16x8_add(x, y);
+}
+
+#elif defined(ARCH_WASM)
+
+// Scalar fallback for Wasm without SIMD
+#include <cstdint>
+#include <cstring>
+
+struct VecI16_v128 {
+  uint16_t data[8];
+};
+
+inline VecI16_v128 setZero_v128() {
+  VecI16_v128 result;
+  for (int i = 0; i < 8; i++) result.data[i] = 0;
+  return result;
+}
+
+inline VecI16_v128 set1Epi16_v128(int i) {
+  VecI16_v128 result;
+  for (int j = 0; j < 8; j++) result.data[j] = static_cast<uint16_t>(i);
+  return result;
+}
+
+inline VecI16_v128 loadu_v128(const uint16_t* addr) {
+  VecI16_v128 result;
+  std::memcpy(result.data, addr, sizeof(result.data));
+  return result;
+}
+
+inline void storeu_v128(uint16_t* addr, VecI16_v128 x) {
+  std::memcpy(addr, x.data, sizeof(x.data));
+}
+
+inline VecI16_v128 addEpi16_v128(VecI16_v128 x, VecI16_v128 y) {
+  VecI16_v128 result;
+  for (int i = 0; i < 8; i++) result.data[i] = x.data[i] + y.data[i];
+  return result;
+}
+
 #else
 
 #include <arm_neon.h>
@@ -407,6 +471,361 @@ inline float reduceAddPs(VecF* sums) {
 
 inline uint32_t vecNNZ(VecI32 chunk) {
   return _mm_movemask_ps(_mm_castsi128_ps(_mm_cmpgt_epi32(chunk, _mm_setzero_si128())));
+}
+
+#elif defined(ARCH_WASM_SIMD)
+
+#include <wasm_simd128.h>
+
+using VecI8 = v128_t;
+using VecIu8 = v128_t;
+using VecI16 = v128_t;
+using VecI16s = int64_t; // 8 bytes for 8 int8 values
+using VecIu16 = v128_t;
+using VecI32 = v128_t;
+using VecF = v128_t;
+
+// Integer operations
+inline VecI16 addEpi16(VecI16 x, VecI16 y) {
+  return wasm_i16x8_add(x, y);
+}
+
+inline VecI16 subEpi16(VecI16 x, VecI16 y) {
+  return wasm_i16x8_sub(x, y);
+}
+
+inline VecI16 convertEpi8Epi16(VecI16s x) {
+  // Load 8 bytes and sign-extend to 16-bit
+  v128_t v8 = wasm_i64x2_splat(x);
+  return wasm_i16x8_extend_low_i8x16(v8);
+}
+
+inline VecI16 minEpi16(VecI16 x, VecI16 y) {
+  return wasm_i16x8_min(x, y);
+}
+
+inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
+  return wasm_i16x8_max(x, y);
+}
+
+inline VecI16 set1Epi16(int i) {
+  return wasm_i16x8_splat(i);
+}
+
+inline VecIu8 set1Epi32(int i) {
+  return wasm_i32x4_splat(i);
+}
+
+inline VecI16 srliEpi16(VecI16 x, int shift) {
+  return wasm_u16x8_shr(x, shift);
+}
+
+inline VecI16 slliEpi16(VecI16 x, int shift) {
+  return wasm_i16x8_shl(x, shift);
+}
+
+inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
+  // Multiply and keep high 16 bits of each 32-bit result
+  v128_t lo = wasm_i32x4_extmul_low_i16x8(x, y);
+  v128_t hi = wasm_i32x4_extmul_high_i16x8(x, y);
+  // Shift right by 16 to get high halves
+  lo = wasm_i32x4_shr(lo, 16);
+  hi = wasm_i32x4_shr(hi, 16);
+  // Pack back to i16x8
+  return wasm_i16x8_narrow_i32x4(lo, hi);
+}
+
+// Emulate maddubs: multiply unsigned bytes by signed bytes, add adjacent pairs with saturation
+inline v128_t wasm_maddubs(v128_t a, v128_t b) {
+  // Extract low and high halves
+  v128_t a_lo = wasm_u16x8_extend_low_u8x16(a);
+  v128_t b_lo = wasm_i16x8_extend_low_i8x16(b);
+  v128_t a_hi = wasm_u16x8_extend_high_u8x16(a);
+  v128_t b_hi = wasm_i16x8_extend_high_i8x16(b);
+
+  // Multiply to get i16x8
+  v128_t mul_lo = wasm_i16x8_mul(wasm_i16x8_add(a_lo, wasm_i16x8_splat(0)), b_lo); // reinterpret as signed
+  v128_t mul_hi = wasm_i16x8_mul(wasm_i16x8_add(a_hi, wasm_i16x8_splat(0)), b_hi);
+
+  // Add adjacent pairs with saturation
+  // mul_lo has 8 i16 values, we need pairs [0]+[1], [2]+[3], [4]+[5], [6]+[7]
+  v128_t lo_even = wasm_i16x8_shuffle(mul_lo, mul_lo, 0, 2, 4, 6, 0, 2, 4, 6);
+  v128_t lo_odd = wasm_i16x8_shuffle(mul_lo, mul_lo, 1, 3, 5, 7, 1, 3, 5, 7);
+  v128_t hi_even = wasm_i16x8_shuffle(mul_hi, mul_hi, 0, 2, 4, 6, 0, 2, 4, 6);
+  v128_t hi_odd = wasm_i16x8_shuffle(mul_hi, mul_hi, 1, 3, 5, 7, 1, 3, 5, 7);
+
+  v128_t sum_lo = wasm_i16x8_add_sat(lo_even, lo_odd);
+  v128_t sum_hi = wasm_i16x8_add_sat(hi_even, hi_odd);
+
+  // Combine lower 4 elements from each
+  return wasm_i16x8_shuffle(sum_lo, sum_hi, 0, 1, 2, 3, 8, 9, 10, 11);
+}
+
+// Emulate madd: multiply i16 pairs and add adjacent to get i32
+inline v128_t wasm_madd(v128_t a, v128_t b) {
+  v128_t lo = wasm_i32x4_extmul_low_i16x8(a, b);
+  v128_t hi = wasm_i32x4_extmul_high_i16x8(a, b);
+  // Add pairs: [lo0+lo1, lo2+lo3, hi0+hi1, hi2+hi3]
+  v128_t lo_even = wasm_i32x4_shuffle(lo, lo, 0, 2, 0, 2);
+  v128_t lo_odd = wasm_i32x4_shuffle(lo, lo, 1, 3, 1, 3);
+  v128_t hi_even = wasm_i32x4_shuffle(hi, hi, 0, 2, 0, 2);
+  v128_t hi_odd = wasm_i32x4_shuffle(hi, hi, 1, 3, 1, 3);
+  v128_t sum_lo = wasm_i32x4_add(lo_even, lo_odd);
+  v128_t sum_hi = wasm_i32x4_add(hi_even, hi_odd);
+  return wasm_i32x4_shuffle(sum_lo, sum_hi, 0, 1, 4, 5);
+}
+
+// SIMD dot-product
+inline VecI32 dpbusdEpi32(VecI32 sum, VecIu8 u, VecI8 i) {
+  v128_t maddubs_result = wasm_maddubs(u, i);
+  v128_t sum32 = wasm_madd(maddubs_result, wasm_i16x8_splat(1));
+  return wasm_i32x4_add(sum32, sum);
+}
+
+inline VecI32 dpbusdEpi32x2(VecI32 sum, VecIu8 u, VecI8 i, VecIu8 u2, VecI8 i2) {
+  v128_t mul1 = wasm_maddubs(u, i);
+  v128_t mul2 = wasm_maddubs(u2, i2);
+  v128_t sum32 = wasm_madd(wasm_i16x8_add(mul1, mul2), wasm_i16x8_splat(1));
+  return wasm_i32x4_add(sum32, sum);
+}
+
+// Pack and store
+inline VecIu8 packusEpi16(VecI16 x, VecI16 y) {
+  return wasm_u8x16_narrow_i16x8(x, y);
+}
+
+inline void vecStoreI(VecI16* dest, VecI16 x) {
+  wasm_v128_store(dest, x);
+}
+
+// Floating-point operations
+inline VecF cvtepi32Ps(VecI32 x) {
+  return wasm_f32x4_convert_i32x4(x);
+}
+
+inline VecF addPs(VecF x, VecF y) {
+  return wasm_f32x4_add(x, y);
+}
+
+inline VecF mulPs(VecF x, VecF y) {
+  return wasm_f32x4_mul(x, y);
+}
+
+inline VecF set1Ps(float x) {
+  return wasm_f32x4_splat(x);
+}
+
+inline VecF minPs(VecF x, VecF y) {
+  return wasm_f32x4_min(x, y);
+}
+
+inline VecF maxPs(VecF x, VecF y) {
+  return wasm_f32x4_max(x, y);
+}
+
+// No FMA in Wasm SIMD, emulate with mul+add
+inline VecF fmaddPs(VecF a, VecF b, VecF c) {
+  return wasm_f32x4_add(wasm_f32x4_mul(a, b), c);
+}
+
+inline float reduceAddPsR(float* sums, int length) {
+  if (length == 2) return sums[0] + sums[1];
+  length /= 2;
+  for (int i = 0; i < length; ++i)
+    sums[i] += sums[i + length];
+  return reduceAddPsR(sums, length);
+}
+
+inline float reduceAddPs(VecF* sums) {
+  return reduceAddPsR((float*)sums, 64 / sizeof(float));
+}
+
+inline uint32_t vecNNZ(VecI32 chunk) {
+  v128_t cmp = wasm_i32x4_gt(chunk, wasm_i32x4_splat(0));
+  // Extract the sign bits
+  return wasm_i8x16_bitmask(cmp) & 0x1111; // Get bits 0, 4, 8, 12
+}
+
+#elif defined(ARCH_WASM)
+
+// Scalar fallback for Wasm without SIMD
+#include <cstdint>
+#include <cstring>
+#include <algorithm>
+#include <cmath>
+
+// Using 128-bit emulated vector types for consistency
+struct VecI8_scalar {
+  int8_t data[16];
+};
+struct VecIu8_scalar {
+  uint8_t data[16];
+};
+struct VecI16_scalar {
+  int16_t data[8];
+};
+struct VecIu16_scalar {
+  uint16_t data[8];
+};
+struct VecI32_scalar {
+  int32_t data[4];
+};
+struct VecF_scalar {
+  float data[4];
+};
+
+using VecI8 = VecI8_scalar;
+using VecIu8 = VecIu8_scalar;
+using VecI16 = VecI16_scalar;
+using VecI16s = int64_t;
+using VecIu16 = VecIu16_scalar;
+using VecI32 = VecI32_scalar;
+using VecF = VecF_scalar;
+
+// Integer operations
+inline VecI16 addEpi16(VecI16 x, VecI16 y) {
+  VecI16 result;
+  for (int i = 0; i < 8; i++) result.data[i] = x.data[i] + y.data[i];
+  return result;
+}
+
+inline VecI16 subEpi16(VecI16 x, VecI16 y) {
+  VecI16 result;
+  for (int i = 0; i < 8; i++) result.data[i] = x.data[i] - y.data[i];
+  return result;
+}
+
+inline VecI16 convertEpi8Epi16(VecI16s x) {
+  VecI16 result;
+  int8_t* bytes = reinterpret_cast<int8_t*>(&x);
+  for (int i = 0; i < 8; i++) result.data[i] = bytes[i];
+  return result;
+}
+
+inline VecI16 minEpi16(VecI16 x, VecI16 y) {
+  VecI16 result;
+  for (int i = 0; i < 8; i++) result.data[i] = std::min(x.data[i], y.data[i]);
+  return result;
+}
+
+inline VecI16 maxEpi16(VecI16 x, VecI16 y) {
+  VecI16 result;
+  for (int i = 0; i < 8; i++) result.data[i] = std::max(x.data[i], y.data[i]);
+  return result;
+}
+
+inline VecI16 set1Epi16(int i) {
+  VecI16 result;
+  for (int j = 0; j < 8; j++) result.data[j] = static_cast<int16_t>(i);
+  return result;
+}
+
+inline VecIu8 set1Epi32(int i) {
+  VecIu8 result;
+  for (int j = 0; j < 4; j++) {
+    result.data[j*4+0] = (i >> 0) & 0xFF;
+    result.data[j*4+1] = (i >> 8) & 0xFF;
+    result.data[j*4+2] = (i >> 16) & 0xFF;
+    result.data[j*4+3] = (i >> 24) & 0xFF;
+  }
+  return result;
+}
+
+inline VecI16 srliEpi16(VecI16 x, int shift) {
+  VecI16 result;
+  for (int i = 0; i < 8; i++) result.data[i] = static_cast<uint16_t>(x.data[i]) >> shift;
+  return result;
+}
+
+inline VecI16 slliEpi16(VecI16 x, int shift) {
+  VecI16 result;
+  for (int i = 0; i < 8; i++) result.data[i] = x.data[i] << shift;
+  return result;
+}
+
+inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
+  VecI16 result;
+  for (int i = 0; i < 8; i++) {
+    int32_t product = static_cast<int32_t>(x.data[i]) * static_cast<int32_t>(y.data[i]);
+    result.data[i] = product >> 16;
+  }
+  return result;
+}
+
+inline VecIu8 packusEpi16(VecI16 x, VecI16 y) {
+  VecIu8 result;
+  for (int i = 0; i < 8; i++) {
+    result.data[i] = static_cast<uint8_t>(std::clamp(x.data[i], (int16_t)0, (int16_t)255));
+    result.data[i+8] = static_cast<uint8_t>(std::clamp(y.data[i], (int16_t)0, (int16_t)255));
+  }
+  return result;
+}
+
+inline void vecStoreI(VecI16* dest, VecI16 x) {
+  *dest = x;
+}
+
+// Floating-point operations
+inline VecF cvtepi32Ps(VecI32 x) {
+  VecF result;
+  for (int i = 0; i < 4; i++) result.data[i] = static_cast<float>(x.data[i]);
+  return result;
+}
+
+inline VecF addPs(VecF x, VecF y) {
+  VecF result;
+  for (int i = 0; i < 4; i++) result.data[i] = x.data[i] + y.data[i];
+  return result;
+}
+
+inline VecF mulPs(VecF x, VecF y) {
+  VecF result;
+  for (int i = 0; i < 4; i++) result.data[i] = x.data[i] * y.data[i];
+  return result;
+}
+
+inline VecF set1Ps(float x) {
+  VecF result;
+  for (int i = 0; i < 4; i++) result.data[i] = x;
+  return result;
+}
+
+inline VecF minPs(VecF x, VecF y) {
+  VecF result;
+  for (int i = 0; i < 4; i++) result.data[i] = std::min(x.data[i], y.data[i]);
+  return result;
+}
+
+inline VecF maxPs(VecF x, VecF y) {
+  VecF result;
+  for (int i = 0; i < 4; i++) result.data[i] = std::max(x.data[i], y.data[i]);
+  return result;
+}
+
+inline VecF fmaddPs(VecF a, VecF b, VecF c) {
+  VecF result;
+  for (int i = 0; i < 4; i++) result.data[i] = std::fma(a.data[i], b.data[i], c.data[i]);
+  return result;
+}
+
+inline float reduceAddPsR(float* sums, int length) {
+  if (length == 2) return sums[0] + sums[1];
+  length /= 2;
+  for (int i = 0; i < length; ++i)
+    sums[i] += sums[i + length];
+  return reduceAddPsR(sums, length);
+}
+
+inline float reduceAddPs(VecF* sums) {
+  return reduceAddPsR((float*)sums, 64 / sizeof(float));
+}
+
+inline uint32_t vecNNZ(VecI32 chunk) {
+  uint32_t mask = 0;
+  for (int i = 0; i < 4; i++) {
+    if (chunk.data[i] > 0) mask |= (1u << i);
+  }
+  return mask;
 }
 
 #else
