@@ -531,7 +531,7 @@ movesLoopQsearch:
         if (!capture && playedQuiet && bestValue.score > -SCORE_TBWIN_IN_MAX_PLY)
             continue;
 
-        if (futilityValue.score != SCORE_NONE && bestValue.score > -SCORE_TBWIN_IN_MAX_PLY) { // Only prune when not in check
+        if (futilityValue.score > -SCORE_INFINITE && bestValue.score > -SCORE_TBWIN_IN_MAX_PLY) { // Only prune when not in check
             if (futilityValue.score <= alpha && !SEE(board, move, 1)) {
                 bestValue = bestValue.withScore(std::max(bestValue.score, futilityValue.score));
                 continue;
