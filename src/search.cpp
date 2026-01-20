@@ -615,6 +615,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Score alpha, 
     assert(!(pvNode && cutNode));
     assert(pvNode || alpha == beta - 1);
 
+    // std::cout << "S " << int(depth) << " " << int(alpha) << " " << int(beta) << " " << int(cutNode) << std::endl;
+
     // Set up PV length and selDepth
     if (pvNode)
         stack->pvLength = stack->ply;
@@ -765,6 +767,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Score alpha, 
 
         ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, SCORE_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
     }
+
+    // std::cout << "SE " << int(eval.score) << " " << int(ttValue.score) << " " << int(stack->staticEval.score) << " " << int(unadjustedEval.score) << " " << correctionValue << " " << int(board->rule50_ply) << " " << int(excluded) << " " << int(ttHit) << std::endl;
 
     // Improving
     if (!board->checkers) {
@@ -936,6 +940,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Score alpha, 
             continue;
 
         uint64_t nodesBeforeMove = searchData.nodesSearched.load(std::memory_order_relaxed);
+
+        // std::cout << "SM " << move.toString(board->chess960) << " " << moveCount << " " << int(alpha) << " " << int(beta) << std::endl;
 
         bool capture = board->isCapture(move);
         bool importantCapture = stack->ttPv && capture && !cutNode;
@@ -1510,7 +1516,10 @@ void Worker::printUCI(Worker* thread, int multiPvCount) {
 
     for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
         RootMove rootMove = thread->rootMoves[rootMoveIdx];
-        std::cout << "info depth " << rootMove.depth << " seldepth " << rootMove.selDepth << " score " << formatEval(rootMove.value.score) << " wdl " << (100 * rootMove.value.win / 255) << " " << (100 * rootMove.value.draw / 255) << " " << (100 * (255 - rootMove.value.win - rootMove.value.draw) / 255) << " multipv " << (rootMoveIdx + 1) << " nodes " << nodes << " tbhits " << threadPool->tbhits() << " time " << ms << " nps " << nps << " hashfull " << TT.hashfull() << " pv ";
+        int winPercent = 100 * rootMove.value.win / 255;
+        int drawPercent = 100 * rootMove.value.draw / 255;
+        int lossPercent = 100 - winPercent - drawPercent;
+        std::cout << "info depth " << rootMove.depth << " seldepth " << rootMove.selDepth << " score " << formatEval(rootMove.value.score) << " wdl " << winPercent << " " << drawPercent << " " << lossPercent << " multipv " << (rootMoveIdx + 1) << " nodes " << nodes << " tbhits " << threadPool->tbhits() << " time " << ms << " nps " << nps << " hashfull " << TT.hashfull() << " pv ";
 
         // Send PV
         for (Move move : rootMove.pv)

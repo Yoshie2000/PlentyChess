@@ -82,8 +82,9 @@ Eval History::correctStaticEval(uint8_t rule50, Eval eval, int correctionValue) 
 
     score = score * (300 - rule50) / 300;
     score += correctionValue / 65536;
-    score = std::clamp<int>(score + correctionValue / 65536, -SCORE_TBWIN_IN_MAX_PLY + 1, SCORE_TBWIN_IN_MAX_PLY - 1);
+    score = std::clamp<int>(score, -SCORE_TBWIN_IN_MAX_PLY + 1, SCORE_TBWIN_IN_MAX_PLY - 1);
     
+    // std::cout << "corrected " << int(score) << std::endl;
     return eval.withScore(score);
 }
 
