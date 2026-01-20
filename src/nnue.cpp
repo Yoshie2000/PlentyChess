@@ -550,14 +550,14 @@ Eval NNUE::evaluate(Board* board) {
     for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
         VecF converted = cvtepi32Ps(l1MatmulOutputsVec[l2]);
         VecF l1Result = fmaddPs(converted, psNorm, l1Biases[l2]);
-        l1OutputsVec[l2] = maxPs(minPs(l1Result, psOne), psZero);
-        l1OutputsVec[l2 + L2_SIZE / FLOAT_VEC_SIZE] = minPs(mulPs(l1Result, l1Result), psOne);
+        l1OutputsVec[l2] = maxPs(l1Result, psZero);
+        l1OutputsVec[l2 + L2_SIZE / FLOAT_VEC_SIZE] = mulPs(l1Result, l1Result);
     }
 #else
     for (int l1 = 0; l1 < L2_SIZE; l1++) {
         float l1Result = std::fma(static_cast<float>(l1MatmulOutputs[l1]), L1_NORMALISATION, networkData->l1Biases[bucket][l1]);
-        l1Outputs[l1] = std::clamp(l1Result, 0.0f, 1.0f);
-        l1Outputs[l1 + L2_SIZE] = std::clamp(l1Result * l1Result, 0.0f, 1.0f);
+        l1Outputs[l1] = std::max(l1Result, 0.0f);
+        l1Outputs[l1 + L2_SIZE] = std::max(l1Result * l1Result, 0.0f);
     }
 #endif
 
