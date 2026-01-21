@@ -564,7 +564,7 @@ movesLoopQsearch:
         stack->capture = capture;
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
-        stack->contHist = history.continuationHistory[!!board->checkers][capture][board->stm][stack->movedPiece][target];
+        stack->contHist = history.continuationHistory[0][!!board->checkers][capture][board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];
 
         playedQuiet |= move != ttMove && !capture;
@@ -838,7 +838,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         stack->capture = false;
         stack->move = Move::none();
         stack->movedPiece = Piece::NONE;
-        stack->contHist = history.continuationHistory[0][0][board->stm][0][0];
+        stack->contHist = history.continuationHistory[0][0][0][board->stm][0][0];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0][0][0];
         int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
@@ -892,7 +892,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             stack->capture = board->isCapture(move);
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
-            stack->contHist = history.continuationHistory[!!board->checkers][stack->capture][board->stm][stack->movedPiece][target];
+            stack->contHist = history.continuationHistory[0][!!board->checkers][stack->capture][board->stm][stack->movedPiece][target];
             stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];;
 
             Board* boardCopy = doMove(board, newHash, move);
@@ -1068,13 +1068,15 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         auto [newHash, newFmrHash] = board->hashAfter(move);
         TT.prefetch(newFmrHash);
 
+        bool doLMR = moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth;
+
         // Some setup stuff
         Square origin = move.origin();
         Square target = move.target();
         stack->capture = capture;
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
-        stack->contHist = history.continuationHistory[!!board->checkers][capture][board->stm][stack->movedPiece][target];
+        stack->contHist = history.continuationHistory[doLMR][!!board->checkers][capture][board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];;
 
         moveCount++;
@@ -1088,7 +1090,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
-        if (moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth) {
+        if (doLMR) {
             Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
             reduction += lmrReductionOffset(importantCapture);
             reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
