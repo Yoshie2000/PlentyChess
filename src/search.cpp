@@ -198,6 +198,9 @@ TUNE_INT(correctionHistoryFactorMulticut, 177, 0, 300);
 int REDUCTIONS[3][MAX_PLY][MAX_MOVES];
 int LMP_MARGIN[MAX_PLY][2];
 
+constexpr int FRACTIONAL_LOG_LOOKUP_SIZE = 1000;
+int FRACTIONAL_LOG_LOOKUP[FRACTIONAL_LOG_LOOKUP_SIZE];
+
 int64_t fractionalLog2(uint32_t x) {
     assert(x > 0);
 
@@ -226,6 +229,11 @@ void initReductions() {
     for (Depth depth = 0; depth < MAX_PLY; depth++) {
         LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
         LMP_MARGIN[depth][1] = lmpMarginImprovingBase + lmpMarginImprovingFactor * std::pow(depth, lmpMarginImprovingPower); // improving
+    }
+
+    FRACTIONAL_LOG_LOOKUP[0] = 0;
+    for (int i = 1; i < FRACTIONAL_LOG_LOOKUP_SIZE; i++) {
+        FRACTIONAL_LOG_LOOKUP[i] = fractionalLog2(i);
     }
 }
 
@@ -1044,7 +1052,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 
                 if (!pvNode) {
 
-                    extension += 100 * fractionalLog2(singularBeta - singularValue) / 270;
+                    extension += 100 * FRACTIONAL_LOG_LOOKUP[std::min(singularBeta - singularValue, FRACTIONAL_LOG_LOOKUP_SIZE - 1)] / 270;
                     int maxExtension = board->isCapture(move) ? 200 : 300;
                     extension = std::min(extension, maxExtension);
 
