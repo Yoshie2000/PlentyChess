@@ -943,7 +943,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         bool capture = board->isCapture(move);
         int moveHistory = history.getHistory(board, stack, move, capture);
-        bool importantCapture = stack->ttPv && capture && !cutNode && moveHistory > -25000;
+        bool importantCapture = stack->ttPv && capture && !cutNode && moveHistory > -20000;
 
         if (!rootNode
             && bestValue > -EVAL_TBWIN_IN_MAX_PLY
