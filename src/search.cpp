@@ -942,8 +942,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         uint64_t nodesBeforeMove = searchData.nodesSearched.load(std::memory_order_relaxed);
 
         bool capture = board->isCapture(move);
-        bool importantCapture = stack->ttPv && capture && !cutNode;
         int moveHistory = history.getHistory(board, stack, move, capture);
+        bool importantCapture = stack->ttPv && capture && !cutNode && moveHistory > -25000;
 
         if (!rootNode
             && bestValue > -EVAL_TBWIN_IN_MAX_PLY
