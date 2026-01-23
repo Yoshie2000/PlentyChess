@@ -125,9 +125,9 @@ TUNE_INT(bnfpFactor, 71, 1, 150);
 TUNE_INT(bnfpPvNode, 35, 1, 80);
 TUNE_INT(bnfpNoBestMove, 116, 1, 250);
 
-TUNE_INT(fpCaptDepth, 902, 100, 1500);
-TUNE_INT(fpCaptBase, 383, 150, 800);
-TUNE_INT(fpCaptFactor, 345, 100, 800);
+TUNE_INT(fpCaptDepth, 1000, 100, 1500);
+TUNE_INT(fpCaptBase, 350, 150, 800);
+TUNE_INT(fpCaptFactor, 300, 100, 800);
 
 TUNE_INT(historyPruningDepth, 468, 100, 1000);
 TUNE_INT(historyPruningFactorCapture, -2074, -4000, -1);
