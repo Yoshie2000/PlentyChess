@@ -760,8 +760,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
-        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
+        if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND))) {
             eval = ttValue;
+            if (board->rule50_ply >= 50 && ttEntry->getRule50() > board->rule50_ply && std::abs(ttValue) < std::abs(eval))
+                eval = 95 * eval / 100;
+        }
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
