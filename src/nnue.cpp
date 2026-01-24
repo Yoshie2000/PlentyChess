@@ -564,10 +564,19 @@ Eval NNUE::evaluate(Board* board) {
         l1OutputsVec[l2 + L2_SIZE / FLOAT_VEC_SIZE] = hardSwishK(mulPs(l1Result, l1Result));
     }
 #else
+
+    constexpr float INV_SWISH_K = 1.0f / SWISH_K;
+
+    auto hardSwishK = [](float x) {
+        float gate = std::clamp(x + SWISH_K / 2.0f, 0.0f, SWISH_K);
+        float act = INV_SWISH_K * (x * gate);
+        return act;
+    };
+
     for (int l1 = 0; l1 < L2_SIZE; l1++) {
         float l1Result = std::fma(static_cast<float>(l1MatmulOutputs[l1]), L1_NORMALISATION, networkData->l1Biases[bucket][l1]);
-        l1Outputs[l1] = std::clamp(l1Result, 0.0f, 1.0f);
-        l1Outputs[l1 + L2_SIZE] = std::clamp(l1Result * l1Result, 0.0f, 1.0f);
+        l1Outputs[l1] = hardSwishK(l1Result);
+        l1Outputs[l1 + L2_SIZE] = hardSwishK(l1Result * l1Result);
     }
 #endif
 
@@ -595,8 +604,7 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
     for (int l2 = 0; l2 < L3_SIZE; l2++) {
-        float l2Activated = std::clamp(l2Outputs[l2], 0.0f, 1.0f);
-        l2Outputs[l2] = l2Activated * l2Activated;
+        l2Outputs[l2] = hardSwishK(l2Outputs[l2]);
     }
 #endif
 
