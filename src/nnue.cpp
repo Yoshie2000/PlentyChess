@@ -542,7 +542,16 @@ Eval NNUE::evaluate(Board* board) {
 
     VecF psNorm = set1Ps(L1_NORMALISATION);
     VecF psZero = set1Ps(0.0f);
-    VecF psOne = set1Ps(1.0f);
+
+    VecF psK = set1Ps(SWISH_K);
+    VecF psInvK = set1Ps(1.0f / SWISH_K);
+    VecF psHalfK = set1Ps(SWISH_K / 2.0f);
+
+    auto hardSwishK = [psHalfK, psZero, psK, psInvK](VecF x) {
+        VecF gate = minPs(maxPs(addPs(x, psHalfK), psZero), psK);
+        VecF act = mulPs(psInvK, mulPs(x, gate));
+        return act;
+    };
 
     VecF* l1Biases = reinterpret_cast<VecF*>(networkData->l1Biases[bucket]);
     VecF* l1OutputsVec = reinterpret_cast<VecF*>(l1Outputs);
@@ -550,8 +559,9 @@ Eval NNUE::evaluate(Board* board) {
     for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
         VecF converted = cvtepi32Ps(l1MatmulOutputsVec[l2]);
         VecF l1Result = fmaddPs(converted, psNorm, l1Biases[l2]);
-        l1OutputsVec[l2] = maxPs(minPs(l1Result, psOne), psZero);
-        l1OutputsVec[l2 + L2_SIZE / FLOAT_VEC_SIZE] = minPs(mulPs(l1Result, l1Result), psOne);
+
+        l1OutputsVec[l2] = hardSwishK(l1Result);
+        l1OutputsVec[l2 + L2_SIZE / FLOAT_VEC_SIZE] = hardSwishK(mulPs(l1Result, l1Result));
     }
 #else
     for (int l1 = 0; l1 < L2_SIZE; l1++) {
@@ -576,8 +586,7 @@ Eval NNUE::evaluate(Board* board) {
         }
     }
     for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
-        VecF l2Activated = maxPs(minPs(l2OutputsVec[l2], psOne), psZero);
-        l2OutputsVec[l2] = mulPs(l2Activated, l2Activated);
+        l2OutputsVec[l2] = hardSwishK(l2OutputsVec[l2]);
     }
 #else
     for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
