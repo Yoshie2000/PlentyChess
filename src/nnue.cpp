@@ -537,11 +537,12 @@ Eval NNUE::evaluate(Board* board) {
 
     // ---------------------- CONVERT TO FLOATS & ACTIVATE L1 ----------------------
 
-    alignas(ALIGNMENT) float l1Outputs[2 * L2_SIZE];
+    alignas(ALIGNMENT) float l1Outputs[3 * L2_SIZE];
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
 
     VecF psNorm = set1Ps(L1_NORMALISATION);
     VecF psZero = set1Ps(0.0f);
+    VecF psOne = set1Ps(1.0f);
 
     VecF psK = set1Ps(SWISH_K);
     VecF psInvK = set1Ps(1.0f / SWISH_K);
@@ -559,9 +560,9 @@ Eval NNUE::evaluate(Board* board) {
     for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
         VecF converted = cvtepi32Ps(l1MatmulOutputsVec[l2]);
         VecF l1Result = fmaddPs(converted, psNorm, l1Biases[l2]);
-
-        l1OutputsVec[l2] = hardSwishK(l1Result);
-        l1OutputsVec[l2 + L2_SIZE / FLOAT_VEC_SIZE] = hardSwishK(mulPs(l1Result, l1Result));
+        l1OutputsVec[l2] = maxPs(minPs(l1Result, psOne), psZero);
+        l1OutputsVec[l2 + L2_SIZE / FLOAT_VEC_SIZE] = minPs(mulPs(l1Result, l1Result), psOne);
+        l1OutputsVec[l2 + 2 * L2_SIZE / FLOAT_VEC_SIZE] = hardSwishK(l1Result);
     }
 #else
 
@@ -575,8 +576,8 @@ Eval NNUE::evaluate(Board* board) {
 
     for (int l1 = 0; l1 < L2_SIZE; l1++) {
         float l1Result = std::fma(static_cast<float>(l1MatmulOutputs[l1]), L1_NORMALISATION, networkData->l1Biases[bucket][l1]);
-        l1Outputs[l1] = hardSwishK(l1Result);
-        l1Outputs[l1 + L2_SIZE] = hardSwishK(l1Result * l1Result);
+        l1Outputs[l1] = std::clamp(l1Result, 0.0f, 1.0f);
+        l1Outputs[l1 + L2_SIZE] = std::clamp(l1Result * l1Result, 0.0f, 1.0f);
     }
 #endif
 
@@ -587,7 +588,7 @@ Eval NNUE::evaluate(Board* board) {
 
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     VecF* l2OutputsVec = reinterpret_cast<VecF*>(l2Outputs);
-    for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
+    for (int l1 = 0; l1 < 3 * L2_SIZE; l1++) {
         VecF l1Vec = set1Ps(l1Outputs[l1]);
         VecF* weights = reinterpret_cast<VecF*>(&networkData->l2Weights[bucket][l1 * L3_SIZE]);
         for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
@@ -598,7 +599,7 @@ Eval NNUE::evaluate(Board* board) {
         l2OutputsVec[l2] = hardSwishK(l2OutputsVec[l2]);
     }
 #else
-    for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
+    for (int l1 = 0; l1 < 3 * L2_SIZE; l1++) {
         for (int l2 = 0; l2 < L3_SIZE; l2++) {
             l2Outputs[l2] = std::fma(l1Outputs[l1], networkData->l2Weights[bucket][l1 * L3_SIZE + l2], l2Outputs[l2]);
         }
@@ -623,7 +624,7 @@ Eval NNUE::evaluate(Board* board) {
             resultSums[chunk] = fmaddPs(l2OutputsVec[l2 + chunk], l3WeightsVec[l2 + chunk], resultSums[chunk]);
         }
     }
-    for (int l1 = 0; l1 < 2 * L2_SIZE / FLOAT_VEC_SIZE; l1 += chunks) {
+    for (int l1 = 0; l1 < 3 * L2_SIZE / FLOAT_VEC_SIZE; l1 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
             resultSums[chunk] = fmaddPs(l1OutputsVec[l1 + chunk], l3WeightsVec[L3_SIZE / FLOAT_VEC_SIZE + l1 + chunk], resultSums[chunk]);
         }
@@ -639,7 +640,7 @@ Eval NNUE::evaluate(Board* board) {
             resultSums[chunk] = std::fma(l2Outputs[l2 + chunk], networkData->l3Weights[bucket][l2 + chunk], resultSums[chunk]);
         }
     }
-    for (int l1 = 0; l1 < 2 * L2_SIZE; l1 += chunks) {
+    for (int l1 = 0; l1 < 3 * L2_SIZE; l1 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
             resultSums[chunk] = std::fma(l1Outputs[l1 + chunk], networkData->l3Weights[bucket][L3_SIZE + l1 + chunk], resultSums[chunk]);
         }

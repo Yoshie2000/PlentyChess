@@ -30,7 +30,7 @@ constexpr int NETWORK_SCALE = 244;
 constexpr int INPUT_QUANT = 255;
 constexpr int L1_QUANT = 64;
 constexpr int INPUT_SHIFT = 9;
-constexpr float SWISH_K = 6.0f;
+constexpr float SWISH_K = 2.0f;
 
 constexpr float L1_NORMALISATION = static_cast<float>(1 << INPUT_SHIFT) / static_cast<float>(INPUT_QUANT * INPUT_QUANT * L1_QUANT);
 
@@ -100,9 +100,9 @@ struct NetworkData {
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
-  alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
+  alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][3 * L2_SIZE * L3_SIZE];
   alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
+  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE + 3 * L2_SIZE];
   alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
 };
 
