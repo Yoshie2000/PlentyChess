@@ -807,10 +807,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (!rootNode && depth <= rfpDepthLimit && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
         int rfpMargin, rfpDepth;
         if (board->checkers) {
-            rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture()) - 25 * badNode;
+            rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
         } else {
-            rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture()) - 25 * badNode;
+            rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
         if (eval - rfpMargin >= beta) {
@@ -843,7 +843,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         stack->movedPiece = Piece::NONE;
         stack->contHist = history.continuationHistory[0][0][board->stm][0][0];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0][0][0];
-        int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
+        int R = nmpRedBase + 100 * (depth + 50 * badNode) / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
         Board* boardCopy = doNullMove(board);
         Eval nullValue = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - R, -beta, -beta + 1, !cutNode);
