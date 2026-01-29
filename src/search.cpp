@@ -658,6 +658,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, excluded = static_cast<bool>(excludedMove);
+    bool badNode = false;
 
     (stack + 1)->killer = Move::none();
     (stack + 1)->excludedMove = Move::none();
@@ -787,8 +788,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // IIR
-    if (depth >= iirMinDepth + iirCheckDepth * !!board->checkers && (!ttHit || ttDepth + iirLowTtDepthOffset < depth))
+    if (depth >= iirMinDepth + iirCheckDepth * !!board->checkers && (!ttHit || ttDepth + iirLowTtDepthOffset < depth)) {
         depth -= iirReduction;
+        badNode = true;
+    }
 
     // Post-LMR depth adjustments
     if (!board->checkers && (stack - 1)->inLMR) {
@@ -804,10 +807,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (!rootNode && depth <= rfpDepthLimit && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
         int rfpMargin, rfpDepth;
         if (board->checkers) {
-            rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
+            rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture()) - 25 * badNode;
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
         } else {
-            rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
+            rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture()) - 25 * badNode;
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
         if (eval - rfpMargin >= beta) {
