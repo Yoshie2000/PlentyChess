@@ -563,21 +563,33 @@ Eval NNUE::evaluate(Board* board) {
 
     // ---------------------- L2 PROPAGATION & ACTIVATION ----------------------
 
-    alignas(ALIGNMENT) float l2Outputs[L3_SIZE];
+    alignas(ALIGNMENT) float l2Outputs[2 * L3_SIZE];
     memcpy(l2Outputs, networkData->l2Biases[bucket], sizeof(l2Outputs));
 
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
+
+    VecF psK = set1Ps(SWISH_K);
+    VecF psInvK = set1Ps(1.0f / SWISH_K);
+    VecF psHalfK = set1Ps(SWISH_K / 2.0f);
+
+    auto hardSwishK = [psHalfK, psZero, psK, psInvK](VecF x) {
+        VecF gate = minPs(maxPs(addPs(x, psHalfK), psZero), psK);
+        VecF act = mulPs(psInvK, mulPs(x, gate));
+        return act;
+    };
+
     VecF* l2OutputsVec = reinterpret_cast<VecF*>(l2Outputs);
     for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
         VecF l1Vec = set1Ps(l1Outputs[l1]);
-        VecF* weights = reinterpret_cast<VecF*>(&networkData->l2Weights[bucket][l1 * L3_SIZE]);
-        for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
+        VecF* weights = reinterpret_cast<VecF*>(&networkData->l2Weights[bucket][l1 * 2 * L3_SIZE]);
+        for (int l2 = 0; l2 < 2 * L3_SIZE / FLOAT_VEC_SIZE; l2++) {
             l2OutputsVec[l2] = fmaddPs(l1Vec, weights[l2], l2OutputsVec[l2]);
         }
     }
     for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
-        VecF l2Activated = maxPs(minPs(l2OutputsVec[l2], psOne), psZero);
-        l2OutputsVec[l2] = mulPs(l2Activated, l2Activated);
+        VecF gate = l2OutputsVec[l2];
+        VecF value = l2OutputsVec[l2 + L3_SIZE / FLOAT_VEC_SIZE];
+        l2OutputsVec[l2] = mulPs(gate, hardSwishK(value));
     }
 #else
     for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
