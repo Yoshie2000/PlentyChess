@@ -43,7 +43,7 @@ Eval evaluate(Board* board, NNUE* nnue) {
     assert(!board->checkers);
 
     Eval eval = nnue->evaluate(board);    
-    eval = (eval * getMaterialScale(board)) / 1024;
+    // eval = (eval * getMaterialScale(board)) / 1024;
 
     eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return (eval / 16) * 16;
