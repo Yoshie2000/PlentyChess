@@ -483,6 +483,13 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     // TT cutoff
     if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
+    
+    if (!pvNode && !stack->reverseQS && ttMove != Move::none() && !board->isCapture(ttMove)) {
+        stack->reverseQS = true;
+        Eval value = search<NON_PV_NODE>(board, stack, 100, beta - 1, beta, true);
+        stack->reverseQS = false;
+        return value;
+    }
 
     Move bestMove = Move::none();
     Eval bestValue, futilityValue, unadjustedEval;
@@ -1420,6 +1427,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
                 stackList[i].ttPv = false;
+                stackList[i].reverseQS = false;
             }
 
             searchData.rootDepth = depth;
@@ -1649,6 +1657,7 @@ void Worker::tdatagen() {
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
             stackList[i].ttPv = false;
+            stackList[i].reverseQS = false;
         }
 
         searchData.rootDepth = depth;
