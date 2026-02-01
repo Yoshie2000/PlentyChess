@@ -817,7 +817,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     // Razoring
     if (!rootNode && !board->checkers && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
-        Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
+        Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, alpha + 1);
         if (razorValue <= alpha && std::abs(razorValue) < EVAL_TBWIN_IN_MAX_PLY)
             return razorValue;
     }
