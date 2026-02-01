@@ -614,7 +614,6 @@ template <NodeType nt>
 Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, Eval beta, bool cutNode) {
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
-    constexpr NodeType nodeType = nt == ROOT_NODE ? PV_NODE : NON_PV_NODE;
 
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
     assert(!(pvNode && cutNode));
@@ -632,7 +631,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             return alpha;
     }
 
-    if (depth < 100) return qsearch<nodeType>(board, stack, alpha, beta);
+    if (depth < 100) return qsearch<nt>(board, stack, alpha, beta);
     if (depth >= MAX_DEPTH) depth = MAX_DEPTH;
 
     if (!rootNode) {
