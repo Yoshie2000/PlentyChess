@@ -484,7 +484,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
     
-    if (!pvNode && !stack->reverseQS && ttMove && !board->isCapture(ttMove) && (ttFlag & TT_LOWERBOUND)) {
+    if (!pvNode && !stack->reverseQS && ttMove && !board->isCapture(ttMove) && (ttFlag & TT_LOWERBOUND) && searchData.rootDepth > 8) {
         stack->reverseQS = true;
         Eval value = search<NON_PV_NODE>(board, stack, 100, alpha, beta, true);
         stack->reverseQS = false;
