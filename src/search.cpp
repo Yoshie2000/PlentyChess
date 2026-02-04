@@ -486,7 +486,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     
     if (!pvNode && !stack->reverseQS && ttMove != Move::none() && !board->isCapture(ttMove)) {
         stack->reverseQS = true;
-        Eval value = search<NON_PV_NODE>(board, stack, 100, beta - 1, beta, true);
+        Eval value = search<NON_PV_NODE>(board, stack, 100, alpha, beta, true);
         stack->reverseQS = false;
         return value;
     }
