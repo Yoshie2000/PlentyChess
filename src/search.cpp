@@ -1031,17 +1031,19 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
+                int dextMargin = ttMove == stack->killer ? 1 : doubleExtensionMargin;
+                int textMargin = ttMove == stack->killer ? 1 : tripleExtensionMargin;
                 int singularMargin = singularBeta - singularValue;
 
                 extension = 100;
                 
                 if (!pvNode) {
-                    extension += 100 * std::clamp(singularMargin, 0, doubleExtensionMargin) / doubleExtensionMargin;
+                    extension += 100 * std::clamp(singularMargin, 0, dextMargin) / dextMargin;
 
                     if (!board->isCapture(move))
-                        extension += 100 * std::clamp(singularMargin - doubleExtensionMargin, 0, tripleExtensionMargin - doubleExtensionMargin) / (tripleExtensionMargin - doubleExtensionMargin);
+                        extension += 100 * std::clamp(singularMargin - dextMargin, 0, textMargin - dextMargin) / (textMargin - dextMargin);
                     
-                    if (singularMargin > doubleExtensionMargin)
+                    if (singularMargin > dextMargin)
                         depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
                 }
 
