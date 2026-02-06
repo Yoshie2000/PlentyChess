@@ -1032,7 +1032,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
                 int dextMargin = ttMove == stack->killer ? 1 : doubleExtensionMargin;
-                int textMargin = ttMove == stack->killer ? 1 : tripleExtensionMargin;
+                int textMargin = ttMove == stack->killer ? 2 : tripleExtensionMargin;
                 int singularMargin = singularBeta - singularValue;
 
                 extension = 100;
