@@ -11,7 +11,8 @@ void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval 
     if (_bestMove || (uint16_t)_hash != hash)
         bestMove = _bestMove;
 
-    if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || _depth + ttReplaceTtpvBonus * wasPv + ttReplaceOffset > depth) {
+    int effectiveDepth = _depth + ttReplaceTtpvBonus * wasPv * (_depth > 0) + ttReplaceOffset;
+    if (_flags == TT_EXACTBOUND || (uint16_t)_hash != hash || effectiveDepth > depth) {
         hash = (uint16_t)_hash;
         depth = _depth;
         value = _value;
