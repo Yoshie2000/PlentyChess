@@ -11,7 +11,7 @@
 #include <xmmintrin.h>
 #endif
 
-constexpr int KING_BUCKETS = 12;
+constexpr int KING_BUCKETS = 18;
 constexpr int OUTPUT_BUCKETS = 8;
 
 constexpr int THREAT_INPUT_SIZE = 79856;
