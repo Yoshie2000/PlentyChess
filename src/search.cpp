@@ -1253,11 +1253,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         if (board->checkers && excluded)
             return -EVAL_INFINITE;
         // Mate / Stalemate
-        bestValue = board->checkers ? matedIn(stack->ply) : 0;
+        bestValue = failFirmValue = board->checkers ? matedIn(stack->ply) : 0;
     }
 
     if (pvNode)
-        bestValue = std::min(bestValue, maxValue);
+        bestValue = failFirmValue = std::min(bestValue, maxValue);
 
     // Insert into TT
     bool failLow = alpha == oldAlpha;
