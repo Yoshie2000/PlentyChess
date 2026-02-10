@@ -1243,8 +1243,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         return 0;
 
     Eval failFirmValue = bestValue;
-    if (!pvNode && bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && std::abs(alpha) < EVAL_TBWIN_IN_MAX_PLY) {
-        bestValue = failFirmValue = (bestValue * depth + 100 * beta) / (depth + 100);
+    if (bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && std::abs(alpha) < EVAL_TBWIN_IN_MAX_PLY) {
+        failFirmValue = (bestValue * depth + 100 * beta) / (depth + 100);
+        if (!pvNode)
+            bestValue = failFirmValue;
     }
 
     if (moveCount == 0) {
