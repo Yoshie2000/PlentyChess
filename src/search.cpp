@@ -1253,22 +1253,22 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         if (board->checkers && excluded)
             return -EVAL_INFINITE;
         // Mate / Stalemate
-        bestValue = board->checkers ? matedIn(stack->ply) : 0;
+        bestValue = failFirmValue = board->checkers ? matedIn(stack->ply) : 0;
     }
 
     if (pvNode)
-        bestValue = std::min(bestValue, maxValue);
+        bestValue = failFirmValue = std::min(bestValue, maxValue);
 
     // Insert into TT
     bool failLow = alpha == oldAlpha;
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(fmrHash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
+        ttEntry->update(fmrHash, bestMove, depth, unadjustedEval, valueToTT(failFirmValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
 
     // Adjust correction history
-    if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || failFirmValue > stack->staticEval) && (!failLow || failFirmValue <= stack->staticEval)) {
-        int bonus = std::clamp((int(failFirmValue - stack->staticEval) * depth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+    if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
+        int bonus = std::clamp((int(bestValue - stack->staticEval) * depth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         history.updateCorrectionHistory(board, stack, bonus);
     }
 
