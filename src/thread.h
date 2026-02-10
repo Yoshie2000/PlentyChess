@@ -20,7 +20,7 @@
 #include "nnue.h"
 #include "tt.h"
 
-inline bool shouldConfigureNuma() {
+inline bool shouldConfigureNuma(int numThreads) {
 #ifdef USE_NUMA
     if (numa_available() == -1) {
         return false;
@@ -28,7 +28,7 @@ inline bool shouldConfigureNuma() {
 
     // Only bind when claiming the majority of the systems cores
     static int availableCores = std::thread::hardware_concurrency();
-    if (UCI::Options.threads.value <= availableCores / 2)
+    if (numThreads <= availableCores / 2)
         return false;
     
     return true;
@@ -38,14 +38,14 @@ inline bool shouldConfigureNuma() {
 }
 
 #ifdef USE_NUMA
-inline std::vector<std::pair<int, std::vector<size_t>>> getCoresPerNumaNode() {
+inline auto getCoresPerNumaNode() {
     auto getCoresPerNode = []() {
-        std::vector<std::pair<int, std::vector<size_t>>> coresPerNode;
+        std::vector<std::pair<int, std::vector<int>>> coresPerNode;
 
         if (numa_available() == -1) {
 
-            std::vector<size_t> cores;
-            for (size_t i = 0; i < std::thread::hardware_concurrency(); i++) {
+            std::vector<int> cores;
+            for (int i = 0; i < (int) std::thread::hardware_concurrency(); i++) {
                 cores.push_back(i);
             }
             coresPerNode.push_back(std::make_pair(0, cores));
@@ -62,8 +62,8 @@ inline std::vector<std::pair<int, std::vector<size_t>>> getCoresPerNumaNode() {
                 cpu_set_t cpuset;
                 CPU_ZERO(&cpuset);
 
-                std::vector<size_t> cores;
-                for (size_t cpu = 0; cpu < coreMask->size; ++cpu) {
+                std::vector<int> cores;
+                for (int cpu = 0; cpu < (int) coreMask->size; ++cpu) {
                     if (numa_bitmask_isbitset(coreMask, cpu)) {
                         cores.push_back(cpu);
                     }
@@ -104,18 +104,18 @@ inline int getNumaNodeCount() {
 
 #endif
 
-inline int getNumaNode(size_t threadId) {
+inline int getNumaNode(int threadId, int numThreads) {
 #ifdef USE_NUMA
-    if (!shouldConfigureNuma()) {
+    if (!shouldConfigureNuma(numThreads)) {
         return 0;
     }
 
     auto coresPerNode = getCoresPerNumaNode();
-    size_t counter = 0;
+    int counter = 0;
     threadId %= std::thread::hardware_concurrency();
 
     for (auto& [node, cores] : coresPerNode) {
-        if (threadId < counter + cores.size())
+        if (threadId < counter + (int) cores.size())
             return node;
         counter += cores.size();
     }
@@ -128,17 +128,46 @@ inline int getNumaNode(size_t threadId) {
 #endif
 }
 
-inline void configureThreadBinding(int threadId) {
+inline int getThreadsOnNode(int node, int numThreads) {
+    int counter = 0;
+    for (int idx = 0; idx < numThreads; idx++) {
+        int threadNode = getNumaNode(idx, numThreads);
+        if (node == threadNode)
+            counter++;
+    }
+    return counter;
+}
+
+inline int getThreadIdxOnNode(int threadId, int numThreads) {
+    int node = getNumaNode(threadId, numThreads);
+    int counter = 0;
+    for (int idx = 0; idx < threadId; idx++) {
+        int threadNode = getNumaNode(idx, numThreads);
+        if (node == threadNode)
+            counter++;
+    }
+    return counter;
+}
+
+inline void configureThreadBinding(int threadId, int numThreads) {
 #ifdef USE_NUMA
-    if (!shouldConfigureNuma())
+    if (!shouldConfigureNuma(numThreads))
         return;
 
-    int numaNode = getNumaNode(threadId);
+    int numaNode = getNumaNode(threadId, numThreads);
     numa_run_on_node(numaNode);
     numa_set_preferred(numaNode);
 
 #endif
     (void) threadId;
+}
+
+inline void configureThreadBinding(int numaNode) {
+#ifdef USE_NUMA
+    numa_run_on_node(numaNode);
+    numa_set_preferred(numaNode);
+#endif
+    (void) numaNode;
 }
 
 struct RootMove {
@@ -152,7 +181,7 @@ struct RootMove {
 
 class ThreadPool;
 
-class Worker {
+class alignas(64) Worker {
 
     std::vector<Hash> boardHistory;
 
@@ -183,7 +212,7 @@ public:
     std::vector<std::array<MoveGen, 2>> movepickers;
 
     Worker() = delete;
-    Worker(ThreadPool* threadPool, NetworkData* networkData, int threadId);
+    Worker(ThreadPool* threadPool, NetworkData* networkData, SharedHistory* sharedHistory, int threadId, int threadIdOnNode);
 
     void startSearching();
     void waitForSearchFinished();
@@ -219,7 +248,7 @@ private:
 
 };
 
-static_assert(sizeof(Worker) % 64 == 0);
+static_assert(sizeof(Worker) % 64 == 0, "sizeof(Worker) must be a multiple of 64");
 
 class ThreadPool {
 
@@ -235,6 +264,7 @@ public:
     std::atomic<size_t> startedThreads;
 
     std::vector<NetworkData*> networkWeights;
+    std::vector<SharedHistory*> sharedHistories;
 
     ThreadPool() : workers(0), threads(0), searchParameters{}, rootBoardHistory() {
         resize(0);
@@ -244,47 +274,89 @@ public:
         exit();
     }
 
-    void resize(size_t numThreads) {
-        if (threads.size() == numThreads)
+    void resize(int numThreads) {
+        if ((int) threads.size() == numThreads)
             return;
         
         exit();
 
+        // Free previous allocations
 #ifdef USE_NUMA
-        // Free existing duplicated weights
-        if (shouldConfigureNuma()) {
+        if (shouldConfigureNuma(threads.size())) {
+
             for (size_t i = 0; i < networkWeights.size(); i++) {
                 if (networkWeights[i] != globalNetworkData) {
                     numa_free(networkWeights[i], sizeof(NetworkData));
                 }
             }
+            networkWeights.clear();
+
+            for (size_t i = 0; i < sharedHistories.size(); i++) {
+                sharedHistories[i]->free();
+                numa_free(sharedHistories[i], sizeof(SharedHistory));
+            }
+            sharedHistories.clear();
+
         }
 #endif
+        for (size_t i = 0; i < sharedHistories.size(); i++) {
+            sharedHistories[i]->free();
+            alignedFree(sharedHistories[i]);
+        }
+        sharedHistories.clear();
 
-        networkWeights.clear();
-        networkWeights.resize(1);
-        networkWeights[0] = globalNetworkData;
-
+        // Allocate new objects
 #ifdef USE_NUMA
-        // Duplicate network weights across NUMA nodes if necessary
-        if (shouldConfigureNuma()) {
+        if (shouldConfigureNuma(numThreads)) {
 
-            networkWeights.clear();
-            networkWeights.resize(getNumaNodeCount());
+            auto coresPerNode = getCoresPerNumaNode();
 
+            networkWeights.resize(coresPerNode.size());
             for (size_t i = 0; i < networkWeights.size(); i++) {
-                NetworkData* weights = reinterpret_cast<NetworkData*>(numa_alloc_onnode(sizeof(NetworkData), i));
+                int nodeIdx = coresPerNode[i].first;
+                NetworkData* weights = reinterpret_cast<NetworkData*>(numa_alloc_onnode(sizeof(NetworkData), nodeIdx));
                 if (!weights) {
-                    std::cerr << "info string Could not allocate a NetworkData object on NUMA node " << i << std::endl;
+                    std::cerr << "info string Could not allocate a NetworkData object on NUMA node " << nodeIdx << std::endl;
                     throw std::bad_alloc();
                 }
-                std::cout << "info string Allocated a NetworkData object on NUMA node " << i << std::endl;
+                std::cout << "info string Allocated a NetworkData object on NUMA node " << nodeIdx << std::endl;
                 madvise(weights, sizeof(NetworkData), MADV_HUGEPAGE);
                 std::memcpy(weights, globalNetworkData, sizeof(NetworkData));
                 networkWeights[i] = weights;
             }
+
+            sharedHistories.resize(coresPerNode.size());
+            for (size_t i = 0; i < sharedHistories.size(); i++) {
+                int nodeIdx = coresPerNode[i].first;
+                SharedHistory* history = reinterpret_cast<SharedHistory*>(numa_alloc_onnode(sizeof(SharedHistory), nodeIdx));
+                if (!history) {
+                    std::cerr << "info string Could not allocate a SharedHistory object on NUMA node " << nodeIdx << std::endl;
+                    throw std::bad_alloc();
+                }
+                std::cout << "info string Allocated a SharedHistory object on NUMA node " << nodeIdx << std::endl;
+                madvise(history, sizeof(SharedHistory), MADV_HUGEPAGE);
+                std::thread tempThread([nodeIdx, history, numThreads]() {
+                    configureThreadBinding(nodeIdx);
+                    *history = SharedHistory(getThreadsOnNode(nodeIdx, numThreads));
+                });
+                tempThread.join();
+                sharedHistories[i] = history;
+            }
         }
 #endif
+
+        // Standard allocation when NUMA is not used
+        if (networkWeights.empty()) {
+            networkWeights.resize(1);
+            networkWeights[0] = globalNetworkData;
+        }
+
+        if (sharedHistories.empty()) {
+            sharedHistories.resize(1);
+            SharedHistory* history = reinterpret_cast<SharedHistory*>(alignedAlloc(64, sizeof(SharedHistory)));
+            *history = SharedHistory(numThreads);
+            sharedHistories[0] = history;
+        }
 
         threads.clear();
         workers.clear();
@@ -292,15 +364,17 @@ public:
 
         startedThreads = 0;
 
-        for (size_t i = 0; i < numThreads; i++) {
-            threads.push_back(std::make_unique<std::thread>([this, i]() {
-                configureThreadBinding(i);
-                workers[i] = std::make_unique<Worker>(this, networkWeights[getNumaNode(i)], i);
+        for (int i = 0; i < numThreads; i++) {
+            threads.push_back(std::make_unique<std::thread>([this, numThreads, i]() {
+                configureThreadBinding(i, numThreads);
+                int nodeIdx = getNumaNode(i, numThreads);
+                int threadIdxOnNode = getThreadIdxOnNode(i, numThreads);
+                workers[i] = std::make_unique<Worker>(this, networkWeights[nodeIdx], sharedHistories[nodeIdx], i, threadIdxOnNode);
                 workers[i]->idle();
             }));
         }
 
-        while (startedThreads < numThreads) {}
+        while (startedThreads < (size_t) numThreads) {}
     }
 
     void startSearching(Board board, std::vector<Hash> boardHistory, SearchParameters parameters) {
