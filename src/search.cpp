@@ -1242,8 +1242,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (stopped.load(std::memory_order_relaxed) || exiting)
         return 0;
 
-    if (!pvNode && bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && std::abs(alpha) < EVAL_TBWIN_IN_MAX_PLY)
-        bestValue = (bestValue * depth + 100 * beta) / (depth + 100);
+    Eval failFirmValue = bestValue;
+    if (!pvNode && bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && std::abs(alpha) < EVAL_TBWIN_IN_MAX_PLY) {
+        bestValue = failFirmValue = (bestValue * depth + 100 * beta) / (depth + 100);
+    }
 
     if (moveCount == 0) {
         if (board->checkers && excluded)
@@ -1263,8 +1265,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         ttEntry->update(fmrHash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
 
     // Adjust correction history
-    if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
-        int bonus = std::clamp((int(bestValue - stack->staticEval) * depth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+    if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || failFirmValue > stack->staticEval) && (!failLow || failFirmValue <= stack->staticEval)) {
+        int bonus = std::clamp((int(failFirmValue - stack->staticEval) * depth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         history.updateCorrectionHistory(board, stack, bonus);
     }
 
