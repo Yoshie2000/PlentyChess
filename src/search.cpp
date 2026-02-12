@@ -60,6 +60,8 @@ TUNE_FLOAT(lmpMarginImprovingFactor, 0.8748193194885028f, 0.5f, 2.0f);
 TUNE_FLOAT(lmpMarginImprovingPower, 1.9492352282965961f, 1.0f, 3.0f);
 
 // Search values
+TUNE_INT(qsStandpatFirm, 50, 1, 99);
+TUNE_INT(qsFirm, 50, 1, 99);
 TUNE_INT(qsFutilityOffset, 80, 1, 125);
 TUNE_INT(qsFutilityOffsetInCheck, 5, 0, 125);
 TUNE_INT(qsSeeMargin, -62, -200, 50);
@@ -78,6 +80,7 @@ TUNE_INT(staticHistoryMin, -428, -860, -1);
 TUNE_INT(staticHistoryMax, 6393, 1, 1400);
 TUNE_INT(staticHistoryTempo, 163, 1, 350);
 
+TUNE_INT(rfpFirm, 50, 1, 99);
 TUNE_INT(rfpDepthLimit, 1520, 200, 2000);
 TUNE_INT(rfpBase, 18, -100, 100);
 TUNE_INT(rfpFactorLinear, 29, 1, 60);
@@ -119,6 +122,8 @@ TUNE_INT(fpPvNode, 34, 1, 80);
 TUNE_INT(fpNoBestMove, 113, 1, 250);
 TUNE_INT(fpConthistDivisor, 488, 1, 1000);
 
+TUNE_INT(capfpLmrDepthMin, 0, -100, 100);
+
 TUNE_INT(bnfpDepth, 1077, 100, 2000);
 TUNE_INT(bnfpBase, 292, 1, 600);
 TUNE_INT(bnfpFactor, 71, 1, 150);
@@ -133,15 +138,20 @@ TUNE_INT(historyPruningDepth, 468, 100, 1000);
 TUNE_INT(historyPruningFactorCapture, -2074, -4000, -1);
 TUNE_INT(historyPruningFactorQuiet, -6796, -12000, -1);
 
+TUNE_INT(seeFactorPv, 150, 0, 300);
 TUNE_INT(seeMarginCapture, -22, -44, -1);
 TUNE_INT(seeMarginQuiet, -74, -146, -1);
 
+TUNE_INT(singularBetaBase, 100, 0, 200);
+TUNE_INT(singularBetaWasPv, 100, 0, 200);
 TUNE_INT(extensionMinDepth, 624, 0, 1200);
 TUNE_INT(extensionTtDepthOffset, 499, 0, 800);
-TUNE_INT(doubleExtensionDepthIncreaseFactor, 100, 0, 200);
+TUNE_INT_DISABLED(doubleExtensionDepthIncreaseFactor, 100, 0, 200);
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
-TUNE_INT(doubleExtensionDepthIncrease, 1002, 200, 2000);
+TUNE_INT_DISABLED(doubleExtensionDepthIncrease, 1002, 200, 2000);
 TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
+TUNE_INT(negextTtvalue, -300, -600, 0);
+TUNE_INT(negextCutnode, -200, -400, 0);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
@@ -516,7 +526,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     // Stand pat
     if (bestValue >= beta) {
         if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
-            bestValue = (bestValue + beta) / 2;
+            bestValue = (qsStandpatFirm * bestValue + (100 - qsStandpatFirm) * beta) / 100;
         ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, ttValue, board->rule50_ply, ttPv, ttFlag);
         return bestValue;
     }
@@ -603,7 +613,7 @@ movesLoopQsearch:
     }
 
     if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && bestValue >= beta) {
-        bestValue = (bestValue + beta) / 2;
+        bestValue = (qsFirm * bestValue + (100 - qsFirm) * beta) / 100;
     }
 
     // Insert into TT
@@ -813,7 +823,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
         if (eval - rfpMargin >= beta) {
-            return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
+            return std::min((rfpFirm * eval + (100 - rfpFirm) * beta) / 100, EVAL_TBWIN_IN_MAX_PLY - 1);
         }
     }
 
@@ -983,7 +993,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 }
             }
 
-            lmrDepth = std::max<Depth>(0, lmrDepth);
+            lmrDepth = std::max<Depth>(capfpLmrDepthMin, lmrDepth);
 
             // Futility pruning for captures
             if (!pvNode && capture && !move.isPromotion()) {
@@ -1001,7 +1011,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             // SEE Pruning
             int seeMargin = capture ? seeMarginCapture * depth * depth / 10000 : seeMarginQuiet * lmrDepth / 100;
-            if (!SEE(board, move, (2 + pvNode) * seeMargin / 2))
+            if (pvNode)
+                seeMargin = seeFactorPv * seeMargin / 100;
+            if (!SEE(board, move, seeMargin))
                 continue;
 
         }
@@ -1017,7 +1029,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY
             && ttDepth >= depth - extensionTtDepthOffset
             ) {
-            Eval singularBeta = ttValue - (1 + (stack->ttPv && !pvNode)) * depth / 100;
+            int singularBetaFactor = singularBetaBase + singularBetaWasPv * (stack->ttPv && !pvNode);
+            Eval singularBeta = ttValue - singularBetaFactor * depth / 10000;
             int singularDepth = (depth - 100) / 2;
 
             bool currTtPv = stack->ttPv;
@@ -1061,10 +1074,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
-                extension = -300;
+                extension = negextTtvalue;
             // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
             else if (cutNode)
-                extension = -200;
+                extension = negextCutnode;
         }
 
         auto [newHash, newFmrHash] = board->hashAfter(move);
