@@ -8,14 +8,14 @@
 #include "nnue.h"
 #include "spsa.h"
 
-TUNE_INT(materialScalePawnValue, 86, 1, 200);
-TUNE_INT(materialScaleKnightValue, 290, 1, 600);
-TUNE_INT(materialScaleBishopValue, 313, 1, 600);
-TUNE_INT(materialScaleRookValue, 506, 1, 1000);
-TUNE_INT(materialScaleQueenValue, 1033, 1, 2000);
+TUNE_INT(materialScalePawnValue, 91, 1, 200);
+TUNE_INT(materialScaleKnightValue, 306, 1, 600);
+TUNE_INT(materialScaleBishopValue, 316, 1, 600);
+TUNE_INT(materialScaleRookValue, 486, 1, 1000);
+TUNE_INT(materialScaleQueenValue, 1114, 1, 2000);
 
-TUNE_INT(materialScaleBase, 870, 1, 2000);
-TUNE_INT(materialScaleDivisor, 38, 1, 100);
+TUNE_INT(materialScaleBase, 893, 1, 2000);
+TUNE_INT(materialScaleDivisor, 33, 1, 100);
 
 int PIECE_VALUES[Piece::TOTAL + 1] = {
     96, 298, 301, 507, 909, 0, 0
