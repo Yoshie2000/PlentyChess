@@ -33,8 +33,9 @@ TUNE_FLOAT_DISABLED(tmEvalDiffBase, 0.9534973621447117f, 0.5f, 1.5f);
 TUNE_FLOAT_DISABLED(tmEvalDiffFactor, 0.004154441079214531f, 0.001f, 0.1f);
 TUNE_INT_DISABLED(tmEvalDiffMin, -8, -250, 50);
 TUNE_INT_DISABLED(tmEvalDiffMax, 63, -50, 250);
-TUNE_FLOAT_DISABLED(tmNodesBase, 1.6802040851149551f, 0.5f, 5.0f);
-TUNE_FLOAT_DISABLED(tmNodesFactor, 0.9741686475516691f, 0.1f, 2.5f);
+TUNE_FLOAT_DISABLED(tmNodesBase, 2.7168f, 0.5f, 5.0f);
+TUNE_FLOAT_DISABLED(tmNodesFactor, 2.2669f, 0.1f, 2.5f);
+TUNE_FLOAT_DISABLED(tmNodesMin, 0.5630f, 0.1f, 2.5f);
 
 // Aspiration windows
 TUNE_INT_DISABLED(aspirationWindowMinDepth, 4, 2, 6);
@@ -1503,7 +1504,8 @@ void Worker::iterativeDeepening() {
             tmAdjustment *= tmEvalDiffBase + std::clamp(previousValue - rootMoves[0].value, tmEvalDiffMin, tmEvalDiffMax) * tmEvalDiffFactor;
 
             // Based on fraction of nodes that went into the best move
-            tmAdjustment *= tmNodesBase - tmNodesFactor * ((double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched.load(std::memory_order_relaxed));
+            double nodesBestmoveFraction = (double)rootMoveNodes[rootMoves[0].move] / (double)searchData.nodesSearched.load(std::memory_order_relaxed);
+            tmAdjustment *= std::max<double>(tmNodesBase - tmNodesFactor * nodesBestmoveFraction, tmNodesMin);
 
             // Based on search score complexity
             if (baseValue != EVAL_NONE) {
