@@ -15,11 +15,11 @@
 
 TUNE_INT_DISABLED(mpPromotionScoreFactor, 101, 10, 10000);
 TUNE_INT_DISABLED(mpMvvLvaScoreFactor, 147, 10, 10000);
-TUNE_INT(mpSeeDivisor, 80, 10, 150);
+TUNE_INT(mpSeeDivisor, 81, 10, 150);
 
-TUNE_INT(mpThreatQueenValue, 19431, 10000, 30000);
-TUNE_INT(mpThreatRookValue, 12315, 7500, 17500);
-TUNE_INT(mpThreatKnightValue, 7973, 5000, 10000);
+TUNE_INT(mpThreatQueenValue, 19280, 10000, 30000);
+TUNE_INT(mpThreatRookValue, 12107, 7500, 17500);
+TUNE_INT(mpThreatKnightValue, 8046, 5000, 10000);
 
 void generatePawn_quiet(Board* board, MoveList& moves, Bitboard targetMask) {
     Bitboard pawns = board->byPiece[Piece::PAWN] & board->byColor[board->stm];
