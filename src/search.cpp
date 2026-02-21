@@ -190,9 +190,7 @@ TUNE_INT(lmrPassBonusMax, 1054, 0, 2000);
 
 TUNE_INT(historyDepthBetaOffset, 209, 1, 400);
 
-TUNE_INT(lowDepthPvDepthReductionMin, 404, 0, 800);
-TUNE_INT(lowDepthPvDepthReductionMax, 1021, 0, 2000);
-TUNE_INT(lowDepthPvDepthReductionWeight, 105, 0, 200);
+TUNE_INT(alphaRaiseReductionWeight, 105, 0, 200);
 
 TUNE_INT(correctionHistoryFactor, 118, 0, 300);
 TUNE_INT(correctionHistoryFactorMulticut, 177, 0, 300);
@@ -1087,11 +1085,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         Board* boardCopy = doMove(board, newHash, move);
 
         Eval value = 0;
-        int newDepth = depth - 100 + extension;
+        int newDepth = depth - 100 + extension - alphaRaiseReductionWeight * alphaRaiseCount;
         int8_t moveSearchCount = 0;
-
-        if (depth > lowDepthPvDepthReductionMin && depth < lowDepthPvDepthReductionMax && beta < EVAL_TBWIN_IN_MAX_PLY && value > -EVAL_TBWIN_IN_MAX_PLY)
-            newDepth -= lowDepthPvDepthReductionWeight * alphaRaiseCount;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
