@@ -927,6 +927,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     SearchedMoveList quietMoves, captureMoves;
 
+    int alphaRaiseCount = 0;
+
     // Moves loop
     MoveGen& movegen = movepickers[stack->ply][excluded] = MoveGen(board, &history, stack, ttMove, depth / 100);
     Move move;
@@ -1088,6 +1090,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         int newDepth = depth - 100 + extension;
         int8_t moveSearchCount = 0;
 
+        if (depth > lowDepthPvDepthReductionMin && depth < lowDepthPvDepthReductionMax && beta < EVAL_TBWIN_IN_MAX_PLY && value > -EVAL_TBWIN_IN_MAX_PLY)
+            newDepth -= lowDepthPvDepthReductionWeight * alphaRaiseCount;
+
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth) {
@@ -1232,8 +1237,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     break;
                 }
 
-                if (depth > lowDepthPvDepthReductionMin && depth < lowDepthPvDepthReductionMax && beta < EVAL_TBWIN_IN_MAX_PLY && value > -EVAL_TBWIN_IN_MAX_PLY)
-                    depth -= lowDepthPvDepthReductionWeight;
+                alphaRaiseCount++;
             }
         }
 
