@@ -1120,7 +1120,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= lmrQuietImproving * improving;
             }
 
-            Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + lmrPotentialExtension) + lmrPvNodeExtension * pvNode;
+            Depth reducedDepth = std::min(std::max(newDepth - reduction, 100), newDepth + lmrPotentialExtension) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
             stack->inLMR = true;
 
