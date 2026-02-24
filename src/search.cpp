@@ -1061,7 +1061,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
-                extension = -300;
+                extension = -400;
             // We didn't prove singularity and an excluded search couldn't beat beta, but we are expected to fail low, so reduce
             else if (cutNode)
                 extension = -200;
