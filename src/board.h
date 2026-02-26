@@ -20,7 +20,7 @@ namespace Castling {
     constexpr CastlingDirection getDirection(Square kingOrigin, Square kingTarget) {
         return (kingTarget <= kingOrigin) ? QUEENSIDE : KINGSIDE;
     }
-    
+
     constexpr uint8_t getMask(Color side, CastlingDirection direction) {
         return 1 << (2 * side + direction);
     }
@@ -66,6 +66,7 @@ struct Board {
     Bitboard byColor[2];
     Bitboard enpassantTarget;
     Bitboard blockers[2];
+    Bitboard pinner[2];
     Bitboard checkers;
     Move lastMove;
     uint8_t checkerCount;

@@ -255,7 +255,8 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
 
             nnue->updateThreat(slidingPiece, piece, slidingPieceSquare, square, slidingPieceColor, pieceColor, add);
         }
-    } else {
+    }
+    else {
         incomingThreats |= slidingPieces;
     }
 
@@ -329,7 +330,7 @@ void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue
 void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square target, NNUE* nnue) {
     assert(pieces[origin] != Piece::NONE);
     assert(pieces[target] == Piece::NONE);
-    
+
     Bitboard fromTo = bitboard(origin) ^ bitboard(target);
     updatePieceThreats<false>(piece, pieceColor, origin, nnue, fromTo);
 
@@ -466,7 +467,8 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
 
             dirtyPiece.removePiece = capturedPiece;
             dirtyPiece.removeSquare = captureTarget;
-        } else {
+        }
+        else {
             movePiece(piece, stm, origin, target, nnue);
         }
 
@@ -878,6 +880,7 @@ void Board::updateSliderPins(Color side) {
     Square king = lsb(byColor[side] & byPiece[Piece::KING]);
 
     blockers[side] = 0;
+    pinner[side] = 0;
 
     Bitboard possiblePinnersRook = getRookMoves(king, bitboard(0)) & (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]);
     Bitboard possiblePinnersBishop = getBishopMoves(king, bitboard(0)) & (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]);
@@ -892,6 +895,7 @@ void Board::updateSliderPins(Color side) {
         if (BB::popcount(blockerBB) == 1) {
             // We have exactly one blocker for this pinner
             blockers[side] |= blockerBB;
+            pinner[flip(side)] ^= bitboard(pinnerSquare);
         }
     }
 }
