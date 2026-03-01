@@ -487,6 +487,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     Move bestMove = Move::none();
     Eval bestValue, futilityValue, unadjustedEval;
 
+    bool ttAdjustedEval = false;
     int correctionValue = history.getCorrectionValue(board, stack);
     stack->correctionValue = correctionValue;
     if (board->checkers) {
@@ -503,8 +504,10 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         unadjustedEval = ttEval;
         stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
-        if (ttValue != EVAL_NONE && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND)))
+        if (ttValue != EVAL_NONE && std::abs(ttValue) < EVAL_TBWIN_IN_MAX_PLY && ((ttFlag == TT_UPPERBOUND && ttValue < bestValue) || (ttFlag == TT_LOWERBOUND && ttValue > bestValue) || (ttFlag == TT_EXACTBOUND))) {
             bestValue = ttValue;
+            ttAdjustedEval = true;
+        }
     }
     else {
         unadjustedEval = evaluate(board, &nnue);
@@ -514,7 +517,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     futilityValue = std::min(stack->staticEval + qsFutilityOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
 
     // Stand pat
-    if (bestValue >= beta) {
+    if (bestValue >= beta && (ttAdjustedEval || std::abs(correctionValue) < 100 * 142438)) {
         if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
             bestValue = (bestValue + beta) / 2;
         ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, ttValue, board->rule50_ply, ttPv, ttFlag);
