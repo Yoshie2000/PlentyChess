@@ -1088,7 +1088,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         int newDepth = depth - 100 + extension;
         int8_t moveSearchCount = 0;
 
-        if (cutNode && !extension)
+        if (cutNode && depth >= 600 && move != ttMove)
             newDepth -= 5;
 
         // Very basic LMR: Late moves are being searched with less depth
