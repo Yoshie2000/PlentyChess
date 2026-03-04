@@ -148,7 +148,7 @@ TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT(lmrMinDepth, 322, 100, 600);
 
 TUNE_INT(lmrReductionOffsetQuietOrNormalCapture, 134, 0, 300);
-TUNE_INT(lmrReductionOffsetImportantCapture, 9, 0, 100);
+TUNE_INT(lmrReductionOffsetImportantCapture, 14, 0, 100);
 TUNE_INT(lmrCheckQuietOrNormalCapture, 108, 0, 230);
 TUNE_INT(lmrCheckImportantCapture, 63, 0, 120);
 TUNE_INT(lmrTtPvQuietOrNormalCapture, 169, 0, 400);
@@ -1090,6 +1090,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         if (cutNode && depth >= 600 && move != ttMove)
             newDepth -= 5;
+
+        if (importantCapture)
+            newDepth += 5;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
