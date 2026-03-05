@@ -148,7 +148,7 @@ TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT(lmrMinDepth, 322, 100, 600);
 
 TUNE_INT(lmrReductionOffsetQuietOrNormalCapture, 134, 0, 300);
-TUNE_INT(lmrReductionOffsetImportantCapture, 14, 0, 100);
+TUNE_INT(lmrReductionOffsetImportantCapture, 19, 0, 100);
 TUNE_INT(lmrCheckQuietOrNormalCapture, 108, 0, 230);
 TUNE_INT(lmrCheckImportantCapture, 63, 0, 120);
 TUNE_INT(lmrTtPvQuietOrNormalCapture, 169, 0, 400);
@@ -442,7 +442,7 @@ bool Worker::isDraw(Board* board, int ply) {
 template <NodeType nodeType>
 Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     constexpr bool pvNode = nodeType == PV_NODE;
-    
+
     assert(nodeType != ROOT_NODE);
     assert(pvNode || alpha == beta - 1);
 
@@ -808,7 +808,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         if (board->checkers) {
             rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
-        } else {
+        }
+        else {
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
@@ -968,7 +969,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 if ((stack - 1)->movedPiece != Piece::NONE)
                     fpValue += (stack - 1)->contHist[2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm] / fpConthistDivisor;
-                    
+
                 if (lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
                 }
@@ -1034,13 +1035,13 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 int singularMargin = singularBeta - singularValue;
 
                 extension = 100;
-                
+
                 if (!pvNode) {
                     extension += 100 * std::clamp(singularMargin, 0, doubleExtensionMargin) / doubleExtensionMargin;
 
                     if (!board->isCapture(move))
                         extension += 100 * std::clamp(singularMargin - doubleExtensionMargin, 0, tripleExtensionMargin - doubleExtensionMargin) / (tripleExtensionMargin - doubleExtensionMargin);
-                    
+
                     if (singularMargin > doubleExtensionMargin)
                         depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
                 }
@@ -1173,7 +1174,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         SearchedMoveList& list = capture ? captureMoves : quietMoves;
         if (list.size() < list.capacity())
-            list.add({move, moveSearchCount});
+            list.add({ move, moveSearchCount });
 
         if (stopped.load(std::memory_order_relaxed) || exiting)
             return 0;
@@ -1287,15 +1288,15 @@ Move tbProbeMoveRoot(unsigned result) {
     if (promotion) {
         Piece promotionPiece = Piece::QUEEN;
         switch (promotion) {
-            case TB_PROMOTES_KNIGHT:
-                promotionPiece = Piece::KNIGHT;
-                break;
-            case TB_PROMOTES_BISHOP:
-                promotionPiece = Piece::BISHOP;
-                break;
-            case TB_PROMOTES_ROOK:
-                promotionPiece = Piece::ROOK;
-                break;
+        case TB_PROMOTES_KNIGHT:
+            promotionPiece = Piece::KNIGHT;
+            break;
+        case TB_PROMOTES_BISHOP:
+            promotionPiece = Piece::BISHOP;
+            break;
+        case TB_PROMOTES_ROOK:
+            promotionPiece = Piece::ROOK;
+            break;
         }
         return Move::makePromotion(origin, target, promotionPiece);
     }
