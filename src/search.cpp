@@ -1083,6 +1083,35 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         Board* boardCopy = doMove(board, newHash, move);
 
+        Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
+        reduction += lmrReductionOffset(importantCapture);
+        reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
+
+        if (boardCopy->checkers)
+            reduction -= lmrCheck(importantCapture);
+
+        if (cutNode)
+            reduction += lmrCutnode;
+
+        if (stack->ttPv) {
+            reduction -= lmrTtPv(importantCapture);
+            reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
+        }
+
+        if (capture) {
+            reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
+
+            if (importantCapture) {
+                reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
+                reduction = lmrImportantCaptureFactor * reduction / 100;
+            }
+        }
+        else {
+            reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
+            reduction -= lmrQuietPvNodeOffset * pvNode;
+            reduction -= lmrQuietImproving * improving;
+        }
+
         Eval value = 0;
         int newDepth = depth - 100 + extension;
         int8_t moveSearchCount = 0;
@@ -1092,39 +1121,13 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         if (importantCapture)
             newDepth += 5;
+        
+        if (reduction >= 300 && !pvNode)
+            newDepth -= 5;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth) {
-            Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
-            reduction += lmrReductionOffset(importantCapture);
-            reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
-
-            if (boardCopy->checkers)
-                reduction -= lmrCheck(importantCapture);
-
-            if (cutNode)
-                reduction += lmrCutnode;
-
-            if (stack->ttPv) {
-                reduction -= lmrTtPv(importantCapture);
-                reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
-            }
-
-            if (capture) {
-                reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
-
-                if (importantCapture) {
-                    reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
-                    reduction = lmrImportantCaptureFactor * reduction / 100;
-                }
-            }
-            else {
-                reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
-                reduction -= lmrQuietPvNodeOffset * pvNode;
-                reduction -= lmrQuietImproving * improving;
-            }
-
             Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + lmrPotentialExtension) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
             stack->inLMR = true;
