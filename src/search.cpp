@@ -591,8 +591,17 @@ movesLoopQsearch:
                 if (pvNode)
                     updatePv(stack, move);
 
-                if (bestValue >= beta)
+                if (bestValue >= beta) {
+
+                    SearchedMoveList moves;
+                    if (!capture) {
+                        history.updateQuietHistories(1, board, stack, move, 1, moves);
+                    } else {
+                        history.updateCaptureHistory(1, board, move, 1, moves);
+                    }
+
                     break;
+                }
             }
         }
     }
