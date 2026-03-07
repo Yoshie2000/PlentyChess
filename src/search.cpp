@@ -1089,6 +1089,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         if (cutNode && depth >= 600 && move != ttMove)
             newDepth -= 5;
+        
+        if (stack->ttPv)
+            newDepth += 5 - 5 * (ttHit && ttValue <= alpha);
 
         if (importantCapture)
             newDepth += 5;
