@@ -660,6 +660,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     Eval bestValue = -EVAL_INFINITE, maxValue = EVAL_INFINITE;
     Eval oldAlpha = alpha;
     bool improving = false, excluded = static_cast<bool>(excludedMove);
+    Depth bestMoveDepth = 0;
 
     (stack + 1)->killer = Move::none();
     (stack + 1)->excludedMove = Move::none();
@@ -1213,6 +1214,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (value > alpha) {
                 bestMove = move;
+                bestMoveDepth = newDepth;
                 alpha = value;
 
                 if (pvNode)
@@ -1271,6 +1273,12 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
         int bonus = std::clamp((int(bestValue - stack->staticEval) * depth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         history.updateCorrectionHistory(board, stack, bonus);
+    }
+
+    int expectedNewDepth = depth - 100;
+    int bestMoveReduction = expectedNewDepth - bestMoveDepth;
+    if (bestMoveDepth && (stack - 1)->inLMR) {
+        (stack - 1)->reduction += bestMoveReduction;
     }
 
     assert(bestValue > -EVAL_INFINITE && bestValue < EVAL_INFINITE);
