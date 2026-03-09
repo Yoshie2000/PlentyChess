@@ -145,7 +145,7 @@ TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
-TUNE_INT(lmrMinDepth, 322, 100, 600);
+TUNE_INT(lmrMinDepth, 222, 100, 600);
 
 TUNE_INT(lmrReductionOffsetQuietOrNormalCapture, 134, 0, 300);
 TUNE_INT(lmrReductionOffsetImportantCapture, 14, 0, 100);
@@ -1099,6 +1099,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
             reduction += lmrReductionOffset(importantCapture);
             reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
+
+            if (depth < 322)
+                reduction -= 100;
 
             if (boardCopy->checkers)
                 reduction -= lmrCheck(importantCapture);
