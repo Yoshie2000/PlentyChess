@@ -1277,7 +1277,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     int expectedNewDepth = depth - 100;
     int bestMoveReduction = expectedNewDepth - bestMoveDepth;
-    if (bestMoveDepth && (stack - 1)->inLMR) {
+    if (bestMoveDepth && (stack - 1)->inLMR && bestMoveReduction < 0) {
         (stack - 1)->reduction += bestMoveReduction;
     }
 
