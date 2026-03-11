@@ -531,7 +531,7 @@ movesLoopQsearch:
         return alpha;
 
     // Moves loop
-    MoveGen& movegen = movepickers[stack->ply][false] = MoveGen(board, &history, stack, ttMove, !board->checkers, 1);
+    MoveGen& movegen = movepickers[stack->ply][false] = MoveGen(board, &history, stack, ttMove, !board->checkers && !(!pvNode && ttMove && !board->isCapture(ttMove) && ttFlag != TT_UPPERBOUND), 1);
     Move move;
     int moveCount = 0;
     bool playedQuiet = false;
