@@ -43,7 +43,7 @@ Eval evaluate(Board* board, NNUE* nnue, std::array<int, 2>& optimism) {
     Eval eval = nnue->evaluate(board);
     int materialValue = getMaterialValue(board);
 
-    eval = (eval * (materialScaleBase + materialValue) + (optimism[board->stm] * (optimismBase + materialValue))) / evalScaleDivisor;
+    eval = (eval * (materialScaleBase + materialValue)) / evalScaleDivisor + (optimism[board->stm] * (optimismBase + materialValue)) / evalScaleDivisor;
 
     eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return (eval / 16) * 16;

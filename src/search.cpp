@@ -1438,10 +1438,10 @@ void Worker::iterativeDeepening() {
             Eval beta = EVAL_INFINITE;
             Eval value;
 
-            if (depth > 1) {
+            if (rootMoves[0].meanScore != EVAL_NONE) {
                 int updatedOptimism = 150 * rootMoves[0].meanScore / (std::abs(rootMoves[0].meanScore) + 100);
-                optimism[board->stm] = updatedOptimism;
-                optimism[flip(board->stm)] = -updatedOptimism;
+                // optimism[board->stm] = updatedOptimism;
+                // optimism[flip(board->stm)] = -updatedOptimism;
             }
 
             if (depth >= aspirationWindowMinDepth) {
