@@ -457,7 +457,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     // Check for stop
     if (stopped.load(std::memory_order_relaxed) || exiting || stack->ply >= MAX_PLY - 1 || isDraw(board, stack->ply))
-        return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue) : drawEval(this);
+        return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue, optimism) : drawEval(this);
 
     stack->inCheck = board->checkerCount > 0;
 
@@ -507,7 +507,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
             bestValue = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue);
+        unadjustedEval = evaluate(board, &nnue, optimism);
         stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
         ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
     }
@@ -645,7 +645,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         // Check for stop or max depth
         if (stopped.load(std::memory_order_relaxed) || exiting || stack->ply >= MAX_PLY - 1 || isDraw(board, stack->ply))
-            return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue) : drawEval(this);
+            return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue, optimism) : drawEval(this);
 
         // Mate distance pruning
         alpha = std::max((int)alpha, (int)matedIn(stack->ply));
@@ -759,14 +759,14 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
-        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
+        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue, optimism);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue);
+        unadjustedEval = evaluate(board, &nnue, optimism);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
@@ -1435,6 +1435,12 @@ void Worker::iterativeDeepening() {
             Eval alpha = -EVAL_INFINITE;
             Eval beta = EVAL_INFINITE;
             Eval value;
+
+            if (depth > 1) {
+                int updatedOptimism = 150 * rootMoves[0].meanScore / (std::abs(rootMoves[0].meanScore) + 100);
+                optimism[board->stm] = updatedOptimism;
+                optimism[flip(board->stm)] = -updatedOptimism;
+            }
 
             if (depth >= aspirationWindowMinDepth) {
                 // Set up interval for the start of this aspiration window

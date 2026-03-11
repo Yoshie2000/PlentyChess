@@ -14,8 +14,9 @@ TUNE_INT(materialScaleBishopValue, 313, 1, 600);
 TUNE_INT(materialScaleRookValue, 506, 1, 1000);
 TUNE_INT(materialScaleQueenValue, 1033, 1, 2000);
 
-TUNE_INT(materialScaleBase, 870, 1, 2000);
-TUNE_INT(materialScaleDivisor, 38, 1, 100);
+TUNE_INT(optimismBase, 2000, 1, 4000);
+TUNE_INT(materialScaleBase, 33060, 1, 60000);
+TUNE_INT(evalScaleDivisor, 38912, 1, 80000);
 
 int PIECE_VALUES[Piece::TOTAL + 1] = {
     96, 298, 301, 507, 909, 0, 0
@@ -25,7 +26,7 @@ constexpr int SEE_VALUES[Piece::TOTAL + 1] = {
     90, 290, 310, 570, 1000, 0, 0
 };
 
-int getMaterialScale(Board* board) {
+int getMaterialValue(Board* board) {
     int pawnCount = BB::popcount(board->byPiece[Piece::PAWN]);
     int knightCount = BB::popcount(board->byPiece[Piece::KNIGHT]);
     int bishopCount = BB::popcount(board->byPiece[Piece::BISHOP]);
@@ -33,14 +34,16 @@ int getMaterialScale(Board* board) {
     int queenCount = BB::popcount(board->byPiece[Piece::QUEEN]);
 
     int materialValue = materialScalePawnValue * pawnCount + materialScaleKnightValue * knightCount + materialScaleBishopValue * bishopCount + materialScaleRookValue * rookCount + materialScaleQueenValue * queenCount;
-    return materialScaleBase + materialValue / materialScaleDivisor;
+    return materialValue;
 }
 
-Eval evaluate(Board* board, NNUE* nnue) {
+Eval evaluate(Board* board, NNUE* nnue, std::array<int, 2>& optimism) {
     assert(!board->checkers);
 
-    Eval eval = nnue->evaluate(board);    
-    eval = (eval * getMaterialScale(board)) / 1024;
+    Eval eval = nnue->evaluate(board);
+    int materialValue = getMaterialValue(board);
+
+    eval = (eval * (materialScaleBase + materialValue) + (optimism[board->stm] * (optimismBase + materialValue))) / evalScaleDivisor;
 
     eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return (eval / 16) * 16;
