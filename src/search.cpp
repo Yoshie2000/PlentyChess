@@ -1439,7 +1439,7 @@ void Worker::iterativeDeepening() {
             Eval value;
 
             if (depth > 1) {
-                int updatedOptimism = 150 * rootMoves[0].meanScore / (std::abs(rootMoves[0].meanScore) + 100);
+                int updatedOptimism = 150 * rootMoves[0].meanScore / (std::abs(rootMoves[0].meanScore) + 125);
                 optimism[board->stm] = updatedOptimism;
                 optimism[flip(board->stm)] = -updatedOptimism;
             }
