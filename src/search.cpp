@@ -793,7 +793,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         depth -= iirReduction;
 
     // Post-LMR depth adjustments
-    if (!board->checkers && (stack - 1)->inLMR) {
+    if (!board->checkers && (stack - 1)->inLMR && depth < MAX_DEPTH - 1000) {
         int additionalReduction = 0;
         if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
             additionalReduction -= postlmrOppWorseningReduction;
@@ -1395,15 +1395,15 @@ void Worker::iterativeDeepening() {
 
     constexpr int STACK_OVERHEAD = 6;
     std::vector<SearchStack> stackList;
-    stackList.reserve(MAX_PLY + STACK_OVERHEAD + 2);
+    stackList.resize(MAX_PLY + STACK_OVERHEAD + 2);
     SearchStack* stack = &stackList[STACK_OVERHEAD];
 
     std::vector<Board> boardList;
-    boardList.reserve(MAX_PLY + 2);
+    boardList.resize(MAX_PLY + 2);
     boardList[0] = rootBoard;
     Board* board = &boardList[0];
 
-    movepickers.reserve(MAX_PLY + 2);
+    movepickers.resize(MAX_PLY + 2);
 
     rootMoveNodes.clear();
 
