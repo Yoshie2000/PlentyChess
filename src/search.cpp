@@ -1407,6 +1407,8 @@ void Worker::iterativeDeepening() {
 
     rootMoveNodes.clear();
 
+    optimism[0] = optimism[1] = 0;
+
     for (Depth depth = 1; depth <= maxDepth; depth++) {
         excludedRootMoves.clear();
         for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
