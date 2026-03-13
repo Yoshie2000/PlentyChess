@@ -1091,7 +1091,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             newDepth -= 5;
 
         if (importantCapture)
-            newDepth += 5;
+            newDepth += 5 + 5 * !pvNode;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
