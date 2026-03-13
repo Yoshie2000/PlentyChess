@@ -1104,7 +1104,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= lmrCheck(importantCapture);
 
             if (cutNode)
-                reduction += lmrCutnode;
+                reduction += lmrCutnode + 75 * !ttMove;
 
             if (stack->ttPv) {
                 reduction -= lmrTtPv(importantCapture);
