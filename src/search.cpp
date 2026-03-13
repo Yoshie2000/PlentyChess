@@ -789,8 +789,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // IIR
-    if (depth >= iirMinDepth + iirCheckDepth * !!board->checkers && (!ttHit || ttDepth + iirLowTtDepthOffset < depth))
+    if (depth >= iirMinDepth + iirCheckDepth * !!board->checkers && (!ttHit || ttDepth + iirLowTtDepthOffset < depth)) {
         depth -= iirReduction;
+
+        history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, -200);
+    }
 
     // Post-LMR depth adjustments
     if (!board->checkers && (stack - 1)->inLMR && depth < MAX_DEPTH - 1000) {
