@@ -1247,8 +1247,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (stopped.load(std::memory_order_relaxed) || exiting)
         return 0;
 
-    if (!pvNode && bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && std::abs(alpha) < EVAL_TBWIN_IN_MAX_PLY)
-        bestValue = (bestValue * depth + 100 * beta) / (depth + 100);
+    if (!pvNode && bestValue >= beta && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && std::abs(alpha) < EVAL_TBWIN_IN_MAX_PLY) {
+        int weight = std::min<Depth>(depth, 800);
+        bestValue = (bestValue * weight + 100 * beta) / (weight + 100);
+    }
 
     if (moveCount == 0) {
         if (board->checkers && excluded)
