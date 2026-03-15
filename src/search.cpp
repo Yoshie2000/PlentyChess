@@ -1090,7 +1090,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         if (cutNode && depth >= 600 && move != ttMove)
             newDepth -= 5;
 
-        if (importantCapture)
+        if (importantCapture && pvNode)
             newDepth += 5;
 
         // Very basic LMR: Late moves are being searched with less depth
