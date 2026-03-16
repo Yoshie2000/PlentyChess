@@ -272,7 +272,7 @@ void relabelViriformat(std::string line, Board& board, std::vector<Hash>& boardH
     UCI::nnue.incrementAccumulator();
 
     std::ifstream is(line, std::ios::binary);
-    std::ofstream os(line + ".rlbd.2", std::ios::binary);
+    std::ofstream os(line + ".rlbd", std::ios::binary);
 
     if (!is.is_open()) {
         std::cout << "Failed to open input file." << std::endl;
