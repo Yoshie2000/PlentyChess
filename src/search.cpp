@@ -828,7 +828,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     // Null move pruning
     if (!pvNode
         && !board->checkers
-        && eval >= beta
+        && eval >= beta + 25
         && eval >= stack->staticEval
         && stack->staticEval + nmpEvalDepth * depth / 100 - nmpEvalBase >= beta
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY
