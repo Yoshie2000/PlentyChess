@@ -954,6 +954,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             ) {
 
             Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
+            reduction += 75 * stack->ttPv;
             reduction += earlyLmrImproving * !improving;
             reduction -= 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet);
             Depth lmrDepth = depth - reduction;
