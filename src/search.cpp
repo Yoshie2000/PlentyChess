@@ -136,7 +136,7 @@ TUNE_INT(historyPruningFactorQuiet, -6796, -12000, -1);
 TUNE_INT(seeMarginCapture, -22, -44, -1);
 TUNE_INT(seeMarginQuiet, -74, -146, -1);
 
-TUNE_INT(extensionMinDepth, 624, 0, 1200);
+TUNE_INT(extensionMinDepth, 524, 0, 1200);
 TUNE_INT(extensionTtDepthOffset, 499, 0, 800);
 TUNE_INT(doubleExtensionDepthIncreaseFactor, 100, 0, 200);
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
@@ -1011,7 +1011,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
         if (doExtensions
-            && depth >= extensionMinDepth
+            && depth >= extensionMinDepth + 100 * stack->ttPv
             && move == ttMove
             && !excluded
             && (ttFlag & TT_LOWERBOUND)
