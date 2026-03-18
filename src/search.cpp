@@ -1100,10 +1100,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             reduction += lmrReductionOffset(importantCapture);
             reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
 
-            if (ttMove && board->isCapture(ttMove)) {
-                reduction += 50;
-            }
-
             if (boardCopy->checkers)
                 reduction -= lmrCheck(importantCapture);
 
@@ -1127,6 +1123,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
                 reduction -= lmrQuietPvNodeOffset * pvNode;
                 reduction -= lmrQuietImproving * improving;
+
+                if (ttMove && board->isCapture(ttMove)) {
+                    reduction += 50;
+                }
             }
 
             Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + lmrPotentialExtension) + lmrPvNodeExtension * pvNode;
