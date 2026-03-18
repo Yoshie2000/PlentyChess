@@ -1100,6 +1100,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             reduction += lmrReductionOffset(importantCapture);
             reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
 
+            if (ttMove && board->isCapture(ttMove)) {
+                reduction += 50;
+            }
+
             if (boardCopy->checkers)
                 reduction -= lmrCheck(importantCapture);
 
