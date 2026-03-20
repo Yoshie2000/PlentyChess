@@ -1150,6 +1150,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
                 }
             }
+
+            if (importantCapture)
+                newDepth -= 5;
         }
         else if (!pvNode || moveCount > 1) {
             if (move == ttMove && searchData.rootDepth > 8 && ttDepth > 1)
