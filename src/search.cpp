@@ -1094,9 +1094,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth) {
 
-            if (importantCapture)
-                newDepth += 5;
-
             Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
             reduction += lmrReductionOffset(importantCapture);
             reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
@@ -1152,11 +1149,19 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
         }
         else if (!pvNode || moveCount > 1) {
+
+            if (importantCapture)
+                newDepth += 5;
+
             if (move == ttMove && searchData.rootDepth > 8 && ttDepth > 1)
                 newDepth = std::max(100, newDepth);
 
             value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
             moveSearchCount++;
+        }
+        else {
+            if (importantCapture)
+                newDepth += 5;
         }
 
         // PV moves will be researched at full depth if good enough
