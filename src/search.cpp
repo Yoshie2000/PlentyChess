@@ -1137,6 +1137,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + lmrPotentialExtension) + lmrPvNodeExtension * pvNode;
             stack->reduction = 0;
 
+            if (importantCapture)
+                newDepth -= 5;
+
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100;
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
             newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
@@ -1150,9 +1153,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     history.updateContinuationHistory(stack, board->stm, stack->movedPiece, move, bonus);
                 }
             }
-
-            if (importantCapture)
-                newDepth -= 5;
         }
         else if (!pvNode || moveCount > 1) {
             if (move == ttMove && searchData.rootDepth > 8 && ttDepth > 1)
