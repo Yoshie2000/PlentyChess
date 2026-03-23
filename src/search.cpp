@@ -970,7 +970,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 if ((stack - 1)->movedPiece != Piece::NONE)
                     fpValue += (stack - 1)->contHist[2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm] / fpConthistDivisor;
 
-                if (!board->givesCheck(move) && lmrDepth < fpDepth && fpValue <= alpha) {
+                if (lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
                 }
             }
@@ -987,7 +987,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             lmrDepth = std::max<Depth>(0, lmrDepth);
 
             // Futility pruning for captures
-            if (!pvNode && capture && !move.isPromotion()) {
+            if (!pvNode && capture && !move.isPromotion() && !board->givesCheck(move)) {
                 Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
                 if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
                     continue;
