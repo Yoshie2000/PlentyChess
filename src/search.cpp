@@ -970,7 +970,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 if ((stack - 1)->movedPiece != Piece::NONE)
                     fpValue += (stack - 1)->contHist[2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm] / fpConthistDivisor;
 
-                if (lmrDepth < fpDepth && fpValue <= alpha) {
+                if (!board->givesCheck(move) && lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
                 }
             }
