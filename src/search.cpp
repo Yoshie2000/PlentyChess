@@ -975,7 +975,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 }
             }
             // Futility pruning for bad noisies
-            else if (!move.isPromotion() && movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES) {
+            else if (!board->givesCheck(move) && !move.isPromotion() && movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES) {
                 Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
                 int fpValue = eval + bnfpBase + PIECE_VALUES[capturedPiece] + bnfpFactor * lmrDepth / 100 + pvNode * (bnfpPvNode + bnfpNoBestMove * !bestMove);
 
@@ -987,7 +987,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             lmrDepth = std::max<Depth>(0, lmrDepth);
 
             // Futility pruning for captures
-            if (!pvNode && capture && !move.isPromotion() && !board->givesCheck(move)) {
+            if (!pvNode && capture && !move.isPromotion()) {
                 Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
                 if (lmrDepth < fpCaptDepth && eval + fpCaptBase + PIECE_VALUES[capturedPiece] + fpCaptFactor * lmrDepth / 100 <= alpha)
                     continue;
