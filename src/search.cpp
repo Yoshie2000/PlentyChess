@@ -998,7 +998,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
             if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100) {
-                if (!capture)
+                if (!capture && movegen.stage >= MoveGenStage::STAGE_PLAY_QUIETS)
                     movegen.skipQuietMoves();
                 continue;
             }
