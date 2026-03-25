@@ -997,8 +997,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             // History pruning
             int hpFactor = capture ? historyPruningFactorCapture : historyPruningFactorQuiet;
-            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100)
+            if (!pvNode && lmrDepth < historyPruningDepth && moveHistory < hpFactor * depth / 100) {
+                if (!capture)
+                    movegen.skipQuietMoves();
                 continue;
+            }
 
             // SEE Pruning
             int seeMargin = capture ? int64_t(seeMarginCapture) * depth * depth / 10000 : seeMarginQuiet * lmrDepth / 100;
