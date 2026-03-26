@@ -959,7 +959,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             Depth lmrDepth = depth - reduction;
 
             // Movecount pruning (LMP)
-            if (!pvNode && moveCount >= LMP_MARGIN[depth / 100 + !!board->checkers][improving]) {
+            if (!pvNode && !board->givesCheck(move) && moveCount >= LMP_MARGIN[depth / 100][improving]) {
                 movegen.skipQuietMoves();
             }
 
