@@ -52,10 +52,10 @@ TUNE_FLOAT(lmrReductionImportantNoisyFactor, 3.174231573547516f, 2.0f, 4.0f);
 TUNE_FLOAT(lmrReductionQuietBase, 1.1203658354016672f, 0.0f, 2.0f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.947877296606716f, 2.0f, 4.0f);
 
-TUNE_FLOAT(lmpMarginWorseningBase, 2.4586367509339555f, 0.0f, 3.5f);
+TUNE_FLOAT(lmpMarginWorseningBase, 2.9586367509339555f, 0.0f, 3.5f);
 TUNE_FLOAT(lmpMarginWorseningFactor, 0.4695734030291108f, 0.1f, 1.5f);
 TUNE_FLOAT(lmpMarginWorseningPower, 1.6220638123840003f, 0.0f, 4.0f);
-TUNE_FLOAT(lmpMarginImprovingBase, 3.363191493839467f, 2.0f, 5.0f);
+TUNE_FLOAT(lmpMarginImprovingBase, 3.863191493839467f, 2.0f, 5.0f);
 TUNE_FLOAT(lmpMarginImprovingFactor, 0.8748193194885028f, 0.5f, 2.0f);
 TUNE_FLOAT(lmpMarginImprovingPower, 1.9492352282965961f, 1.0f, 3.0f);
 
