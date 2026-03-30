@@ -12,12 +12,6 @@
 #include "move.h"
 #include "evaluation.h"
 
-extern int REDUCTIONS[3][MAX_PLY][MAX_MOVES];
-extern int SEE_MARGIN[MAX_PLY][2];
-extern int LMP_MARGIN[MAX_PLY][2];
-
-void initReductions();
-
 uint64_t perft(Board& board, Depth depth);
 
 struct SearchParameters {

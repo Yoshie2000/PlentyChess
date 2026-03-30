@@ -10,7 +10,6 @@ int main(int argc, char* argv[]) {
     generateMagics();
 
     BB::init();
-    initReductions();
     Zobrist::init();
 
     initNetworkData();

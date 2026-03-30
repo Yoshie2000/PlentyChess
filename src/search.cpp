@@ -190,20 +190,34 @@ TUNE_INT(lowDepthPvDepthReductionWeight, 105, 0, 200);
 TUNE_INT(correctionHistoryFactor, 118, 0, 300);
 TUNE_INT(correctionHistoryFactorMulticut, 177, 0, 300);
 
-int REDUCTIONS[3][MAX_PLY][MAX_MOVES];
+inline int64_t fractionalLog2(uint32_t x) {
+    uint32_t head = __builtin_clz(x);
+    uint32_t rem = (x << (head + 1)) >> 22;
 
-void initReductions() {
-    REDUCTIONS[0][0][0] = 0;
-    REDUCTIONS[1][0][0] = 0;
-    REDUCTIONS[2][0][0] = 0;
+    int64_t big = (31 - head) * 1024;
+    int64_t small = rem + (355 * rem * (1024 - rem)) / (1024 * 1024);
 
-    for (int i = 1; i < MAX_PLY; i++) {
-        for (int j = 1; j < MAX_MOVES; j++) {
-            REDUCTIONS[0][i][j] = 100 * (lmrReductionQuietBase + log(i) * log(j) / lmrReductionQuietFactor); // quiet
-            REDUCTIONS[1][i][j] = 100 * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // non-quiet
-            REDUCTIONS[2][i][j] = 100 * (lmrReductionImportantNoisyBase + log(i) * log(j) / lmrReductionImportantNoisyFactor); // important capture
-        }
+    return big + small;
+}
+
+inline Depth getReduction(Depth depth, int moveCount, bool capture, bool importantCapture) {
+    if (depth < 100 || moveCount < 1) return 0;
+
+    int64_t logMul = std::max<int64_t>(0, fractionalLog2(depth) - 6807) * fractionalLog2(moveCount);
+    
+    int base, divisor;
+    if (importantCapture) {
+        base = -13;
+        divisor = 69275;
+    } else if (capture) {
+        base = -23;
+        divisor = 65079;
+    } else {
+        base = 112;
+        divisor = 64337;
     }
+
+    return std::clamp<int64_t>(base + (logMul / divisor), 0, MAX_DEPTH);
 }
 
 uint64_t perftInternal(Board& board, Depth depth) {
@@ -940,7 +954,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             && board->hasNonPawns()
             ) {
 
-            Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
+            Depth reduction = getReduction(depth, moveCount, capture, importantCapture);
+
             reduction += earlyLmrImproving * !improving;
             reduction -= 100 * moveHistory / (capture ? earlyLmrHistoryFactorCapture : earlyLmrHistoryFactorQuiet);
             Depth lmrDepth = depth - reduction;
@@ -971,7 +986,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 }
             }
             // Futility pruning for bad noisies
-            else if (movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES) {
+            else if (!move.isPromotion() && movegen.stage >= MoveGenStage::STAGE_PLAY_BAD_CAPTURES) {
                 Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
                 int fpValue = eval + bnfpBase + PIECE_VALUES[capturedPiece] + bnfpFactor * lmrDepth / 100 + pvNode * (bnfpPvNode + bnfpNoBestMove * !bestMove);
 
@@ -1092,7 +1107,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth) {
-            Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
+            Depth reduction = getReduction(depth, moveCount, capture, importantCapture);
             reduction += lmrReductionOffset(importantCapture);
             reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
 
@@ -1302,9 +1317,6 @@ Move tbProbeMoveRoot(unsigned result) {
 }
 
 void Worker::tsearch() {
-    if (TUNE_ENABLED)
-        initReductions();
-
     nnue.reset(&rootBoard);
 
     Move bestTbMove = Move::none();
