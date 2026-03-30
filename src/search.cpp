@@ -959,9 +959,17 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             Depth lmrDepth = depth - reduction;
 
             // Movecount pruning (LMP)
-            if (!pvNode && !capture && moveCount >= LMP_MARGIN[depth / 100][improving]) {
-                movegen.skipQuietMoves();
-                continue;
+            if (!pvNode && !capture) {
+                int lmpMargin;
+                if (improving)
+                    lmpMargin = 3863191 + 77 * depth * depth + 1500 * depth;
+                else
+                    lmpMargin = 2958636 + 16 * depth * depth + 4500 * depth;
+
+                if (moveCount >= lmpMargin / 1000000) {
+                    movegen.skipQuietMoves();
+                    continue;
+                }
             }
 
             // Futility pruning for quiets
