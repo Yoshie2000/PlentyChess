@@ -968,6 +968,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 if (lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
+                    continue;
                 }
             }
             // Futility pruning for bad noisies
