@@ -20,9 +20,9 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
 constexpr int KING_BUCKETS = 12;
 
 constexpr int INPUT_SIZE = ThreatInputs::FEATURE_COUNT + 768 * KING_BUCKETS;
-constexpr int L1_SIZE = 640;
-constexpr int L2_SIZE = 16;
-constexpr int L3_SIZE = 32;
+constexpr int L1_SIZE = 4096;
+constexpr int L2_SIZE = 128;
+constexpr int L3_SIZE = 256;
 
 constexpr int OUTPUT_BUCKETS = 8;
 
@@ -95,7 +95,7 @@ struct FinnyEntry {
 
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
-  alignas(ALIGNMENT) int8_t inputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
+  alignas(ALIGNMENT) int16_t inputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -206,7 +206,7 @@ public:
   }
 
   int16_t oldInputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
-  int8_t oldInputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
+  int16_t oldInputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
   int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   NetworkData nnzOutNet;
