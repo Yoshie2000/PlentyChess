@@ -948,7 +948,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             // Movecount pruning (LMP)
             if (!pvNode && !capture) {
                 int lmpMargin;
-                if (improving)
+                if (improving || eval >= beta + 100)
                     lmpMargin = 3863191 + 77 * depth * depth + 1500 * depth + moveHistory;
                 else
                     lmpMargin = 2958636 + 16 * depth * depth + 4500 * depth + moveHistory;
