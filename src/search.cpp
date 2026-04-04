@@ -779,6 +779,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (depth >= iirMinDepth + iirCheckDepth * !!board->checkers && (!ttHit || ttDepth + iirLowTtDepthOffset < depth))
         depth -= iirReduction;
 
+    // IIR 2: Electric boogaloo
+    if (!board->checkers && !ttHit && depth >= iir2MinDepth && pvNode)
+        depth -= iir2Reduction;
+
     // Post-LMR depth adjustments
     if (!board->checkers && (stack - 1)->inLMR && depth < MAX_DEPTH - 1000) {
         int additionalReduction = 0;
@@ -905,10 +909,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         }
 
     }
-
-    // IIR 2: Electric boolagoo
-    if (!board->checkers && !ttHit && depth >= iir2MinDepth && pvNode)
-        depth -= iir2Reduction;
 
     if (stopped.load(std::memory_order_relaxed) || exiting)
         return 0;
