@@ -386,7 +386,7 @@ void MoveGen::scoreCaptures() {
                 score += PIECE_VALUES[move.promotionPiece()] * mpPromotionScoreFactor / 100;
                 break;
             default:
-                score += (PIECE_VALUES[board->pieces[move.target()]] - PIECE_VALUES[board->pieces[move.origin()]]) * mpMvvLvaScoreFactor / 100;
+                score += PIECE_VALUES[board->pieces[move.target()]] * mpMvvLvaScoreFactor / 100;
                 break;
         }
 
