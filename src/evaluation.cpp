@@ -45,6 +45,9 @@ Eval evaluate(Board* board, NNUE* nnue, std::array<int, 2>& optimism) {
 
     eval = (eval * (materialScaleBase + materialValue) + (optimism[board->stm] * (optimismBase + materialValue))) / evalScaleDivisor;
 
+    Eval castlingBonus = 10 * (BB::popcount(board->castling & Castling::getMask(Color::WHITE)) - BB::popcount(board->castling & Castling::getMask(Color::BLACK)));
+    eval += board->stm == Color::WHITE ? castlingBonus : -castlingBonus;
+
     eval = std::clamp((int)eval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return (eval / 16) * 16;
 }
