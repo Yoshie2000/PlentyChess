@@ -52,7 +52,7 @@ void bench(Board& board, std::vector<Hash>& boardHistory) {
     boardHistory.push_back(0);
 
     bool minimal = UCI::Options.minimal.value;
-    UCI::Options.minimal.value = true;
+    UCI::Options.minimal.value = false;
 
     uint64_t nodes = 0;
     int64_t elapsed = 0;
