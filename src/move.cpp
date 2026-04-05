@@ -14,7 +14,7 @@
 #include "history.h"
 
 TUNE_INT_DISABLED(mpPromotionScoreFactor, 101, 10, 10000);
-TUNE_INT_DISABLED(mpMvvLvaScoreFactor, 1470, 10, 10000);
+TUNE_INT_DISABLED(mpMvvLvaScoreFactor, 65536, 10, 10000);
 TUNE_INT(mpSeeDivisor, 80, 10, 150);
 
 TUNE_INT(mpThreatQueenValue, 19431, 10000, 30000);
