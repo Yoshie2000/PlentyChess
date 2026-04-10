@@ -8,15 +8,15 @@
 #include "nnue.h"
 #include "spsa.h"
 
-TUNE_INT(materialScalePawnValue, 86, 1, 200);
-TUNE_INT(materialScaleKnightValue, 290, 1, 600);
-TUNE_INT(materialScaleBishopValue, 313, 1, 600);
-TUNE_INT(materialScaleRookValue, 506, 1, 1000);
-TUNE_INT(materialScaleQueenValue, 1033, 1, 2000);
+TUNE_INT(materialScalePawnValue, 94, 1, 200);
+TUNE_INT(materialScaleKnightValue, 305, 1, 600);
+TUNE_INT(materialScaleBishopValue, 330, 1, 600);
+TUNE_INT(materialScaleRookValue, 477, 1, 1000);
+TUNE_INT(materialScaleQueenValue, 1074, 1, 2000);
 
-TUNE_INT(optimismBase, 2000, 1, 4000);
-TUNE_INT(materialScaleBase, 33060, 1, 60000);
-TUNE_INT(evalScaleDivisor, 38912, 1, 80000);
+TUNE_INT(optimismBase, 2068, 1, 4000);
+TUNE_INT(materialScaleBase, 32318, 1, 60000);
+TUNE_INT(evalScaleDivisor, 42116, 1, 80000);
 
 int PIECE_VALUES[Piece::TOTAL + 1] = {
     96, 298, 301, 507, 909, 0, 0
