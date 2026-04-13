@@ -915,6 +915,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     SearchedMoveList quietMoves, captureMoves;
 
+    int singularMargin = -1;
+
     // Moves loop
     MoveGen& movegen = movepickers[stack->ply][excluded] = MoveGen(board, &history, stack, ttMove, depth / 100);
     Move move;
@@ -1029,7 +1031,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
-                int singularMargin = (singularBeta - singularValue) / (pvNode ? 100 : 1);
+                singularMargin = (singularBeta - singularValue) / (pvNode ? 100 : 1);
 
                 extension = 100;
 
@@ -1083,6 +1085,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         Eval value = 0;
         int newDepth = depth - 100 + extension;
         int8_t moveSearchCount = 0;
+
+        if (pvNode && singularMargin > doubleExtensionMargin)
+            newDepth += 100;
 
         if (cutNode && depth >= 600 && move != ttMove)
             newDepth -= 5;
