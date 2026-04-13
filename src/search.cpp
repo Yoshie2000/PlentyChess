@@ -915,6 +915,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     SearchedMoveList quietMoves, captureMoves;
 
+    Eval ttMoveValue = EVAL_NONE, singularValue = EVAL_NONE;
+
     // Moves loop
     MoveGen& movegen = movepickers[stack->ply][excluded] = MoveGen(board, &history, stack, ttMove, depth / 100);
     Move move;
@@ -1020,7 +1022,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             bool currTtPv = stack->ttPv;
             stack->excludedMove = move;
-            Eval singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
+            singularValue = search<NON_PV_NODE>(board, stack, singularDepth, singularBeta - 1, singularBeta, cutNode);
             stack->excludedMove = Move::none();
             stack->ttPv = currTtPv;
 
@@ -1108,6 +1110,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
             }
 
+            if (ttMoveValue != EVAL_NONE && singularValue != EVAL_NONE) {
+                Eval margin = ttMoveValue - singularValue;
+                reduction += std::clamp(40 * (margin - 150) / 100, 0, 200);
+            }
+
             if (capture) {
                 reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
 
@@ -1173,6 +1180,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         if (stopped.load(std::memory_order_relaxed) || exiting)
             return 0;
+
+        if (move == ttMove)
+            ttMoveValue = value;
 
         if (rootNode) {
             if (rootMoveNodes.count(move) == 0)
