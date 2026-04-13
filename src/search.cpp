@@ -1055,6 +1055,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 return value;
             }
+            else if (singularValue > ttValue && !!stack->move)
+                ttMove = Move::none();
             // We didn't prove singularity and an excluded search couldn't beat beta, but if the ttValue can we still reduce the depth
             else if (ttValue >= beta)
                 extension = -300;
