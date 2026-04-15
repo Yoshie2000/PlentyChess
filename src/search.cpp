@@ -1135,7 +1135,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100;
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
-            newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
+            bool doEvenDeeperSearch = value > bestValue + 500;
+            newDepth = newDepth
+                + lmrDeeperWeight * doDeeperSearch
+                + 100 * doEvenDeeperSearch
+                - lmrShallowerWeight * doShallowerSearch;
 
             if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
