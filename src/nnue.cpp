@@ -50,6 +50,12 @@ void initNetworkData() {
     globalNetworkData = (NetworkData*)gNETWORKData;
 }
 
+void NNUE::resetWeights() {
+    if (!networkDataInitialised) return;
+    std::memcpy(networkData->l2Weights, globalNetworkData->l2Weights, sizeof(networkData->l2Weights));
+    std::memcpy(networkData->l3Weights, globalNetworkData->l3Weights, sizeof(networkData->l3Weights));
+}
+
 void NNUE::reset(Board* board) {
     if (!networkDataInitialised) {
         assert(globalNetworkData);
@@ -649,7 +655,7 @@ void NNUE::backprop(Board* board, NNUEBackpropBuffer* buffer, Eval quantisedBest
     constexpr float LR = 1e-6f;
     constexpr auto sigmoid = [](float x) {
         return 1.0f / (1.0f + std::exp(-x));
-    };
+        };
 
     float bestValue = float(quantisedBestValue) / NETWORK_SCALE;
     float staticEval = float(quantisedStaticEval) / NETWORK_SCALE;

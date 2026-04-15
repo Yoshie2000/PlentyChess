@@ -146,6 +146,7 @@ public:
   void decrementAccumulator();
   void finalizeMove(Board* board, DirtyPiece dirtyPiece);
 
+  void resetWeights();
   void reset(Board* board);
   template<Color side>
   void resetAccumulator(Board* board, Accumulator* acc);

@@ -69,4 +69,5 @@ void Worker::exit() {
 
 void Worker::ucinewgame() {
     history.initHistory();
+    nnue.resetWeights();
 }
