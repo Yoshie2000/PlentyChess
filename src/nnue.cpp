@@ -51,9 +51,11 @@ void initNetworkData() {
 }
 
 void NNUE::reset(Board* board) {
-    if (!networkData) {
+    if (!networkDataInitialised) {
         assert(globalNetworkData);
-        networkData = globalNetworkData;
+        networkData = std::make_unique<NetworkData>();
+        *networkData = *globalNetworkData;
+        networkDataInitialised = true;
     }
 
     // Reset accumulator

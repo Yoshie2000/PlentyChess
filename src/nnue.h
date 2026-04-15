@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <memory>
 
 #include "types.h"
 #include "threat-inputs.h"
@@ -114,11 +115,13 @@ struct Board;
 class NNUE {
 public:
 
-  NetworkData* networkData;
+  std::unique_ptr<NetworkData> networkData;
+  bool networkDataInitialised;
 
   NNUE() = default;
   NNUE(NetworkData* _networkData) {
-    networkData = _networkData;
+    networkData = std::make_unique<NetworkData>();
+    *networkData = *_networkData;
   }
 
   Accumulator accumulatorStack[MAX_PLY + 8];
