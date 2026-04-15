@@ -51,9 +51,11 @@ void initNetworkData() {
 }
 
 void NNUE::reset(Board* board) {
-    if (!networkData) {
+    if (!networkDataInitialised) {
         assert(globalNetworkData);
-        networkData = globalNetworkData;
+        networkData = std::make_unique<NetworkData>();
+        *networkData = *globalNetworkData;
+        networkDataInitialised = true;
     }
 
     // Reset accumulator
@@ -327,7 +329,8 @@ void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L
             VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
             outputVec[i] = addEpi16(inputVec[i], addWeights);
         }
-    } else {
+    }
+    else {
         VecI16* weightsVec = (VecI16*)&networkData->inputPsqWeights[featureIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS; ++i) {
@@ -348,9 +351,10 @@ void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)
             VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
             outputVec[i] = subEpi16(inputVec[i], addWeights);
         }
-    } else {
+    }
+    else {
         VecI16* weightsVec = (VecI16*)&networkData->inputPsqWeights[featureIndex * L1_SIZE];
-        
+
         for (int i = 0; i < L1_ITERATIONS; ++i) {
             outputVec[i] = subEpi16(inputVec[i], weightsVec[i]);
         }
@@ -371,7 +375,8 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData
             VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeights), subWeights);
         }
-    } else {
+    }
+    else {
         VecI16* addWeightsVec = (VecI16*)&networkData->inputPsqWeights[addIndex * L1_SIZE];
         VecI16* subWeightsVec = (VecI16*)&networkData->inputPsqWeights[subIndex * L1_SIZE];
 
@@ -381,19 +386,23 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData
     }
 }
 
-Eval NNUE::evaluate(Board* board) {
+int getBucket(Board* board) {
+    // Calculate output bucket based on piece count
+    int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
+    constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
+    int bucket = (pieceCount - 2) / divisor;
+    assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
+    return bucket;
+}
+
+Eval NNUE::evaluate(Board* board, NNUEBackpropBuffer* buffer) {
     // Make sure the current accumulators are up to date
     calculateAccumulators<Color::WHITE>();
     calculateAccumulators<Color::BLACK>();
 
     assert(lastCalculatedAccumulator[Color::WHITE] == currentAccumulator && lastCalculatedAccumulator[Color::BLACK] == currentAccumulator);
 
-    // Calculate output bucket based on piece count
-    int pieceCount = BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]);
-    constexpr int divisor = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-    int bucket = (pieceCount - 2) / divisor;
-    assert(0 <= bucket && bucket < OUTPUT_BUCKETS);
-
+    int bucket = getBucket(board);
     Accumulator* accumulator = &accumulatorStack[currentAccumulator];
 
     VecI16* stmThreatAcc = reinterpret_cast<VecI16*>(accumulator->threatState[board->stm]);
@@ -538,7 +547,6 @@ Eval NNUE::evaluate(Board* board) {
 
     // ---------------------- CONVERT TO FLOATS & ACTIVATE L1 ----------------------
 
-    alignas(ALIGNMENT) float l1Outputs[2 * L2_SIZE];
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
 
     VecF psNorm = set1Ps(L1_NORMALISATION);
@@ -546,7 +554,7 @@ Eval NNUE::evaluate(Board* board) {
     VecF psOne = set1Ps(1.0f);
 
     VecF* l1Biases = reinterpret_cast<VecF*>(networkData->l1Biases[bucket]);
-    VecF* l1OutputsVec = reinterpret_cast<VecF*>(l1Outputs);
+    VecF* l1OutputsVec = reinterpret_cast<VecF*>(buffer->l1Outputs);
 
     for (int l2 = 0; l2 < L2_SIZE / FLOAT_VEC_SIZE; l2++) {
         VecF converted = cvtepi32Ps(l1MatmulOutputsVec[l2]);
@@ -557,20 +565,19 @@ Eval NNUE::evaluate(Board* board) {
 #else
     for (int l1 = 0; l1 < L2_SIZE; l1++) {
         float l1Result = std::fma(static_cast<float>(l1MatmulOutputs[l1]), L1_NORMALISATION, networkData->l1Biases[bucket][l1]);
-        l1Outputs[l1] = std::clamp(l1Result, 0.0f, 1.0f);
-        l1Outputs[l1 + L2_SIZE] = std::clamp(l1Result * l1Result, 0.0f, 1.0f);
+        buffer->l1Outputs[l1] = std::clamp(l1Result, 0.0f, 1.0f);
+        buffer->l1Outputs[l1 + L2_SIZE] = std::clamp(l1Result * l1Result, 0.0f, 1.0f);
     }
 #endif
 
     // ---------------------- L2 PROPAGATION & ACTIVATION ----------------------
 
-    alignas(ALIGNMENT) float l2Outputs[L3_SIZE];
-    memcpy(l2Outputs, networkData->l2Biases[bucket], sizeof(l2Outputs));
+    memcpy(buffer->l2Outputs, networkData->l2Biases[bucket], sizeof(buffer->l2Outputs));
 
 #if defined(__FMA__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-    VecF* l2OutputsVec = reinterpret_cast<VecF*>(l2Outputs);
+    VecF* l2OutputsVec = reinterpret_cast<VecF*>(buffer->l2Outputs);
     for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
-        VecF l1Vec = set1Ps(l1Outputs[l1]);
+        VecF l1Vec = set1Ps(buffer->l1Outputs[l1]);
         VecF* weights = reinterpret_cast<VecF*>(&networkData->l2Weights[bucket][l1 * L3_SIZE]);
         for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2++) {
             l2OutputsVec[l2] = fmaddPs(l1Vec, weights[l2], l2OutputsVec[l2]);
@@ -583,12 +590,12 @@ Eval NNUE::evaluate(Board* board) {
 #else
     for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
         for (int l2 = 0; l2 < L3_SIZE; l2++) {
-            l2Outputs[l2] = std::fma(l1Outputs[l1], networkData->l2Weights[bucket][l1 * L3_SIZE + l2], l2Outputs[l2]);
+            buffer->l2Outputs[l2] = std::fma(buffer->l1Outputs[l1], networkData->l2Weights[bucket][l1 * L3_SIZE + l2], buffer->l2Outputs[l2]);
         }
     }
     for (int l2 = 0; l2 < L3_SIZE; l2++) {
-        float l2Activated = std::clamp(l2Outputs[l2], 0.0f, 1.0f);
-        l2Outputs[l2] = l2Activated * l2Activated;
+        float l2Activated = std::clamp(buffer->l2Outputs[l2], 0.0f, 1.0f);
+        buffer->l2Outputs[l2] = l2Activated * l2Activated;
     }
 #endif
 
@@ -620,17 +627,42 @@ Eval NNUE::evaluate(Board* board) {
 
     for (int l2 = 0; l2 < L3_SIZE; l2 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = std::fma(l2Outputs[l2 + chunk], networkData->l3Weights[bucket][l2 + chunk], resultSums[chunk]);
+            resultSums[chunk] = std::fma(buffer->l2Outputs[l2 + chunk], networkData->l3Weights[bucket][l2 + chunk], resultSums[chunk]);
         }
     }
     for (int l1 = 0; l1 < 2 * L2_SIZE; l1 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = std::fma(l1Outputs[l1 + chunk], networkData->l3Weights[bucket][L3_SIZE + l1 + chunk], resultSums[chunk]);
+            resultSums[chunk] = std::fma(buffer->l1Outputs[l1 + chunk], networkData->l3Weights[bucket][L3_SIZE + l1 + chunk], resultSums[chunk]);
         }
     }
 
     float result = networkData->l3Biases[bucket] + reduceAddPsR(resultSums, chunks);
 #endif
 
+    buffer->initialised = true;
     return result * NETWORK_SCALE;
+}
+
+void NNUE::backprop(Board* board, NNUEBackpropBuffer* buffer, Eval quantisedBestValue, Eval quantisedStaticEval) {
+    assert(buffer);
+
+    constexpr float LR = 1e-6f;
+    constexpr auto sigmoid = [](float x) {
+        return 1.0f / (1.0f + std::exp(-x));
+    };
+
+    float bestValue = float(quantisedBestValue) / NETWORK_SCALE;
+    float staticEval = float(quantisedStaticEval) / NETWORK_SCALE;
+    float error = sigmoid(bestValue) - sigmoid(staticEval);
+
+    int bucket = getBucket(board);
+
+    for (int l2 = 0; l2 < L3_SIZE; l2++) {
+        float update = LR * error * buffer->l2Outputs[l2];
+        networkData->l3Weights[bucket][l2] += update;
+    }
+    for (int l1 = 0; l1 < 2 * L2_SIZE; l1++) {
+        float update = LR * error * buffer->l1Outputs[l1];
+        networkData->l3Weights[bucket][L3_SIZE + l1] += update;
+    }
 }

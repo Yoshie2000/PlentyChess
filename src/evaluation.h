@@ -17,7 +17,7 @@ const Eval EVAL_NONE = 31010;
 
 extern int PIECE_VALUES[Piece::TOTAL + 1];
 
-Eval evaluate(Board* board, NNUE* nnue, std::array<int, 2>& optimism);
+Eval evaluate(Board* board, NNUE* nnue, std::array<int, 2>& optimism, NNUEBackpropBuffer* buffer);
 
 std::string formatEval(Eval value);
 

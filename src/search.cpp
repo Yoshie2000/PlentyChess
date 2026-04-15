@@ -429,6 +429,7 @@ bool Worker::isDraw(Board* board, int ply) {
 template <NodeType nodeType>
 Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     constexpr bool pvNode = nodeType == PV_NODE;
+    NNUEBackpropBuffer backpropBuffer;
 
     assert(nodeType != ROOT_NODE);
     assert(pvNode || alpha == beta - 1);
@@ -444,7 +445,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     // Check for stop
     if (stopped.load(std::memory_order_relaxed) || exiting || stack->ply >= MAX_PLY - 1 || isDraw(board, stack->ply))
-        return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue, optimism) : drawEval(this);
+        return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue, optimism, &backpropBuffer) : drawEval(this);
 
     stack->inCheck = board->checkerCount > 0;
 
@@ -494,7 +495,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
             bestValue = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue, optimism);
+        unadjustedEval = evaluate(board, &nnue, optimism, &backpropBuffer);
         stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
         ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
     }
@@ -604,6 +605,7 @@ template <NodeType nt>
 Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, Eval beta, bool cutNode) {
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
+    NNUEBackpropBuffer backpropBuffer;
 
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
     assert(!(pvNode && cutNode));
@@ -632,7 +634,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         // Check for stop or max depth
         if (stopped.load(std::memory_order_relaxed) || exiting || stack->ply >= MAX_PLY - 1 || isDraw(board, stack->ply))
-            return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue, optimism) : drawEval(this);
+            return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue, optimism, &backpropBuffer) : drawEval(this);
 
         // Mate distance pruning
         alpha = std::max((int)alpha, (int)matedIn(stack->ply));
@@ -746,14 +748,14 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
-        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue, optimism);
+        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue, optimism, &backpropBuffer);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue, optimism);
+        unadjustedEval = evaluate(board, &nnue, optimism, &backpropBuffer);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
@@ -1268,6 +1270,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {
         int bonus = std::clamp((int(bestValue - stack->staticEval) * depth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         history.updateCorrectionHistory(board, stack, bonus);
+
+        if (backpropBuffer.initialised)
+            nnue.backprop(board, &backpropBuffer, bestValue, stack->staticEval);
     }
 
     assert(bestValue > -EVAL_INFINITE && bestValue < EVAL_INFINITE);

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <memory>
 
 #include "types.h"
 #include "threat-inputs.h"
@@ -13,9 +14,9 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
   8,  8,  9,  9,  9,  9,  8,  8,
  10, 10, 10, 10, 10, 10, 10, 10,
  11, 11, 11, 11, 11, 11, 11, 11,
- 11, 11, 11, 11, 11, 11, 11, 11, 
- 11, 11, 11, 11, 11, 11, 11, 11, 
- 11, 11, 11, 11, 11, 11, 11, 11, 
+ 11, 11, 11, 11, 11, 11, 11, 11,
+ 11, 11, 11, 11, 11, 11, 11, 11,
+ 11, 11, 11, 11, 11, 11, 11, 11,
 };
 constexpr int KING_BUCKETS = 12;
 
@@ -111,14 +112,26 @@ void initNetworkData();
 
 struct Board;
 
+struct NNUEBackpropBuffer {
+  alignas(ALIGNMENT) float l2Outputs[L3_SIZE];
+  alignas(ALIGNMENT) float l1Outputs[2 * L2_SIZE];
+  bool initialised;
+
+  NNUEBackpropBuffer() {
+    initialised = false;
+  }
+};
+
 class NNUE {
 public:
 
-  NetworkData* networkData;
+  std::unique_ptr<NetworkData> networkData;
+  bool networkDataInitialised = false;
 
   NNUE() = default;
   NNUE(NetworkData* _networkData) {
-    networkData = _networkData;
+    networkData = std::make_unique<NetworkData>();
+    *networkData = *_networkData;
   }
 
   Accumulator accumulatorStack[MAX_PLY + 8];
@@ -137,7 +150,7 @@ public:
   template<Color side>
   void resetAccumulator(Board* board, Accumulator* acc);
 
-  Eval evaluate(Board* board);
+  Eval evaluate(Board* board, NNUEBackpropBuffer* buffer);
   template<Color side>
   void calculateAccumulators();
 
@@ -158,6 +171,8 @@ public:
   template<bool I8, Color side>
   void addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex);
 
+  void backprop(Board* board, NNUEBackpropBuffer* buffer, Eval bestValue, Eval staticEval);
+
 };
 
 #if defined(PROCESS_NET)
@@ -166,33 +181,34 @@ public:
 #include <fstream>
 
 inline void writeSLEB128(std::ostream& os, int64_t value) {
-    bool more = true;
-    while (more) {
-        uint8_t byte = value & 0x7F;
-        bool sign = byte & 0x40;
-        value >>= 7;
-        if ((value == 0 && !sign) || (value == -1 && sign)) {
-            more = false;
-        } else {
-            byte |= 0x80;
-        }
-        os.put(static_cast<char>(byte));
+  bool more = true;
+  while (more) {
+    uint8_t byte = value & 0x7F;
+    bool sign = byte & 0x40;
+    value >>= 7;
+    if ((value == 0 && !sign) || (value == -1 && sign)) {
+      more = false;
     }
+    else {
+      byte |= 0x80;
+    }
+    os.put(static_cast<char>(byte));
+  }
 }
 
 inline void writeULEB128(std::ostream& os, uint64_t value) {
-    do {
-        uint8_t byte = value & 0x7F;
-        value >>= 7;
-        if (value != 0) byte |= 0x80;
-        os.put(static_cast<char>(byte));
-    } while (value != 0);
+  do {
+    uint8_t byte = value & 0x7F;
+    value >>= 7;
+    if (value != 0) byte |= 0x80;
+    os.put(static_cast<char>(byte));
+  } while (value != 0);
 }
 
 inline void writeFloat(std::ostream& os, float f) {
-    uint32_t v;
-    std::memcpy(&v, &f, sizeof(v));
-    writeULEB128(os, v);
+  uint32_t v;
+  std::memcpy(&v, &f, sizeof(v));
+  writeULEB128(os, v);
 }
 
 class NNZ {
@@ -216,8 +232,8 @@ public:
   void permuteNetwork() {
     std::ifstream infile("./quantised.bin", std::ios::binary);
     if (!infile) {
-        std::cerr << "Error opening file for reading" << std::endl;
-        return;
+      std::cerr << "Error opening file for reading" << std::endl;
+      return;
     }
     infile.read(reinterpret_cast<char*>(&nnzOutNet), sizeof(nnzOutNet));
     infile.close();
@@ -260,8 +276,8 @@ public:
     // Write the network
     std::ofstream outfile("./compressed.bin", std::ios::binary);
     if (!outfile) {
-        std::cerr << "Error opening file for writing" << std::endl;
-        return;
+      std::cerr << "Error opening file for writing" << std::endl;
+      return;
     }
     for (auto v : nnzOutNet.inputPsqWeights) writeSLEB128(outfile, v);
     for (auto v : nnzOutNet.inputThreatWeights) writeSLEB128(outfile, v);

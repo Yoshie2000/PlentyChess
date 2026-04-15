@@ -531,7 +531,8 @@ void uciLoop(int argc, char* argv[]) {
         else if (matchesToken(line, "debug")) board.debugBoard();
         else if (matchesToken(line, "eval")) {
             UCI::nnue.reset(&board);
-            std::cout << UCI::nnue.evaluate(&board) << std::endl;
+            NNUEBackpropBuffer buffer;
+            std::cout << UCI::nnue.evaluate(&board, &buffer) << std::endl;
         }
         else std::cout << "Unknown command" << std::endl;
     }

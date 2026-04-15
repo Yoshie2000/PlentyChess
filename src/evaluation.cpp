@@ -37,10 +37,10 @@ int getMaterialValue(Board* board) {
     return materialValue;
 }
 
-Eval evaluate(Board* board, NNUE* nnue, std::array<int, 2>& optimism) {
+Eval evaluate(Board* board, NNUE* nnue, std::array<int, 2>& optimism, NNUEBackpropBuffer* buffer) {
     assert(!board->checkers);
 
-    Eval eval = nnue->evaluate(board);
+    Eval eval = nnue->evaluate(board, buffer);
     int materialValue = getMaterialValue(board);
 
     eval = (eval * (materialScaleBase + materialValue) + (optimism[board->stm] * (optimismBase + materialValue))) / evalScaleDivisor;
