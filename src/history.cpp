@@ -81,7 +81,7 @@ int History::getCorrectionValue(Board* board, SearchStack* searchStack) {
 
 Eval History::correctStaticEval(uint8_t rule50, Eval eval, int correctionValue) {
     eval = eval * (fiftyMoveRuleScaleFactor - rule50) / fiftyMoveRuleScaleFactor;
-    Eval adjustedEval = eval + correctionValue / 65536;
+    Eval adjustedEval = eval + 0 / 65536;
     adjustedEval = std::clamp((int)adjustedEval, (int)-EVAL_TBWIN_IN_MAX_PLY + 1, (int)EVAL_TBWIN_IN_MAX_PLY - 1);
     return adjustedEval;
 }
