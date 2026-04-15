@@ -52,13 +52,6 @@ TUNE_FLOAT(lmrReductionImportantNoisyFactor, 3.174231573547516f, 2.0f, 4.0f);
 TUNE_FLOAT(lmrReductionQuietBase, 1.1203658354016672f, 0.0f, 2.0f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.947877296606716f, 2.0f, 4.0f);
 
-TUNE_FLOAT(lmpMarginWorseningBase, 1.9586367509339555f, 0.0f, 3.5f);
-TUNE_FLOAT(lmpMarginWorseningFactor, 0.4695734030291108f, 0.1f, 1.5f);
-TUNE_FLOAT(lmpMarginWorseningPower, 1.6220638123840003f, 0.0f, 4.0f);
-TUNE_FLOAT(lmpMarginImprovingBase, 2.863191493839467f, 2.0f, 5.0f);
-TUNE_FLOAT(lmpMarginImprovingFactor, 0.8748193194885028f, 0.5f, 2.0f);
-TUNE_FLOAT(lmpMarginImprovingPower, 1.9492352282965961f, 1.0f, 3.0f);
-
 // Search values
 TUNE_INT(qsFutilityOffset, 80, 1, 125);
 TUNE_INT(qsFutilityOffsetInCheck, 5, 0, 125);
@@ -198,7 +191,6 @@ TUNE_INT(correctionHistoryFactor, 118, 0, 300);
 TUNE_INT(correctionHistoryFactorMulticut, 177, 0, 300);
 
 int REDUCTIONS[3][MAX_PLY][MAX_MOVES];
-int LMP_MARGIN[MAX_PLY][2];
 
 void initReductions() {
     REDUCTIONS[0][0][0] = 0;
@@ -211,11 +203,6 @@ void initReductions() {
             REDUCTIONS[1][i][j] = 100 * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // non-quiet
             REDUCTIONS[2][i][j] = 100 * (lmrReductionImportantNoisyBase + log(i) * log(j) / lmrReductionImportantNoisyFactor); // important capture
         }
-    }
-
-    for (Depth depth = 0; depth < MAX_PLY; depth++) {
-        LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
-        LMP_MARGIN[depth][1] = lmpMarginImprovingBase + lmpMarginImprovingFactor * std::pow(depth, lmpMarginImprovingPower); // improving
     }
 }
 
@@ -457,7 +444,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     // Check for stop
     if (stopped.load(std::memory_order_relaxed) || exiting || stack->ply >= MAX_PLY - 1 || isDraw(board, stack->ply))
-        return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue) : drawEval(this);
+        return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue, optimism) : drawEval(this);
 
     stack->inCheck = board->checkerCount > 0;
 
@@ -507,7 +494,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
             bestValue = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue);
+        unadjustedEval = evaluate(board, &nnue, optimism);
         stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
         ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
     }
@@ -645,7 +632,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         // Check for stop or max depth
         if (stopped.load(std::memory_order_relaxed) || exiting || stack->ply >= MAX_PLY - 1 || isDraw(board, stack->ply))
-            return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue) : drawEval(this);
+            return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue, optimism) : drawEval(this);
 
         // Mate distance pruning
         alpha = std::max((int)alpha, (int)matedIn(stack->ply));
@@ -759,14 +746,14 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
-        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
+        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue, optimism);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue);
+        unadjustedEval = evaluate(board, &nnue, optimism);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
@@ -959,8 +946,17 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             Depth lmrDepth = depth - reduction;
 
             // Movecount pruning (LMP)
-            if (!pvNode && moveCount >= LMP_MARGIN[depth / 100][improving]) {
-                movegen.skipQuietMoves();
+            if (!pvNode && !capture) {
+                int lmpMargin;
+                if (improving)
+                    lmpMargin = 3863191 + 77 * depth * depth + 1500 * depth + moveHistory;
+                else
+                    lmpMargin = 2958636 + 16 * depth * depth + 4500 * depth + moveHistory;
+
+                if (moveCount >= lmpMargin / 1000000) {
+                    movegen.skipQuietMoves();
+                    continue;
+                }
             }
 
             // Futility pruning for quiets
@@ -972,6 +968,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 if (lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
+                    continue;
                 }
             }
             // Futility pruning for bad noisies
@@ -1407,6 +1404,8 @@ void Worker::iterativeDeepening() {
 
     rootMoveNodes.clear();
 
+    optimism[0] = optimism[1] = 0;
+
     for (Depth depth = 1; depth <= maxDepth; depth++) {
         excludedRootMoves.clear();
         for (int rootMoveIdx = 0; rootMoveIdx < multiPvCount; rootMoveIdx++) {
@@ -1435,6 +1434,12 @@ void Worker::iterativeDeepening() {
             Eval alpha = -EVAL_INFINITE;
             Eval beta = EVAL_INFINITE;
             Eval value;
+
+            if (rootMoves[0].meanScore != EVAL_NONE) {
+                int updatedOptimism = 150 * rootMoves[0].meanScore / (std::abs(rootMoves[0].meanScore) + 125);
+                optimism[board->stm] = updatedOptimism;
+                optimism[flip(board->stm)] = -updatedOptimism;
+            }
 
             if (depth >= aspirationWindowMinDepth) {
                 // Set up interval for the start of this aspiration window

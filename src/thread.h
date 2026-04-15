@@ -182,6 +182,8 @@ public:
     std::vector<Move> excludedRootMoves;
     std::vector<std::array<MoveGen, 2>> movepickers;
 
+    std::array<int, 2> optimism;
+
     Worker() = delete;
     Worker(ThreadPool* threadPool, NetworkData* networkData, int threadId);
 
