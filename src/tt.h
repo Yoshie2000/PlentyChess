@@ -62,17 +62,17 @@ struct TTEntry {
     Eval eval = 0;
     Eval value = 0;
     uint8_t flags = 0;
-    uint8_t rule50 = 0;
+    bool boundRevoked = false;
 
     constexpr Move getMove() { return bestMove; };
     constexpr Depth getDepth() { return depth; };
     constexpr uint8_t getFlag() { return flags & 0x3; };
-    constexpr uint8_t getRule50() { return rule50; };
+    constexpr bool isBoundRevoked() { return boundRevoked; };
     constexpr Eval getEval() { return eval; };
     constexpr Eval getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
 
-    void update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, uint8_t rule50, bool wasPv, int _flags);
+    void update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, bool wasPv, int _flags);
     bool isInitialised() { return hash != 0; };
 };
 
