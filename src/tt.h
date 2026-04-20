@@ -72,7 +72,7 @@ struct TTEntry {
     constexpr Eval getValue() { return value; };
     constexpr bool getTtPv() { return flags & 0x4; };
 
-    void update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, bool wasPv, int _flags);
+    void update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, bool wasPv, int _flags, bool boundRevokedTwice = false);
     bool isInitialised() { return hash != 0; };
 };
 
