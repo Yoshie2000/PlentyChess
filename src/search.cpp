@@ -807,7 +807,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // Razoring
-    if (!rootNode && !board->checkers && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY && !(ttFlag == TT_LOWERBOUND && !ttBoundRevoked)) {
+    if (!rootNode && !board->checkers && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, alpha + 1);
         if (razorValue <= alpha && std::abs(razorValue) < EVAL_TBWIN_IN_MAX_PLY)
             return razorValue;
@@ -1138,7 +1138,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             bool doDeeperSearch = value > (bestValue + lmrDeeperBase + lmrDeeperFactor * newDepth / 100);
             newDepth += lmrDeeperWeight * doDeeperSearch - lmrShallowerWeight * doShallowerSearch;
 
-            if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && (ttFlag & TT_UPPERBOUND))) {
+            if (value > alpha && reducedDepth < newDepth && !(ttValue < alpha && ttDepth - lmrResearchSkipDepthOffset >= newDepth && !((ttFlag & TT_UPPERBOUND) && !ttBoundRevoked))) {
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, newDepth, -(alpha + 1), -alpha, !cutNode);
                 moveSearchCount++;
 

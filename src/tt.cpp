@@ -18,7 +18,7 @@ void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval 
         eval = _eval;
         flags = (uint8_t)(_flags + (wasPv << 2)) | TT_GENERATION_COUNTER;
         boundRevoked = false;
-    } else if (((getFlag() & TT_LOWERBOUND) && (_flags & TT_UPPERBOUND) && _value > value) || ((getFlag() & TT_UPPERBOUND) && (_flags & TT_LOWERBOUND) && _value < value)) {
+    } else if (((getFlag() & TT_LOWERBOUND) && (_flags & TT_UPPERBOUND) && value > _value) || ((getFlag() & TT_UPPERBOUND) && (_flags & TT_LOWERBOUND) && value < _value)) {
         boundRevoked = true;
     }
 }
