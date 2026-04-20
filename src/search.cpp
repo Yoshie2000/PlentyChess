@@ -496,7 +496,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     else {
         unadjustedEval = evaluate(board, &nnue, optimism);
         stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
-        ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
+        ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, ttPv, TT_NOBOUND);
     }
     futilityValue = std::min(stack->staticEval + qsFutilityOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
 
@@ -504,7 +504,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (bestValue >= beta) {
         if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
             bestValue = (bestValue + beta) / 2;
-        ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, ttValue, board->rule50_ply, ttPv, ttFlag);
+        ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, ttValue, ttPv, ttFlag);
         return bestValue;
     }
     if (alpha < bestValue)
@@ -595,7 +595,7 @@ movesLoopQsearch:
 
     // Insert into TT
     int flags = bestValue >= beta ? TT_LOWERBOUND : TT_UPPERBOUND;
-    ttEntry->update(fmrHash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, ttPv, flags);
+    ttEntry->update(fmrHash, bestMove, 0, unadjustedEval, valueToTT(bestValue, stack->ply), ttPv, flags);
 
     return bestValue;
 }
@@ -654,7 +654,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     // TT Lookup
     Hash fmrHash = board->hashes.hash ^ Zobrist::FMR[board->rule50_ply / Zobrist::FMR_GRANULARITY];
-    bool ttHit = false;
+    bool ttHit = false, ttBoundRevoked = false;
     TTEntry* ttEntry = nullptr;
     Move ttMove = Move::none();
     Eval ttValue = EVAL_NONE, ttEval = EVAL_NONE;
@@ -670,6 +670,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             ttEval = ttEntry->getEval();
             ttDepth = ttEntry->getDepth();
             ttFlag = ttEntry->getFlag();
+            ttBoundRevoked = ttEntry->isBoundRevoked();
             stack->ttPv = stack->ttPv || ttEntry->getTtPv();
         }
     }
@@ -715,7 +716,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
 
             if (tbBound == TT_EXACTBOUND || (tbBound == TT_LOWERBOUND ? tbValue >= beta : tbValue <= alpha)) {
-                ttEntry->update(fmrHash, Move::none(), depth, EVAL_NONE, valueToTT(tbValue, stack->ply), board->rule50_ply, stack->ttPv, tbBound);
+                ttEntry->update(fmrHash, Move::none(), depth, EVAL_NONE, valueToTT(tbValue, stack->ply), stack->ttPv, tbBound);
                 return tbValue;
             }
 
@@ -756,7 +757,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         unadjustedEval = evaluate(board, &nnue, optimism);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
-        ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
+        ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, stack->ttPv, TT_NOBOUND);
     }
 
     // Improving
@@ -806,7 +807,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // Razoring
-    if (!rootNode && !board->checkers && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
+    if (!rootNode && !board->checkers && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY && !(ttFlag == TT_LOWERBOUND && !ttBoundRevoked)) {
         Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, alpha + 1);
         if (razorValue <= alpha && std::abs(razorValue) < EVAL_TBWIN_IN_MAX_PLY)
             return razorValue;
@@ -899,7 +900,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (value >= probCutBeta) {
                 value = std::min<Eval>(value, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(fmrHash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
+                ttEntry->update(fmrHash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), stack->ttPv, TT_LOWERBOUND);
                 return value;
             }
         }
@@ -1045,7 +1046,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
             else if (singularBeta >= beta) {
                 Eval value = std::min<Eval>(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
-                ttEntry->update(fmrHash, ttMove, singularDepth, unadjustedEval, value, board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
+                ttEntry->update(fmrHash, ttMove, singularDepth, unadjustedEval, value, stack->ttPv, TT_LOWERBOUND);
 
                 // Adjust correction history
                 if (!board->checkers && singularValue > stack->staticEval) {
@@ -1262,7 +1263,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     bool failHigh = bestValue >= beta;
     int flags = failHigh ? TT_LOWERBOUND : !failLow ? TT_EXACTBOUND : TT_UPPERBOUND;
     if (!excluded)
-        ttEntry->update(fmrHash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), board->rule50_ply, stack->ttPv, flags);
+        ttEntry->update(fmrHash, bestMove, depth, unadjustedEval, valueToTT(bestValue, stack->ply), stack->ttPv, flags);
 
     // Adjust correction history
     if (!board->checkers && (!bestMove || !board->isCapture(bestMove)) && (!failHigh || bestValue > stack->staticEval) && (!failLow || bestValue <= stack->staticEval)) {

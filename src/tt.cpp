@@ -5,7 +5,7 @@
 TUNE_INT(ttReplaceTtpvBonus, 231, 0, 400);
 TUNE_INT(ttReplaceOffset, 432, 0, 800);
 
-void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, uint8_t _rule50, bool wasPv, int _flags) {
+void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval _value, bool wasPv, int _flags) {
     // Update bestMove if it exists
     // Or clear it for a different position
     if (_bestMove || (uint16_t)_hash != hash)
@@ -16,8 +16,10 @@ void TTEntry::update(Hash _hash, Move _bestMove, Depth _depth, Eval _eval, Eval 
         depth = _depth;
         value = _value;
         eval = _eval;
-        rule50 = _rule50;
         flags = (uint8_t)(_flags + (wasPv << 2)) | TT_GENERATION_COUNTER;
+        boundRevoked = false;
+    } else if (((getFlag() & TT_LOWERBOUND) && (_flags & TT_UPPERBOUND) && value > _value) || ((getFlag() & TT_UPPERBOUND) && (_flags & TT_LOWERBOUND) && value < _value)) {
+        boundRevoked = true;
     }
 }
 
