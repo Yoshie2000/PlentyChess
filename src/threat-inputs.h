@@ -12,7 +12,7 @@
 
 namespace ThreatInputs {
 
-    constexpr int FEATURE_COUNT = 79856;
+    constexpr int FEATURE_COUNT = 60720;
     constexpr int MAX_ACTIVE_FEATURES = 128;
     using FeatureList = ArrayVec<int, MAX_ACTIVE_FEATURES>;
 
