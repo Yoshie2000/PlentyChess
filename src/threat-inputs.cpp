@@ -30,14 +30,14 @@ namespace ThreatInputs {
 
         constexpr int PIECE_INTERACTION_MAP[6][6] = {
             {0,  1, -1,  2, -1, -1},
-            {0,  1,  2,  3,  4,  5},
-            {0,  1,  2,  3, -1,  4},
-            {0,  1,  2,  3, -1,  4},
-            {0,  1,  2,  3,  4,  5},
-            {0,  1,  2,  3, -1, -1}
+            {0,  1,  2,  3,  4,  -1},
+            {0,  1,  2,  3, -1,  -1},
+            {0,  1,  2,  3, -1,  -1},
+            {0,  1,  2,  3,  4,  -1},
+            {-1, -1, -1, -1, -1, -1}
         };
 
-        constexpr int PIECE_TARGET_COUNT[6] = { 6, 12, 10, 10, 12, 8 };
+        constexpr int PIECE_TARGET_COUNT[6] = { 6, 10, 8, 8, 10, 0 };
 
         int cumulativeOffset = 0;
         int CUMULATIVE_PIECE_OFFSET[6][2];
@@ -51,6 +51,8 @@ namespace ThreatInputs {
 
                     if (piece != Piece::PAWN || (origin >= 8 && origin < 56)) {
                         Bitboard attacks = BB::attackedSquares(piece, origin, 0, color);
+                        if (piece == Piece::PAWN)
+                            attacks |= bitboard(static_cast<Square>(color == Color::WHITE ? origin + 8 : origin - 8));
                         cumulativePieceOffset += BB::popcount(attacks);
                     }
                 }
@@ -59,6 +61,7 @@ namespace ThreatInputs {
                 CUMULATIVE_OFFSET[piece][color] = cumulativeOffset;
 
                 cumulativeOffset += PIECE_TARGET_COUNT[piece] * cumulativePieceOffset;
+                std::cout << int(piece) << " " << cumulativeOffset << " " << int(cumulativePieceOffset) << std::endl;
             }
         }
 
@@ -90,6 +93,8 @@ namespace ThreatInputs {
                 for (Square origin = 0; origin < 64; origin++) {
                     for (Square target = 0; target < 64; target++) {
                         Bitboard attacks = BB::attackedSquares(piece, origin, 0, color);
+                        if (piece == Piece::PAWN && origin >= 8 && origin < 56)
+                            attacks |= bitboard(static_cast<Square>(color == Color::WHITE ? origin + 8 : origin - 8));
                         ATTACK_INDEX_LOOKUP[piece | (color << 3)][origin][target] = BB::popcount((bitboard(target) - 1) & attacks);
                     }
                 }
@@ -114,6 +119,12 @@ namespace ThreatInputs {
         int index = piecePairData.baseFeature()
             + PIECE_OFFSET_LOOKUP[attackingPiece][attackingSquare]
             + ATTACK_INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare];
+
+        if (index >= FEATURE_COUNT) {
+            std::cout << FEATURE_COUNT << " " << index << std::endl;
+            std::cout << piecePairData.baseFeature() << " " << PIECE_OFFSET_LOOKUP[attackingPiece][attackingSquare] << " " << int(ATTACK_INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare]) << std::endl;
+            std::cout << int(attackingPiece) << " " << int(attackedPiece) << " " << int(attackingSquare) << " " << int(attackedSquare) << " " << int(mirrored) << std::endl;
+        }
 
         assert(index < FEATURE_COUNT);
         return index;
@@ -143,6 +154,12 @@ namespace ThreatInputs {
 
                     // Add the threat features
                     Bitboard attacks = board->attackersTo(indexSquare);
+                    // Pawn-push threats: a pawn one square behind a pawn target also "threatens" it.
+                    if (piece == Piece::PAWN) {
+                        Bitboard pawns = board->byPiece[Piece::PAWN];
+                        attacks |= bitboard(static_cast<Square>(indexSquare - 8)) & board->byColor[Color::WHITE] & pawns;
+                        attacks |= bitboard(static_cast<Square>(indexSquare + 8)) & board->byColor[Color::BLACK] & pawns;
+                    }
                     while (attacks) {
                         Square attackingSquare = popLSB(&attacks);
                         Piece attackingPiece = board->pieces[attackingSquare];

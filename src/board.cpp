@@ -220,6 +220,16 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
         nnue->updateThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add);
     }
 
+    // Pawn-push outgoing: if this pawn is (or was) pushing directly into another pawn
+    if (piece == Piece::PAWN) {
+        Square pushTarget = (pieceColor == Color::WHITE) ? square + 8 : square - 8;
+        Bitboard pushBB = bitboard(pushTarget);
+        if (byPiece[Piece::PAWN] & pushBB) {
+            Color attackedColor = (byColor[Color::WHITE] & pushBB) ? Color::WHITE : Color::BLACK;
+            nnue->updateThreat(Piece::PAWN, Piece::PAWN, square, pushTarget, pieceColor, attackedColor, add);
+        }
+    }
+
     Bitboard rookAttacks = getRookMoves(square, occupancy);
     Bitboard bishopAttacks = getBishopMoves(square, occupancy);
     Bitboard queenAttacks = rookAttacks | bishopAttacks;
@@ -231,6 +241,13 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
     Bitboard attackingKnights = byPiece[Piece::KNIGHT] & BB::KNIGHT_ATTACKS[square];
     Bitboard attackingKings = byPiece[Piece::KING] & BB::KING_ATTACKS[square];
     Bitboard incomingThreats = attackingPawns | attackingKnights | attackingKings;
+
+    // Pawn-push incoming: a pawn one square behind (relative to its push direction) also "threatens" this pawn target
+    if (piece == Piece::PAWN) {
+        Bitboard pawns = byPiece[Piece::PAWN];
+        incomingThreats |= bitboard(static_cast<Square>(square - 8)) & byColor[Color::WHITE] & pawns;
+        incomingThreats |= bitboard(static_cast<Square>(square + 8)) & byColor[Color::BLACK] & pawns;
+    }
 
     // Process attacks of sliding pieces that are now blocked by this piece
     if (computeRays) {
