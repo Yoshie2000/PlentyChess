@@ -61,7 +61,6 @@ namespace ThreatInputs {
                 CUMULATIVE_OFFSET[piece][color] = cumulativeOffset;
 
                 cumulativeOffset += PIECE_TARGET_COUNT[piece] * cumulativePieceOffset;
-                std::cout << int(piece) << " " << cumulativeOffset << " " << int(cumulativePieceOffset) << std::endl;
             }
         }
 
