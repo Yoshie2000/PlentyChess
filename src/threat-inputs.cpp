@@ -119,12 +119,6 @@ namespace ThreatInputs {
             + PIECE_OFFSET_LOOKUP[attackingPiece][attackingSquare]
             + ATTACK_INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare];
 
-        if (index >= FEATURE_COUNT) {
-            std::cout << FEATURE_COUNT << " " << index << std::endl;
-            std::cout << piecePairData.baseFeature() << " " << PIECE_OFFSET_LOOKUP[attackingPiece][attackingSquare] << " " << int(ATTACK_INDEX_LOOKUP[attackingPiece][attackingSquare][attackedSquare]) << std::endl;
-            std::cout << int(attackingPiece) << " " << int(attackedPiece) << " " << int(attackingSquare) << " " << int(attackedSquare) << " " << int(mirrored) << std::endl;
-        }
-
         assert(index < FEATURE_COUNT);
         return index;
     }
@@ -153,7 +147,6 @@ namespace ThreatInputs {
 
                     // Add the threat features
                     Bitboard attacks = board->attackersTo(indexSquare);
-                    // Pawn-push threats: a pawn one square behind a pawn target also "threatens" it.
                     if (piece == Piece::PAWN) {
                         Bitboard pawns = board->byPiece[Piece::PAWN];
                         attacks |= bitboard(static_cast<Square>(indexSquare - 8)) & board->byColor[Color::WHITE] & pawns;
