@@ -220,7 +220,6 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
         nnue->updateThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add);
     }
 
-    // Pawn-push outgoing: if this pawn is (or was) pushing directly into another pawn
     if (piece == Piece::PAWN) {
         Square pushTarget = (pieceColor == Color::WHITE) ? square + 8 : square - 8;
         Bitboard pushBB = bitboard(pushTarget);
@@ -242,7 +241,6 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
     Bitboard attackingKings = byPiece[Piece::KING] & BB::KING_ATTACKS[square];
     Bitboard incomingThreats = attackingPawns | attackingKnights | attackingKings;
 
-    // Pawn-push incoming: a pawn one square behind (relative to its push direction) also "threatens" this pawn target
     if (piece == Piece::PAWN) {
         Bitboard pawns = byPiece[Piece::PAWN];
         incomingThreats |= bitboard(static_cast<Square>(square - 8)) & byColor[Color::WHITE] & pawns;
