@@ -604,12 +604,8 @@ Eval NNUE::evaluate(Board* board) {
     VecF* l3WeightsVec = reinterpret_cast<VecF*>(networkData->l3Weights[bucket]);
     for (int l2 = 0; l2 < L3_SIZE / FLOAT_VEC_SIZE; l2 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = fmaddPs(l2OutputsVec[l2 + chunk], l3WeightsVec[l2 + chunk], resultSums[chunk]);
-        }
-    }
-    for (int l1 = 0; l1 < 2 * L2_SIZE / FLOAT_VEC_SIZE; l1 += chunks) {
-        for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = fmaddPs(l1OutputsVec[l1 + chunk], l3WeightsVec[L3_SIZE / FLOAT_VEC_SIZE + l1 + chunk], resultSums[chunk]);
+            VecF residual = addPs(l2OutputsVec[l2 + chunk], l1OutputsVec[l2 + chunk]);
+            resultSums[chunk] = fmaddPs(residual, l3WeightsVec[l2 + chunk], resultSums[chunk]);
         }
     }
 
@@ -620,12 +616,7 @@ Eval NNUE::evaluate(Board* board) {
 
     for (int l2 = 0; l2 < L3_SIZE; l2 += chunks) {
         for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = std::fma(l2Outputs[l2 + chunk], networkData->l3Weights[bucket][l2 + chunk], resultSums[chunk]);
-        }
-    }
-    for (int l1 = 0; l1 < 2 * L2_SIZE; l1 += chunks) {
-        for (int chunk = 0; chunk < chunks; chunk++) {
-            resultSums[chunk] = std::fma(l1Outputs[l1 + chunk], networkData->l3Weights[bucket][L3_SIZE + l1 + chunk], resultSums[chunk]);
+            resultSums[chunk] = std::fma(l2Outputs[l2 + chunk] + l1Outputs[l2 + chunk], networkData->l3Weights[bucket][l2 + chunk], resultSums[chunk]);
         }
     }
 

@@ -21,7 +21,7 @@ constexpr int KING_BUCKETS = 12;
 
 constexpr int INPUT_SIZE = ThreatInputs::FEATURE_COUNT + 768 * KING_BUCKETS;
 constexpr int L1_SIZE = 640;
-constexpr int L2_SIZE = 16;
+constexpr int L2_SIZE = 32;
 constexpr int L3_SIZE = 32;
 
 constexpr int OUTPUT_BUCKETS = 8;
@@ -101,7 +101,7 @@ struct NetworkData {
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
   alignas(ALIGNMENT) float   l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
   alignas(ALIGNMENT) float   l2Biases[OUTPUT_BUCKETS][L3_SIZE];
-  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE + 2 * L2_SIZE];
+  alignas(ALIGNMENT) float   l3Weights[OUTPUT_BUCKETS][L3_SIZE];
   alignas(ALIGNMENT) float   l3Biases[OUTPUT_BUCKETS];
 };
 
