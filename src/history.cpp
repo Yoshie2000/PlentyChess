@@ -6,6 +6,7 @@
 #include "move.h"
 #include "evaluation.h"
 #include "spsa.h"
+#include "zobrist.h"
 
 // Quiet history
 TUNE_INT(historyBonusQuietBase, 139, 0, 250);
@@ -70,10 +71,12 @@ void History::initHistory() {
 }
 
 int History::getCorrectionValue(Board* board, SearchStack* searchStack) {
-    int64_t pawnEntry = correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t nonPawnEntry = nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t minorEntry = minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)];
-    int64_t majorEntry = majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)];
+    int fmrBucket = board->rule50_ply / Zobrist::FMR_GRANULARITY;
+
+    int64_t pawnEntry = correctionHistory[fmrBucket][board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)];
+    int64_t nonPawnEntry = nonPawnCorrectionHistory[fmrBucket][board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] + nonPawnCorrectionHistory[fmrBucket][board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)];
+    int64_t minorEntry = minorCorrectionHistory[fmrBucket][board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)];
+    int64_t majorEntry = majorCorrectionHistory[fmrBucket][board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)];
     int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
 
     return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
@@ -87,21 +90,23 @@ Eval History::correctStaticEval(uint8_t rule50, Eval eval, int correctionValue) 
 }
 
 void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, int16_t bonus) {
+    int fmrBucket = board->rule50_ply / Zobrist::FMR_GRANULARITY;
+
     // Pawn
-    int scaledBonus = bonus - correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    correctionHistory[board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    int scaledBonus = bonus - correctionHistory[fmrBucket][board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    correctionHistory[fmrBucket][board->stm][board->hashes.pawnHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 
     // Non-Pawn
-    scaledBonus = bonus - nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    nonPawnCorrectionHistory[board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
-    scaledBonus = bonus - nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    nonPawnCorrectionHistory[board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    scaledBonus = bonus - nonPawnCorrectionHistory[fmrBucket][board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    nonPawnCorrectionHistory[fmrBucket][board->stm][Color::WHITE][board->hashes.nonPawnHash[Color::WHITE] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    scaledBonus = bonus - nonPawnCorrectionHistory[fmrBucket][board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    nonPawnCorrectionHistory[fmrBucket][board->stm][Color::BLACK][board->hashes.nonPawnHash[Color::BLACK] & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 
     // Minor / Major
-    scaledBonus = bonus - minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    minorCorrectionHistory[board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
-    scaledBonus = bonus - majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-    majorCorrectionHistory[board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    scaledBonus = bonus - minorCorrectionHistory[fmrBucket][board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    minorCorrectionHistory[fmrBucket][board->stm][board->hashes.minorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
+    scaledBonus = bonus - majorCorrectionHistory[fmrBucket][board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+    majorCorrectionHistory[fmrBucket][board->stm][board->hashes.majorHash & (CORRECTION_HISTORY_SIZE - 1)] += scaledBonus;
 
     // Continuation
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
