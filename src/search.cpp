@@ -106,7 +106,7 @@ TUNE_INT(earlyLmrHistoryFactorQuiet, 15725, 10000, 20000);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14179, 10000, 20000);
 
 TUNE_INT(fpDepth, 1222, 100, 2000);
-TUNE_INT(fpBase, 278, 1, 600);
+TUNE_INT(fpBase, 264, 1, 600);
 TUNE_INT(fpFactor, 74, 1, 150);
 TUNE_INT(fpPvNode, 34, 1, 80);
 TUNE_INT(fpNoBestMove, 113, 1, 250);
@@ -961,12 +961,12 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             // Futility pruning for quiets
             if (!capture) {
-                int fpValue = eval + fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpNoBestMove * !bestMove);
+                int fpValue = fpBase + fpFactor * lmrDepth / 100 + pvNode * (fpPvNode + fpNoBestMove * !bestMove) + std::abs(correctionValue) / 284876;
 
                 if ((stack - 1)->movedPiece != Piece::NONE)
                     fpValue += (stack - 1)->contHist[2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm] / fpConthistDivisor;
 
-                if (lmrDepth < fpDepth && fpValue <= alpha) {
+                if (lmrDepth < fpDepth && eval + fpValue <= alpha) {
                     movegen.skipQuietMoves();
                     continue;
                 }
