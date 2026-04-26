@@ -246,10 +246,8 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
         bool add = dt.attackedSquare >> 7;
 
         int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare & 0b111111, kingBucket->mirrored);
-        if (featureIndex < ThreatInputs::FEATURE_COUNT) {
-            __builtin_prefetch(&networkData->inputThreatWeights[featureIndex * L1_SIZE]);
-            (add ? addFeatures : subFeatures).add(featureIndex);
-        }
+        __builtin_prefetch(&networkData->inputThreatWeights[featureIndex * L1_SIZE]);
+        (add ? addFeatures : subFeatures).addIfLessThan(featureIndex, ThreatInputs::FEATURE_COUNT);
     }
 
     if (!outputAcc->numDirtyThreats || (!addFeatures.size() && !subFeatures.size())) {

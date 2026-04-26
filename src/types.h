@@ -234,6 +234,12 @@ public:
         elements[_size++] = element;
     }
 
+    void addIfLessThan(const T& element, const T& maxValue) {
+        assert(_size < MAX);
+        elements[_size] = element;
+        _size += (element < maxValue);
+    }    
+
     T remove(size_t i) {
         T removed = elements[i];
         elements[i] = elements[--_size];
