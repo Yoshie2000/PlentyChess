@@ -537,7 +537,7 @@ movesLoopQsearch:
             if (!SEE(board, move, qsSeeMargin))
                 break;
 
-            if (!move.isPromotion() && moveCount > 2)
+            if (!move.isPromotion() && moveCount > 2 + !!board->checkers)
                 continue;
         }
 
