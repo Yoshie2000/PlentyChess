@@ -858,7 +858,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     // ProbCut
     probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
-        && !board->checkers
+        && (!board->checkers || std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY)
         && !excluded
         && depth > probCutDepth
         && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY - 1
@@ -867,8 +867,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         assert(probCutBeta > beta);
         assert(probCutBeta < EVAL_TBWIN_IN_MAX_PLY);
 
-        Move probcutTtMove = ttMove && board->isPseudoLegal(ttMove) && SEE(board, ttMove, probCutBeta - stack->staticEval) ? ttMove : Move::none();
-        MoveGen movegen(board, &history, stack, probcutTtMove, probCutBeta - stack->staticEval, depth / 100);
+        int seeMargin = board->checkers ? probCutBeta - eval : probCutBeta - stack->staticEval;
+
+        Move probcutTtMove = ttMove && board->isPseudoLegal(ttMove) && SEE(board, ttMove, seeMargin) ? ttMove : Move::none();
+        MoveGen movegen(board, &history, stack, probcutTtMove, seeMargin, depth / 100);
         Move move;
         while ((move = movegen.nextMove())) {
             if (move == excludedMove || !board->isLegal(move))
@@ -883,13 +885,17 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
             stack->contHist = history.continuationHistory[!!board->checkers][stack->capture][board->stm][stack->movedPiece][target];
-            stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];;
+            stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];
 
             Board* boardCopy = doMove(board, newHash, move);
 
-            Eval value = -qsearch<NON_PV_NODE>(boardCopy, stack + 1, -probCutBeta, -probCutBeta + 1);
+            Eval value;
+            if (!board->checkers)
+                value = -qsearch<NON_PV_NODE>(boardCopy, stack + 1, -probCutBeta, -probCutBeta + 1);
+            else
+                value = -search<NON_PV_NODE>(boardCopy, stack + 1, 100, -probCutBeta, -probCutBeta + 1, !cutNode);
 
-            if (value >= probCutBeta)
+            if (value >= probCutBeta && (!board->checkers || depth >= probcutReduction + 250))
                 value = -search<NON_PV_NODE>(boardCopy, stack + 1, depth - probcutReduction - 100, -probCutBeta, -probCutBeta + 1, !cutNode);
 
             undoMove();
