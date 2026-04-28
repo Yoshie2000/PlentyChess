@@ -455,6 +455,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     Eval ttValue = EVAL_NONE;
     Eval ttEval = EVAL_NONE;
     uint8_t ttFlag = TT_NOBOUND;
+    Depth ttDepth = 0;
     bool ttPv = pvNode;
 
     Hash fmrHash = board->hashes.hash ^ Zobrist::FMR[board->rule50_ply / Zobrist::FMR_GRANULARITY];
@@ -464,11 +465,12 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
         ttValue = valueFromTt(ttEntry->getValue(), stack->ply, board->rule50_ply);
         ttEval = ttEntry->getEval();
         ttFlag = ttEntry->getFlag();
+        ttDepth = ttEntry->getDepth();
         ttPv = ttPv || ttEntry->getTtPv();
     }
 
     // TT cutoff
-    if (!pvNode && ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
+    if (!pvNode && ttValue != EVAL_NONE && ttDepth >= 0 - ttCutOffset + ttCutFailHighMargin * (ttValue >= beta) && ((ttFlag == TT_UPPERBOUND && ttValue <= alpha) || (ttFlag == TT_LOWERBOUND && ttValue >= beta) || (ttFlag == TT_EXACTBOUND)))
         return ttValue;
 
     Move bestMove = Move::none();
