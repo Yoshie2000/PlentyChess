@@ -534,10 +534,10 @@ movesLoopQsearch:
                 continue;
             }
 
-            if (!SEE(board, move, qsSeeMargin))
+            if (!move.isPromotion() && moveCount > 2)
                 break;
 
-            if (!move.isPromotion() && moveCount > 2)
+            if (!SEE(board, move, qsSeeMargin))
                 break;
         }
 
