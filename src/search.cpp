@@ -538,7 +538,7 @@ movesLoopQsearch:
                 break;
 
             if (!move.isPromotion() && moveCount > 2)
-                continue;
+                break;
         }
 
         if (!board->isLegal(move))
