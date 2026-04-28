@@ -14,6 +14,7 @@ namespace Zobrist {
     Hash CASTLING[16];
     Hash ENPASSENT[8];
     Hash FMR[110 / FMR_GRANULARITY];
+    Hash LAST_MOVE_CAPTURE;
 
     Hash CUCKOO_HASHES[8192];
     Move CUCKOO_MOVES[8192];
@@ -65,6 +66,7 @@ namespace Zobrist {
             else
                 FMR[i] = dist(rng);
         }
+        LAST_MOVE_CAPTURE = dist(rng);
 
         int count = 0;
         for (Color side = Color::WHITE; side <= Color::BLACK; ++side) {

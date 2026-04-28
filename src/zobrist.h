@@ -14,6 +14,7 @@ namespace Zobrist {
     extern Hash CASTLING[16]; // 2^4
     extern Hash ENPASSENT[8]; // 8 files
     extern Hash FMR[110 / FMR_GRANULARITY];
+    extern Hash LAST_MOVE_CAPTURE;
 
     extern Hash CUCKOO_HASHES[8192];
     extern Move CUCKOO_MOVES[8192];

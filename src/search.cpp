@@ -457,7 +457,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     uint8_t ttFlag = TT_NOBOUND;
     bool ttPv = pvNode;
 
-    Hash fmrHash = board->hashes.hash ^ Zobrist::FMR[board->rule50_ply / Zobrist::FMR_GRANULARITY];
+    Hash fmrHash = board->hashes.hash ^ Zobrist::FMR[board->rule50_ply / Zobrist::FMR_GRANULARITY] ^ (Zobrist::LAST_MOVE_CAPTURE * (stack->ply > 0 && (stack - 1)->capture));
     ttEntry = TT.probe(fmrHash, &ttHit);
     if (ttHit) {
         ttMove = ttEntry->getMove();
@@ -653,7 +653,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     stack->inCheck = board->checkerCount > 0;
 
     // TT Lookup
-    Hash fmrHash = board->hashes.hash ^ Zobrist::FMR[board->rule50_ply / Zobrist::FMR_GRANULARITY];
+    Hash fmrHash = board->hashes.hash ^ Zobrist::FMR[board->rule50_ply / Zobrist::FMR_GRANULARITY] ^ (Zobrist::LAST_MOVE_CAPTURE * (stack->ply > 0 && (stack - 1)->capture));;
     bool ttHit = false;
     TTEntry* ttEntry = nullptr;
     Move ttMove = Move::none();
