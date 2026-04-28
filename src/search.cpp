@@ -806,7 +806,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // Razoring
-    if (!rootNode && !stack->inRazoring && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
+    if (!rootNode && !stack->inRazoring && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY && std::abs(eval) < EVAL_TBWIN_IN_MAX_PLY) {
         stack->inRazoring = true;
 
         Eval razorValue;
