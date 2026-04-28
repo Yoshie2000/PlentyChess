@@ -806,8 +806,16 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // Razoring
-    if (!rootNode && !board->checkers && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
-        Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, alpha + 1);
+    if (!rootNode && !stack->inRazoring && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
+        stack->inRazoring = true;
+
+        Eval razorValue;
+        if (board->checkers)
+            razorValue = search<NON_PV_NODE>(board, stack, 100, alpha, alpha + 1, false);
+        else
+            razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, alpha + 1);
+
+        stack->inRazoring = false;
         if (razorValue <= alpha && std::abs(razorValue) < EVAL_TBWIN_IN_MAX_PLY)
             return razorValue;
     }
@@ -1423,6 +1431,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].correctionValue = 0;
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
+                stackList[i].inRazoring = false;
                 stackList[i].ttPv = false;
             }
 
@@ -1658,6 +1667,7 @@ void Worker::tdatagen() {
             stackList[i].correctionValue = 0;
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
+            stackList[i].inRazoring = false;
             stackList[i].ttPv = false;
         }
 
