@@ -295,7 +295,7 @@ Move MoveGen::nextMove() {
             return move;
         }
 
-        if (probCut || onlyCaptures) {
+        if ((probCut && !board->checkers) || onlyCaptures) {
             stage = STAGE_DONE;
             return Move::none();
         }
