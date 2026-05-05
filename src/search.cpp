@@ -1029,7 +1029,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
-                int singularMargin = (singularBeta - singularValue) / (pvNode ? 100 : 1);
+                int singularDivisor = pvNode && !stack->ttPv ? 150 : pvNode ? 100 : 1;
+                int singularMargin = (singularBeta - singularValue) / singularDivisor;
 
                 extension = 100;
 
