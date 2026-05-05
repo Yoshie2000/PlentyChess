@@ -1255,7 +1255,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     if (!bestMove && !(stack - 1)->capture && !!(stack - 1)->move && !(stack - 1)->move.isPromotion() && bestValue < alpha - 100) {
-        int bonus = 50;
+        int bonus = 50 + 50 * (depth / 100);
         history.updateQuietHistory((stack - 1)->move, flip(board->stm), board - 1, bonus);
     }
 
