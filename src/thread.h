@@ -152,11 +152,9 @@ struct RootMove {
 
 class ThreadPool;
 
-class Worker {
+struct Worker {
 
     std::vector<Hash> boardHistory;
-
-public:
 
     Board rootBoard;
     

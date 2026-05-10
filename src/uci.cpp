@@ -75,7 +75,7 @@ void bench(Board& board, std::vector<Hash>& boardHistory) {
         parameters.depth = 13;
 #endif
 
-        std::cerr << "\nPosition: " << position++ << '/' << totalPositions << " (" << fen << ")" << std::endl;
+        std::cerr << "\nPosition: " << position++ << '/' << totalPositions << " (" << board.fen() << ")" << std::endl;
 
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
@@ -423,6 +423,10 @@ void genfens(std::string params, Board& board, std::vector<Hash>& boardHistory) 
         if (matchesToken(token, "seed")) {
             nextToken(&params, &token);
             parameters.genfensSeed = std::stoi(token);
+        }
+        if (matchesToken(token, "book")) {
+            parameters.genfensBook = params;
+            params = "";
         }
     }
 
