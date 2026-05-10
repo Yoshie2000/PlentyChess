@@ -1640,6 +1640,8 @@ void Worker::tdatagen() {
     boardList[0] = rootBoard;
     Board* board = &boardList[0];
 
+    movepickers.resize(MAX_PLY + 2);
+
     rootMoveNodes.clear();
 
     int maxDepth = searchParameters.depth == 0 ? MAX_PLY - 1 : std::min<Depth>(MAX_PLY - 1, searchParameters.depth);
