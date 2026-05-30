@@ -29,7 +29,7 @@ namespace ThreatInputs {
     void initialise() {
 
         constexpr int PIECE_INTERACTION_MAP[6][6] = {
-            {0,  1, -1,  2, -1, -1},
+            {-1, 0, -1,  1, -1, -1},
             {0,  1,  2,  3,  4,  -1},
             {0,  1,  2,  3, -1,  -1},
             {0,  1,  2,  3, -1,  -1},
@@ -37,7 +37,7 @@ namespace ThreatInputs {
             {-1, -1, -1, -1, -1, -1}
         };
 
-        constexpr int PIECE_TARGET_COUNT[6] = { 6, 10, 8, 8, 10, 0 };
+        constexpr int PIECE_TARGET_COUNT[6] = { 4, 10, 8, 8, 10, 0 };
 
         int cumulativeOffset = 0;
         int CUMULATIVE_PIECE_OFFSET[6][2];
@@ -51,8 +51,6 @@ namespace ThreatInputs {
 
                     if (piece != Piece::PAWN || (origin >= 8 && origin < 56)) {
                         Bitboard attacks = BB::attackedSquares(piece, origin, 0, color);
-                        if (piece == Piece::PAWN)
-                            attacks |= bitboard(static_cast<Square>(color == Color::WHITE ? origin + 8 : origin - 8));
                         cumulativePieceOffset += BB::popcount(attacks);
                     }
                 }
@@ -92,8 +90,6 @@ namespace ThreatInputs {
                 for (Square origin = 0; origin < 64; origin++) {
                     for (Square target = 0; target < 64; target++) {
                         Bitboard attacks = BB::attackedSquares(piece, origin, 0, color);
-                        if (piece == Piece::PAWN && origin >= 8 && origin < 56)
-                            attacks |= bitboard(static_cast<Square>(color == Color::WHITE ? origin + 8 : origin - 8));
                         ATTACK_INDEX_LOOKUP[piece | (color << 3)][origin][target] = BB::popcount((bitboard(target) - 1) & attacks);
                     }
                 }
@@ -147,11 +143,6 @@ namespace ThreatInputs {
 
                     // Add the threat features
                     Bitboard attacks = board->attackersTo(indexSquare);
-                    if (piece == Piece::PAWN) {
-                        Bitboard pawns = board->byPiece[Piece::PAWN];
-                        attacks |= bitboard(static_cast<Square>(indexSquare - 8)) & board->byColor[Color::WHITE] & pawns;
-                        attacks |= bitboard(static_cast<Square>(indexSquare + 8)) & board->byColor[Color::BLACK] & pawns;
-                    }
                     while (attacks) {
                         Square attackingSquare = popLSB(&attacks);
                         Piece attackingPiece = board->pieces[attackingSquare];
@@ -169,6 +160,131 @@ namespace ThreatInputs {
     }
     template void addThreatFeatures<Color::WHITE>(Board* board, FeatureList& features);
     template void addThreatFeatures<Color::BLACK>(Board* board, FeatureList& features);
+
+    int pawnPairIndex(int idA, int idB) {
+        int lo = idA < idB ? idA : idB;
+        int hi = idA < idB ? idB : idA;
+        return hi * (hi - 1) / 2 + lo;
+    }
+
+    int pawnId(Square square, int enemyOffset, uint8_t squareFlip) {
+        return enemyOffset + ((square ^ squareFlip) - 8);
+    }
+
+    template<Color side>
+    void addPawnPairFeatures(Board* board, PawnPairList& features) {
+        Square king = lsb(board->byColor[side] & board->byPiece[Piece::KING]);
+        bool mirrored = fileOf(king) >= 4;
+        uint8_t squareFlip = (7 * mirrored) ^ (56 * side);
+
+        Bitboard pawns = board->byPiece[Piece::PAWN];
+        Bitboard friendly = board->byColor[side] & pawns;
+        Bitboard enemy = board->byColor[flip(side)] & pawns;
+
+        // Friendly-friendly pairs
+        Bitboard outer = friendly;
+        while (outer) {
+            Square square = popLSB(&outer);
+            int id = pawnId(square, 0, squareFlip);
+            Bitboard inner = outer & PP_MASK[square];
+            while (inner)
+                features.add(pawnPairIndex(id, pawnId(popLSB(&inner), 0, squareFlip)));
+        }
+
+        // Friendly-enemy pairs
+        outer = friendly;
+        while (outer) {
+            Square square = popLSB(&outer);
+            int id = pawnId(square, 0, squareFlip);
+            Bitboard inner = enemy & PP_MASK[square];
+            while (inner)
+                features.add(pawnPairIndex(id, pawnId(popLSB(&inner), PAWN_SQUARE_COUNT, squareFlip)));
+        }
+
+        // Enemy-enemy pairs
+        outer = enemy;
+        while (outer) {
+            Square square = popLSB(&outer);
+            int id = pawnId(square, PAWN_SQUARE_COUNT, squareFlip);
+            Bitboard inner = outer & PP_MASK[square];
+            while (inner)
+                features.add(pawnPairIndex(id, pawnId(popLSB(&inner), PAWN_SQUARE_COUNT, squareFlip)));
+        }
+    }
+    template void addPawnPairFeatures<Color::WHITE>(Board* board, PawnPairList& features);
+    template void addPawnPairFeatures<Color::BLACK>(Board* board, PawnPairList& features);
+
+    template<Color side>
+    void addPawnPairDeltas(Board* board, const DirtyPiece& dirtyPiece, bool mirrored, PawnPairList& adds, PawnPairList& subs) {
+        uint8_t squareFlip = (7 * mirrored) ^ (56 * side);
+
+        bool promotion = dirtyPiece.target == NO_SQUARE;
+        bool castling = dirtyPiece.addSquare != NO_SQUARE && dirtyPiece.target != NO_SQUARE;
+
+        // Data of pawns that left their square (moved or captured)
+        Square removedSquares[2];
+        int removedIds[2];
+        int removedCount = 0;
+
+        // Mark moving pawn
+        if (dirtyPiece.piece == Piece::PAWN) {
+            int offset = dirtyPiece.pieceColor != side ? PAWN_SQUARE_COUNT : 0;
+            removedSquares[removedCount] = dirtyPiece.origin;
+            removedIds[removedCount] = pawnId(dirtyPiece.origin, offset, squareFlip);
+            removedCount++;
+        }
+        // Mark captured pawn
+        if (dirtyPiece.removeSquare != NO_SQUARE && dirtyPiece.removePiece == Piece::PAWN && !castling) {
+            int offset = dirtyPiece.pieceColor == side ? PAWN_SQUARE_COUNT : 0;
+            removedSquares[removedCount] = dirtyPiece.removeSquare;
+            removedIds[removedCount] = pawnId(dirtyPiece.removeSquare, offset, squareFlip);
+            removedCount++;
+        }
+
+        Bitboard exclude = 0;
+        int addedId = 0;
+        bool pawnAdded = dirtyPiece.piece == Piece::PAWN && !promotion;
+        // Add pawn at the target square
+        if (pawnAdded) {
+            int offset = (dirtyPiece.pieceColor != side) ? PAWN_SQUARE_COUNT : 0;
+            addedId = pawnId(dirtyPiece.target, offset, squareFlip);
+            exclude = bitboard(dirtyPiece.target);
+        }
+
+        if (removedCount == 0 && !pawnAdded)
+            return;
+
+        Bitboard pawns = board->byPiece[Piece::PAWN];
+        Bitboard unchangedFriendly = (board->byColor[side] & pawns) & ~exclude;
+        Bitboard unchangedEnemy = (board->byColor[flip(side)] & pawns) & ~exclude;
+
+        // Remove all pairs of removed pawns
+        for (int i = 0; i < removedCount; i++) {
+            Bitboard band = PP_MASK[removedSquares[i]];
+            Bitboard f = unchangedFriendly & band;
+            while (f)
+                subs.add(pawnPairIndex(removedIds[i], pawnId(popLSB(&f), 0, squareFlip)));
+            Bitboard e = unchangedEnemy & band;
+            while (e)
+                subs.add(pawnPairIndex(removedIds[i], pawnId(popLSB(&e), PAWN_SQUARE_COUNT, squareFlip)));
+        }
+        // Remove pair between two removed pawns
+        if (removedCount == 2 && (PP_MASK[removedSquares[0]] & bitboard(removedSquares[1])))
+            subs.add(pawnPairIndex(removedIds[0], removedIds[1]));
+
+        // Add all pairs for the added pawn
+        if (pawnAdded) {
+            Bitboard band = PP_MASK[dirtyPiece.target];
+            Bitboard f = unchangedFriendly & band;
+            while (f)
+                adds.add(pawnPairIndex(addedId, pawnId(popLSB(&f), 0, squareFlip)));
+            Bitboard e = unchangedEnemy & band;
+            while (e)
+                adds.add(pawnPairIndex(addedId, pawnId(popLSB(&e), PAWN_SQUARE_COUNT, squareFlip)));
+        }
+    }
+    template void addPawnPairDeltas<Color::WHITE>(Board* board, const DirtyPiece& dirtyPiece, bool mirrored, PawnPairList& adds, PawnPairList& subs);
+    template void addPawnPairDeltas<Color::BLACK>(Board* board, const DirtyPiece& dirtyPiece, bool mirrored, PawnPairList& adds, PawnPairList& subs);
 
     void addPieceFeatures(Board* board, Color pov, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT) {
         // Check HM and get occupancies

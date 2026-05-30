@@ -19,7 +19,7 @@ constexpr uint8_t KING_BUCKET_LAYOUT[] = {
 };
 constexpr int KING_BUCKETS = 12;
 
-constexpr int INPUT_SIZE = ThreatInputs::FEATURE_COUNT + 768 * KING_BUCKETS;
+constexpr int INPUT_SIZE = ThreatInputs::FEATURE_COUNT + ThreatInputs::PAWN_PAIR_FEATURE_COUNT + 768 * KING_BUCKETS;
 constexpr int L1_SIZE = 640;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
@@ -42,6 +42,12 @@ constexpr int FLOAT_VEC_SIZE = sizeof(VecF) / sizeof(float);
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
 
 constexpr int L1_ITERATIONS = L1_SIZE / I16_VEC_SIZE;
+
+enum class FtType {
+  Psq,
+  Threat,
+  PawnPair
+};
 
 struct DirtyThreat {
   uint8_t piece;
@@ -95,6 +101,7 @@ struct FinnyEntry {
 
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+  alignas(ALIGNMENT) int8_t inputPawnPairWeights[ThreatInputs::PAWN_PAIR_FEATURE_COUNT * L1_SIZE];
   alignas(ALIGNMENT) int8_t inputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
@@ -151,11 +158,11 @@ public:
   template<Color side>
   void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
-  template<bool I8, Color side>
+  template<FtType type, Color side>
   void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
-  template<bool I8, Color side>
+  template<FtType type, Color side>
   void subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
-  template<bool I8, Color side>
+  template<FtType type, Color side>
   void addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex);
 
 };
@@ -206,6 +213,7 @@ public:
   }
 
   int16_t oldInputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+  int8_t oldInputPawnPairWeights[ThreatInputs::PAWN_PAIR_FEATURE_COUNT * L1_SIZE];
   int8_t oldInputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
   int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
@@ -223,6 +231,7 @@ public:
     infile.close();
 
     memcpy(oldInputPsqWeights, nnzOutNet.inputPsqWeights, sizeof(nnzOutNet.inputPsqWeights));
+    memcpy(oldInputPawnPairWeights, nnzOutNet.inputPawnPairWeights, sizeof(nnzOutNet.inputPawnPairWeights));
     memcpy(oldInputThreatWeights, nnzOutNet.inputThreatWeights, sizeof(nnzOutNet.inputThreatWeights));
     memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
@@ -238,6 +247,10 @@ public:
       for (int ip = 0; ip < 768 * KING_BUCKETS; ip++) {
         nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1] = oldInputPsqWeights[ip * L1_SIZE + order[l1]];
         nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputPsqWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
+      }
+      for (int ip = 0; ip < ThreatInputs::PAWN_PAIR_FEATURE_COUNT; ip++) {
+        nnzOutNet.inputPawnPairWeights[ip * L1_SIZE + l1] = oldInputPawnPairWeights[ip * L1_SIZE + order[l1]];
+        nnzOutNet.inputPawnPairWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputPawnPairWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
       }
       for (int ip = 0; ip < ThreatInputs::FEATURE_COUNT; ip++) {
         nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1] = oldInputThreatWeights[ip * L1_SIZE + order[l1]];
@@ -264,6 +277,7 @@ public:
         return;
     }
     for (auto v : nnzOutNet.inputPsqWeights) writeSLEB128(outfile, v);
+    for (auto v : nnzOutNet.inputPawnPairWeights) writeSLEB128(outfile, v);
     for (auto v : nnzOutNet.inputThreatWeights) writeSLEB128(outfile, v);
     for (auto v : nnzOutNet.inputBiases)  writeSLEB128(outfile, v);
     for (auto& b : nnzOutNet.l1Weights)   for (auto v : b) writeSLEB128(outfile, v);
