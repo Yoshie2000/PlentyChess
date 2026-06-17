@@ -462,7 +462,7 @@ Eval NNUE::evaluate(Board* board) {
     VecI32* l1MatmulOutputsVec = reinterpret_cast<VecI32*>(l1MatmulOutputs);
     int8_t* l1Weights = networkData->l1Weights[bucket];
 
-#if defined(__AVX512VNNI__)
+#if defined(__AVX512VBMI2__)
     VecI32 acc0{}, acc1{};
 
     int i = 0;
