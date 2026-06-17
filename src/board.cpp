@@ -569,11 +569,12 @@ void Board::calculateThreats() {
     while (kings) {
         threats.kingThreats |= BB::KING_ATTACKS[popLSB(&kings)];
     };
+
+    threats.allThreats = threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats | threats.queenThreats | threats.kingThreats;
 }
 
 bool Board::isSquareThreatened(Square square) {
-    Bitboard squareBB = bitboard(square);
-    return squareBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats | threats.queenThreats | threats.kingThreats);
+    return bitboard(square) & threats.allThreats;
 }
 
 bool Board::opponentHasGoodCapture() {
