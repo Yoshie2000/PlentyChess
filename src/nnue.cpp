@@ -85,13 +85,8 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
 
     ThreatInputs::FeatureList threatFeatures;
     ThreatInputs::addThreatFeatures<side>(board, threatFeatures);
-    for (int featureIndex : threatFeatures)
-        addToAccumulator<FtType::Threat, side>(acc->threatState, acc->threatState, featureIndex);
-
-    ThreatInputs::PawnPairList pawnPairFeatures;
-    ThreatInputs::addPawnPairFeatures<side>(board, pawnPairFeatures);
-    for (int featureIndex : pawnPairFeatures)
-        addToAccumulator<FtType::PawnPair, side>(acc->threatState, acc->threatState, featureIndex);
+    ThreatInputs::addPawnPairFeatures<side>(board, threatFeatures);
+    applyThreatRows<side>(acc->threatState, acc->threatState, threatFeatures, ThreatInputs::FeatureList{});
 
     ThreatInputs::FeatureList pieceFeatures;
     ThreatInputs::addPieceFeatures(board, side, pieceFeatures, KING_BUCKET_LAYOUT);
@@ -196,13 +191,8 @@ void NNUE::refreshThreatFeatures(Accumulator* acc) {
 
     ThreatInputs::FeatureList threatFeatures;
     ThreatInputs::addThreatFeatures<side>(acc->board, threatFeatures);
-    for (int featureIndex : threatFeatures)
-        addToAccumulator<FtType::Threat, side>(acc->threatState, acc->threatState, featureIndex);
-
-    ThreatInputs::PawnPairList pawnPairFeatures;
-    ThreatInputs::addPawnPairFeatures<side>(acc->board, pawnPairFeatures);
-    for (int featureIndex : pawnPairFeatures)
-        addToAccumulator<FtType::PawnPair, side>(acc->threatState, acc->threatState, featureIndex);
+    ThreatInputs::addPawnPairFeatures<side>(acc->board, threatFeatures);
+    applyThreatRows<side>(acc->threatState, acc->threatState, threatFeatures, ThreatInputs::FeatureList{});
 }
 
 template<Color side>
@@ -249,10 +239,8 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
 
 template<Color side>
 void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
-    ThreatInputs::PawnPairList pawnPairAdds, pawnPairSubs;
-    ThreatInputs::addPawnPairDeltas<side>(outputAcc->board, outputAcc->dirtyPiece, kingBucket->mirrored, pawnPairAdds, pawnPairSubs);
-    
-    ThreatInputs::FeatureList addFeatures, subFeatures;
+    ThreatInputs::FeatureList adds, subs;
+    ThreatInputs::addPawnPairDeltas<side>(outputAcc->board, outputAcc->dirtyPiece, kingBucket->mirrored, adds, subs);
 
     for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
         DirtyThreat& dt = outputAcc->dirtyThreats[dp];
@@ -260,86 +248,17 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
 
         int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare & 0b111111, kingBucket->mirrored);
         if (featureIndex < ThreatInputs::FEATURE_COUNT) {
-            __builtin_prefetch(&networkData->inputThreatWeights[featureIndex * L1_SIZE]);
-            (add ? addFeatures : subFeatures).add(featureIndex);
+            __builtin_prefetch(&networkData->inputThreatWeights[(ThreatInputs::THREAT_OFFSET + featureIndex) * L1_SIZE]);
+            (add ? adds : subs).add(ThreatInputs::THREAT_OFFSET + featureIndex);
         }
     }
 
-    bool noThreats = !addFeatures.size() && !subFeatures.size();
-    bool noPawnPairs = !pawnPairAdds.size() && !pawnPairSubs.size();
-
-    if (noThreats) {
+    if (!adds.size() && !subs.size()) {
         memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->inputBiases));
-
-        if (noPawnPairs)
-            return;
+        return;
     }
 
-#if defined(__AVX512F__) && defined(__AVX512BW__)
-
-    VecI16* inputVec = (VecI16*)inputAcc->threatState[side];
-    VecI16* outputVec = (VecI16*)outputAcc->threatState[side];
-    VecI16 registers[L1_ITERATIONS];
-
-    for (int i = 0; i < L1_ITERATIONS; i++)
-        registers[i] = inputVec[i];
-
-    while (addFeatures.size() && subFeatures.size()) {
-        VecI16s* addWeightsVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
-        VecI16s* subWeightsVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
-        for (int i = 0; i < L1_ITERATIONS; ++i) {
-            VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
-            VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
-            registers[i] = subEpi16(addEpi16(registers[i], addWeights), subWeights);
-        }
-    }
-
-    while (addFeatures.size()) {
-        VecI16s* addWeightVec = (VecI16s*)&networkData->inputThreatWeights[addFeatures.remove(0) * L1_SIZE];
-        for (int i = 0; i < L1_ITERATIONS; i++) {
-            VecI16 addWeights = convertEpi8Epi16(addWeightVec[i]);
-            registers[i] = addEpi16(registers[i], addWeights);
-        }
-    }
-
-    while (subFeatures.size()) {
-        VecI16s* subWeightVec = (VecI16s*)&networkData->inputThreatWeights[subFeatures.remove(0) * L1_SIZE];
-        for (int i = 0; i < L1_ITERATIONS; i++) {
-            VecI16 subWeights = convertEpi8Epi16(subWeightVec[i]);
-            registers[i] = subEpi16(registers[i], subWeights);
-        }
-    }
-
-    for (int i = 0; i < L1_ITERATIONS; i++)
-        outputVec[i] = registers[i];
-
-#else
-
-    while (addFeatures.size() && subFeatures.size()) {
-        addSubToAccumulator<FtType::Threat, side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0), subFeatures.remove(0));
-        inputAcc = outputAcc;
-    }
-
-    while (addFeatures.size()) {
-        addToAccumulator<FtType::Threat, side>(inputAcc->threatState, outputAcc->threatState, addFeatures.remove(0));
-        inputAcc = outputAcc;
-    }
-
-    while (subFeatures.size()) {
-        subFromAccumulator<FtType::Threat, side>(inputAcc->threatState, outputAcc->threatState, subFeatures.remove(0));
-        inputAcc = outputAcc;
-    }
-
-#endif
-
-    while (pawnPairAdds.size() && pawnPairSubs.size())
-        addSubToAccumulator<FtType::PawnPair, side>(outputAcc->threatState, outputAcc->threatState, pawnPairAdds.remove(0), pawnPairSubs.remove(0));
-
-    while (pawnPairAdds.size())
-        addToAccumulator<FtType::PawnPair, side>(outputAcc->threatState, outputAcc->threatState, pawnPairAdds.remove(0));
-
-    while (pawnPairSubs.size())
-        subFromAccumulator<FtType::PawnPair, side>(outputAcc->threatState, outputAcc->threatState, pawnPairSubs.remove(0));
+    applyThreatRows<side>(inputAcc->threatState, outputAcc->threatState, adds, subs);
 }
 
 template<FtType type, Color side>
@@ -348,7 +267,7 @@ void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if constexpr (type != FtType::Psq) {
-        int8_t* weights = type == FtType::Threat ? networkData->inputThreatWeights : networkData->inputPawnPairWeights;
+        int8_t* weights = networkData->inputThreatWeights;
         VecI16s* weightsVec = (VecI16s*)&weights[featureIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS; ++i) {
@@ -371,7 +290,7 @@ void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if constexpr (type != FtType::Psq) {
-        int8_t* weights = type == FtType::Threat ? networkData->inputThreatWeights : networkData->inputPawnPairWeights;
+        int8_t* weights = networkData->inputThreatWeights;
         VecI16s* weightsVec = (VecI16s*)&weights[featureIndex * L1_SIZE];
 
         for (int i = 0; i < L1_ITERATIONS; ++i) {
@@ -394,7 +313,7 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if constexpr (type != FtType::Psq) {
-        int8_t* weights = type == FtType::Threat ? networkData->inputThreatWeights : networkData->inputPawnPairWeights;
+        int8_t* weights = networkData->inputThreatWeights;
         VecI16s* addWeightsVec = (VecI16s*)&weights[addIndex * L1_SIZE];
         VecI16s* subWeightsVec = (VecI16s*)&weights[subIndex * L1_SIZE];
 
@@ -411,6 +330,40 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData
         for (int i = 0; i < L1_ITERATIONS; ++i) {
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeightsVec[i]), subWeightsVec[i]);
         }
+    }
+}
+
+template<Color side>
+void NNUE::applyThreatRows(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE],
+                           const ThreatInputs::FeatureList& adds, const ThreatInputs::FeatureList& subs) {
+    VecI16* input = (VecI16*)inputData[side];
+    VecI16* output = (VecI16*)outputData[side];
+
+#if defined(__AVX512F__) && defined(__AVX512BW__)
+    constexpr int TILE = L1_ITERATIONS;
+#else
+    constexpr int TILE = 8;
+#endif
+    static_assert(L1_ITERATIONS % TILE == 0);
+
+    for (int base = 0; base < L1_ITERATIONS; base += TILE) {
+        VecI16 registers[TILE];
+        for (int t = 0; t < TILE; t++)
+            registers[t] = input[base + t];
+
+        for (int feature : subs) {
+            VecI16s* weights = (VecI16s*)&networkData->inputThreatWeights[feature * L1_SIZE];
+            for (int t = 0; t < TILE; t++)
+                registers[t] = subEpi16(registers[t], convertEpi8Epi16(weights[base + t]));
+        }
+        for (int feature : adds) {
+            VecI16s* weights = (VecI16s*)&networkData->inputThreatWeights[feature * L1_SIZE];
+            for (int t = 0; t < TILE; t++)
+                registers[t] = addEpi16(registers[t], convertEpi8Epi16(weights[base + t]));
+        }
+
+        for (int t = 0; t < TILE; t++)
+            output[base + t] = registers[t];
     }
 }
 

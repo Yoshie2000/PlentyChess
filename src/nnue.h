@@ -101,8 +101,7 @@ struct FinnyEntry {
 
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
-  alignas(ALIGNMENT) int8_t inputPawnPairWeights[ThreatInputs::PAWN_PAIR_FEATURE_COUNT * L1_SIZE];
-  alignas(ALIGNMENT) int8_t inputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
+  alignas(ALIGNMENT) int8_t inputThreatWeights[(ThreatInputs::PAWN_PAIR_FEATURE_COUNT + ThreatInputs::FEATURE_COUNT) * L1_SIZE];
   alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
   alignas(ALIGNMENT) int8_t  l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   alignas(ALIGNMENT) float   l1Biases[OUTPUT_BUCKETS][L2_SIZE];
@@ -165,6 +164,10 @@ public:
   template<FtType type, Color side>
   void addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex);
 
+  template<Color side>
+  void applyThreatRows(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE],
+                       const ThreatInputs::FeatureList& adds, const ThreatInputs::FeatureList& subs);
+
 };
 
 #if defined(PROCESS_NET)
@@ -213,8 +216,7 @@ public:
   }
 
   int16_t oldInputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
-  int8_t oldInputPawnPairWeights[ThreatInputs::PAWN_PAIR_FEATURE_COUNT * L1_SIZE];
-  int8_t oldInputThreatWeights[ThreatInputs::FEATURE_COUNT * L1_SIZE];
+  int8_t oldInputThreatWeights[(ThreatInputs::PAWN_PAIR_FEATURE_COUNT + ThreatInputs::FEATURE_COUNT) * L1_SIZE];
   int16_t oldInputBiases[L1_SIZE];
   int8_t  oldL1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
   NetworkData nnzOutNet;
@@ -231,7 +233,6 @@ public:
     infile.close();
 
     memcpy(oldInputPsqWeights, nnzOutNet.inputPsqWeights, sizeof(nnzOutNet.inputPsqWeights));
-    memcpy(oldInputPawnPairWeights, nnzOutNet.inputPawnPairWeights, sizeof(nnzOutNet.inputPawnPairWeights));
     memcpy(oldInputThreatWeights, nnzOutNet.inputThreatWeights, sizeof(nnzOutNet.inputThreatWeights));
     memcpy(oldInputBiases, nnzOutNet.inputBiases, sizeof(nnzOutNet.inputBiases));
     memcpy(oldL1Weights, nnzOutNet.l1Weights, sizeof(nnzOutNet.l1Weights));
@@ -248,11 +249,7 @@ public:
         nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1] = oldInputPsqWeights[ip * L1_SIZE + order[l1]];
         nnzOutNet.inputPsqWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputPsqWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
       }
-      for (int ip = 0; ip < ThreatInputs::PAWN_PAIR_FEATURE_COUNT; ip++) {
-        nnzOutNet.inputPawnPairWeights[ip * L1_SIZE + l1] = oldInputPawnPairWeights[ip * L1_SIZE + order[l1]];
-        nnzOutNet.inputPawnPairWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputPawnPairWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
-      }
-      for (int ip = 0; ip < ThreatInputs::FEATURE_COUNT; ip++) {
+      for (int ip = 0; ip < ThreatInputs::PAWN_PAIR_FEATURE_COUNT + ThreatInputs::FEATURE_COUNT; ip++) {
         nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1] = oldInputThreatWeights[ip * L1_SIZE + order[l1]];
         nnzOutNet.inputThreatWeights[ip * L1_SIZE + l1 + L1_SIZE / 2] = oldInputThreatWeights[ip * L1_SIZE + order[l1] + L1_SIZE / 2];
       }
@@ -277,7 +274,6 @@ public:
         return;
     }
     for (auto v : nnzOutNet.inputPsqWeights) writeSLEB128(outfile, v);
-    for (auto v : nnzOutNet.inputPawnPairWeights) writeSLEB128(outfile, v);
     for (auto v : nnzOutNet.inputThreatWeights) writeSLEB128(outfile, v);
     for (auto v : nnzOutNet.inputBiases)  writeSLEB128(outfile, v);
     for (auto& b : nnzOutNet.l1Weights)   for (auto v : b) writeSLEB128(outfile, v);
