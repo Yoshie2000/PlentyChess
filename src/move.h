@@ -58,6 +58,7 @@ public:
 
     bool skipQuiets;
 
+    MoveGen() = default;
     // Main search
     MoveGen(Board* board, History* history, SearchStack* searchStack, Move ttMove, Depth depth);
     // qSearch

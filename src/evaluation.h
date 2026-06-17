@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include "types.h"
 #include "board.h"
 #include "search.h"
@@ -16,7 +17,7 @@ const Eval EVAL_NONE = 31010;
 
 extern int PIECE_VALUES[Piece::TOTAL + 1];
 
-Eval evaluate(Board* board, NNUE* nnue);
+Eval evaluate(Board* board, NNUE* nnue, std::array<int, 2>& optimism);
 
 std::string formatEval(Eval value);
 

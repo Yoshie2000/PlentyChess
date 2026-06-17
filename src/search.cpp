@@ -52,13 +52,6 @@ TUNE_FLOAT(lmrReductionImportantNoisyFactor, 3.174231573547516f, 2.0f, 4.0f);
 TUNE_FLOAT(lmrReductionQuietBase, 1.1203658354016672f, 0.0f, 2.0f);
 TUNE_FLOAT(lmrReductionQuietFactor, 2.947877296606716f, 2.0f, 4.0f);
 
-TUNE_FLOAT(lmpMarginWorseningBase, 1.9586367509339555f, 0.0f, 3.5f);
-TUNE_FLOAT(lmpMarginWorseningFactor, 0.4695734030291108f, 0.1f, 1.5f);
-TUNE_FLOAT(lmpMarginWorseningPower, 1.6220638123840003f, 0.0f, 4.0f);
-TUNE_FLOAT(lmpMarginImprovingBase, 2.863191493839467f, 2.0f, 5.0f);
-TUNE_FLOAT(lmpMarginImprovingFactor, 0.8748193194885028f, 0.5f, 2.0f);
-TUNE_FLOAT(lmpMarginImprovingPower, 1.9492352282965961f, 1.0f, 3.0f);
-
 // Search values
 TUNE_INT(qsFutilityOffset, 80, 1, 125);
 TUNE_INT(qsFutilityOffsetInCheck, 5, 0, 125);
@@ -148,12 +141,12 @@ TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT(lmrMinDepth, 322, 100, 600);
 
 TUNE_INT(lmrReductionOffsetQuietOrNormalCapture, 134, 0, 300);
-TUNE_INT(lmrReductionOffsetImportantCapture, 9, 0, 100);
+TUNE_INT(lmrReductionOffsetImportantCapture, 14, 0, 100);
 TUNE_INT(lmrCheckQuietOrNormalCapture, 108, 0, 230);
 TUNE_INT(lmrCheckImportantCapture, 63, 0, 120);
 TUNE_INT(lmrTtPvQuietOrNormalCapture, 169, 0, 400);
 TUNE_INT(lmrTtPvImportantCapture, 188, 0, 400);
-TUNE_INT(lmrCutnode, 262, 0, 500);
+TUNE_INT(lmrCutnode, 257, 0, 500);
 TUNE_INT(lmrTtpvFaillowQuietOrNormalCapture, 48, 0, 100);
 TUNE_INT(lmrTtpvFaillowImportantCapture, 82, 0, 200);
 TUNE_INT(lmrCorrectionDivisorQuietOrNormalCapture, 142482, 100000, 200000);
@@ -198,7 +191,6 @@ TUNE_INT(correctionHistoryFactor, 118, 0, 300);
 TUNE_INT(correctionHistoryFactorMulticut, 177, 0, 300);
 
 int REDUCTIONS[3][MAX_PLY][MAX_MOVES];
-int LMP_MARGIN[MAX_PLY][2];
 
 void initReductions() {
     REDUCTIONS[0][0][0] = 0;
@@ -211,11 +203,6 @@ void initReductions() {
             REDUCTIONS[1][i][j] = 100 * (lmrReductionNoisyBase + log(i) * log(j) / lmrReductionNoisyFactor); // non-quiet
             REDUCTIONS[2][i][j] = 100 * (lmrReductionImportantNoisyBase + log(i) * log(j) / lmrReductionImportantNoisyFactor); // important capture
         }
-    }
-
-    for (Depth depth = 0; depth < MAX_PLY; depth++) {
-        LMP_MARGIN[depth][0] = lmpMarginWorseningBase + lmpMarginWorseningFactor * std::pow(depth, lmpMarginWorseningPower); // non-improving
-        LMP_MARGIN[depth][1] = lmpMarginImprovingBase + lmpMarginImprovingFactor * std::pow(depth, lmpMarginImprovingPower); // improving
     }
 }
 
@@ -443,6 +430,9 @@ template <NodeType nodeType>
 Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     constexpr bool pvNode = nodeType == PV_NODE;
 
+    assert(nodeType != ROOT_NODE);
+    assert(pvNode || alpha == beta - 1);
+
     if (pvNode)
         stack->pvLength = stack->ply;
     searchData.selDepth = std::max(stack->ply, searchData.selDepth);
@@ -454,7 +444,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
 
     // Check for stop
     if (stopped.load(std::memory_order_relaxed) || exiting || stack->ply >= MAX_PLY - 1 || isDraw(board, stack->ply))
-        return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue) : drawEval(this);
+        return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue, optimism) : drawEval(this);
 
     stack->inCheck = board->checkerCount > 0;
 
@@ -504,7 +494,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
             bestValue = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue);
+        unadjustedEval = evaluate(board, &nnue, optimism);
         stack->staticEval = bestValue = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
         ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
     }
@@ -514,7 +504,7 @@ Eval Worker::qsearch(Board* board, SearchStack* stack, Eval alpha, Eval beta) {
     if (bestValue >= beta) {
         if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY)
             bestValue = (bestValue + beta) / 2;
-        ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, EVAL_NONE, board->rule50_ply, ttPv, TT_NOBOUND);
+        ttEntry->update(fmrHash, Move::none(), ttEntry->depth, unadjustedEval, ttValue, board->rule50_ply, ttPv, ttFlag);
         return bestValue;
     }
     if (alpha < bestValue)
@@ -538,8 +528,8 @@ movesLoopQsearch:
         if (!capture && playedQuiet && bestValue > -EVAL_TBWIN_IN_MAX_PLY)
             continue;
 
-        if (futilityValue > -EVAL_INFINITE && bestValue > -EVAL_TBWIN_IN_MAX_PLY) { // Only prune when not in check
-            if (futilityValue <= alpha && !SEE(board, move, 1)) {
+        if (bestValue > -EVAL_TBWIN_IN_MAX_PLY) {
+            if (futilityValue > -EVAL_INFINITE && futilityValue <= alpha && !SEE(board, move, 1)) {
                 bestValue = std::max(bestValue, futilityValue);
                 continue;
             }
@@ -564,7 +554,7 @@ movesLoopQsearch:
         stack->capture = capture;
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
-        stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
+        stack->contHist = history.continuationHistory[!!board->checkers][capture][board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];
 
         playedQuiet |= move != ttMove && !capture;
@@ -599,7 +589,7 @@ movesLoopQsearch:
         bestValue = matedIn(stack->ply); // Checkmate
     }
 
-    if (!pvNode && std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && bestValue >= beta) {
+    if (std::abs(bestValue) < EVAL_TBWIN_IN_MAX_PLY && std::abs(beta) < EVAL_TBWIN_IN_MAX_PLY && bestValue >= beta) {
         bestValue = (bestValue + beta) / 2;
     }
 
@@ -614,7 +604,6 @@ template <NodeType nt>
 Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, Eval beta, bool cutNode) {
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
-    constexpr NodeType nodeType = nt == ROOT_NODE ? PV_NODE : NON_PV_NODE;
 
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
     assert(!(pvNode && cutNode));
@@ -632,7 +621,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             return alpha;
     }
 
-    if (depth < 100) return qsearch<nodeType>(board, stack, alpha, beta);
+    if (depth < 100) return qsearch<nt>(board, stack, alpha, beta);
     if (depth >= MAX_DEPTH) depth = MAX_DEPTH;
 
     if (!rootNode) {
@@ -643,7 +632,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         // Check for stop or max depth
         if (stopped.load(std::memory_order_relaxed) || exiting || stack->ply >= MAX_PLY - 1 || isDraw(board, stack->ply))
-            return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue) : drawEval(this);
+            return (stack->ply >= MAX_PLY - 1 && !board->checkers) ? evaluate(board, &nnue, optimism) : drawEval(this);
 
         // Mate distance pruning
         alpha = std::max((int)alpha, (int)matedIn(stack->ply));
@@ -757,14 +746,14 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         unadjustedEval = eval = stack->staticEval;
     }
     else if (ttHit) {
-        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue);
+        unadjustedEval = ttEval != EVAL_NONE ? ttEval : evaluate(board, &nnue, optimism);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         if (ttValue != EVAL_NONE && ((ttFlag == TT_UPPERBOUND && ttValue < eval) || (ttFlag == TT_LOWERBOUND && ttValue > eval) || (ttFlag == TT_EXACTBOUND)))
             eval = ttValue;
     }
     else {
-        unadjustedEval = evaluate(board, &nnue);
+        unadjustedEval = evaluate(board, &nnue, optimism);
         eval = stack->staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
 
         ttEntry->update(fmrHash, Move::none(), 0, unadjustedEval, EVAL_NONE, board->rule50_ply, stack->ttPv, TT_NOBOUND);
@@ -791,7 +780,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         depth -= iirReduction;
 
     // Post-LMR depth adjustments
-    if (!board->checkers && (stack - 1)->inLMR) {
+    if (!board->checkers && (stack - 1)->inLMR && depth < MAX_DEPTH - 1000) {
         int additionalReduction = 0;
         if ((stack - 1)->reduction >= postlmrOppWorseningThreshold && stack->staticEval <= -(stack - 1)->staticEval)
             additionalReduction -= postlmrOppWorseningReduction;
@@ -806,7 +795,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         if (board->checkers) {
             rfpDepth = depth - rfpImprovingOffsetCheck * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBaseCheck + rfpFactorLinearCheck * rfpDepth / 100 + rfpFactorQuadraticCheck * rfpDepth * rfpDepth / 1000000;
-        } else {
+        }
+        else {
             rfpDepth = depth - rfpImprovingOffset * (improving && !board->opponentHasGoodCapture());
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
@@ -817,7 +807,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     // Razoring
     if (!rootNode && !board->checkers && depth <= razoringDepth && eval + (razoringFactor * depth) / 100 < alpha && alpha < EVAL_TBWIN_IN_MAX_PLY) {
-        Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, beta);
+        Eval razorValue = qsearch<NON_PV_NODE>(board, stack, alpha, alpha + 1);
         if (razorValue <= alpha && std::abs(razorValue) < EVAL_TBWIN_IN_MAX_PLY)
             return razorValue;
     }
@@ -838,7 +828,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         stack->capture = false;
         stack->move = Move::none();
         stack->movedPiece = Piece::NONE;
-        stack->contHist = history.continuationHistory[board->stm][0][0];
+        stack->contHist = history.continuationHistory[0][0][board->stm][0][0];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][0][0][0][0];
         int R = nmpRedBase + 100 * depth / nmpDepthDiv + std::min(100 * (eval - beta) / nmpDivisor, nmpMin);
 
@@ -892,7 +882,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             stack->capture = board->isCapture(move);
             stack->move = move;
             stack->movedPiece = board->pieces[origin];
-            stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
+            stack->contHist = history.continuationHistory[!!board->checkers][stack->capture][board->stm][stack->movedPiece][target];
             stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];;
 
             Board* boardCopy = doMove(board, newHash, move);
@@ -956,8 +946,17 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             Depth lmrDepth = depth - reduction;
 
             // Movecount pruning (LMP)
-            if (!pvNode && moveCount >= LMP_MARGIN[depth / 100][improving]) {
-                movegen.skipQuietMoves();
+            if (!pvNode && !capture) {
+                int lmpMargin;
+                if (improving)
+                    lmpMargin = 3863191 + 77 * depth * depth + 1500 * depth + moveHistory;
+                else
+                    lmpMargin = 2958636 + 16 * depth * depth + 4500 * depth + moveHistory;
+
+                if (moveCount >= lmpMargin / 1000000) {
+                    movegen.skipQuietMoves();
+                    continue;
+                }
             }
 
             // Futility pruning for quiets
@@ -966,9 +965,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 if ((stack - 1)->movedPiece != Piece::NONE)
                     fpValue += (stack - 1)->contHist[2 * 64 * board->pieces[move.origin()] + 2 * move.target() + board->stm] / fpConthistDivisor;
-                    
+
                 if (lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
+                    continue;
                 }
             }
             // Futility pruning for bad noisies
@@ -998,7 +998,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 continue;
 
             // SEE Pruning
-            int seeMargin = capture ? seeMarginCapture * depth * depth / 10000 : seeMarginQuiet * lmrDepth / 100;
+            int seeMargin = capture ? int64_t(seeMarginCapture) * depth * depth / 10000 : seeMarginQuiet * lmrDepth / 100;
             if (!SEE(board, move, (2 + pvNode) * seeMargin / 2))
                 continue;
 
@@ -1029,19 +1029,17 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
-                int singularMargin = singularBeta - singularValue;
+                int singularMargin = (singularBeta - singularValue) / (pvNode ? 100 : 1);
 
                 extension = 100;
-                
-                if (!pvNode) {
-                    extension += 100 * std::clamp(singularMargin, 0, doubleExtensionMargin) / doubleExtensionMargin;
 
-                    if (!board->isCapture(move))
-                        extension += 100 * std::clamp(singularMargin - doubleExtensionMargin, 0, tripleExtensionMargin - doubleExtensionMargin) / (tripleExtensionMargin - doubleExtensionMargin);
-                    
-                    if (singularMargin > doubleExtensionMargin)
-                        depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
-                }
+                extension += 100 * std::clamp(singularMargin, 0, doubleExtensionMargin) / doubleExtensionMargin;
+
+                if (!board->isCapture(move) || pvNode)
+                    extension += 100 * std::clamp(singularMargin - doubleExtensionMargin, 0, tripleExtensionMargin - doubleExtensionMargin) / (tripleExtensionMargin - doubleExtensionMargin);
+
+                if (!pvNode && singularMargin > doubleExtensionMargin)
+                    depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
 
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
@@ -1074,7 +1072,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         stack->capture = capture;
         stack->move = move;
         stack->movedPiece = board->pieces[origin];
-        stack->contHist = history.continuationHistory[board->stm][stack->movedPiece][target];
+        stack->contHist = history.continuationHistory[!!board->checkers][capture][board->stm][stack->movedPiece][target];
         stack->contCorrHist = &history.continuationCorrectionHistory[board->stm][stack->movedPiece][target][board->isSquareThreatened(origin)][board->isSquareThreatened(target)];;
 
         moveCount++;
@@ -1085,6 +1083,12 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         Eval value = 0;
         int newDepth = depth - 100 + extension;
         int8_t moveSearchCount = 0;
+
+        if (cutNode && depth >= 600 && move != ttMove)
+            newDepth -= 5;
+
+        if (importantCapture)
+            newDepth += 5;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
@@ -1165,7 +1169,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         SearchedMoveList& list = capture ? captureMoves : quietMoves;
         if (list.size() < list.capacity())
-            list.add({move, moveSearchCount});
+            list.add({ move, moveSearchCount });
 
         if (stopped.load(std::memory_order_relaxed) || exiting)
             return 0;
@@ -1279,15 +1283,15 @@ Move tbProbeMoveRoot(unsigned result) {
     if (promotion) {
         Piece promotionPiece = Piece::QUEEN;
         switch (promotion) {
-            case TB_PROMOTES_KNIGHT:
-                promotionPiece = Piece::KNIGHT;
-                break;
-            case TB_PROMOTES_BISHOP:
-                promotionPiece = Piece::BISHOP;
-                break;
-            case TB_PROMOTES_ROOK:
-                promotionPiece = Piece::ROOK;
-                break;
+        case TB_PROMOTES_KNIGHT:
+            promotionPiece = Piece::KNIGHT;
+            break;
+        case TB_PROMOTES_BISHOP:
+            promotionPiece = Piece::BISHOP;
+            break;
+        case TB_PROMOTES_ROOK:
+            promotionPiece = Piece::ROOK;
+            break;
         }
         return Move::makePromotion(origin, target, promotionPiece);
     }
@@ -1388,17 +1392,19 @@ void Worker::iterativeDeepening() {
 
     constexpr int STACK_OVERHEAD = 6;
     std::vector<SearchStack> stackList;
-    stackList.reserve(MAX_PLY + STACK_OVERHEAD + 2);
+    stackList.resize(MAX_PLY + STACK_OVERHEAD + 2);
     SearchStack* stack = &stackList[STACK_OVERHEAD];
 
     std::vector<Board> boardList;
-    boardList.reserve(MAX_PLY + 2);
+    boardList.resize(MAX_PLY + 2);
     boardList[0] = rootBoard;
     Board* board = &boardList[0];
 
-    movepickers.reserve(MAX_PLY + 2);
+    movepickers.resize(MAX_PLY + 2);
 
     rootMoveNodes.clear();
+
+    optimism[0] = optimism[1] = 0;
 
     for (Depth depth = 1; depth <= maxDepth; depth++) {
         excludedRootMoves.clear();
@@ -1428,6 +1434,12 @@ void Worker::iterativeDeepening() {
             Eval alpha = -EVAL_INFINITE;
             Eval beta = EVAL_INFINITE;
             Eval value;
+
+            if (rootMoves[0].meanScore != EVAL_NONE) {
+                int updatedOptimism = 150 * rootMoves[0].meanScore / (std::abs(rootMoves[0].meanScore) + 125);
+                optimism[board->stm] = updatedOptimism;
+                optimism[flip(board->stm)] = -updatedOptimism;
+            }
 
             if (depth >= aspirationWindowMinDepth) {
                 // Set up interval for the start of this aspiration window
@@ -1627,6 +1639,8 @@ void Worker::tdatagen() {
     Board boardList[MAX_PLY + 2];
     boardList[0] = rootBoard;
     Board* board = &boardList[0];
+
+    movepickers.resize(MAX_PLY + 2);
 
     rootMoveNodes.clear();
 

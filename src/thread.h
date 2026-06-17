@@ -183,9 +183,9 @@ class ThreadPool;
 
 class alignas(64) Worker {
 
-    std::vector<Hash> boardHistory;
-
 public:
+
+    std::vector<Hash> boardHistory;
 
     Board rootBoard;
     
@@ -210,6 +210,8 @@ public:
     std::map<Move, uint64_t> rootMoveNodes;
     std::vector<Move> excludedRootMoves;
     std::vector<std::array<MoveGen, 2>> movepickers;
+
+    std::array<int, 2> optimism;
 
     Worker() = delete;
     Worker(ThreadPool* threadPool, NetworkData* networkData, SharedHistory* sharedHistory, int threadId, int threadIdOnNode);
