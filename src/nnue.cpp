@@ -438,6 +438,22 @@ Eval NNUE::evaluate(Board* board) {
     alignas(ALIGNMENT) uint16_t nnzIndices[L1_SIZE / INT8_PER_INT32];
 
     VecI32* pairwiseOutputsVecI32 = reinterpret_cast<VecI32*>(pairwiseOutputs);
+
+#if defined(__AVX512VBMI2__)
+    VecIu16 nnzBase = _mm512_set_epi16(
+        31, 30, 29, 28, 27, 26, 25, 24,
+        23, 22, 21, 20, 19, 18, 17, 16,
+        15, 14, 13, 12, 11, 10,  9,  8,
+         7,  6,  5,  4,  3,  2,  1,  0
+    );
+    for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 32; i++) {
+        uint32_t nnzMask = vecNNZ(pairwiseOutputsVecI32[i * 2]) | (vecNNZ(pairwiseOutputsVecI32[i * 2 + 1]) << 16);
+        _mm512_storeu_si512(nnzIndices + nnzCount, _mm512_maskz_compress_epi16(nnzMask, nnzBase));
+        nnzBase = _mm512_add_epi16(nnzBase, _mm512_set1_epi16(32));
+        nnzCount += __builtin_popcount(nnzMask);
+    }
+#else
+compile error:)))))
     VecI16_v128 nnzZero = setZero_v128();
     VecI16_v128 nnzIncrement = set1Epi16_v128(8);
     for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
@@ -455,6 +471,7 @@ Eval NNUE::evaluate(Board* board) {
             nnzZero = addEpi16_v128(nnzZero, nnzIncrement);
         }
     }
+#endif
 
     // ---------------------- SPARSE L1 PROPAGATION ----------------------
 
