@@ -206,9 +206,15 @@ std::string Board::fen() {
 }
 
 template<bool add, bool computeRays>
-__always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue, Bitboard allowedRayUpdates) {
+__always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue, Square ignore) {
+#if defined(__AVX512VBMI2__)
+    nnue->updatePieceThreatsGeometry<add, computeRays>(this, piece, pieceColor, square, ignore);
+    return;
+#endif
+    Bitboard ignoreBB = ignore != NO_SQUARE ? bitboard(ignore) : 0;
+
     // Process attacks of the current piece to other pieces
-    Bitboard occupancy = byColor[Color::WHITE] | byColor[Color::BLACK];
+    Bitboard occupancy = (byColor[Color::WHITE] | byColor[Color::BLACK]) & ~ignoreBB;
     Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor) & occupancy;
     while (attacked) {
         Square attackedSquare = popLSB(&attacked);
@@ -226,11 +232,12 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
 
     Bitboard slidingPieces = (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]) & bishopAttacks;
     slidingPieces |= (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]) & rookAttacks;
+    slidingPieces &= ~ignoreBB;
 
     Bitboard attackingPawns = byPiece[Piece::PAWN] & ((byColor[Color::BLACK] & BB::pawnAttacks(bitboard(square), Color::WHITE)) | (byColor[Color::WHITE] & BB::pawnAttacks(bitboard(square), Color::BLACK)));
     Bitboard attackingKnights = byPiece[Piece::KNIGHT] & BB::KNIGHT_ATTACKS[square];
     Bitboard attackingKings = byPiece[Piece::KING] & BB::KING_ATTACKS[square];
-    Bitboard incomingThreats = attackingPawns | attackingKnights | attackingKings;
+    Bitboard incomingThreats = (attackingPawns | attackingKnights | attackingKings) & ~ignoreBB;
 
     // Process attacks of sliding pieces that are now blocked by this piece
     if (computeRays) {
@@ -245,7 +252,7 @@ __always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Sq
 
             assert(BB::popcount(threatened) < 2);
 
-            if (threatened && (ray & allowedRayUpdates) != allowedRayUpdates) {
+            if (threatened) {
                 Square attackedSquare = lsb(threatened);
                 Piece attackedPiece = pieces[attackedSquare];
                 Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
@@ -331,15 +338,14 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     assert(pieces[target] == Piece::NONE);
     
     Bitboard fromTo = bitboard(origin) ^ bitboard(target);
-    updatePieceThreats<false>(piece, pieceColor, origin, nnue, fromTo);
-
     byColor[pieceColor] ^= fromTo;
     byPiece[piece] ^= fromTo;
 
     pieces[origin] = Piece::NONE;
     pieces[target] = piece;
 
-    updatePieceThreats<true>(piece, pieceColor, target, nnue, fromTo);
+    updatePieceThreats<false>(piece, pieceColor, origin, nnue, target);
+    updatePieceThreats<true>(piece, pieceColor, target, nnue);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][origin] ^ Zobrist::PIECE_SQUARES[pieceColor][piece][target]);
     updatePieceCastling(piece, pieceColor, origin);
 }
