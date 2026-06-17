@@ -44,7 +44,7 @@ TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT(aspirationWindowDeltaFactor, 1.741778462976496f, 1.0f, 3.0f);
 TUNE_INT(aspirationWindowDeltaDivisor, 12928, 7500, 17500);
 
-TUNE_INT(optimismBase, 125, 0, 250);
+TUNE_INT(optimismOffset, 125, 0, 250);
 TUNE_INT(optimismFactor, 150, 0, 300);
 
 // Reduction / Margin tables
@@ -71,7 +71,7 @@ TUNE_INT(iirReduction, 88, 0, 200);
 
 TUNE_INT(staticHistoryFactor, -242, -500, -1);
 TUNE_INT(staticHistoryMin, -428, -860, -1);
-TUNE_INT(staticHistoryMax, 6393, 1, 1400);
+TUNE_INT(staticHistoryMax, 639, 1, 1400);
 TUNE_INT(staticHistoryTempo, 163, 1, 350);
 
 TUNE_INT(rfpDepthLimit, 1520, 200, 2000);
@@ -1451,7 +1451,7 @@ void Worker::iterativeDeepening() {
             Eval value;
 
             if (rootMoves[0].meanScore != EVAL_NONE) {
-                int updatedOptimism = optimismFactor * rootMoves[0].meanScore / (std::abs(rootMoves[0].meanScore) + optimismBase);
+                int updatedOptimism = optimismFactor * rootMoves[0].meanScore / (std::abs(rootMoves[0].meanScore) + optimismOffset);
                 optimism[board->stm] = updatedOptimism;
                 optimism[flip(board->stm)] = -updatedOptimism;
             }
