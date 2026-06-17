@@ -152,7 +152,7 @@ namespace ThreatInputs {
 
                         int threatFeature = getThreatFeature<pov>(attackingPiece | (attackingSide << 3), piece | (side << 3), attackingSquare, indexSquare, hm);
                         if (threatFeature < FEATURE_COUNT)
-                            features.add(threatFeature);
+                            features.add(THREAT_OFFSET + threatFeature);
                     }
                 }
             }
@@ -172,7 +172,7 @@ namespace ThreatInputs {
     }
 
     template<Color side>
-    void addPawnPairFeatures(Board* board, PawnPairList& features) {
+    void addPawnPairFeatures(Board* board, FeatureList& features) {
         Square king = lsb(board->byColor[side] & board->byPiece[Piece::KING]);
         bool mirrored = fileOf(king) >= 4;
         uint8_t squareFlip = (7 * mirrored) ^ (56 * side);
@@ -211,11 +211,11 @@ namespace ThreatInputs {
                 features.add(pawnPairIndex(id, pawnId(popLSB(&inner), PAWN_SQUARE_COUNT, squareFlip)));
         }
     }
-    template void addPawnPairFeatures<Color::WHITE>(Board* board, PawnPairList& features);
-    template void addPawnPairFeatures<Color::BLACK>(Board* board, PawnPairList& features);
+    template void addPawnPairFeatures<Color::WHITE>(Board* board, FeatureList& features);
+    template void addPawnPairFeatures<Color::BLACK>(Board* board, FeatureList& features);
 
     template<Color side>
-    void addPawnPairDeltas(Board* board, const DirtyPiece& dirtyPiece, bool mirrored, PawnPairList& adds, PawnPairList& subs) {
+    void addPawnPairDeltas(Board* board, const DirtyPiece& dirtyPiece, bool mirrored, FeatureList& adds, FeatureList& subs) {
         uint8_t squareFlip = (7 * mirrored) ^ (56 * side);
 
         bool promotion = dirtyPiece.target == NO_SQUARE;
@@ -283,8 +283,8 @@ namespace ThreatInputs {
                 adds.add(pawnPairIndex(addedId, pawnId(popLSB(&e), PAWN_SQUARE_COUNT, squareFlip)));
         }
     }
-    template void addPawnPairDeltas<Color::WHITE>(Board* board, const DirtyPiece& dirtyPiece, bool mirrored, PawnPairList& adds, PawnPairList& subs);
-    template void addPawnPairDeltas<Color::BLACK>(Board* board, const DirtyPiece& dirtyPiece, bool mirrored, PawnPairList& adds, PawnPairList& subs);
+    template void addPawnPairDeltas<Color::WHITE>(Board* board, const DirtyPiece& dirtyPiece, bool mirrored, FeatureList& adds, FeatureList& subs);
+    template void addPawnPairDeltas<Color::BLACK>(Board* board, const DirtyPiece& dirtyPiece, bool mirrored, FeatureList& adds, FeatureList& subs);
 
     void addPieceFeatures(Board* board, Color pov, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT) {
         // Check HM and get occupancies

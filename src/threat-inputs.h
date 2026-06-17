@@ -15,12 +15,13 @@ namespace ThreatInputs {
 
     constexpr int FEATURE_COUNT = 59808;
     constexpr int MAX_ACTIVE_FEATURES = 128;
-    using FeatureList = ArrayVec<int, MAX_ACTIVE_FEATURES>;
 
     constexpr int PAWN_SQUARE_COUNT = 48;
     constexpr int PAWN_PAIR_FEATURE_COUNT = 96 * 95 / 2;
     constexpr int MAX_PAWN_PAIR_FEATURES = 64;
-    using PawnPairList = ArrayVec<int, MAX_PAWN_PAIR_FEATURES>;
+    constexpr int THREAT_OFFSET = PAWN_PAIR_FEATURE_COUNT;
+
+    using FeatureList = ArrayVec<int, MAX_ACTIVE_FEATURES + MAX_PAWN_PAIR_FEATURES>;
 
     inline constexpr std::array<Bitboard, 64> PP_MASK = [] {
         std::array<Bitboard, 64> table{};
@@ -40,9 +41,9 @@ namespace ThreatInputs {
     void addPieceFeatures(Board* board, Color side, FeatureList& features, const uint8_t* KING_BUCKET_LAYOUT);
 
     template<Color side>
-    void addPawnPairFeatures(Board* board, PawnPairList& features);
+    void addPawnPairFeatures(Board* board, FeatureList& features);
     template<Color side>
-    void addPawnPairDeltas(Board* board, const DirtyPiece& dirtyPiece, bool mirrored, PawnPairList& adds, PawnPairList& subs);
+    void addPawnPairDeltas(Board* board, const DirtyPiece& dirtyPiece, bool mirrored, FeatureList& adds, FeatureList& subs);
 
     void initialise();
 
