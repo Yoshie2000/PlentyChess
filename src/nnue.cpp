@@ -287,18 +287,14 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
     for (int dp = 0; dp < outputAcc->numThreatsAdded; dp++) {
         DirtyThreat& dt = outputAcc->dirtyThreatsAdded[dp];
         int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare, kingBucket->mirrored);
-        if (featureIndex < ThreatInputs::FEATURE_COUNT) {
-            __builtin_prefetch(&networkData->inputThreatWeights[(ThreatInputs::THREAT_OFFSET + featureIndex) * L1_SIZE]);
-            adds.add(ThreatInputs::THREAT_OFFSET + featureIndex);
-        }
+        __builtin_prefetch(&networkData->inputThreatWeights[(ThreatInputs::THREAT_OFFSET + featureIndex) * L1_SIZE]);
+        adds.addIf(ThreatInputs::THREAT_OFFSET + featureIndex, featureIndex < ThreatInputs::FEATURE_COUNT);
     }
     for (int dp = 0; dp < outputAcc->numThreatsRemoved; dp++) {
         DirtyThreat& dt = outputAcc->dirtyThreatsRemoved[dp];
         int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare, kingBucket->mirrored);
-        if (featureIndex < ThreatInputs::FEATURE_COUNT) {
-            __builtin_prefetch(&networkData->inputThreatWeights[(ThreatInputs::THREAT_OFFSET + featureIndex) * L1_SIZE]);
-            subs.add(ThreatInputs::THREAT_OFFSET + featureIndex);
-        }
+        __builtin_prefetch(&networkData->inputThreatWeights[(ThreatInputs::THREAT_OFFSET + featureIndex) * L1_SIZE]);
+        subs.addIf(ThreatInputs::THREAT_OFFSET + featureIndex, featureIndex < ThreatInputs::FEATURE_COUNT);
     }
 
     if (!adds.size() && !subs.size()) {
