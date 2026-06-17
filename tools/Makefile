@@ -10,7 +10,7 @@ ifeq ($(arch), android)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
 else ifeq ($(arch), arm64)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM
-else ifeq ($(arch), avx512vnni)
+else ifeq ($(arch), avx512vbmi2)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=cascadelake
 else ifeq ($(arch), avx512)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -march=skylake-avx512

@@ -95,7 +95,7 @@ ifeq ($(arch),)
 
 # Select best build
 	ifneq ($(IS_ZEN5),0)
-		arch := avx512vnni
+		arch := avx512vbmi2
 	else ifneq ($(HAS_AVX512),0)
 		arch := avx512
 	else ifneq ($(HAS_AVX2),0)
@@ -128,9 +128,9 @@ ifeq ($(arch), android)
 	CC := aarch64-linux-android29-clang
 else ifeq ($(arch), arm64)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_ARM -march=armv8-a+simd
-else ifeq ($(arch), avx512vnni)
-	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=cascadelake -mbmi2
-	CFLAGS := $(CFLAGS) -march=cascadelake -mbmi2
+else ifeq ($(arch), avx512vbmi2)
+	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=icelake-client -mbmi2
+	CFLAGS := $(CFLAGS) -march=icelake-client -mbmi2
 else ifeq ($(arch), avx512)
 	CXXFLAGS := $(CXXFLAGS) -DARCH_X86 -DUSE_BMI2 -march=skylake-avx512 -mbmi2
 	CFLAGS := $(CFLAGS) -march=skylake-avx512 -mbmi2

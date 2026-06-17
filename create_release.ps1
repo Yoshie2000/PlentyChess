@@ -4,4 +4,4 @@ make clean && make CXX=g++ CC=gcc EXE=PlentyChess-$args-windows-fma.exe arch=fma
 make clean && make profile-build EXE=PlentyChess-$args-windows-avx2.exe arch=avx2 -j profile-build
 make clean && make profile-build EXE=PlentyChess-$args-windows-bmi2.exe arch=bmi2 -j profile-build
 make clean && make profile-build EXE=PlentyChess-$args-windows-avx512.exe arch=avx512 -j profile-build
-make clean && make profile-build EXE=PlentyChess-$args-windows-avx512vnni.exe arch=avx512vnni -j profile-build
+make clean && make profile-build EXE=PlentyChess-$args-windows-avx512vbmi2.exe arch=avx512vbmi2 -j profile-build

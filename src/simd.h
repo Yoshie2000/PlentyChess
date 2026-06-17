@@ -105,7 +105,7 @@ inline VecI16 mulhiEpi16(VecI16 x, VecI16 y) {
   return _mm512_mulhi_epi16(x, y);
 }
 
-#if defined(__AVX512VNNI__)
+#if defined(__AVX512VBMI2__)
 inline VecI32 dpbusdEpi32(VecI32 sum, VecIu8 u, VecI8 i) {
   return _mm512_dpbusd_epi32(sum, u, i);
 }
