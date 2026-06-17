@@ -50,7 +50,7 @@ You can pass an `arch` argument to the Makefile to compile a binary for a specif
 | **avx** | ✅ | ✅ | ❌ | ❌ |
 | **bmi2** | ✅ | ✅ | ❌ | ❌ |
 | **avx512** | ✅ | ✅ | ❌ | ❌ |
-| **avx512vnni** | ✅ | ✅ | ❌ | ❌ |
+| **avx512vbmi2** | ✅ | ✅ | ❌ | ❌ |
 | **android** (neon) | ❌ | ❌ | ❌ | ✅ |
 | **arm64** (neon) | ❌ | ✅ | ✅ | ❌ |
 
