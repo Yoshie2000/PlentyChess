@@ -92,7 +92,7 @@ public:
 
 };
 
-#define TUNE_ENABLED false
+#define TUNE_ENABLED true
 
 // Some fancy macro stuff to call the tune() methods inline from anywhere
 #define STRINGIFY(x) #x

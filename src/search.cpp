@@ -44,6 +44,9 @@ TUNE_INT_DISABLED(aspirationWindowMaxFailHighs, 3, 1, 10);
 TUNE_FLOAT(aspirationWindowDeltaFactor, 1.741778462976496f, 1.0f, 3.0f);
 TUNE_INT(aspirationWindowDeltaDivisor, 12928, 7500, 17500);
 
+TUNE_INT(optimismBase, 125, 0, 250);
+TUNE_INT(optimismFactor, 150, 0, 300);
+
 // Reduction / Margin tables
 TUNE_FLOAT(lmrReductionNoisyBase, -0.23158315137507635f, -1.0f, 1.0f);
 TUNE_FLOAT(lmrReductionNoisyFactor, 2.9819903465034674f, 2.0f, 4.0f);
@@ -101,9 +104,15 @@ TUNE_INT(iir2MinDepth, 251, 100, 500);
 
 // In-search pruning
 TUNE_INT(earlyLmrImproving, 114, 1, 260);
-
 TUNE_INT(earlyLmrHistoryFactorQuiet, 15725, 10000, 20000);
 TUNE_INT(earlyLmrHistoryFactorCapture, 14179, 10000, 20000);
+
+TUNE_INT(lmpBaseImproving, 3863191, 0, 7726382);
+TUNE_INT(lmpLinearImproving, 1500, 0, 3000);
+TUNE_INT(lmpQuadraticImproving, 77, 0, 154);
+TUNE_INT(lmpBaseWorsening, 2958636, 0, 5917272);
+TUNE_INT(lmpLinearWorsening, 4500, 0, 9000);
+TUNE_INT(lmpQuadraticWorsening, 16, 0, 32);
 
 TUNE_INT(fpDepth, 1222, 100, 2000);
 TUNE_INT(fpBase, 278, 1, 600);
@@ -130,11 +139,17 @@ TUNE_INT(seeMarginCapture, -22, -44, -1);
 TUNE_INT(seeMarginQuiet, -74, -146, -1);
 
 TUNE_INT(extensionMinDepth, 624, 0, 1200);
+TUNE_INT(extensionMinDepthTtpv, 0, 0, 100);
 TUNE_INT(extensionTtDepthOffset, 499, 0, 800);
 TUNE_INT(doubleExtensionDepthIncreaseFactor, 100, 0, 200);
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
 TUNE_INT(doubleExtensionDepthIncrease, 1002, 200, 2000);
 TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
+TUNE_INT(singularMarginPv, 100, 0, 200);
+
+TUNE_INT(cutnodeDepthReductionDepth, 600, 0, 1200);
+TUNE_INT(cutnodeDepthReductionAmount, 5, 0, 10);
+TUNE_INT(impcapDepthReductionAmount, 5, 0, 10);
 
 TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
@@ -949,9 +964,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (!pvNode && !capture) {
                 int lmpMargin;
                 if (improving)
-                    lmpMargin = 3863191 + 77 * depth * depth + 1500 * depth + moveHistory;
+                    lmpMargin = lmpBaseImproving + lmpQuadraticImproving * depth * depth + lmpLinearImproving * depth + moveHistory;
                 else
-                    lmpMargin = 2958636 + 16 * depth * depth + 4500 * depth + moveHistory;
+                    lmpMargin = lmpBaseWorsening + lmpQuadraticWorsening * depth * depth + lmpLinearWorsening * depth + moveHistory;
 
                 if (moveCount >= lmpMargin / 1000000) {
                     movegen.skipQuietMoves();
@@ -1008,7 +1023,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         bool doExtensions = !rootNode && stack->ply < searchData.rootDepth * 2;
         int extension = 0;
         if (doExtensions
-            && depth >= extensionMinDepth
+            && depth >= extensionMinDepth + stack->ttPv * extensionMinDepthTtpv
             && move == ttMove
             && !excluded
             && (ttFlag & TT_LOWERBOUND)
@@ -1029,7 +1044,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
-                int singularMargin = (singularBeta - singularValue) / (pvNode ? 100 : 1);
+                int singularMargin = (singularBeta - singularValue) / (pvNode ? singularMarginPv : 1);
 
                 extension = 100;
 
@@ -1084,11 +1099,11 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         int newDepth = depth - 100 + extension;
         int8_t moveSearchCount = 0;
 
-        if (cutNode && depth >= 600 && move != ttMove)
-            newDepth -= 5;
+        if (cutNode && depth >= cutnodeDepthReductionDepth && move != ttMove)
+            newDepth -= cutnodeDepthReductionAmount;
 
         if (importantCapture)
-            newDepth += 5;
+            newDepth += impcapDepthReductionAmount;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
@@ -1436,7 +1451,7 @@ void Worker::iterativeDeepening() {
             Eval value;
 
             if (rootMoves[0].meanScore != EVAL_NONE) {
-                int updatedOptimism = 150 * rootMoves[0].meanScore / (std::abs(rootMoves[0].meanScore) + 125);
+                int updatedOptimism = optimismFactor * rootMoves[0].meanScore / (std::abs(rootMoves[0].meanScore) + optimismBase);
                 optimism[board->stm] = updatedOptimism;
                 optimism[flip(board->stm)] = -updatedOptimism;
             }
