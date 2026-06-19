@@ -87,7 +87,7 @@ void Worker::tgenfens() {
     size_t bookSize = 0;
     std::vector<size_t> lineOffsets;
     rtrim(searchParameters.genfensBook);
-    std::string bookPath = std::filesystem::current_path() / searchParameters.genfensBook;
+    std::string bookPath = (std::filesystem::current_path() / searchParameters.genfensBook).string();
     if (searchParameters.genfensBook.length() > 0 && searchParameters.genfensBook != "None") {
         std::ifstream f(bookPath);
         if (!f.good()) {
