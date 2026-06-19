@@ -825,6 +825,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         && depth >= nmpMinDepth
         && stack->ply >= searchData.nmpPlies
         && board->hasNonPawns()
+        // Don't trust the null move when we have a hanging piece: the opponent's
+        // "free" reply would just be that winning capture (idea from Berserk)
+        && !board->opponentHasGoodCapture()
         ) {
         stack->capture = false;
         stack->move = Move::none();
