@@ -1000,7 +1000,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             // SEE Pruning
             int seeMargin = capture ? int64_t(seeMarginCapture) * depth * depth / 10000 : seeMarginQuiet * lmrDepth / 100;
-            if (!SEE(board, move, (2 + pvNode) * seeMargin / 2))
+            if ((board->threats.allThreats & bitboard(move.target())) && !SEE(board, move, (2 + pvNode) * seeMargin / 2))
                 continue;
 
         }
