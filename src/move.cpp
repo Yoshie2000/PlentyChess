@@ -440,9 +440,6 @@ void MoveGen::scoreQuiets() {
     }
 }
 
-// At the root, re-score the remaining quiets with freshly updated history and move
-// the new best to the front. Earlier root moves update the history tables, so later
-// ones get ordered with that knowledge instead of stale generation-time scores.
 void MoveGen::rescoreRootQuiets() {
     int best = returnedMoves;
     for (int i = returnedMoves; i < moveList.size(); i++) {
