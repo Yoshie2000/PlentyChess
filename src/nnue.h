@@ -51,17 +51,17 @@ enum class FtType {
 
 struct DirtyThreat {
   uint8_t piece;
-  uint8_t attackedPiece;
   Square square;
+  uint8_t attackedPiece;
   uint8_t attackedSquare;
 
   DirtyThreat() = default;
 
-  DirtyThreat(Piece _piece, Color _pieceColor, Piece _attackedPiece, Color _attackedPieceColor, Square _square, Square _attackedSquare, bool _add) {
+  DirtyThreat(Piece _piece, Color _pieceColor, Piece _attackedPiece, Color _attackedPieceColor, Square _square, Square _attackedSquare) {
     piece = static_cast<uint8_t>(_piece | (_pieceColor << 3));
-    attackedPiece = static_cast<uint8_t>(_attackedPiece | (_attackedPieceColor << 3));
     square = _square;
-    attackedSquare = static_cast<uint8_t>(_attackedSquare | (_add << 7));
+    attackedPiece = static_cast<uint8_t>(_attackedPiece | (_attackedPieceColor << 3));
+    attackedSquare = _attackedSquare;
   }
 
 };
@@ -85,8 +85,10 @@ struct Accumulator {
   alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
 
   DirtyPiece dirtyPiece;
-  DirtyThreat dirtyThreats[256];
-  int numDirtyThreats;
+  DirtyThreat dirtyThreatsAdded[128];
+  DirtyThreat dirtyThreatsRemoved[128];
+  int numThreatsAdded;
+  int numThreatsRemoved;
 
   KingBucketInfo kingBucketInfo[2];
   Board* board;
@@ -134,6 +136,11 @@ public:
   FinnyEntry finnyTable[2][KING_BUCKETS];
 
   void updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add);
+
+#if defined(__AVX512VBMI2__)
+  template<bool add, bool computeRays>
+  void updatePieceThreatsGeometry(Board* board, Piece piece, Color pieceColor, Square square, Square ignore);
+#endif
 
   void incrementAccumulator();
   void decrementAccumulator();

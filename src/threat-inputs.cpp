@@ -23,7 +23,7 @@ namespace ThreatInputs {
     };
 
     PiecePairData PIECE_PAIR_LOOKUP[14][14];
-    int PIECE_OFFSET_LOOKUP[14][64];
+    uint16_t PIECE_OFFSET_LOOKUP[14][64];
     uint8_t ATTACK_INDEX_LOOKUP[14][64][64];
 
     void initialise() {

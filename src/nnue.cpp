@@ -6,6 +6,7 @@
 
 #include "nnue.h"
 #include "board.h"
+#include "threat-geometry.h"
 
 #if defined(ARCH_ARM)
 #include <arm_neon.h>
@@ -59,7 +60,8 @@ void NNUE::reset(Board* board) {
     // Reset accumulator
     resetAccumulator<Color::WHITE>(board, &accumulatorStack[0]);
     resetAccumulator<Color::BLACK>(board, &accumulatorStack[0]);
-    accumulatorStack[0].numDirtyThreats = 0;
+    accumulatorStack[0].numThreatsAdded = 0;
+    accumulatorStack[0].numThreatsRemoved = 0;
 
     currentAccumulator = 0;
     lastCalculatedAccumulator[Color::WHITE] = 0;
@@ -102,12 +104,52 @@ void NNUE::updateThreat(Piece piece, Piece attackedPiece, Square square, Square 
     assert(attackedPiece != Piece::NONE);
 
     Accumulator* acc = &accumulatorStack[currentAccumulator];
-    acc->dirtyThreats[acc->numDirtyThreats++] = DirtyThreat(piece, pieceColor, attackedPiece, attackedColor, square, attackedSquare, add);
+    DirtyThreat threat(piece, pieceColor, attackedPiece, attackedColor, square, attackedSquare);
+    if (add)
+        acc->dirtyThreatsAdded[acc->numThreatsAdded++] = threat;
+    else
+        acc->dirtyThreatsRemoved[acc->numThreatsRemoved++] = threat;
 }
+
+#if defined(__AVX512VBMI2__)
+template<bool add, bool computeRays>
+void NNUE::updatePieceThreatsGeometry(Board* board, Piece piece, Color pieceColor, Square square, Square ignore) {
+    using namespace ThreatGeometry;
+    Accumulator* acc = &accumulatorStack[currentAccumulator];
+    uint8_t colouredPiece = static_cast<uint8_t>(piece | (pieceColor << 3));
+
+    __m512i mailbox = colouredMailbox((const uint8_t*)board->pieces, board->byColor[Color::BLACK]);
+    if (ignore != NO_SQUARE)
+        mailbox = _mm512_mask_blend_epi8(1ULL << ignore, mailbox, _mm512_set1_epi8(Piece::NONE));
+    Permutation perm = permutationFor(square);
+    auto [permuted, bits] = permuteMailbox(perm, mailbox);
+    Bitrays closest = closestOccupied(bits);
+
+    int& focusCount = add ? acc->numThreatsAdded : acc->numThreatsRemoved;
+    DirtyThreat* focusList = add ? acc->dirtyThreatsAdded : acc->dirtyThreatsRemoved;
+    focusCount += pushFocusThreats<true>(focusList + focusCount, perm.indexes, permuted, outgoingThreats(colouredPiece, closest), colouredPiece, square);
+    focusCount += pushFocusThreats<false>(focusList + focusCount, perm.indexes, permuted, incomingAttackers(bits, closest), colouredPiece, square);
+
+    if constexpr (computeRays) {
+        Bitrays sliders = incomingSliders(bits, closest);
+        Bitrays masked = closest & 0xFEFEFEFEFEFEFEFEULL;
+        Bitrays victims = (masked >> 32) | (masked << 32);
+        Bitrays valid = rayFill(victims) & rayFill(sliders);
+        int& discCount = add ? acc->numThreatsRemoved : acc->numThreatsAdded;
+        DirtyThreat* discList = add ? acc->dirtyThreatsRemoved : acc->dirtyThreatsAdded;
+        discCount += pushDiscoveredThreats(discList + discCount, perm.indexes, permuted, sliders & valid, victims & valid);
+    }
+}
+template void NNUE::updatePieceThreatsGeometry<true, true>(Board*, Piece, Color, Square, Square);
+template void NNUE::updatePieceThreatsGeometry<true, false>(Board*, Piece, Color, Square, Square);
+template void NNUE::updatePieceThreatsGeometry<false, true>(Board*, Piece, Color, Square, Square);
+template void NNUE::updatePieceThreatsGeometry<false, false>(Board*, Piece, Color, Square, Square);
+#endif
 
 void NNUE::incrementAccumulator() {
     currentAccumulator++;
-    accumulatorStack[currentAccumulator].numDirtyThreats = 0;
+    accumulatorStack[currentAccumulator].numThreatsAdded = 0;
+    accumulatorStack[currentAccumulator].numThreatsRemoved = 0;
 }
 
 void NNUE::decrementAccumulator() {
@@ -242,15 +284,17 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
     ThreatInputs::FeatureList adds, subs;
     ThreatInputs::addPawnPairDeltas<side>(outputAcc->board, outputAcc->dirtyPiece, kingBucket->mirrored, adds, subs);
 
-    for (int dp = 0; dp < outputAcc->numDirtyThreats; dp++) {
-        DirtyThreat& dt = outputAcc->dirtyThreats[dp];
-        bool add = dt.attackedSquare >> 7;
-
-        int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare & 0b111111, kingBucket->mirrored);
-        if (featureIndex < ThreatInputs::FEATURE_COUNT) {
-            __builtin_prefetch(&networkData->inputThreatWeights[(ThreatInputs::THREAT_OFFSET + featureIndex) * L1_SIZE]);
-            (add ? adds : subs).add(ThreatInputs::THREAT_OFFSET + featureIndex);
-        }
+    for (int dp = 0; dp < outputAcc->numThreatsAdded; dp++) {
+        DirtyThreat& dt = outputAcc->dirtyThreatsAdded[dp];
+        int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare, kingBucket->mirrored);
+        __builtin_prefetch(&networkData->inputThreatWeights[(ThreatInputs::THREAT_OFFSET + featureIndex) * L1_SIZE]);
+        adds.addIf(ThreatInputs::THREAT_OFFSET + featureIndex, featureIndex < ThreatInputs::FEATURE_COUNT);
+    }
+    for (int dp = 0; dp < outputAcc->numThreatsRemoved; dp++) {
+        DirtyThreat& dt = outputAcc->dirtyThreatsRemoved[dp];
+        int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare, kingBucket->mirrored);
+        __builtin_prefetch(&networkData->inputThreatWeights[(ThreatInputs::THREAT_OFFSET + featureIndex) * L1_SIZE]);
+        subs.addIf(ThreatInputs::THREAT_OFFSET + featureIndex, featureIndex < ThreatInputs::FEATURE_COUNT);
     }
 
     if (!adds.size() && !subs.size()) {
@@ -438,6 +482,21 @@ Eval NNUE::evaluate(Board* board) {
     alignas(ALIGNMENT) uint16_t nnzIndices[L1_SIZE / INT8_PER_INT32];
 
     VecI32* pairwiseOutputsVecI32 = reinterpret_cast<VecI32*>(pairwiseOutputs);
+
+#if defined(__AVX512VBMI2__)
+    VecIu16 nnzBase = _mm512_set_epi16(
+        31, 30, 29, 28, 27, 26, 25, 24,
+        23, 22, 21, 20, 19, 18, 17, 16,
+        15, 14, 13, 12, 11, 10,  9,  8,
+         7,  6,  5,  4,  3,  2,  1,  0
+    );
+    for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 32; i++) {
+        uint32_t nnzMask = vecNNZ(pairwiseOutputsVecI32[i * 2]) | (vecNNZ(pairwiseOutputsVecI32[i * 2 + 1]) << 16);
+        _mm512_storeu_si512(nnzIndices + nnzCount, _mm512_maskz_compress_epi16(nnzMask, nnzBase));
+        nnzBase = _mm512_add_epi16(nnzBase, _mm512_set1_epi16(32));
+        nnzCount += __builtin_popcount(nnzMask);
+    }
+#else
     VecI16_v128 nnzZero = setZero_v128();
     VecI16_v128 nnzIncrement = set1Epi16_v128(8);
     for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
@@ -455,6 +514,7 @@ Eval NNUE::evaluate(Board* board) {
             nnzZero = addEpi16_v128(nnzZero, nnzIncrement);
         }
     }
+#endif
 
     // ---------------------- SPARSE L1 PROPAGATION ----------------------
 
