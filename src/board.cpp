@@ -205,79 +205,6 @@ std::string Board::fen() {
     return os.str();
 }
 
-template<bool add, bool computeRays>
-__always_inline void Board::updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue, Square ignore) {
-#if defined(__AVX512VBMI2__)
-    nnue->updatePieceThreatsGeometry<add, computeRays>(this, piece, pieceColor, square, ignore);
-    return;
-#endif
-    Bitboard ignoreBB = ignore != NO_SQUARE ? bitboard(ignore) : 0;
-
-    // Process attacks of the current piece to other pieces
-    Bitboard occupancy = (byColor[Color::WHITE] | byColor[Color::BLACK]) & ~ignoreBB;
-    Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor) & occupancy;
-    while (attacked) {
-        Square attackedSquare = popLSB(&attacked);
-        Piece attackedPiece = pieces[attackedSquare];
-        Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
-
-        assert(attackedPiece != Piece::NONE);
-
-        nnue->updateThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add);
-    }
-
-    Bitboard rookAttacks = getRookMoves(square, occupancy);
-    Bitboard bishopAttacks = getBishopMoves(square, occupancy);
-    Bitboard queenAttacks = rookAttacks | bishopAttacks;
-
-    Bitboard slidingPieces = (byPiece[Piece::BISHOP] | byPiece[Piece::QUEEN]) & bishopAttacks;
-    slidingPieces |= (byPiece[Piece::ROOK] | byPiece[Piece::QUEEN]) & rookAttacks;
-    slidingPieces &= ~ignoreBB;
-
-    Bitboard attackingPawns = byPiece[Piece::PAWN] & ((byColor[Color::BLACK] & BB::pawnAttacks(bitboard(square), Color::WHITE)) | (byColor[Color::WHITE] & BB::pawnAttacks(bitboard(square), Color::BLACK)));
-    Bitboard attackingKnights = byPiece[Piece::KNIGHT] & BB::KNIGHT_ATTACKS[square];
-    Bitboard attackingKings = byPiece[Piece::KING] & BB::KING_ATTACKS[square];
-    Bitboard incomingThreats = (attackingPawns | attackingKnights | attackingKings) & ~ignoreBB;
-
-    // Process attacks of sliding pieces that are now blocked by this piece
-    if (computeRays) {
-        while (slidingPieces) {
-            Square slidingPieceSquare = popLSB(&slidingPieces);
-            Bitboard slidingPieceBB = bitboard(slidingPieceSquare);
-            Piece slidingPiece = pieces[slidingPieceSquare];
-            Color slidingPieceColor = (byColor[Color::WHITE] & slidingPieceBB) ? Color::WHITE : Color::BLACK;
-
-            Bitboard ray = BB::RAY_PASS[slidingPieceSquare][square];
-            Bitboard threatened = ray & occupancy & queenAttacks;
-
-            assert(BB::popcount(threatened) < 2);
-
-            if (threatened) {
-                Square attackedSquare = lsb(threatened);
-                Piece attackedPiece = pieces[attackedSquare];
-                Color attackedColor = (bitboard(attackedSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
-
-                nnue->updateThreat(slidingPiece, attackedPiece, slidingPieceSquare, attackedSquare, slidingPieceColor, attackedColor, !add);
-            }
-
-            nnue->updateThreat(slidingPiece, piece, slidingPieceSquare, square, slidingPieceColor, pieceColor, add);
-        }
-    } else {
-        incomingThreats |= slidingPieces;
-    }
-
-    // Process attacks of non-slider pieces that were already attacking this square
-    while (incomingThreats) {
-        Square attackingSquare = popLSB(&incomingThreats);
-        Piece attackingPiece = pieces[attackingSquare];
-        Color attackingColor = (bitboard(attackingSquare) & byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
-
-        assert(attackingPiece != Piece::NONE);
-
-        nnue->updateThreat(attackingPiece, piece, attackingSquare, square, attackingColor, pieceColor, add);
-    }
-}
-
 void Board::updatePieceHash(Piece piece, Color pieceColor, Hash hashDelta) {
     if (piece == Piece::PAWN) {
         hashes.pawnHash ^= hashDelta;
@@ -314,7 +241,7 @@ void Board::addPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) {
 
     pieces[square] = piece;
 
-    updatePieceThreats<true>(piece, pieceColor, square, nnue);
+    nnue->updatePieceThreats<true>(this, piece, pieceColor, square);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 }
@@ -328,7 +255,7 @@ void Board::removePiece(Piece piece, Color pieceColor, Square square, NNUE* nnue
 
     pieces[square] = Piece::NONE;
 
-    updatePieceThreats<false>(piece, pieceColor, square, nnue);
+    nnue->updatePieceThreats<false>(this, piece, pieceColor, square);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 }
@@ -344,8 +271,8 @@ void Board::movePiece(Piece piece, Color pieceColor, Square origin, Square targe
     pieces[origin] = Piece::NONE;
     pieces[target] = piece;
 
-    updatePieceThreats<false>(piece, pieceColor, origin, nnue, target);
-    updatePieceThreats<true>(piece, pieceColor, target, nnue);
+    nnue->updatePieceThreats<false>(this, piece, pieceColor, origin, target);
+    nnue->updatePieceThreats<true>(this, piece, pieceColor, target);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][origin] ^ Zobrist::PIECE_SQUARES[pieceColor][piece][target]);
     updatePieceCastling(piece, pieceColor, origin);
 }
@@ -362,7 +289,7 @@ void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) 
     byPiece[oldPiece] ^= squareBB;
     pieces[square] = Piece::NONE;
 
-    updatePieceThreats<false, false>(oldPiece, oldPieceColor, square, nnue);
+    nnue->updatePieceThreats<false, false>(this, oldPiece, oldPieceColor, square);
     updatePieceHash(oldPiece, oldPieceColor, Zobrist::PIECE_SQUARES[oldPieceColor][oldPiece][square]);
     updatePieceCastling(oldPiece, oldPieceColor, square);
 
@@ -371,7 +298,7 @@ void Board::swapPiece(Piece piece, Color pieceColor, Square square, NNUE* nnue) 
     byPiece[piece] ^= squareBB;
     pieces[square] = piece;
 
-    updatePieceThreats<true, false>(piece, pieceColor, square, nnue);
+    nnue->updatePieceThreats<true, false>(this, piece, pieceColor, square);
     updatePieceHash(piece, pieceColor, Zobrist::PIECE_SQUARES[pieceColor][piece][square]);
     updatePieceCastling(piece, pieceColor, square);
 }

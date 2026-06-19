@@ -4,8 +4,16 @@
 #include <cstdint>
 
 #include "types.h"
-#include "threat-inputs.h"
 #include "simd.h"
+#include "threat-inputs/threat-inputs.h"
+
+#if defined(__AVX512VBMI2__)
+#include "threat-inputs/threat-geometry-vbmi2.h"
+#define USE_THREAT_GEOMETRY
+#elif defined(__AVX2__)
+#include "threat-inputs/threat-geometry-avx2.h"
+#define USE_THREAT_GEOMETRY
+#endif
 
 constexpr uint8_t KING_BUCKET_LAYOUT[] = {
   0,  1,  2,  3,  3,  2,  1,  0,
@@ -137,10 +145,8 @@ public:
 
   void updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add);
 
-#if defined(__AVX512VBMI2__)
-  template<bool add, bool computeRays>
-  void updatePieceThreatsGeometry(Board* board, Piece piece, Color pieceColor, Square square, Square ignore);
-#endif
+  template<bool add, bool computeRays = true>
+  void updatePieceThreats(Board* board, Piece piece, Color pieceColor, Square square, Square ignore = NO_SQUARE);
 
   void incrementAccumulator();
   void decrementAccumulator();

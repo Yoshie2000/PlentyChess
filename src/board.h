@@ -90,8 +90,6 @@ struct Board {
     void parseFen(std::istringstream& iss, bool isChess960);
     std::string fen();
 
-    template<bool add, bool computeRays = true>
-    __always_inline void updatePieceThreats(Piece piece, Color pieceColor, Square square, NNUE* nnue, Square ignore = NO_SQUARE);
     void updatePieceHash(Piece piece, Color pieceColor, uint64_t hashDelta);
     void updatePieceCastling(Piece piece, Color pieceColor, Square origin);
 

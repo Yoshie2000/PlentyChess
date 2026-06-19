@@ -3,9 +3,8 @@
 #include <array>
 #include <cstdint>
 
-#include "types.h"
-
-#if defined(__AVX512VBMI2__)
+#include "../types.h"
+#include "../bitboard.h"
 
 namespace ThreatGeometry {
 
@@ -84,7 +83,3 @@ namespace ThreatGeometry {
     }();
 
 }
-
-#include "threat-geometry-vbmi2.h"
-
-#endif

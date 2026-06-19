@@ -6,7 +6,6 @@
 
 #include "nnue.h"
 #include "board.h"
-#include "threat-geometry.h"
 
 #if defined(ARCH_ARM)
 #include <arm_neon.h>
@@ -111,16 +110,17 @@ void NNUE::updateThreat(Piece piece, Piece attackedPiece, Square square, Square 
         acc->dirtyThreatsRemoved[acc->numThreatsRemoved++] = threat;
 }
 
-#if defined(__AVX512VBMI2__)
 template<bool add, bool computeRays>
-void NNUE::updatePieceThreatsGeometry(Board* board, Piece piece, Color pieceColor, Square square, Square ignore) {
+void NNUE::updatePieceThreats(Board* board, Piece piece, Color pieceColor, Square square, Square ignore) {
+#if defined(USE_THREAT_GEOMETRY) // avx2 and upwards
+
     using namespace ThreatGeometry;
     Accumulator* acc = &accumulatorStack[currentAccumulator];
     uint8_t colouredPiece = static_cast<uint8_t>(piece | (pieceColor << 3));
 
-    __m512i mailbox = colouredMailbox((const uint8_t*)board->pieces, board->byColor[Color::BLACK]);
+    auto mailbox = colouredMailbox((const uint8_t*)board->pieces, board->byColor[Color::BLACK]);
     if (ignore != NO_SQUARE)
-        mailbox = _mm512_mask_blend_epi8(1ULL << ignore, mailbox, _mm512_set1_epi8(Piece::NONE));
+        mailbox = ignoreSquare(mailbox, ignore);
     Permutation perm = permutationFor(square);
     auto [permuted, bits] = permuteMailbox(perm, mailbox);
     Bitrays closest = closestOccupied(bits);
@@ -139,12 +139,81 @@ void NNUE::updatePieceThreatsGeometry(Board* board, Piece piece, Color pieceColo
         DirtyThreat* discList = add ? acc->dirtyThreatsRemoved : acc->dirtyThreatsAdded;
         discCount += pushDiscoveredThreats(discList + discCount, perm.indexes, permuted, sliders & valid, victims & valid);
     }
-}
-template void NNUE::updatePieceThreatsGeometry<true, true>(Board*, Piece, Color, Square, Square);
-template void NNUE::updatePieceThreatsGeometry<true, false>(Board*, Piece, Color, Square, Square);
-template void NNUE::updatePieceThreatsGeometry<false, true>(Board*, Piece, Color, Square, Square);
-template void NNUE::updatePieceThreatsGeometry<false, false>(Board*, Piece, Color, Square, Square);
+
+#else
+
+    Bitboard ignoreBB = ignore != NO_SQUARE ? bitboard(ignore) : 0;
+
+    // Process attacks of the current piece to other pieces
+    Bitboard occupancy = (board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) & ~ignoreBB;
+    Bitboard attacked = BB::attackedSquares(piece, square, occupancy, pieceColor) & occupancy;
+    while (attacked) {
+        Square attackedSquare = popLSB(&attacked);
+        Piece attackedPiece = board->pieces[attackedSquare];
+        Color attackedColor = (bitboard(attackedSquare) & board->byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
+
+        assert(attackedPiece != Piece::NONE);
+
+        updateThreat(piece, attackedPiece, square, attackedSquare, pieceColor, attackedColor, add);
+    }
+
+    Bitboard rookAttacks = getRookMoves(square, occupancy);
+    Bitboard bishopAttacks = getBishopMoves(square, occupancy);
+    Bitboard queenAttacks = rookAttacks | bishopAttacks;
+
+    Bitboard slidingPieces = (board->byPiece[Piece::BISHOP] | board->byPiece[Piece::QUEEN]) & bishopAttacks;
+    slidingPieces |= (board->byPiece[Piece::ROOK] | board->byPiece[Piece::QUEEN]) & rookAttacks;
+    slidingPieces &= ~ignoreBB;
+
+    Bitboard attackingPawns = board->byPiece[Piece::PAWN] & ((board->byColor[Color::BLACK] & BB::pawnAttacks(bitboard(square), Color::WHITE)) | (board->byColor[Color::WHITE] & BB::pawnAttacks(bitboard(square), Color::BLACK)));
+    Bitboard attackingKnights = board->byPiece[Piece::KNIGHT] & BB::KNIGHT_ATTACKS[square];
+    Bitboard attackingKings = board->byPiece[Piece::KING] & BB::KING_ATTACKS[square];
+    Bitboard incomingThreats = (attackingPawns | attackingKnights | attackingKings) & ~ignoreBB;
+
+    // Process attacks of sliding pieces that are now blocked by this piece
+    if (computeRays) {
+        while (slidingPieces) {
+            Square slidingPieceSquare = popLSB(&slidingPieces);
+            Bitboard slidingPieceBB = bitboard(slidingPieceSquare);
+            Piece slidingPiece = board->pieces[slidingPieceSquare];
+            Color slidingPieceColor = (board->byColor[Color::WHITE] & slidingPieceBB) ? Color::WHITE : Color::BLACK;
+
+            Bitboard ray = BB::RAY_PASS[slidingPieceSquare][square];
+            Bitboard threatened = ray & occupancy & queenAttacks;
+
+            assert(BB::popcount(threatened) < 2);
+
+            if (threatened) {
+                Square attackedSquare = lsb(threatened);
+                Piece attackedPiece = board->pieces[attackedSquare];
+                Color attackedColor = (bitboard(attackedSquare) & board->byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
+
+                updateThreat(slidingPiece, attackedPiece, slidingPieceSquare, attackedSquare, slidingPieceColor, attackedColor, !add);
+            }
+
+            updateThreat(slidingPiece, piece, slidingPieceSquare, square, slidingPieceColor, pieceColor, add);
+        }
+    } else {
+        incomingThreats |= slidingPieces;
+    }
+
+    // Process attacks of non-slider pieces that were already attacking this square
+    while (incomingThreats) {
+        Square attackingSquare = popLSB(&incomingThreats);
+        Piece attackingPiece = board->pieces[attackingSquare];
+        Color attackingColor = (bitboard(attackingSquare) & board->byColor[Color::WHITE]) ? Color::WHITE : Color::BLACK;
+
+        assert(attackingPiece != Piece::NONE);
+
+        updateThreat(attackingPiece, piece, attackingSquare, square, attackingColor, pieceColor, add);
+    }
+
 #endif
+}
+template void NNUE::updatePieceThreats<true, true>(Board*, Piece, Color, Square, Square);
+template void NNUE::updatePieceThreats<true, false>(Board*, Piece, Color, Square, Square);
+template void NNUE::updatePieceThreats<false, true>(Board*, Piece, Color, Square, Square);
+template void NNUE::updatePieceThreats<false, false>(Board*, Piece, Color, Square, Square);
 
 void NNUE::incrementAccumulator() {
     currentAccumulator++;

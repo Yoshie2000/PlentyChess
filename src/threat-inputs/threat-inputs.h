@@ -6,10 +6,10 @@
 #include <cstring>
 #include <array>
 
-#include "types.h"
-#include "bitboard.h"
-#include "magic.h"
-#include "board.h"
+#include "../types.h"
+#include "../bitboard.h"
+#include "../magic.h"
+#include "../board.h"
 
 namespace ThreatInputs {
 

@@ -2,6 +2,7 @@
 
 #include <immintrin.h>
 #include <utility>
+#include "threat-geometry.h"
 
 namespace ThreatGeometry {
 
@@ -23,6 +24,10 @@ namespace ThreatGeometry {
     inline __m512i colouredMailbox(const uint8_t* pieces, uint64_t black) {
         __m512i types = _mm512_loadu_si512(pieces);
         return _mm512_mask_add_epi8(types, black, types, _mm512_set1_epi8(8));
+    }
+
+    inline __m512i ignoreSquare(__m512i mailbox, Square ignore) {
+        return _mm512_mask_blend_epi8(1ULL << ignore, mailbox, _mm512_set1_epi8(Piece::NONE));
     }
 
     inline std::pair<Vector, Vector> permuteMailbox(const Permutation& permutation, __m512i mailbox) {
