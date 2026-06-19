@@ -6,6 +6,7 @@
 #include <cmath>
 #include <thread>
 #include <map>
+#include <new>
 
 #include <chrono>
 #include <thread>
@@ -518,7 +519,7 @@ movesLoopQsearch:
         return alpha;
 
     // Moves loop
-    MoveGen& movegen = movepickers[stack->ply][false] = MoveGen(board, &history, stack, ttMove, !board->checkers, 1);
+    MoveGen& movegen = *new (&movepickers[stack->ply][false]) MoveGen(board, &history, stack, ttMove, !board->checkers, 1);
     Move move;
     int moveCount = 0;
     bool playedQuiet = false;
@@ -916,7 +917,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     SearchedMoveList quietMoves, captureMoves;
 
     // Moves loop
-    MoveGen& movegen = movepickers[stack->ply][excluded] = MoveGen(board, &history, stack, ttMove, depth / 100);
+    MoveGen& movegen = *new (&movepickers[stack->ply][excluded]) MoveGen(board, &history, stack, ttMove, depth / 100);
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove())) {
