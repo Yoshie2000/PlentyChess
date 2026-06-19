@@ -497,7 +497,6 @@ Eval NNUE::evaluate(Board* board) {
         nnzCount += __builtin_popcount(nnzMask);
     }
 #else
-compile error:)))))
     VecI16_v128 nnzZero = setZero_v128();
     VecI16_v128 nnzIncrement = set1Epi16_v128(8);
     for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
