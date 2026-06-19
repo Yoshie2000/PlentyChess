@@ -346,8 +346,11 @@ Move MoveGen::nextMove() {
 
     case STAGE_PLAY_QUIETS:
 
-        if (returnedMoves < moveList.size())
+        if (returnedMoves < moveList.size()) {
+            if (searchStack->ply == 0)
+                rescoreRootQuiets();
             return moveList[returnedMoves++];
+        }
 
         ++stage;
         [[fallthrough]];
@@ -394,9 +397,36 @@ void MoveGen::scoreCaptures() {
     }
 }
 
-void MoveGen::scoreQuiets() {
+int MoveGen::quietScore(Move move) {
     Threats& threats = board->threats;
 
+    int threatScore = 0;
+    Piece piece = board->pieces[move.origin()];
+    Bitboard fromBB = bitboard(move.origin());
+    Bitboard toBB = bitboard(move.target());
+    if (piece == Piece::QUEEN) {
+        if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
+            threatScore += mpThreatQueenValue;
+        if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
+            threatScore -= mpThreatQueenValue;
+    }
+    else if (piece == Piece::ROOK) {
+        if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
+            threatScore += mpThreatRookValue;
+        if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
+            threatScore -= mpThreatRookValue;
+    }
+    else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
+        if (fromBB & threats.pawnThreats)
+            threatScore += mpThreatKnightValue;
+        if (toBB & threats.pawnThreats)
+            threatScore -= mpThreatKnightValue;
+    }
+
+    return history->getHistory(board, searchStack, move, false) + threatScore;
+}
+
+void MoveGen::scoreQuiets() {
     for (int i = returnedMoves; i < moveList.size(); i++) {
         Move move = moveList[i];
 
@@ -406,30 +436,27 @@ void MoveGen::scoreQuiets() {
             continue;
         }
 
-        int threatScore = 0;
-        Piece piece = board->pieces[move.origin()];
-        Bitboard fromBB = bitboard(move.origin());
-        Bitboard toBB = bitboard(move.target());
-        if (piece == Piece::QUEEN) {
-            if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
-                threatScore += mpThreatQueenValue;
-            if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats | threats.rookThreats))
-                threatScore -= mpThreatQueenValue;
-        }
-        else if (piece == Piece::ROOK) {
-            if (fromBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
-                threatScore += mpThreatRookValue;
-            if (toBB & (threats.pawnThreats | threats.knightThreats | threats.bishopThreats))
-                threatScore -= mpThreatRookValue;
-        }
-        else if (piece == Piece::KNIGHT || piece == Piece::BISHOP) {
-            if (fromBB & threats.pawnThreats)
-                threatScore += mpThreatKnightValue;
-            if (toBB & threats.pawnThreats)
-                threatScore -= mpThreatKnightValue;
-        }
+        moveListScores.add(quietScore(move));
+    }
+}
 
-        moveListScores.add(history->getHistory(board, searchStack, move, false) + threatScore);
+// At the root, re-score the remaining quiets with freshly updated history and move
+// the new best to the front. Earlier root moves update the history tables, so later
+// ones get ordered with that knowledge instead of stale generation-time scores.
+void MoveGen::rescoreRootQuiets() {
+    int best = returnedMoves;
+    for (int i = returnedMoves; i < moveList.size(); i++) {
+        moveListScores[i] = quietScore(moveList[i]);
+        if (moveListScores[i] > moveListScores[best])
+            best = i;
+    }
+    if (best != returnedMoves) {
+        Move bestMove = moveList[best];
+        int bestScore = moveListScores[best];
+        moveList[best] = moveList[returnedMoves];
+        moveListScores[best] = moveListScores[returnedMoves];
+        moveList[returnedMoves] = bestMove;
+        moveListScores[returnedMoves] = bestScore;
     }
 }
 

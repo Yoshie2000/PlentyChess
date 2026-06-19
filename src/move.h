@@ -76,6 +76,8 @@ private:
 
     void scoreCaptures();
     void scoreQuiets();
+    int quietScore(Move move);
+    void rescoreRootQuiets();
 
     void sortMoves();
 
