@@ -48,6 +48,7 @@ struct Threats {
     Bitboard rookThreats;
     Bitboard queenThreats;
     Bitboard kingThreats;
+    Bitboard allThreats;
 };
 
 struct Hashes {
