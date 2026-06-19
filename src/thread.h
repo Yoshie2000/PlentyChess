@@ -56,7 +56,7 @@ inline auto getCoresPerNumaNode() {
                 struct bitmask* coreMask = numa_allocate_cpumask();
                 if (numa_node_to_cpus(node, coreMask) != 0) {
                     std::cerr << "info string Could not get core mask for NUMA node " << node << std::endl;
-                    throw std::bad_alloc();
+                    std::exit(1);
                 }
 
                 cpu_set_t cpuset;
@@ -87,7 +87,7 @@ inline auto getCoresPerNumaNode() {
         }
         if (coreCount != std::thread::hardware_concurrency()) {
             std::cerr << "info string Detected NUMA core count does not match hardware concurrency!" << std::endl;
-            throw std::bad_alloc();
+            std::exit(1);
         }
 
         return coresPerNode;
@@ -121,7 +121,7 @@ inline int getNumaNode(int threadId, int numThreads) {
     }
 
     std::cerr << "info string This should never happen!" << std::endl;
-    throw std::bad_alloc();
+    std::exit(1);
 #else
     (void) threadId;
     return 0;
@@ -319,7 +319,7 @@ public:
                 NetworkData* weights = reinterpret_cast<NetworkData*>(numa_alloc_onnode(sizeof(NetworkData), nodeIdx));
                 if (!weights) {
                     std::cerr << "info string Could not allocate a NetworkData object on NUMA node " << nodeIdx << std::endl;
-                    throw std::bad_alloc();
+                    std::exit(1);
                 }
                 std::cout << "info string Allocated a NetworkData object on NUMA node " << nodeIdx << std::endl;
                 madvise(weights, sizeof(NetworkData), MADV_HUGEPAGE);
@@ -333,7 +333,7 @@ public:
                 SharedHistory* history = reinterpret_cast<SharedHistory*>(numa_alloc_onnode(sizeof(SharedHistory), nodeIdx));
                 if (!history) {
                     std::cerr << "info string Could not allocate a SharedHistory object on NUMA node " << nodeIdx << std::endl;
-                    throw std::bad_alloc();
+                    std::exit(1);
                 }
                 std::cout << "info string Allocated a SharedHistory object on NUMA node " << nodeIdx << std::endl;
                 madvise(history, sizeof(SharedHistory), MADV_HUGEPAGE);
