@@ -94,9 +94,7 @@ ifeq ($(arch),)
 	endif
 
 # Select best build
-	ifneq ($(HAS_VBMI2),0)
-		arch := avx512vbmi2
-	else ifneq ($(HAS_AVX512),0)
+	ifneq ($(HAS_AVX512),0)
 		arch := avx512
 	else ifneq ($(HAS_AVX2),0)
 		arch := avx2
