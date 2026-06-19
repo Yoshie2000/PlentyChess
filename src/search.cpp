@@ -605,6 +605,7 @@ template <NodeType nt>
 Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, Eval beta, bool cutNode) {
     constexpr bool rootNode = nt == ROOT_NODE;
     constexpr bool pvNode = nt == PV_NODE || nt == ROOT_NODE;
+    bool allNode = !cutNode && !pvNode;
 
     assert(-EVAL_INFINITE <= alpha && alpha < beta && beta <= EVAL_INFINITE);
     assert(!(pvNode && cutNode));
@@ -1108,6 +1109,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= lmrTtPv(importantCapture);
                 reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
             }
+
+            if (allNode && !importantCapture)
+                reduction += reduction / (depth / 100 + 1);
 
             if (capture) {
                 reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
