@@ -18,6 +18,8 @@ constexpr int THREAT_INPUT_SIZE = 59808;
 constexpr int PAWN_PAIR_INPUT_SIZE = 96 * 95 / 2;
 constexpr int INPUT_SIZE = THREAT_INPUT_SIZE + PAWN_PAIR_INPUT_SIZE + KING_BUCKETS * 768;
 constexpr int L1_SIZE = 640;
+constexpr int L1_SIZE_THREAT = 384;
+constexpr int L1_SIZE_TOTAL = L1_SIZE + L1_SIZE_THREAT;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
@@ -28,9 +30,11 @@ constexpr int ALIGNMENT = 64;
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
 
 struct RawNetworkData {
-    float inputWeights[(INPUT_SIZE + 768 /* factoriser bucket at the beginning */) * L1_SIZE];
+    float inputWeights[(INPUT_SIZE + 768 /* factoriser bucket */) * L1_SIZE];
     float inputBiases[L1_SIZE];
-    float l1Weights[L1_SIZE][OUTPUT_BUCKETS][L2_SIZE];
+    float inputThreatWeights[THREAT_INPUT_SIZE * L1_SIZE_THREAT];
+    float inputThreatBiases[L1_SIZE_THREAT];
+    float l1Weights[L1_SIZE_TOTAL][OUTPUT_BUCKETS][L2_SIZE];
     float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
     float l2Weights[2 * L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
     float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
@@ -41,9 +45,9 @@ struct RawNetworkData {
 struct NetworkData {
     alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
     alignas(ALIGNMENT) int8_t inputPawnPairWeights[PAWN_PAIR_INPUT_SIZE * L1_SIZE];
-    alignas(ALIGNMENT) int8_t inputThreatWeights[THREAT_INPUT_SIZE * L1_SIZE];
-    alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE];
-    alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE * L2_SIZE];
+    alignas(ALIGNMENT) int8_t inputThreatWeights[THREAT_INPUT_SIZE * L1_SIZE_TOTAL];
+    alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE_TOTAL];
+    alignas(ALIGNMENT) int8_t l1Weights[OUTPUT_BUCKETS][L1_SIZE_TOTAL * L2_SIZE];
     alignas(ALIGNMENT) float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
     alignas(ALIGNMENT) float l2Weights[OUTPUT_BUCKETS][2 * L2_SIZE * L3_SIZE];
     alignas(ALIGNMENT) float l2Biases[OUTPUT_BUCKETS][L3_SIZE];
@@ -100,40 +104,53 @@ float readFloat(std::istream& is) {
 }
 
 void quantizeNetwork() {
-    // Add factorized input weights to buckets, and quantize
-    for (int w = 0; w < THREAT_INPUT_SIZE * L1_SIZE; w++) {
-        tmp.inputThreatWeights[w] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights[w + 768 * L1_SIZE /* factoriser bucket at the beginning */]), -128, 127);
+    constexpr int FACTORISER_OFFSET = THREAT_INPUT_SIZE * L1_SIZE;
+    constexpr int BUCKETED_OFFSET = (THREAT_INPUT_SIZE + 768) * L1_SIZE;
+    constexpr int PAWN_PAIR_OFFSET = (THREAT_INPUT_SIZE + 768 + 768 * KING_BUCKETS) * L1_SIZE;
+
+    // Threats
+    for (int t = 0; t < THREAT_INPUT_SIZE; t++) {
+        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+            tmp.inputThreatWeights[t * L1_SIZE_TOTAL + l1] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights[t * L1_SIZE + l1]), -128, 127);
+        }
+        for (int j = 0; j < L1_SIZE_THREAT; j++) {
+            tmp.inputThreatWeights[t * L1_SIZE_TOTAL + L1_SIZE + j] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputThreatWeights[t * L1_SIZE_THREAT + j]), -128, 127);
+        }
     }
+    // PSQ
     for (int kb = 0; kb < KING_BUCKETS; kb++) {
         for (int w = 0; w < 768 * L1_SIZE; w++) {
             int psqIdx = kb * 768 * L1_SIZE + w;
-            int rawIdx = (768 + THREAT_INPUT_SIZE) * L1_SIZE + psqIdx; // skip factoriser + threats
-            int factoriserIdx = w;
-            tmp.inputPsqWeights[psqIdx] = quantize<INPUT_QUANT>(raw.inputWeights[rawIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]);
+            int bucketedIdx = BUCKETED_OFFSET + psqIdx;
+            int factoriserIdx = FACTORISER_OFFSET + w;
+            tmp.inputPsqWeights[psqIdx] = quantize<INPUT_QUANT>(raw.inputWeights[bucketedIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]);
         }
     }
-    for (int w = 0; w < PAWN_PAIR_INPUT_SIZE * L1_SIZE; w++) {
-        tmp.inputPawnPairWeights[w] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights[w + (768 + THREAT_INPUT_SIZE + 768 * KING_BUCKETS) * L1_SIZE]), -128, 127);
+    // Pawn pairs (combined transformer only -> L1_SIZE wide)
+    for (int p = 0; p < PAWN_PAIR_INPUT_SIZE; p++) {
+        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+            tmp.inputPawnPairWeights[p * L1_SIZE + l1] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights[PAWN_PAIR_OFFSET + p * L1_SIZE + l1]), -128, 127);
+        }
     }
 
     // Quantize input biases
     for (int b = 0; b < L1_SIZE; b++) {
         tmp.inputBiases[b] = quantize<INPUT_QUANT>(raw.inputBiases[b]);
     }
+    for (int b = 0; b < L1_SIZE_THREAT; b++) {
+        tmp.inputBiases[L1_SIZE + b] = quantize<INPUT_QUANT>(raw.inputThreatBiases[b]);
+    }
 
-    // // Quantize L1 weights
+    // Quantize L1 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+        for (int l1 = 0; l1 < L1_SIZE_TOTAL; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
-                tmp.l1Weights[b][l2 * L1_SIZE + l1] = quantize<L1_QUANT>(((float*)raw.l1Weights)[b * L1_SIZE * L2_SIZE + l2 * L1_SIZE + l1]);
+                tmp.l1Weights[b][l2 * L1_SIZE_TOTAL + l1] = quantize<L1_QUANT>(((float*)raw.l1Weights)[b * L1_SIZE_TOTAL * L2_SIZE + l2 * L1_SIZE_TOTAL + l1]);
             }
         }
     }
 
-    // std::memcpy the rest
-    // std::memcpy(tmp.inputWeights, raw.inputWeights, sizeof(raw.inputWeights));
-    // std::memcpy(tmp.inputBiases, raw.inputBiases, sizeof(raw.inputBiases));
-    // std::memcpy(tmp.l1Weights, raw.l1Weights, sizeof(raw.l1Weights));
+    // memcpy the rest
     std::memcpy(tmp.l1Biases, raw.l1Biases, sizeof(raw.l1Biases));
     std::memcpy(tmp.l2Weights, raw.l2Weights, sizeof(raw.l2Weights));
     std::memcpy(tmp.l2Biases, raw.l2Biases, sizeof(raw.l2Biases));
@@ -153,11 +170,13 @@ void transposePermuteNetwork() {
     constexpr int permutation[packusBlocks] = { 0, 2, 1, 3 };
 #endif
     __m128i regs[packusBlocks];
-
-    for (int limit : { 1, 768 * KING_BUCKETS }) {
-        __m128i* vec = reinterpret_cast<__m128i*>(limit == 1 ? (int16_t*)tmp.inputBiases : (int16_t*)tmp.inputPsqWeights);
-
-        for (int i = 0; i < limit * L1_SIZE / weightsPerBlock; i += packusBlocks) {
+    struct { int16_t* ptr; size_t count; } i16Blocks[] = {
+        { tmp.inputBiases, (size_t)L1_SIZE_TOTAL },
+        { tmp.inputPsqWeights, (size_t)768 * KING_BUCKETS * L1_SIZE },
+    };
+    for (auto& blk : i16Blocks) {
+        __m128i* vec = reinterpret_cast<__m128i*>(blk.ptr);
+        for (size_t i = 0; i < blk.count / weightsPerBlock; i += packusBlocks) {
             for (int j = 0; j < packusBlocks; j++)
                 regs[j] = vec[i + j];
 
@@ -167,10 +186,13 @@ void transposePermuteNetwork() {
     }
 
     uint64_t weightsRegs[packusBlocks];
-    for (int8_t* base : { tmp.inputThreatWeights, tmp.inputPawnPairWeights }) {
-        int count = base == tmp.inputThreatWeights ? THREAT_INPUT_SIZE : PAWN_PAIR_INPUT_SIZE;
-        uint64_t* weightsVec = reinterpret_cast<uint64_t*>(base);
-        for (int i = 0; i < count * L1_SIZE / weightsPerBlock; i += packusBlocks) {
+    struct { int8_t* ptr; size_t count; } i8Blocks[] = {
+        { tmp.inputThreatWeights, (size_t)THREAT_INPUT_SIZE * L1_SIZE_TOTAL },
+        { tmp.inputPawnPairWeights, (size_t)PAWN_PAIR_INPUT_SIZE * L1_SIZE },
+    };
+    for (auto& blk : i8Blocks) {
+        uint64_t* weightsVec = reinterpret_cast<uint64_t*>(blk.ptr);
+        for (size_t i = 0; i < blk.count / weightsPerBlock; i += packusBlocks) {
             for (int j = 0; j < packusBlocks; j++)
                 weightsRegs[j] = weightsVec[i + j];
 
@@ -183,7 +205,7 @@ void transposePermuteNetwork() {
     // Transpose L1 / L2 / L3 weights
     for (int b = 0; b < OUTPUT_BUCKETS; b++) {
 #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
-        for (int l1 = 0; l1 < L1_SIZE / INT8_PER_INT32; l1++) {
+        for (int l1 = 0; l1 < L1_SIZE_TOTAL / INT8_PER_INT32; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
                 for (int c = 0; c < INT8_PER_INT32; c++) {
                     out.l1Weights[b][l1 * INT8_PER_INT32 * L2_SIZE + l2 * INT8_PER_INT32 + c] = reinterpret_cast<int8_t*>(tmp.l1Weights)[(l1 * INT8_PER_INT32 + c) * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
@@ -191,7 +213,7 @@ void transposePermuteNetwork() {
             }
         }
 #else
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
+        for (int l1 = 0; l1 < L1_SIZE_TOTAL; l1++) {
             for (int l2 = 0; l2 < L2_SIZE; l2++) {
                 out.l1Weights[b][l1 * L2_SIZE + l2] = reinterpret_cast<int8_t*>(tmp.l1Weights)[l1 * OUTPUT_BUCKETS * L2_SIZE + b * L2_SIZE + l2];
             }

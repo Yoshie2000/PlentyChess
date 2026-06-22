@@ -72,8 +72,8 @@ void NNUE::reset(Board* board) {
         for (int j = 0; j < KING_BUCKETS; j++) {
             memset(finnyTable[i][j].byColor, 0, sizeof(finnyTable[i][j].byColor));
             memset(finnyTable[i][j].byPiece, 0, sizeof(finnyTable[i][j].byPiece));
-            memset(finnyTable[i][j].pieceState[Color::WHITE], 0, sizeof(networkData->inputBiases));
-            memset(finnyTable[i][j].pieceState[Color::BLACK], 0, sizeof(networkData->inputBiases));
+            memset(finnyTable[i][j].pieceState[Color::WHITE], 0, sizeof(finnyTable[i][j].pieceState[Color::WHITE]));
+            memset(finnyTable[i][j].pieceState[Color::BLACK], 0, sizeof(finnyTable[i][j].pieceState[Color::BLACK]));
         }
     }
 }
@@ -85,10 +85,11 @@ void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
     // Overwrite with zeroes
     memset(acc->pieceState[side], 0, sizeof(acc->pieceState[side]));
 
-    ThreatInputs::FeatureList threatFeatures;
+    ThreatInputs::FeatureList threatFeatures, pawnPairFeatures;
     ThreatInputs::addThreatFeatures<side>(board, threatFeatures);
-    ThreatInputs::addPawnPairFeatures<side>(board, threatFeatures);
+    ThreatInputs::addPawnPairFeatures<side>(board, pawnPairFeatures);
     applyThreatRows<side>(acc->threatState, acc->threatState, threatFeatures, ThreatInputs::FeatureList{});
+    applyPawnPairRows<side>(acc->threatState, acc->threatState, pawnPairFeatures, ThreatInputs::FeatureList{});
 
     ThreatInputs::FeatureList pieceFeatures;
     ThreatInputs::addPieceFeatures(board, side, pieceFeatures, KING_BUCKET_LAYOUT);
@@ -231,10 +232,11 @@ void NNUE::refreshThreatFeatures(Accumulator* acc) {
     // Overwrite with biases
     memcpy(acc->threatState[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
-    ThreatInputs::FeatureList threatFeatures;
+    ThreatInputs::FeatureList threatFeatures, pawnPairFeatures;
     ThreatInputs::addThreatFeatures<side>(acc->board, threatFeatures);
-    ThreatInputs::addPawnPairFeatures<side>(acc->board, threatFeatures);
+    ThreatInputs::addPawnPairFeatures<side>(acc->board, pawnPairFeatures);
     applyThreatRows<side>(acc->threatState, acc->threatState, threatFeatures, ThreatInputs::FeatureList{});
+    applyPawnPairRows<side>(acc->threatState, acc->threatState, pawnPairFeatures, ThreatInputs::FeatureList{});
 }
 
 template<Color side>
@@ -281,28 +283,29 @@ void NNUE::incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* 
 
 template<Color side>
 void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket) {
-    ThreatInputs::FeatureList adds, subs;
-    ThreatInputs::addPawnPairDeltas<side>(outputAcc->board, outputAcc->dirtyPiece, kingBucket->mirrored, adds, subs);
+    ThreatInputs::FeatureList adds, subs, pawnPairAdds, pawnPairSubs;
+    ThreatInputs::addPawnPairDeltas<side>(outputAcc->board, outputAcc->dirtyPiece, kingBucket->mirrored, pawnPairAdds, pawnPairSubs);
 
     for (int dp = 0; dp < outputAcc->numThreatsAdded; dp++) {
         DirtyThreat& dt = outputAcc->dirtyThreatsAdded[dp];
         int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare, kingBucket->mirrored);
-        __builtin_prefetch(&networkData->inputThreatWeights[(ThreatInputs::THREAT_OFFSET + featureIndex) * L1_SIZE]);
+        __builtin_prefetch(&networkData->inputThreatWeights[featureIndex * L1_SIZE_TOTAL]);
         adds.addIf(ThreatInputs::THREAT_OFFSET + featureIndex, featureIndex < ThreatInputs::FEATURE_COUNT);
     }
     for (int dp = 0; dp < outputAcc->numThreatsRemoved; dp++) {
         DirtyThreat& dt = outputAcc->dirtyThreatsRemoved[dp];
         int featureIndex = ThreatInputs::getThreatFeature<side>(dt.piece, dt.attackedPiece, dt.square, dt.attackedSquare, kingBucket->mirrored);
-        __builtin_prefetch(&networkData->inputThreatWeights[(ThreatInputs::THREAT_OFFSET + featureIndex) * L1_SIZE]);
+        __builtin_prefetch(&networkData->inputThreatWeights[featureIndex * L1_SIZE_TOTAL]);
         subs.addIf(ThreatInputs::THREAT_OFFSET + featureIndex, featureIndex < ThreatInputs::FEATURE_COUNT);
     }
 
-    if (!adds.size() && !subs.size()) {
+    if (!adds.size() && !subs.size())
         memcpy(outputAcc->threatState[side], inputAcc->threatState[side], sizeof(networkData->inputBiases));
-        return;
-    }
+    else
+        applyThreatRows<side>(inputAcc->threatState, outputAcc->threatState, adds, subs);
 
-    applyThreatRows<side>(inputAcc->threatState, outputAcc->threatState, adds, subs);
+    if (pawnPairAdds.size() || pawnPairSubs.size())
+        applyPawnPairRows<side>(outputAcc->threatState, outputAcc->threatState, pawnPairAdds, pawnPairSubs);
 }
 
 template<FtType type, Color side>
@@ -378,8 +381,42 @@ void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData
 }
 
 template<Color side>
-void NNUE::applyThreatRows(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE],
+void NNUE::applyThreatRows(int16_t(*inputData)[L1_SIZE_TOTAL], int16_t(*outputData)[L1_SIZE_TOTAL],
                            const ThreatInputs::FeatureList& adds, const ThreatInputs::FeatureList& subs) {
+    VecI16* input = (VecI16*)inputData[side];
+    VecI16* output = (VecI16*)outputData[side];
+
+#if defined(__AVX512F__) && defined(__AVX512BW__)
+    constexpr int TILE = 16;
+#else
+    constexpr int TILE = 8;
+#endif
+    static_assert(L1_THREAT_ITERATIONS % TILE == 0);
+
+    for (int base = 0; base < L1_THREAT_ITERATIONS; base += TILE) {
+        VecI16 registers[TILE];
+        for (int t = 0; t < TILE; t++)
+            registers[t] = input[base + t];
+
+        for (int feature : subs) {
+            VecI16s* weights = (VecI16s*)&networkData->inputThreatWeights[(feature - ThreatInputs::THREAT_OFFSET) * L1_SIZE_TOTAL];
+            for (int t = 0; t < TILE; t++)
+                registers[t] = subEpi16(registers[t], convertEpi8Epi16(weights[base + t]));
+        }
+        for (int feature : adds) {
+            VecI16s* weights = (VecI16s*)&networkData->inputThreatWeights[(feature - ThreatInputs::THREAT_OFFSET) * L1_SIZE_TOTAL];
+            for (int t = 0; t < TILE; t++)
+                registers[t] = addEpi16(registers[t], convertEpi8Epi16(weights[base + t]));
+        }
+
+        for (int t = 0; t < TILE; t++)
+            output[base + t] = registers[t];
+    }
+}
+
+template<Color side>
+void NNUE::applyPawnPairRows(int16_t(*inputData)[L1_SIZE_TOTAL], int16_t(*outputData)[L1_SIZE_TOTAL],
+                             const ThreatInputs::FeatureList& adds, const ThreatInputs::FeatureList& subs) {
     VecI16* input = (VecI16*)inputData[side];
     VecI16* output = (VecI16*)outputData[side];
 
@@ -396,12 +433,12 @@ void NNUE::applyThreatRows(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1
             registers[t] = input[base + t];
 
         for (int feature : subs) {
-            VecI16s* weights = (VecI16s*)&networkData->inputThreatWeights[feature * L1_SIZE];
+            VecI16s* weights = (VecI16s*)&networkData->inputPawnPairWeights[feature * L1_SIZE];
             for (int t = 0; t < TILE; t++)
                 registers[t] = subEpi16(registers[t], convertEpi8Epi16(weights[base + t]));
         }
         for (int feature : adds) {
-            VecI16s* weights = (VecI16s*)&networkData->inputThreatWeights[feature * L1_SIZE];
+            VecI16s* weights = (VecI16s*)&networkData->inputPawnPairWeights[feature * L1_SIZE];
             for (int t = 0; t < TILE; t++)
                 registers[t] = addEpi16(registers[t], convertEpi8Epi16(weights[base + t]));
         }
@@ -436,38 +473,39 @@ Eval NNUE::evaluate(Board* board) {
 
     // ---------------------- FT ACTIVATION & PAIRWISE ----------------------
 
-    alignas(ALIGNMENT) uint8_t pairwiseOutputs[L1_SIZE];
+    alignas(ALIGNMENT) uint8_t pairwiseOutputs[L1_SIZE_TOTAL];
     VecIu8* pairwiseOutputsVec = reinterpret_cast<VecIu8*>(pairwiseOutputs);
 
     constexpr int inverseShift = 16 - INPUT_SHIFT;
-    constexpr int pairwiseOffset = L1_SIZE / I16_VEC_SIZE / 2;
-    for (int pw = 0; pw < pairwiseOffset; pw += 2) {
-        // STM
-        VecI16 clipped1 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw], stmThreatAcc[pw]), i16Zero), i16Quant);
-        VecI16 clipped2 = minEpi16(addEpi16(stmPieceAcc[pw + pairwiseOffset], stmThreatAcc[pw + pairwiseOffset]), i16Quant);
-        VecI16 shift = slliEpi16(clipped1, inverseShift);
-        VecI16 mul1 = mulhiEpi16(shift, clipped2);
+    constexpr int combinedOffset = L1_SIZE / I16_VEC_SIZE / 2;
+    constexpr int threatOffset = L1_SIZE_THREAT / I16_VEC_SIZE / 2;
+    constexpr int threatBaseVec = L1_SIZE / I16_VEC_SIZE;
 
-        clipped1 = minEpi16(maxEpi16(addEpi16(stmPieceAcc[pw + 1], stmThreatAcc[pw + 1]), i16Zero), i16Quant);
-        clipped2 = minEpi16(addEpi16(stmPieceAcc[pw + 1 + pairwiseOffset], stmThreatAcc[pw + 1 + pairwiseOffset]), i16Quant);
-        shift = slliEpi16(clipped1, inverseShift);
-        VecI16 mul2 = mulhiEpi16(shift, clipped2);
+    auto computeSegment = [&](VecI16* pieceAcc, VecI16* threatAcc, int offVecs, int outBaseVec) {
+        for (int pw = 0; pw < offVecs; pw += 2) {
+            VecI16 a0 = pieceAcc ? addEpi16(pieceAcc[pw], threatAcc[pw]) : threatAcc[pw];
+            VecI16 b0 = pieceAcc ? addEpi16(pieceAcc[pw + offVecs], threatAcc[pw + offVecs]) : threatAcc[pw + offVecs];
+            VecI16 a1 = pieceAcc ? addEpi16(pieceAcc[pw + 1], threatAcc[pw + 1]) : threatAcc[pw + 1];
+            VecI16 b1 = pieceAcc ? addEpi16(pieceAcc[pw + 1 + offVecs], threatAcc[pw + 1 + offVecs]) : threatAcc[pw + 1 + offVecs];
 
-        pairwiseOutputsVec[pw / 2] = packusEpi16(mul1, mul2);
+            VecI16 clipped1 = minEpi16(maxEpi16(a0, i16Zero), i16Quant);
+            VecI16 clipped2 = minEpi16(b0, i16Quant);
+            VecI16 mul1 = mulhiEpi16(slliEpi16(clipped1, inverseShift), clipped2);
 
-        // NSTM
-        clipped1 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw], oppThreatAcc[pw]), i16Zero), i16Quant);
-        clipped2 = minEpi16(addEpi16(oppPieceAcc[pw + pairwiseOffset], oppThreatAcc[pw + pairwiseOffset]), i16Quant);
-        shift = slliEpi16(clipped1, inverseShift);
-        mul1 = mulhiEpi16(shift, clipped2);
+            clipped1 = minEpi16(maxEpi16(a1, i16Zero), i16Quant);
+            clipped2 = minEpi16(b1, i16Quant);
+            VecI16 mul2 = mulhiEpi16(slliEpi16(clipped1, inverseShift), clipped2);
 
-        clipped1 = minEpi16(maxEpi16(addEpi16(oppPieceAcc[pw + 1], oppThreatAcc[pw + 1]), i16Zero), i16Quant);
-        clipped2 = minEpi16(addEpi16(oppPieceAcc[pw + 1 + pairwiseOffset], oppThreatAcc[pw + 1 + pairwiseOffset]), i16Quant);
-        shift = slliEpi16(clipped1, inverseShift);
-        mul2 = mulhiEpi16(shift, clipped2);
+            pairwiseOutputsVec[outBaseVec + pw / 2] = packusEpi16(mul1, mul2);
+        }
+    };
 
-        pairwiseOutputsVec[pw / 2 + pairwiseOffset / 2] = packusEpi16(mul1, mul2);
-    }
+    // Combined
+    computeSegment(stmPieceAcc, stmThreatAcc, combinedOffset, 0);
+    computeSegment(oppPieceAcc, oppThreatAcc, combinedOffset, combinedOffset / 2);
+    // Threat-only
+    computeSegment(nullptr, stmThreatAcc + threatBaseVec, threatOffset, combinedOffset);
+    computeSegment(nullptr, oppThreatAcc + threatBaseVec, threatOffset, combinedOffset + threatOffset / 2);
 
 #if defined(PROCESS_NET)
     nnz.addActivations(pairwiseOutputs);
@@ -479,7 +517,7 @@ Eval NNUE::evaluate(Board* board) {
 
 #if defined(__SSSE3__) || defined(__AVX2__) || (defined(__AVX512F__) && defined(__AVX512BW__)) || defined(ARCH_ARM)
     int nnzCount = 0;
-    alignas(ALIGNMENT) uint16_t nnzIndices[L1_SIZE / INT8_PER_INT32];
+    alignas(ALIGNMENT) uint16_t nnzIndices[L1_SIZE_TOTAL / INT8_PER_INT32];
 
     VecI32* pairwiseOutputsVecI32 = reinterpret_cast<VecI32*>(pairwiseOutputs);
 
@@ -490,7 +528,7 @@ Eval NNUE::evaluate(Board* board) {
         15, 14, 13, 12, 11, 10,  9,  8,
          7,  6,  5,  4,  3,  2,  1,  0
     );
-    for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 32; i++) {
+    for (int i = 0; i < L1_SIZE_TOTAL / INT8_PER_INT32 / 32; i++) {
         uint32_t nnzMask = vecNNZ(pairwiseOutputsVecI32[i * 2]) | (vecNNZ(pairwiseOutputsVecI32[i * 2 + 1]) << 16);
         _mm512_storeu_si512(nnzIndices + nnzCount, _mm512_maskz_compress_epi16(nnzMask, nnzBase));
         nnzBase = _mm512_add_epi16(nnzBase, _mm512_set1_epi16(32));
@@ -499,7 +537,7 @@ Eval NNUE::evaluate(Board* board) {
 #else
     VecI16_v128 nnzZero = setZero_v128();
     VecI16_v128 nnzIncrement = set1Epi16_v128(8);
-    for (int i = 0; i < L1_SIZE / INT8_PER_INT32 / 16; i++) {
+    for (int i = 0; i < L1_SIZE_TOTAL / INT8_PER_INT32 / 16; i++) {
         uint32_t nnzMask = 0;
 
         for (int j = 0; j < 16 / I32_VEC_SIZE; j++) {
@@ -572,7 +610,7 @@ Eval NNUE::evaluate(Board* board) {
     }
 
 #else
-    for (int ft = 0; ft < L1_SIZE; ft++) {
+    for (int ft = 0; ft < L1_SIZE_TOTAL; ft++) {
         if (!pairwiseOutputs[ft])
             continue;
 
