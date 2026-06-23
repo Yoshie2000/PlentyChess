@@ -17,9 +17,9 @@ constexpr int OUTPUT_BUCKETS = 8;
 constexpr int THREAT_INPUT_SIZE = 59808;
 constexpr int PAWN_PAIR_INPUT_SIZE = 96 * 95 / 2;
 constexpr int INPUT_SIZE = THREAT_INPUT_SIZE + PAWN_PAIR_INPUT_SIZE + KING_BUCKETS * 768;
-constexpr int L1_SIZE = 640;
-constexpr int L1_SIZE_THREAT = 384;
-constexpr int L1_SIZE_TOTAL = L1_SIZE + L1_SIZE_THREAT;
+constexpr int PSQT_THREAT_INPUT_SIZE = THREAT_INPUT_SIZE + 768 + KING_BUCKETS * 768;
+constexpr int L1_SIZE = 512;
+constexpr int L1_SIZE_TOTAL = 2 * L1_SIZE;
 constexpr int L2_SIZE = 16;
 constexpr int L3_SIZE = 32;
 
@@ -30,10 +30,10 @@ constexpr int ALIGNMENT = 64;
 constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
 
 struct RawNetworkData {
-    float inputWeights[(INPUT_SIZE + 768 /* factoriser bucket */) * L1_SIZE];
-    float inputBiases[L1_SIZE];
-    float inputThreatWeights[THREAT_INPUT_SIZE * L1_SIZE_THREAT];
-    float inputThreatBiases[L1_SIZE_THREAT];
+    float l0Weights[(INPUT_SIZE + 768 /* factoriser */) * L1_SIZE];
+    float l0Biases[L1_SIZE];
+    float l0ptWeights[PSQT_THREAT_INPUT_SIZE * L1_SIZE];
+    float l0ptBiases[L1_SIZE];
     float l1Weights[L1_SIZE_TOTAL][OUTPUT_BUCKETS][L2_SIZE];
     float l1Biases[OUTPUT_BUCKETS][L2_SIZE];
     float l2Weights[2 * L2_SIZE][OUTPUT_BUCKETS][L3_SIZE];
@@ -43,7 +43,7 @@ struct RawNetworkData {
 };
 
 struct NetworkData {
-    alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
+    alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE_TOTAL];
     alignas(ALIGNMENT) int8_t inputPawnPairWeights[PAWN_PAIR_INPUT_SIZE * L1_SIZE];
     alignas(ALIGNMENT) int8_t inputThreatWeights[THREAT_INPUT_SIZE * L1_SIZE_TOTAL];
     alignas(ALIGNMENT) int16_t inputBiases[L1_SIZE_TOTAL];
@@ -110,35 +110,37 @@ void quantizeNetwork() {
 
     // Threats
     for (int t = 0; t < THREAT_INPUT_SIZE; t++) {
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
-            tmp.inputThreatWeights[t * L1_SIZE_TOTAL + l1] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights[t * L1_SIZE + l1]), -128, 127);
-        }
-        for (int j = 0; j < L1_SIZE_THREAT; j++) {
-            tmp.inputThreatWeights[t * L1_SIZE_TOTAL + L1_SIZE + j] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputThreatWeights[t * L1_SIZE_THREAT + j]), -128, 127);
+        for (int j = 0; j < L1_SIZE; j++) {
+            tmp.inputThreatWeights[t * L1_SIZE_TOTAL + j] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.l0Weights[t * L1_SIZE + j]), -128, 127);
+            tmp.inputThreatWeights[t * L1_SIZE_TOTAL + L1_SIZE + j] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.l0ptWeights[t * L1_SIZE + j]), -128, 127);
         }
     }
     // PSQ
-    for (int kb = 0; kb < KING_BUCKETS; kb++) {
-        for (int w = 0; w < 768 * L1_SIZE; w++) {
-            int psqIdx = kb * 768 * L1_SIZE + w;
-            int bucketedIdx = BUCKETED_OFFSET + psqIdx;
-            int factoriserIdx = FACTORISER_OFFSET + w;
-            tmp.inputPsqWeights[psqIdx] = quantize<INPUT_QUANT>(raw.inputWeights[bucketedIdx]) + quantize<INPUT_QUANT>(raw.inputWeights[factoriserIdx]);
+    for (int row = 0; row < 768 * KING_BUCKETS; row++) {
+        int feat = row % 768;
+        for (int j = 0; j < L1_SIZE; j++) {
+            int dst = row * L1_SIZE_TOTAL + j;
+            tmp.inputPsqWeights[dst] =
+                quantize<INPUT_QUANT>(raw.l0Weights[BUCKETED_OFFSET + row * L1_SIZE + j]) +
+                quantize<INPUT_QUANT>(raw.l0Weights[FACTORISER_OFFSET + feat * L1_SIZE + j]);
+            tmp.inputPsqWeights[dst + L1_SIZE] =
+                quantize<INPUT_QUANT>(raw.l0ptWeights[BUCKETED_OFFSET + row * L1_SIZE + j]) +
+                quantize<INPUT_QUANT>(raw.l0ptWeights[FACTORISER_OFFSET + feat * L1_SIZE + j]);
         }
     }
-    // Pawn pairs (combined transformer only -> L1_SIZE wide)
+    // Pawn pairs
     for (int p = 0; p < PAWN_PAIR_INPUT_SIZE; p++) {
-        for (int l1 = 0; l1 < L1_SIZE; l1++) {
-            tmp.inputPawnPairWeights[p * L1_SIZE + l1] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.inputWeights[PAWN_PAIR_OFFSET + p * L1_SIZE + l1]), -128, 127);
+        for (int j = 0; j < L1_SIZE; j++) {
+            tmp.inputPawnPairWeights[p * L1_SIZE + j] = std::clamp<int16_t>(quantize<INPUT_QUANT>(raw.l0Weights[PAWN_PAIR_OFFSET + p * L1_SIZE + j]), -128, 127);
         }
     }
 
     // Quantize input biases
     for (int b = 0; b < L1_SIZE; b++) {
-        tmp.inputBiases[b] = quantize<INPUT_QUANT>(raw.inputBiases[b]);
+        tmp.inputBiases[b] = quantize<INPUT_QUANT>(raw.l0Biases[b]);
     }
-    for (int b = 0; b < L1_SIZE_THREAT; b++) {
-        tmp.inputBiases[L1_SIZE + b] = quantize<INPUT_QUANT>(raw.inputThreatBiases[b]);
+    for (int b = 0; b < L1_SIZE; b++) {
+        tmp.inputBiases[L1_SIZE + b] = quantize<INPUT_QUANT>(raw.l0ptBiases[b]);
     }
 
     // Quantize L1 weights
@@ -172,7 +174,7 @@ void transposePermuteNetwork() {
     __m128i regs[packusBlocks];
     struct { int16_t* ptr; size_t count; } i16Blocks[] = {
         { tmp.inputBiases, (size_t)L1_SIZE_TOTAL },
-        { tmp.inputPsqWeights, (size_t)768 * KING_BUCKETS * L1_SIZE },
+        { tmp.inputPsqWeights, (size_t)768 * KING_BUCKETS * L1_SIZE_TOTAL },
     };
     for (auto& blk : i16Blocks) {
         __m128i* vec = reinterpret_cast<__m128i*>(blk.ptr);

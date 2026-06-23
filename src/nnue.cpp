@@ -309,72 +309,72 @@ void NNUE::incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator*
 }
 
 template<FtType type, Color side>
-void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
+void NNUE::addToAccumulator(int16_t(*inputData)[L1_SIZE_TOTAL], int16_t(*outputData)[L1_SIZE_TOTAL], int featureIndex) {
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if constexpr (type != FtType::Psq) {
         int8_t* weights = networkData->inputThreatWeights;
-        VecI16s* weightsVec = (VecI16s*)&weights[featureIndex * L1_SIZE];
+        VecI16s* weightsVec = (VecI16s*)&weights[featureIndex * L1_SIZE_TOTAL];
 
-        for (int i = 0; i < L1_ITERATIONS; ++i) {
+        for (int i = 0; i < L1_TOTAL_ITERATIONS; ++i) {
             VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
             outputVec[i] = addEpi16(inputVec[i], addWeights);
         }
     }
     else {
-        VecI16* weightsVec = (VecI16*)&networkData->inputPsqWeights[featureIndex * L1_SIZE];
+        VecI16* weightsVec = (VecI16*)&networkData->inputPsqWeights[featureIndex * L1_SIZE_TOTAL];
 
-        for (int i = 0; i < L1_ITERATIONS; ++i) {
+        for (int i = 0; i < L1_TOTAL_ITERATIONS; ++i) {
             outputVec[i] = addEpi16(inputVec[i], weightsVec[i]);
         }
     }
 }
 
 template<FtType type, Color side>
-void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex) {
+void NNUE::subFromAccumulator(int16_t(*inputData)[L1_SIZE_TOTAL], int16_t(*outputData)[L1_SIZE_TOTAL], int featureIndex) {
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if constexpr (type != FtType::Psq) {
         int8_t* weights = networkData->inputThreatWeights;
-        VecI16s* weightsVec = (VecI16s*)&weights[featureIndex * L1_SIZE];
+        VecI16s* weightsVec = (VecI16s*)&weights[featureIndex * L1_SIZE_TOTAL];
 
-        for (int i = 0; i < L1_ITERATIONS; ++i) {
+        for (int i = 0; i < L1_TOTAL_ITERATIONS; ++i) {
             VecI16 addWeights = convertEpi8Epi16(weightsVec[i]);
             outputVec[i] = subEpi16(inputVec[i], addWeights);
         }
     }
     else {
-        VecI16* weightsVec = (VecI16*)&networkData->inputPsqWeights[featureIndex * L1_SIZE];
+        VecI16* weightsVec = (VecI16*)&networkData->inputPsqWeights[featureIndex * L1_SIZE_TOTAL];
 
-        for (int i = 0; i < L1_ITERATIONS; ++i) {
+        for (int i = 0; i < L1_TOTAL_ITERATIONS; ++i) {
             outputVec[i] = subEpi16(inputVec[i], weightsVec[i]);
         }
     }
 }
 
 template<FtType type, Color side>
-void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex) {
+void NNUE::addSubToAccumulator(int16_t(*inputData)[L1_SIZE_TOTAL], int16_t(*outputData)[L1_SIZE_TOTAL], int addIndex, int subIndex) {
     VecI16* inputVec = (VecI16*)inputData[side];
     VecI16* outputVec = (VecI16*)outputData[side];
 
     if constexpr (type != FtType::Psq) {
         int8_t* weights = networkData->inputThreatWeights;
-        VecI16s* addWeightsVec = (VecI16s*)&weights[addIndex * L1_SIZE];
-        VecI16s* subWeightsVec = (VecI16s*)&weights[subIndex * L1_SIZE];
+        VecI16s* addWeightsVec = (VecI16s*)&weights[addIndex * L1_SIZE_TOTAL];
+        VecI16s* subWeightsVec = (VecI16s*)&weights[subIndex * L1_SIZE_TOTAL];
 
-        for (int i = 0; i < L1_ITERATIONS; ++i) {
+        for (int i = 0; i < L1_TOTAL_ITERATIONS; ++i) {
             VecI16 addWeights = convertEpi8Epi16(addWeightsVec[i]);
             VecI16 subWeights = convertEpi8Epi16(subWeightsVec[i]);
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeights), subWeights);
         }
     }
     else {
-        VecI16* addWeightsVec = (VecI16*)&networkData->inputPsqWeights[addIndex * L1_SIZE];
-        VecI16* subWeightsVec = (VecI16*)&networkData->inputPsqWeights[subIndex * L1_SIZE];
+        VecI16* addWeightsVec = (VecI16*)&networkData->inputPsqWeights[addIndex * L1_SIZE_TOTAL];
+        VecI16* subWeightsVec = (VecI16*)&networkData->inputPsqWeights[subIndex * L1_SIZE_TOTAL];
 
-        for (int i = 0; i < L1_ITERATIONS; ++i) {
+        for (int i = 0; i < L1_TOTAL_ITERATIONS; ++i) {
             outputVec[i] = subEpi16(addEpi16(inputVec[i], addWeightsVec[i]), subWeightsVec[i]);
         }
     }
@@ -391,9 +391,9 @@ void NNUE::applyThreatRows(int16_t(*inputData)[L1_SIZE_TOTAL], int16_t(*outputDa
 #else
     constexpr int TILE = 8;
 #endif
-    static_assert(L1_THREAT_ITERATIONS % TILE == 0);
+    static_assert(L1_TOTAL_ITERATIONS % TILE == 0);
 
-    for (int base = 0; base < L1_THREAT_ITERATIONS; base += TILE) {
+    for (int base = 0; base < L1_TOTAL_ITERATIONS; base += TILE) {
         VecI16 registers[TILE];
         for (int t = 0; t < TILE; t++)
             registers[t] = input[base + t];
@@ -477,16 +477,15 @@ Eval NNUE::evaluate(Board* board) {
     VecIu8* pairwiseOutputsVec = reinterpret_cast<VecIu8*>(pairwiseOutputs);
 
     constexpr int inverseShift = 16 - INPUT_SHIFT;
-    constexpr int combinedOffset = L1_SIZE / I16_VEC_SIZE / 2;
-    constexpr int threatOffset = L1_SIZE_THREAT / I16_VEC_SIZE / 2;
-    constexpr int threatBaseVec = L1_SIZE / I16_VEC_SIZE;
+    constexpr int segOffset = L1_SIZE / I16_VEC_SIZE / 2;
+    constexpr int ptBaseVec = L1_SIZE / I16_VEC_SIZE;
 
-    auto computeSegment = [&](VecI16* pieceAcc, VecI16* threatAcc, int offVecs, int outBaseVec) {
-        for (int pw = 0; pw < offVecs; pw += 2) {
-            VecI16 a0 = pieceAcc ? addEpi16(pieceAcc[pw], threatAcc[pw]) : threatAcc[pw];
-            VecI16 b0 = pieceAcc ? addEpi16(pieceAcc[pw + offVecs], threatAcc[pw + offVecs]) : threatAcc[pw + offVecs];
-            VecI16 a1 = pieceAcc ? addEpi16(pieceAcc[pw + 1], threatAcc[pw + 1]) : threatAcc[pw + 1];
-            VecI16 b1 = pieceAcc ? addEpi16(pieceAcc[pw + 1 + offVecs], threatAcc[pw + 1 + offVecs]) : threatAcc[pw + 1 + offVecs];
+    auto computeSegment = [&](VecI16* pieceAcc, VecI16* threatAcc, int outBaseVec) {
+        for (int pw = 0; pw < segOffset; pw += 2) {
+            VecI16 a0 = addEpi16(pieceAcc[pw], threatAcc[pw]);
+            VecI16 b0 = addEpi16(pieceAcc[pw + segOffset], threatAcc[pw + segOffset]);
+            VecI16 a1 = addEpi16(pieceAcc[pw + 1], threatAcc[pw + 1]);
+            VecI16 b1 = addEpi16(pieceAcc[pw + 1 + segOffset], threatAcc[pw + 1 + segOffset]);
 
             VecI16 clipped1 = minEpi16(maxEpi16(a0, i16Zero), i16Quant);
             VecI16 clipped2 = minEpi16(b0, i16Quant);
@@ -500,12 +499,12 @@ Eval NNUE::evaluate(Board* board) {
         }
     };
 
-    // Combined
-    computeSegment(stmPieceAcc, stmThreatAcc, combinedOffset, 0);
-    computeSegment(oppPieceAcc, oppThreatAcc, combinedOffset, combinedOffset / 2);
-    // Threat-only
-    computeSegment(nullptr, stmThreatAcc + threatBaseVec, threatOffset, combinedOffset);
-    computeSegment(nullptr, oppThreatAcc + threatBaseVec, threatOffset, combinedOffset + threatOffset / 2);
+    // All features
+    computeSegment(stmPieceAcc, stmThreatAcc, 0);
+    computeSegment(oppPieceAcc, oppThreatAcc, segOffset / 2);
+    // Threats + PSQ only
+    computeSegment(stmPieceAcc + ptBaseVec, stmThreatAcc + ptBaseVec, segOffset);
+    computeSegment(oppPieceAcc + ptBaseVec, oppThreatAcc + ptBaseVec, segOffset + segOffset / 2);
 
 #if defined(PROCESS_NET)
     nnz.addActivations(pairwiseOutputs);
