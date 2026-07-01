@@ -911,6 +911,17 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     if (!board->checkers && !ttHit && depth >= iir2MinDepth && pvNode)
         depth -= iir2Reduction;
 
+    // IID
+    if (!rootNode && pvNode && depth >= 800 && !board->checkers && !excluded && !ttMove) {
+        search<PV_NODE>(board, stack, (3 * depth - 700) / 4, alpha, beta, cutNode);
+
+        bool iidHit = false;
+        TTEntry* iidEntry = TT.probe(fmrHash, &iidHit);
+        if (iidHit) {
+            ttMove = iidEntry->getMove();
+        }
+    }
+
     if (stopped.load(std::memory_order_relaxed) || exiting)
         return 0;
 
