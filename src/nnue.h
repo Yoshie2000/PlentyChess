@@ -43,11 +43,12 @@ constexpr int INT8_PER_INT32 = sizeof(int32_t) / sizeof(int8_t);
 
 constexpr int L1_ITERATIONS = L1_SIZE / I16_VEC_SIZE;
 
-enum class FtType {
-  Psq,
-  Threat,
-  PawnPair
-};
+#if defined(__AVX512F__) && defined(__AVX512BW__)
+constexpr int UPDATE_TILE = 16;
+#else
+constexpr int UPDATE_TILE = 8;
+#endif
+static_assert(L1_ITERATIONS % UPDATE_TILE == 0);
 
 struct DirtyThreat {
   uint8_t piece;
@@ -81,8 +82,7 @@ constexpr KingBucketInfo getKingBucket(Color color, Square kingSquare) {
 }
 
 struct Accumulator {
-  alignas(ALIGNMENT) int16_t threatState[2][L1_SIZE];
-  alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
+  alignas(ALIGNMENT) int16_t state[2][L1_SIZE];
 
   DirtyPiece dirtyPiece;
   DirtyThreat dirtyThreatsAdded[128];
@@ -155,25 +155,20 @@ public:
   void calculateAccumulators();
 
   template<Color side>
-  void refreshPieceFeatures(Accumulator* acc, KingBucketInfo* kingBucket);
-  template<Color side>
-  void refreshThreatFeatures(Accumulator* acc);
+  void refreshAccumulator(Accumulator* acc, KingBucketInfo* kingBucket);
 
   template<Color side>
-  void incrementallyUpdatePieceFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
-  template<Color side>
-  void incrementallyUpdateThreatFeatures(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
-
-  template<FtType type, Color side>
-  void addToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
-  template<FtType type, Color side>
-  void subFromAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int featureIndex);
-  template<FtType type, Color side>
-  void addSubToAccumulator(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE], int addIndex, int subIndex);
+  void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
 
   template<Color side>
-  void applyThreatRows(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE],
-                       const ThreatInputs::FeatureList& adds, const ThreatInputs::FeatureList& subs);
+  void applyIncrementalUpdates(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE],
+                    const ThreatInputs::FeatureList& psqAdds, const ThreatInputs::FeatureList& psqSubs,
+                    const ThreatInputs::FeatureList& threatAdds, const ThreatInputs::FeatureList& threatSubs);
+
+  template<Color side>
+  void applyRefreshUpdates(int16_t(*entryData)[L1_SIZE], int16_t(*accData)[L1_SIZE],
+                           const ThreatInputs::FeatureList& psqAdds, const ThreatInputs::FeatureList& psqSubs,
+                           const ThreatInputs::FeatureList& threatAdds);
 
 };
 
