@@ -256,6 +256,15 @@ void NNUE::incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* ou
         }
     }
 
+    for (int feature : psqSubs) {
+        __builtin_prefetch(&networkData->inputPsqWeights[feature * L1_SIZE]);
+        __builtin_prefetch(&networkData->inputPsqWeights[feature * L1_SIZE + 32]);
+    }
+    for (int feature : psqAdds) {
+        __builtin_prefetch(&networkData->inputPsqWeights[feature * L1_SIZE]);
+        __builtin_prefetch(&networkData->inputPsqWeights[feature * L1_SIZE + 32]);
+    }
+
     ThreatInputs::FeatureList threatAdds, threatSubs;
     ThreatInputs::addPawnPairDeltas<side>(outputAcc->board, outputAcc->dirtyPiece, kingBucket->mirrored, threatAdds, threatSubs);
 
