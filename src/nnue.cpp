@@ -64,35 +64,15 @@ void NNUE::reset(Board* board) {
     accumulatorStack[0].numThreatsRemoved = 0;
 
     currentAccumulator = 0;
-
-    // Also reset finny tables
-    for (int i = 0; i < 2; i++) {
-        for (int j = 0; j < KING_BUCKETS; j++) {
-            memset(finnyTable[i][j].byColor, 0, sizeof(finnyTable[i][j].byColor));
-            memset(finnyTable[i][j].byPiece, 0, sizeof(finnyTable[i][j].byPiece));
-            memcpy(finnyTable[i][j].pieceState[Color::WHITE], networkData->inputBiases, sizeof(networkData->inputBiases));
-            memcpy(finnyTable[i][j].pieceState[Color::BLACK], networkData->inputBiases, sizeof(networkData->inputBiases));
-        }
-    }
 }
 
 template<Color side>
 void NNUE::resetAccumulator(Board* board, Accumulator* acc) {
-    // Overwrite with biases
-    memcpy(acc->state[side], networkData->inputBiases, sizeof(networkData->inputBiases));
-
-    ThreatInputs::FeatureList pieceFeatures;
-    ThreatInputs::addPieceFeatures(board, side, pieceFeatures, KING_BUCKET_LAYOUT);
-
-    ThreatInputs::FeatureList threatFeatures;
-    ThreatInputs::addThreatFeatures<side>(board, threatFeatures);
-    ThreatInputs::addPawnPairFeatures<side>(board, threatFeatures);
-
-    applyIncrementalUpdates<side>(acc->state, acc->state, pieceFeatures, ThreatInputs::FeatureList{}, threatFeatures, ThreatInputs::FeatureList{});
-
-    acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));;
+    acc->kingBucketInfo[side] = getKingBucket(side, lsb(board->byColor[side] & board->byPiece[Piece::KING]));
     acc->board = board;
     acc->computed[side] = true;
+
+    refreshAccumulator<side>(acc);
 }
 
 void NNUE::updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add) {
@@ -176,7 +156,7 @@ void NNUE::calculateAccumulators() {
 
         if (kingBucket->bucket != prevKingBucket->bucket || kingBucket->mirrored != prevKingBucket->mirrored) {
             // No UE chain possible, full refresh
-            refreshAccumulator<side>(acc, kingBucket);
+            refreshAccumulator<side>(acc);
             acc->computed[side] = true;
             break;
         }
@@ -192,7 +172,7 @@ void NNUE::calculateAccumulators() {
         KingBucketInfo* outputKingBucket = &outputAcc->kingBucketInfo[side];
 
         if (inputKingBucket->bucket != outputKingBucket->bucket || inputKingBucket->mirrored != outputKingBucket->mirrored)
-            refreshAccumulator<side>(outputAcc, outputKingBucket);
+            refreshAccumulator<side>(outputAcc);
         else
             incrementallyUpdateAccumulator<side>(inputAcc, outputAcc, outputKingBucket);
 
@@ -202,36 +182,17 @@ void NNUE::calculateAccumulators() {
 }
 
 template<Color side>
-void NNUE::refreshAccumulator(Accumulator* acc, KingBucketInfo* kingBucket) {
-    FinnyEntry* finnyEntry = &finnyTable[kingBucket->mirrored][kingBucket->bucket];
+void NNUE::refreshAccumulator(Accumulator* acc) {
+    memcpy(acc->state[side], networkData->inputBiases, sizeof(networkData->inputBiases));
 
-    ThreatInputs::FeatureList psqAdds, psqSubs;
-    for (Color c = Color::WHITE; c <= Color::BLACK; ++c) {
-        for (Piece p = Piece::PAWN; p < Piece::TOTAL; ++p) {
-            Bitboard finnyBB = finnyEntry->byColor[side][c] & finnyEntry->byPiece[side][p];
-            Bitboard accBB = acc->board->byColor[c] & acc->board->byPiece[p];
-
-            Bitboard addBB = accBB & ~finnyBB;
-            Bitboard removeBB = ~accBB & finnyBB;
-
-            while (addBB) {
-                Square square = popLSB(&addBB);
-                psqAdds.add(ThreatInputs::getPieceFeature(p, square ^ (side * 56) ^ (kingBucket->mirrored * 7), static_cast<Color>(c != side), kingBucket->bucket));
-            }
-            while (removeBB) {
-                Square square = popLSB(&removeBB);
-                psqSubs.add(ThreatInputs::getPieceFeature(p, square ^ (side * 56) ^ (kingBucket->mirrored * 7), static_cast<Color>(c != side), kingBucket->bucket));
-            }
-        }
-    }
-    memcpy(finnyEntry->byColor[side], acc->board->byColor, sizeof(finnyEntry->byColor[side]));
-    memcpy(finnyEntry->byPiece[side], acc->board->byPiece, sizeof(finnyEntry->byPiece[side]));
+    ThreatInputs::FeatureList pieceFeatures;
+    ThreatInputs::addPieceFeatures(acc->board, side, pieceFeatures, KING_BUCKET_LAYOUT);
 
     ThreatInputs::FeatureList threatFeatures;
     ThreatInputs::addThreatFeatures<side>(acc->board, threatFeatures);
     ThreatInputs::addPawnPairFeatures<side>(acc->board, threatFeatures);
 
-    applyRefreshUpdates<side>(finnyEntry->pieceState, acc->state, psqAdds, psqSubs, threatFeatures);
+    applyIncrementalUpdates<side>(acc->state, acc->state, pieceFeatures, ThreatInputs::FeatureList{}, threatFeatures, ThreatInputs::FeatureList{});
 }
 
 template<Color side>
@@ -317,43 +278,6 @@ void NNUE::applyIncrementalUpdates(int16_t(*inputData)[L1_SIZE], int16_t(*output
             for (int t = 0; t < UPDATE_TILE; t++)
                 registers[t] = subEpi16(registers[t], convertEpi8Epi16(weights[base + t]));
         }
-        for (int feature : threatAdds) {
-            VecI16s* weights = (VecI16s*)&networkData->inputThreatWeights[feature * L1_SIZE];
-            for (int t = 0; t < UPDATE_TILE; t++)
-                registers[t] = addEpi16(registers[t], convertEpi8Epi16(weights[base + t]));
-        }
-
-        for (int t = 0; t < UPDATE_TILE; t++)
-            output[base + t] = registers[t];
-    }
-}
-
-template<Color side>
-void NNUE::applyRefreshUpdates(int16_t(*finnyData)[L1_SIZE], int16_t(*outputData)[L1_SIZE],
-                               const ThreatInputs::FeatureList& psqAdds, const ThreatInputs::FeatureList& psqSubs,
-                               const ThreatInputs::FeatureList& threatAdds) {
-    VecI16* finny = (VecI16*)finnyData[side];
-    VecI16* output = (VecI16*)outputData[side];
-
-    for (int base = 0; base < L1_ITERATIONS; base += UPDATE_TILE) {
-        VecI16 registers[UPDATE_TILE];
-        for (int t = 0; t < UPDATE_TILE; t++)
-            registers[t] = finny[base + t];
-
-        for (int feature : psqSubs) {
-            VecI16* weights = (VecI16*)&networkData->inputPsqWeights[feature * L1_SIZE];
-            for (int t = 0; t < UPDATE_TILE; t++)
-                registers[t] = subEpi16(registers[t], weights[base + t]);
-        }
-        for (int feature : psqAdds) {
-            VecI16* weights = (VecI16*)&networkData->inputPsqWeights[feature * L1_SIZE];
-            for (int t = 0; t < UPDATE_TILE; t++)
-                registers[t] = addEpi16(registers[t], weights[base + t]);
-        }
-
-        for (int t = 0; t < UPDATE_TILE; t++)
-            finny[base + t] = registers[t];
-
         for (int feature : threatAdds) {
             VecI16s* weights = (VecI16s*)&networkData->inputThreatWeights[feature * L1_SIZE];
             for (int t = 0; t < UPDATE_TILE; t++)

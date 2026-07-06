@@ -95,13 +95,6 @@ struct Accumulator {
   bool computed[2];
 };
 
-struct FinnyEntry {
-  alignas(ALIGNMENT) int16_t pieceState[2][L1_SIZE];
-
-  Bitboard byColor[2][2];
-  Bitboard byPiece[2][Piece::TOTAL];
-};
-
 struct NetworkData {
   alignas(ALIGNMENT) int16_t inputPsqWeights[768 * KING_BUCKETS * L1_SIZE];
   alignas(ALIGNMENT) int8_t inputThreatWeights[(ThreatInputs::PAWN_PAIR_FEATURE_COUNT + ThreatInputs::FEATURE_COUNT) * L1_SIZE];
@@ -133,8 +126,6 @@ public:
   Accumulator accumulatorStack[MAX_PLY + 8];
   int currentAccumulator;
 
-  FinnyEntry finnyTable[2][KING_BUCKETS];
-
   void updateThreat(Piece piece, Piece attackedPiece, Square square, Square attackedSquare, Color pieceColor, Color attackedColor, bool add);
 
 #if defined(__AVX512VBMI2__)
@@ -155,7 +146,7 @@ public:
   void calculateAccumulators();
 
   template<Color side>
-  void refreshAccumulator(Accumulator* acc, KingBucketInfo* kingBucket);
+  void refreshAccumulator(Accumulator* acc);
 
   template<Color side>
   void incrementallyUpdateAccumulator(Accumulator* inputAcc, Accumulator* outputAcc, KingBucketInfo* kingBucket);
@@ -164,11 +155,6 @@ public:
   void applyIncrementalUpdates(int16_t(*inputData)[L1_SIZE], int16_t(*outputData)[L1_SIZE],
                     const ThreatInputs::FeatureList& psqAdds, const ThreatInputs::FeatureList& psqSubs,
                     const ThreatInputs::FeatureList& threatAdds, const ThreatInputs::FeatureList& threatSubs);
-
-  template<Color side>
-  void applyRefreshUpdates(int16_t(*entryData)[L1_SIZE], int16_t(*accData)[L1_SIZE],
-                           const ThreatInputs::FeatureList& psqAdds, const ThreatInputs::FeatureList& psqSubs,
-                           const ThreatInputs::FeatureList& threatAdds);
 
 };
 
