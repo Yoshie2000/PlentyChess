@@ -6,7 +6,15 @@
 #include <sys/mman.h>
 #endif
 
+constexpr size_t HUGE_PAGE_SIZE = 2 * 1024 * 1024;
+
 inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
+    bool hugePages = requiredBytes >= HUGE_PAGE_SIZE;
+    if (hugePages) {
+        alignment = HUGE_PAGE_SIZE;
+        requiredBytes = (requiredBytes + HUGE_PAGE_SIZE - 1) & ~(HUGE_PAGE_SIZE - 1);
+    }
+
     void* ptr;
 #if defined(_WIN32)
     ptr = _aligned_malloc(requiredBytes, alignment);
@@ -15,8 +23,10 @@ inline void* alignedAlloc(size_t alignment, size_t requiredBytes) {
 #endif
 
 #if defined(__linux__)
-    madvise(ptr, requiredBytes, MADV_HUGEPAGE);
-#endif 
+    if (hugePages) {
+        madvise(ptr, requiredBytes, MADV_HUGEPAGE);
+    }
+#endif
 
     return ptr;
 }
