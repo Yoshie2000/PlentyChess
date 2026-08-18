@@ -618,6 +618,16 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     // Check for upcoming repetition
     if (!rootNode && alpha < 0 && hasUpcomingRepetition(board, stack->ply)) {
         alpha = drawEval(this);
+
+        if (!board->checkers) {
+            int correctionValue = history.getCorrectionValue(board, stack);
+            Eval unadjustedEval = evaluate(board, &nnue, optimism);
+            Eval staticEval = history.correctStaticEval(board->rule50_ply, unadjustedEval, correctionValue);
+            
+            int bonus = std::clamp((int(-staticEval) * depth / 100) * correctionHistoryFactor / 1024, -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+            history.updateCorrectionHistory(board, stack, bonus);
+        }
+
         if (alpha >= beta)
             return alpha;
     }
