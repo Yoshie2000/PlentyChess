@@ -1114,7 +1114,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 if (importantCapture) {
                     reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
-                    reduction = (reduction < 0 ? 29 : 100) * reduction / 100;
+                    reduction = (reduction < 0 ? 100 : 29) * reduction / 100;
                 }
             }
             else {
