@@ -133,6 +133,7 @@ TUNE_INT(seeMarginQuiet, -74, -146, -1);
 TUNE_INT(extensionMinDepth, 624, 0, 1200);
 TUNE_INT(extensionTtDepthOffset, 499, 0, 800);
 TUNE_INT(doubleExtensionDepthIncreaseFactor, 100, 0, 200);
+TUNE_INT(singularCorrectionDivisor, 655360, 0, 1310720);
 TUNE_INT_DISABLED(doubleExtensionMargin, 6, 1, 30);
 TUNE_INT(doubleExtensionDepthIncrease, 1002, 200, 2000);
 TUNE_INT_DISABLED(tripleExtensionMargin, 41, 25, 100);
@@ -1030,7 +1031,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (singularValue < singularBeta) {
                 // This move is singular and we should investigate it further
-                int singularMargin = (singularBeta - singularValue) / (pvNode ? 100 : 1);
+                int singularMargin = (singularBeta - singularValue + std::abs(correctionValue) / singularCorrectionDivisor) / (pvNode ? 100 : 1);
 
                 extension = 100;
 
