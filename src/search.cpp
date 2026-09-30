@@ -933,6 +933,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         uint64_t nodesBeforeMove = searchData.nodesSearched.load(std::memory_order_relaxed);
 
         bool capture = board->isCapture(move);
+        bool givesCheck = board->givesCheck(move);
         bool importantCapture = stack->ttPv && capture && !cutNode;
         int moveHistory = history.getHistory(board, stack, move, capture);
 
@@ -956,7 +957,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 if (moveCount >= lmpMargin / 1000000) {
                     movegen.skipQuietMoves();
-                    continue;
+                    if (!givesCheck)
+                        continue;
                 }
             }
 
