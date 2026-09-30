@@ -957,8 +957,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 if (moveCount >= lmpMargin / 1000000) {
                     movegen.skipQuietMoves();
-                    if (!givesCheck)
-                        continue;
+                    continue;
                 }
             }
 
@@ -971,7 +970,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 if (lmrDepth < fpDepth && fpValue <= alpha) {
                     movegen.skipQuietMoves();
-                    continue;
+                    if (!givesCheck)
+                        continue;
                 }
             }
             // Futility pruning for bad noisies
