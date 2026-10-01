@@ -1249,8 +1249,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         bestValue = (bestValue * depth + 100 * beta) / (depth + 100);
 
     if (moveCount == 0) {
-        if (board->checkers && excluded)
-            return -EVAL_INFINITE;
+        if (excluded)
+            return board->checkers ? -EVAL_INFINITE : alpha;
         // Mate / Stalemate
         bestValue = board->checkers ? matedIn(stack->ply) : 0;
     }
