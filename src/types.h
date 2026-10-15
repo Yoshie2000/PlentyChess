@@ -293,6 +293,7 @@ struct SearchStack {
 
     int16_t* contHist;
     int16_t* contCorrHist;
+    int16_t* counterCorrHist;
 };
 
 struct DirtyPiece {
