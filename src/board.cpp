@@ -416,7 +416,7 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
         }
 
         removePiece(piece, stm, origin, nnue);
-        rule50_ply = 0;
+        rule50_ply = nullmove_ply = 0;
         promotionPiece = move.promotionPiece();
         addPiece(promotionPiece, stm, target, nnue);
 
@@ -448,7 +448,7 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
 
     case MoveType::ENPASSANT:
         movePiece(piece, stm, origin, target, nnue);
-        rule50_ply = 0;
+        rule50_ply = nullmove_ply = 0;
 
         captureTarget = target - Direction::UP[stm];
         capturedPiece = Piece::PAWN;
@@ -468,7 +468,7 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
             assert(target == captureTarget);
             removePiece(piece, stm, origin, nnue);
             swapPiece(piece, stm, target, nnue);
-            rule50_ply = 0;
+            rule50_ply = nullmove_ply = 0;
 
             dirtyPiece.removePiece = capturedPiece;
             dirtyPiece.removeSquare = captureTarget;
@@ -477,7 +477,7 @@ void Board::doMove(Move move, Hash newHash, NNUE* nnue) {
         }
 
         if (piece == Piece::PAWN) {
-            rule50_ply = 0;
+            rule50_ply = nullmove_ply = 0;
 
             // Double push
             if ((origin ^ target) == 16) {
