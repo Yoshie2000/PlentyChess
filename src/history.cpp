@@ -157,12 +157,13 @@ int History::getCorrectionValue(Board* board, SearchStack* searchStack) {
 
     int64_t contEntry = 0;
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
+        int pieceTo = 2 * 64 * (searchStack - 1)->movedPiece + 2 * (searchStack - 1)->move.target() + flip(board->stm);
         contEntry += *(searchStack - 1)->counterCorrHist;
 
-        if ((searchStack - 2)->movedPiece != Piece::NONE) {
-            int pieceTo = 2 * 64 * (searchStack - 1)->movedPiece + 2 * (searchStack - 1)->move.target() + flip(board->stm);
+        if ((searchStack - 2)->movedPiece != Piece::NONE)
             contEntry += (searchStack - 2)->contCorrHist[pieceTo];
-        }
+        if ((searchStack - 4)->movedPiece != Piece::NONE)
+            contEntry += (searchStack - 4)->contCorrHist[pieceTo];
     }
 
     return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
@@ -201,13 +202,18 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
 
     // Continuation
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
+        int pieceTo = 2 * 64 * (searchStack - 1)->movedPiece + 2 * (searchStack - 1)->move.target() + flip(board->stm);
         scaledBonus = bonus - *(searchStack - 1)->counterCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
         *(searchStack - 1)->counterCorrHist += scaledBonus;
 
         if ((searchStack - 2)->movedPiece != Piece::NONE) {
-            int pieceTo = 2 * 64 * (searchStack - 1)->movedPiece + 2 * (searchStack - 1)->move.target() + flip(board->stm);
             scaledBonus = bonus - (searchStack - 2)->contCorrHist[pieceTo] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
             (searchStack - 2)->contCorrHist[pieceTo] += scaledBonus;
+        }
+
+        if ((searchStack - 4)->movedPiece != Piece::NONE) {
+            scaledBonus = bonus - (searchStack - 4)->contCorrHist[pieceTo] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+            (searchStack - 4)->contCorrHist[pieceTo] += scaledBonus;
         }
     }
 }
