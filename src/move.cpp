@@ -306,7 +306,7 @@ Move MoveGen::nextMove() {
 
         ++stage;
 
-        if (killer && killer != ttMove && board->isPseudoLegal(killer))
+        if (killer && killer != ttMove && !board->isCapture(killer) && board->isPseudoLegal(killer))
             return killer;
 
         [[fallthrough]];
