@@ -390,6 +390,9 @@ void MoveGen::scoreCaptures() {
                 break;
         }
 
+        if (move.origin() == searchStack->killer.origin() && move.target() == searchStack->killer.target())
+            score += 2000;
+
         moveListScores.add(score);
     }
 }
