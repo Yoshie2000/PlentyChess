@@ -154,7 +154,7 @@ TUNE_INT(lmrCorrectionDivisorQuietOrNormalCapture, 142482, 100000, 200000);
 TUNE_INT(lmrCorrectionDivisorImportantCapture, 142438, 100000, 200000);
 TUNE_INT(lmrQuietHistoryDivisor, 28812, 10000, 60000);
 TUNE_INT(lmrHistoryFactorCapture, 3156141, 2500000, 4000000);
-TUNE_INT(lmrHistoryFactorImportantCapture, 2948964, 2500000, 4000000);
+TUNE_INT(lmrImportantCaptureHistoryDivisor, 15000, 0, 30000);
 TUNE_INT(lmrImportantBadCaptureOffset, 119, 0, 230);
 TUNE_INT(lmrImportantCaptureFactor, 29, 0, 60);
 TUNE_INT(lmrQuietPvNodeOffset, 22, 0, 50);
@@ -164,7 +164,6 @@ inline int lmrReductionOffset(bool importantCapture) { return importantCapture ?
 inline int lmrCheck(bool importantCapture) { return importantCapture ? lmrCheckImportantCapture : lmrCheckQuietOrNormalCapture; }
 inline int lmrTtPv(bool importantCapture) { return importantCapture ? lmrTtPvImportantCapture : lmrTtPvQuietOrNormalCapture; }
 inline int lmrTtpvFaillow(bool importantCapture) { return importantCapture ? lmrTtpvFaillowQuietOrNormalCapture : lmrTtpvFaillowImportantCapture; }
-inline int lmrCaptureHistoryDivisor(bool importantCapture) { return importantCapture ? lmrHistoryFactorImportantCapture : lmrHistoryFactorCapture; }
 inline int lmrCorrectionDivisor(bool importantCapture) { return importantCapture ? lmrCorrectionDivisorImportantCapture : lmrCorrectionDivisorQuietOrNormalCapture; }
 
 TUNE_INT(postlmrOppWorseningThreshold, 220, 150, 450);
@@ -1110,12 +1109,13 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
 
             if (capture) {
-                reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
-
                 if (importantCapture) {
+                    reduction -= 100 * moveHistory / lmrImportantCaptureHistoryDivisor;
                     reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
                     reduction = lmrImportantCaptureFactor * reduction / 100;
                 }
+                else
+                    reduction -= moveHistory * std::abs(moveHistory) / lmrHistoryFactorCapture;
             }
             else {
                 reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
