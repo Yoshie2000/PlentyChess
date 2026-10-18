@@ -950,9 +950,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (!pvNode && !capture) {
                 int lmpMargin;
                 if (improving)
-                    lmpMargin = 3863191 + 77 * depth * depth + 1500 * depth + moveHistory;
+                    lmpMargin = 3863191 + 77 * depth * depth + 1500 * depth + 100 * moveHistory;
                 else
-                    lmpMargin = 2958636 + 16 * depth * depth + 4500 * depth + moveHistory;
+                    lmpMargin = 2958636 + 16 * depth * depth + 4500 * depth + 100 * moveHistory;
 
                 if (moveCount >= lmpMargin / 1000000) {
                     movegen.skipQuietMoves();
