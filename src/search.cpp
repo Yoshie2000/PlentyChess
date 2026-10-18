@@ -1048,8 +1048,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 Eval value = std::min<Eval>(singularBeta, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(fmrHash, ttMove, singularDepth, unadjustedEval, value, board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
 
-                if (!capture)
-                    stack->killer = ttMove;
+                if (!capture && stack->ply > 0)
+                    history.setCounterMove((stack - 1)->move, ttMove);
 
                 // Adjust correction history
                 if (!board->checkers && singularValue > stack->staticEval) {
