@@ -1095,6 +1095,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth) {
             Depth reduction = REDUCTIONS[int(capture) + int(importantCapture)][depth / 100][moveCount];
+            int maxExtension = lmrPotentialExtension;
             reduction += lmrReductionOffset(importantCapture);
             reduction -= std::abs(correctionValue / lmrCorrectionDivisor(importantCapture));
 
@@ -1116,6 +1117,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
                     int factor = std::clamp(150 - 10 * depth / 100, 29, 100);
                     reduction = factor * reduction / 100;
+                    maxExtension += factor - 29;
                 }
             }
             else {
@@ -1124,7 +1126,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= lmrQuietImproving * improving;
             }
 
-            Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + lmrPotentialExtension) + lmrPvNodeExtension * pvNode;
+            Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + maxExtension) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
             stack->inLMR = true;
 
@@ -1132,7 +1134,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             moveSearchCount++;
 
             stack->inLMR = false;
-            reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + lmrPotentialExtension) + lmrPvNodeExtension * pvNode;
+            reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + maxExtension) + lmrPvNodeExtension * pvNode;
             stack->reduction = 0;
 
             bool doShallowerSearch = !rootNode && value < bestValue + newDepth / 100;
