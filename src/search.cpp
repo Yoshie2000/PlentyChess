@@ -156,7 +156,6 @@ TUNE_INT(lmrQuietHistoryDivisor, 28812, 10000, 60000);
 TUNE_INT(lmrHistoryFactorCapture, 3156141, 2500000, 4000000);
 TUNE_INT(lmrHistoryFactorImportantCapture, 2948964, 2500000, 4000000);
 TUNE_INT(lmrImportantBadCaptureOffset, 119, 0, 230);
-TUNE_INT(lmrImportantCaptureFactor, 29, 0, 60);
 TUNE_INT(lmrQuietPvNodeOffset, 22, 0, 50);
 TUNE_INT(lmrQuietImproving, 54, 0, 100);
 
@@ -1112,6 +1111,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
 
             if (capture) {
+                Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
+                reduction += 19 - PIECE_VALUES[capturedPiece] * 12 / 100;
                 reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
 
                 if (importantCapture) {
