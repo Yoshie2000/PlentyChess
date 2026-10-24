@@ -801,7 +801,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             rfpMargin = rfpBase + rfpFactorLinear * rfpDepth / 100 + rfpFactorQuadratic * rfpDepth * rfpDepth / 1000000;
         }
         if (eval - rfpMargin >= beta) {
-            return std::min((eval + beta) / 2, EVAL_TBWIN_IN_MAX_PLY - 1);
+            return std::min((eval * depth + 100 * beta) / (depth + 100), EVAL_TBWIN_IN_MAX_PLY - 1);
         }
     }
 
