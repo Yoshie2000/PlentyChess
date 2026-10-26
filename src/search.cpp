@@ -655,7 +655,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     // TT Lookup
     Hash fmrHash = board->hashes.hash ^ Zobrist::FMR[board->rule50_ply / Zobrist::FMR_GRANULARITY];
-    bool ttHit = false;
+    bool ttHit = false, ttCapture = false;
     TTEntry* ttEntry = nullptr;
     Move ttMove = Move::none();
     Eval ttValue = EVAL_NONE, ttEval = EVAL_NONE;
@@ -672,6 +672,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             ttDepth = ttEntry->getDepth();
             ttFlag = ttEntry->getFlag();
             stack->ttPv = stack->ttPv || ttEntry->getTtPv();
+
+            ttCapture = ttMove && board->isCapture(ttMove);
         }
     }
 
@@ -1106,8 +1108,6 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             if (cutNode)
                 reduction += lmrCutnode;
-            
-            reduction += 80 * (ttMove && board->isCapture(ttMove));
 
             if (stack->ttPv) {
                 reduction -= lmrTtPv(importantCapture);
@@ -1130,6 +1130,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= lmrQuietPvNodeOffset * pvNode;
                 reduction -= lmrQuietImproving * improving;
             }
+
+            if (ttCapture)
+                reduction += 80;
 
             Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + lmrPotentialExtension) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
