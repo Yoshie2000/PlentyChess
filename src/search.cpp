@@ -142,7 +142,7 @@ TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT(lmrMinDepth, 322, 100, 600);
 
 TUNE_INT(lmrReductionOffsetQuietOrNormalCapture, 128, 0, 300);
-TUNE_INT(lmrReductionOffsetImportantCapture, -7, -100, 100);
+TUNE_INT(lmrReductionOffsetImportantCapture, 13, -100, 100);
 TUNE_INT(lmrCheckQuietOrNormalCapture, 108, 0, 230);
 TUNE_INT(lmrCheckImportantCapture, 63, 0, 120);
 TUNE_INT(lmrTtPvQuietOrNormalCapture, 169, 0, 400);
@@ -1132,7 +1132,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             }
 
             if (ttCapture)
-                reduction += 80;
+                reduction += 80 - 20 * importantCapture;
 
             Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + lmrPotentialExtension) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
