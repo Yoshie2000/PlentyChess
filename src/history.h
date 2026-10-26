@@ -66,7 +66,8 @@ public:
     int16_t quietHistory[2][64][2][64][2];
 
     int16_t continuationHistory[2][2][2][Piece::TOTAL][64][Piece::TOTAL * 64 * 2];
-    int16_t continuationCorrectionHistory[2][Piece::TOTAL][64][2][2];
+    int16_t counterCorrectionHistory[2][Piece::TOTAL][64][2][2];
+    int16_t continuationCorrectionHistory[2][Piece::TOTAL][64][2][2][Piece::TOTAL * 64 * 2];
 
     History() = delete;
     History(int _threadIdx, SharedHistory* _sharedHistory): threadIdx(_threadIdx), sharedHistory(_sharedHistory) {}

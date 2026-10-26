@@ -134,6 +134,7 @@ void History::initHistory() {
     memset(continuationHistory, 0, sizeof(continuationHistory));
     memset(captureHistory, 0, sizeof(captureHistory));
     memset(continuationCorrectionHistory, 0, sizeof(continuationCorrectionHistory));
+    memset(counterCorrectionHistory, 0, sizeof(counterCorrectionHistory));
 
     for (int i = 0; i < PAWN_HISTORY_SIZE; i++) {
         for (int j = 0; j < 2; j++) {
@@ -153,7 +154,17 @@ int History::getCorrectionValue(Board* board, SearchStack* searchStack) {
     int64_t nonPawnEntry = sharedHistory->getNonPawnCorrectionEntryWhite(board) + sharedHistory->getNonPawnCorrectionEntryBlack(board);
     int64_t minorEntry = sharedHistory->getMinorCorrectionEntry(board);
     int64_t majorEntry = sharedHistory->getMajorCorrectionEntry(board);
-    int64_t contEntry = (searchStack - 1)->movedPiece != Piece::NONE ? *((searchStack - 1)->contCorrHist) : 0;
+
+    int64_t contEntry = 0;
+    if ((searchStack - 1)->movedPiece != Piece::NONE) {
+        int pieceTo = 2 * 64 * (searchStack - 1)->movedPiece + 2 * (searchStack - 1)->move.target() + flip(board->stm);
+        contEntry += *(searchStack - 1)->counterCorrHist;
+
+        if ((searchStack - 2)->movedPiece != Piece::NONE)
+            contEntry += (searchStack - 2)->contCorrHist[pieceTo];
+        if ((searchStack - 4)->movedPiece != Piece::NONE)
+            contEntry += (searchStack - 4)->contCorrHist[pieceTo];
+    }
 
     return pawnEntry * pawnCorrectionFactor + nonPawnEntry * nonPawnCorrectionFactor + minorEntry * minorCorrectionFactor + majorEntry * majorCorrectionFactor + contEntry * continuationCorrectionFactor;
 }
@@ -191,8 +202,19 @@ void History::updateCorrectionHistory(Board* board, SearchStack* searchStack, in
 
     // Continuation
     if ((searchStack - 1)->movedPiece != Piece::NONE) {
-        scaledBonus = bonus - *(searchStack - 1)->contCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
-        *(searchStack - 1)->contCorrHist += scaledBonus;
+        int pieceTo = 2 * 64 * (searchStack - 1)->movedPiece + 2 * (searchStack - 1)->move.target() + flip(board->stm);
+        scaledBonus = bonus - *(searchStack - 1)->counterCorrHist * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+        *(searchStack - 1)->counterCorrHist += scaledBonus;
+
+        if ((searchStack - 2)->movedPiece != Piece::NONE) {
+            scaledBonus = bonus - (searchStack - 2)->contCorrHist[pieceTo] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+            (searchStack - 2)->contCorrHist[pieceTo] += scaledBonus;
+        }
+
+        if ((searchStack - 4)->movedPiece != Piece::NONE) {
+            scaledBonus = bonus - (searchStack - 4)->contCorrHist[pieceTo] * std::abs(bonus) / CORRECTION_HISTORY_LIMIT;
+            (searchStack - 4)->contCorrHist[pieceTo] += scaledBonus;
+        }
     }
 }
 
