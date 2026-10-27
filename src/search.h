@@ -27,7 +27,7 @@ struct SearchParameters {
     int genfensFens; // Number of fens for genfens
     std::string genfensBook;
 
-    std::vector<Move> searchmoves; // TODO: Search only these moves at root
+    std::vector<Move> searchmoves; // Search only these moves at root
     bool ponder; // Search in pondering mode => after "ponderhit", continue on ponder move
     uint64_t wtime; // White's remaining time (ms)
     uint64_t btime; // Black's remaining time (ms)
