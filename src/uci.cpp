@@ -43,7 +43,7 @@ bool nextToken(std::string* line, std::string* token) {
         return true;
     }
     *token = line->substr(0);
-    *line = line->substr(1);
+    *line = "";
     return true;
 }
 
@@ -336,6 +336,14 @@ void go(std::string line, Board& board, std::vector<Hash>& boardHistory) {
         if (matchesToken(token, "movestogo")) {
             nextToken(&line, &token);
             parameters.movestogo = std::stoi(token);
+        }
+
+        if (matchesToken(token, "searchmoves")) {
+            while (nextToken(&line, &token)) {
+                Move m = stringToMove(token.c_str(), &board);
+                if (board.isPseudoLegal(m) && board.isLegal(m))
+                    parameters.searchmoves.push_back(m);
+            }
         }
 
     }
