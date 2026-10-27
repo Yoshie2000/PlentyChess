@@ -141,8 +141,8 @@ TUNE_INT_DISABLED(lmrMcBase, 2, 1, 10);
 TUNE_INT_DISABLED(lmrMcPv, 2, 1, 10);
 TUNE_INT(lmrMinDepth, 322, 100, 600);
 
-TUNE_INT(lmrReductionOffsetQuietOrNormalCapture, 128, 0, 300);
-TUNE_INT(lmrReductionOffsetImportantCapture, -7, -100, 100);
+TUNE_INT(lmrReductionOffsetQuietOrNormalCapture, 100, 0, 300);
+TUNE_INT(lmrReductionOffsetImportantCapture, -60, -100, 100);
 TUNE_INT(lmrCheckQuietOrNormalCapture, 108, 0, 230);
 TUNE_INT(lmrCheckImportantCapture, 63, 0, 120);
 TUNE_INT(lmrTtPvQuietOrNormalCapture, 169, 0, 400);
