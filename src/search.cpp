@@ -651,6 +651,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     (stack + 1)->killer = Move::none();
     (stack + 1)->excludedMove = Move::none();
+    (stack + 2)->cutoffCount = 0;
     stack->inCheck = board->checkerCount > 0;
 
     // TT Lookup
@@ -1109,6 +1110,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (cutNode)
                 reduction += lmrCutnode;
 
+            if ((stack + 1)->cutoffCount > 3)
+                reduction += 100;
+
             reduction += 80 * (ttMove && board->isCapture(ttMove));
 
             if (stack->ttPv) {
@@ -1227,6 +1231,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     updatePv(stack, move);
 
                 if (bestValue >= beta) {
+                    stack->cutoffCount++;
 
                     int historyUpdateDepth = depth / 100 + (eval <= alpha) + (value - historyDepthBetaOffset > beta);
 
@@ -1436,6 +1441,7 @@ void Worker::iterativeDeepening() {
                 stackList[i].reduction = 0;
                 stackList[i].inLMR = false;
                 stackList[i].ttPv = false;
+                stackList[i].cutoffCount = 0;
             }
 
             searchData.rootDepth = depth;
@@ -1673,6 +1679,7 @@ void Worker::tdatagen() {
             stackList[i].reduction = 0;
             stackList[i].inLMR = false;
             stackList[i].ttPv = false;
+            stackList[i].cutoffCount = 0;
         }
 
         searchData.rootDepth = depth;

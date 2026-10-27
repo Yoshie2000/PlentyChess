@@ -287,6 +287,7 @@ struct SearchStack {
     int correctionValue;
     Depth reduction;
     bool inLMR, ttPv;
+    int cutoffCount;
 
     Move excludedMove;
     Move killer;
