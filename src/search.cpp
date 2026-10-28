@@ -1119,13 +1119,14 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (capture) {
                 Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
                 reduction += 19 - PIECE_VALUES[capturedPiece] * 12 / 100;
-                reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
 
                 if (importantCapture) {
                     reduction += lmrImportantBadCaptureOffset * (movegen.stage == STAGE_PLAY_BAD_CAPTURES);
                     int factor = std::clamp(150 - 10 * depth / 100, 29, 100);
                     reduction = factor * reduction / 100;
                 }
+
+                reduction -= moveHistory * std::abs(moveHistory) / lmrCaptureHistoryDivisor(importantCapture);
             }
             else {
                 reduction -= 100 * moveHistory / lmrQuietHistoryDivisor;
