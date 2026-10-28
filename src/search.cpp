@@ -1111,10 +1111,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
             reduction += 80 * (ttMove && board->isCapture(ttMove));
 
-            if (stack->ttPv) {
+            if (stack->ttPv)
                 reduction -= lmrTtPv(importantCapture);
-                reduction += lmrTtpvFaillow(importantCapture) * (ttHit && ttValue <= alpha);
-            }
 
             if (capture) {
                 Piece capturedPiece = move.isEnpassant() ? Piece::PAWN : board->pieces[move.target()];
@@ -1133,6 +1131,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 reduction -= lmrQuietPvNodeOffset * pvNode;
                 reduction -= lmrQuietImproving * improving;
             }
+
+            if (stack->ttPv && ttHit && ttValue <= alpha)
+                reduction += lmrTtpvFaillow(importantCapture);
 
             Depth reducedDepth = std::clamp(newDepth - reduction, 100, newDepth + lmrPotentialExtension) + lmrPvNodeExtension * pvNode;
             stack->reduction = reduction;
