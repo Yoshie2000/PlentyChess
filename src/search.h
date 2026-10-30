@@ -20,6 +20,8 @@ void initReductions();
 
 uint64_t perft(Board& board, Depth depth);
 
+Move probeRootTablebases(Board& board);
+
 struct SearchParameters {
     bool perft; // Perft (requires depth)
     bool genfens; // Are we running a genfens search

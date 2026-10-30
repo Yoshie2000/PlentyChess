@@ -262,6 +262,7 @@ public:
     SearchParameters searchParameters;
     Board rootBoard;
     std::vector<Hash> rootBoardHistory;
+    Move rootTbMove = Move::none();
 
     std::atomic<size_t> startedThreads;
 
@@ -386,6 +387,8 @@ public:
         rootBoard = std::move(board);
         rootBoardHistory = std::move(boardHistory);
         searchParameters = std::move(parameters);
+
+        rootTbMove = searchParameters.searchmoves.empty() ? probeRootTablebases(rootBoard) : Move::none();
 
         for (auto& worker : workers) {
             worker.get()->rootMoves.clear();

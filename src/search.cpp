@@ -680,7 +680,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         return ttValue;
 
     // TB Probe
-    if (!rootNode && !excluded && BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
+    if (!rootNode && !excluded && !threadPool->rootTbMove && BB::popcount(board->byColor[Color::WHITE] | board->byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
         unsigned result = tb_probe_wdl(
             board->byColor[Color::WHITE],
             board->byColor[Color::BLACK],
@@ -1314,33 +1314,34 @@ Move tbProbeMoveRoot(unsigned result) {
     return Move::makeNormal(origin, target);
 }
 
+Move probeRootTablebases(Board& board) {
+    if (BB::popcount(board.byColor[Color::WHITE] | board.byColor[Color::BLACK]) > std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value))
+        return Move::none();
+
+    unsigned result = tb_probe_root(
+        board.byColor[Color::WHITE],
+        board.byColor[Color::BLACK],
+        board.byPiece[Piece::KING],
+        board.byPiece[Piece::QUEEN],
+        board.byPiece[Piece::ROOK],
+        board.byPiece[Piece::BISHOP],
+        board.byPiece[Piece::KNIGHT],
+        board.byPiece[Piece::PAWN],
+        board.rule50_ply,
+        board.castling,
+        board.enpassantTarget ? lsb(board.enpassantTarget) : 0,
+        board.stm == Color::WHITE,
+        nullptr
+    );
+
+    return result != TB_RESULT_FAILED ? tbProbeMoveRoot(result) : Move::none();
+}
+
 void Worker::tsearch() {
     if (TUNE_ENABLED)
         initReductions();
 
     nnue.reset(&rootBoard);
-
-    Move bestTbMove = Move::none();
-    if (mainThread && searchParameters.searchmoves.empty() && BB::popcount(rootBoard.byColor[Color::WHITE] | rootBoard.byColor[Color::BLACK]) <= std::min(int(TB_LARGEST), UCI::Options.syzygyProbeLimit.value)) {
-        unsigned result = tb_probe_root(
-            rootBoard.byColor[Color::WHITE],
-            rootBoard.byColor[Color::BLACK],
-            rootBoard.byPiece[Piece::KING],
-            rootBoard.byPiece[Piece::QUEEN],
-            rootBoard.byPiece[Piece::ROOK],
-            rootBoard.byPiece[Piece::BISHOP],
-            rootBoard.byPiece[Piece::KNIGHT],
-            rootBoard.byPiece[Piece::PAWN],
-            rootBoard.rule50_ply,
-            rootBoard.castling,
-            rootBoard.enpassantTarget ? lsb(rootBoard.enpassantTarget) : 0,
-            rootBoard.stm == Color::WHITE,
-            nullptr
-        );
-
-        if (result != TB_RESULT_FAILED)
-            bestTbMove = tbProbeMoveRoot(result);
-    }
 
     searchData.nodesSearched.store(0, std::memory_order_relaxed);
     searchData.tbHits = 0;
@@ -1361,7 +1362,7 @@ void Worker::tsearch() {
         }
 
         if (!UCI::Options.ponder.value || bestThread->rootMoves[0].pv.size() < 2) {
-            Move bestMove = bestTbMove && std::abs(bestThread->rootMoves[0].value) < EVAL_MATE_IN_MAX_PLY ? bestTbMove : bestThread->rootMoves[0].move;
+            Move bestMove = threadPool->rootTbMove && std::abs(bestThread->rootMoves[0].value) < EVAL_MATE_IN_MAX_PLY ? threadPool->rootTbMove : bestThread->rootMoves[0].move;
             std::cout << "bestmove " << bestMove.toString(UCI::Options.chess960.value) << std::endl;
         }
         else {
