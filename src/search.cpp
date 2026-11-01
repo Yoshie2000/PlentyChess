@@ -1040,7 +1040,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
                 extension += 100 * std::clamp(singularMargin, 0, doubleExtensionMargin) / doubleExtensionMargin;
 
-                if (!board->isCapture(move) || pvNode)
+                if (!board->isCapture(move))
                     extension += 100 * std::clamp(singularMargin - doubleExtensionMargin, 0, tripleExtensionMargin - doubleExtensionMargin) / (tripleExtensionMargin - doubleExtensionMargin);
 
                 if (!pvNode && singularMargin > doubleExtensionMargin)
