@@ -1044,7 +1044,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                     extension += 100 * std::clamp(singularMargin - doubleExtensionMargin, 0, tripleExtensionMargin - doubleExtensionMargin) / (tripleExtensionMargin - doubleExtensionMargin);
 
                 if (!pvNode && singularMargin > doubleExtensionMargin)
-                    depth += doubleExtensionDepthIncreaseFactor * (depth < doubleExtensionDepthIncrease);
+                    depth += doubleExtensionDepthIncreaseFactor;
 
             }
             // Multicut: If we beat beta, that means there's likely more moves that beat beta and we can skip this node
