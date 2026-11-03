@@ -858,6 +858,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
     }
 
     // ProbCut
+    ProbcutRefutationList refutedByProbcut;
     probCutBeta = std::min(beta + probCutBetaOffset, EVAL_TBWIN_IN_MAX_PLY - 1);
     if (!pvNode
         && !board->checkers
@@ -904,6 +905,8 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
                 value = std::min<Eval>(value, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(fmrHash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
                 return value;
+            } else if (value < beta && refutedByProbcut.size() < refutedByProbcut.capacity()) {
+                refutedByProbcut.add(move);
             }
         }
 
@@ -920,6 +923,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
     // Moves loop
     MoveGen& movegen = *new (&movepickers[stack->ply][excluded]) MoveGen(board, &history, stack, ttMove, depth / 100);
+    movegen.refutedByProbcut = &refutedByProbcut;
     Move move;
     int moveCount = 0;
     while ((move = movegen.nextMove())) {

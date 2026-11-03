@@ -227,17 +227,17 @@ void generateMoves(Board* board, MoveList& moves, bool onlyCaptures) {
 }
 
 // Main search
-MoveGen::MoveGen(Board* _board, History* _history, SearchStack* _searchStack, Move _ttMove, Depth _depth) : board(_board), history(_history), searchStack(_searchStack), ttMove(_ttMove), onlyCaptures(false), killer(searchStack->killer), returnedMoves(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(_depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
+MoveGen::MoveGen(Board* _board, History* _history, SearchStack* _searchStack, Move _ttMove, Depth _depth) : board(_board), history(_history), searchStack(_searchStack), refutedByProbcut(nullptr), ttMove(_ttMove), onlyCaptures(false), killer(searchStack->killer), returnedMoves(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(_depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
     counterMove = searchStack->ply > 0 ? history->getCounterMove((searchStack - 1)->move) : Move::none();
 }
 
 // qSearch
-MoveGen::MoveGen(Board* _board, History* _history, SearchStack* _searchStack, Move _ttMove, bool _onlyCaptures, Depth _depth) : board(_board), history(_history), searchStack(_searchStack), ttMove(_ttMove), onlyCaptures(_onlyCaptures), killer(Move::none()), returnedMoves(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(_depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
+MoveGen::MoveGen(Board* _board, History* _history, SearchStack* _searchStack, Move _ttMove, bool _onlyCaptures, Depth _depth) : board(_board), history(_history), searchStack(_searchStack), refutedByProbcut(nullptr), ttMove(_ttMove), onlyCaptures(_onlyCaptures), killer(Move::none()), returnedMoves(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(_depth), probCut(false), probCutThreshold(0), skipQuiets(false) {
     counterMove = onlyCaptures || searchStack->ply == 0 ? Move::none() : history->getCounterMove((searchStack - 1)->move);
 }
 
 // ProbCut
-MoveGen::MoveGen(Board* _board, History* _history, SearchStack* _searchStack, Move _ttMove, int _probCutThreshold, Depth _depth) : board(_board), history(_history), searchStack(_searchStack), ttMove(_ttMove), onlyCaptures(true), killer(Move::none()), returnedMoves(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(_depth), probCut(true), probCutThreshold(_probCutThreshold), skipQuiets(false) {
+MoveGen::MoveGen(Board* _board, History* _history, SearchStack* _searchStack, Move _ttMove, int _probCutThreshold, Depth _depth) : board(_board), history(_history), searchStack(_searchStack), refutedByProbcut(nullptr), ttMove(_ttMove), onlyCaptures(true), killer(Move::none()), returnedMoves(0), returnedBadCaptures(0), stage(STAGE_TTMOVE), depth(_depth), probCut(true), probCutThreshold(_probCutThreshold), skipQuiets(false) {
     counterMove = Move::none();
 }
 
@@ -287,7 +287,17 @@ Move MoveGen::nextMove() {
             Move move = moveList[returnedMoves];
             int score = moveListScores[returnedMoves++];
 
-            bool goodCapture = probCut ? SEE(board, move, probCutThreshold) : SEE(board, move, -score / mpSeeDivisor);
+            bool goodCapture;
+            if (probCut) {
+                goodCapture = SEE(board, move, probCutThreshold);
+            } else {
+                goodCapture = SEE(board, move, -score / mpSeeDivisor);
+                
+                if (goodCapture && refutedByProbcut && std::find(refutedByProbcut->begin(), refutedByProbcut->end(), move) != refutedByProbcut->end()) {
+                    goodCapture = false;
+                }
+            }
+
             if (!goodCapture) {
                 badCaptureList.add(move);
                 continue;
