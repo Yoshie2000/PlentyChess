@@ -903,6 +903,10 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
             if (value >= probCutBeta) {
                 value = std::min<Eval>(value, EVAL_TBWIN_IN_MAX_PLY - 1);
                 ttEntry->update(fmrHash, move, depth - probcutReduction, unadjustedEval, valueToTT(value, stack->ply), board->rule50_ply, stack->ttPv, TT_LOWERBOUND);
+                
+                SearchedMoveList noCaptures;
+                history.updateCaptureHistory((depth - probcutReduction) / 100, board, move, 1, noCaptures);
+                
                 return value;
             }
         }
