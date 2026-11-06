@@ -1094,7 +1094,7 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         int newDepth = depth - 100 + extension;
         int8_t moveSearchCount = 0;
 
-        if (cutNode && depth >= 600 && move != ttMove)
+        if (!pvNode && depth >= 600 && move != ttMove)
             newDepth -= 5;
 
         if (importantCapture)
