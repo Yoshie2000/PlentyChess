@@ -1099,6 +1099,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
 
         if (importantCapture)
             newDepth += 5;
+        
+        if (movegen.stage == MoveGenStage::STAGE_PLAY_BAD_CAPTURES)
+            newDepth -= 5;
 
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
