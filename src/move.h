@@ -9,6 +9,7 @@ struct Board;
 class History;
 
 using MoveList = ArrayVec<Move, MAX_MOVES>;
+using ProbcutRefutationList = ArrayVec<Move, 16>;
 
 void generateMoves(Board* board, MoveList& moves, bool onlyCaptures = false);
 
@@ -39,6 +40,7 @@ public:
     Board* board;
     History* history;
     SearchStack* searchStack;
+    ProbcutRefutationList* refutedByProbcut;
     Move ttMove, counterMove;
     bool onlyCaptures;
     Move killer;
