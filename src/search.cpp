@@ -1100,6 +1100,9 @@ Eval Worker::search(Board* board, SearchStack* stack, Depth depth, Eval alpha, E
         if (importantCapture)
             newDepth += 5;
 
+        if (capture && (stack - 1)->capture && move.target() == (stack - 1)->move.target())
+            newDepth += 5;
+
         // Very basic LMR: Late moves are being searched with less depth
         // Check if the move can exceed alpha
         if (moveCount > lmrMcBase + lmrMcPv * rootNode - static_cast<bool>(ttMove) && depth >= lmrMinDepth) {
