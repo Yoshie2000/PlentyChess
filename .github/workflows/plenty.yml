@@ -23,7 +23,7 @@ jobs:
             makefile_arch: arm64
             makefile_target: profile-build
 
-          - os: macos-14
+          - os: macos-15
             binary_name: macos-neon
             makefile_arch: arm64
             makefile_target: profile-build

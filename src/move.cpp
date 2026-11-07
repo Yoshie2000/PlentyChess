@@ -492,8 +492,10 @@ Move stringToMove(const char* string, Board* board) {
         // Figure out whether this is en passent or castling and set the flags accordingly
         if (board->chess960 && board->pieces[origin] == Piece::KING && board->pieces[target] == Piece::ROOK && !(bitboard(target) & board->byColor[1 - board->stm]))
             move = Move::makeCastling(origin, target);
-        else if (!board->chess960 && board->pieces[origin] == Piece::KING && std::abs(target - origin) == 2)
-            move = Move::makeCastling(origin, target);
+        else if (!board->chess960 && board->pieces[origin] == Piece::KING && std::abs(target - origin) == 2) {
+            Square rookOrigin = board->getCastlingRookSquare(board->stm, Castling::getDirection(origin, target));
+            move = Move::makeCastling(origin, rookOrigin != NO_SQUARE ? rookOrigin : target);
+        }
         else if (board->pieces[origin] == Piece::PAWN && board->pieces[target] == Piece::NONE && (std::abs(target - origin) == 7 || std::abs(target - origin) == 9))
             move = Move::makeEnpassant(origin, target);
         else
