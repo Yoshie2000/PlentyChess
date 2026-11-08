@@ -33,6 +33,7 @@ inline bool shouldConfigureNuma(int numThreads) {
     
     return true;
 #else
+    (void) numThreads;
     return false;
 #endif
 }
@@ -124,6 +125,7 @@ inline int getNumaNode(int threadId, int numThreads) {
     std::exit(1);
 #else
     (void) threadId;
+    (void) numThreads;
     return 0;
 #endif
 }
@@ -160,6 +162,7 @@ inline void configureThreadBinding(int threadId, int numThreads) {
 
 #endif
     (void) threadId;
+    (void) numThreads;
 }
 
 inline void configureThreadBinding(int numaNode) {
